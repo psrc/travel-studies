@@ -1,16 +1,28 @@
 # 2014 Survey Estimation Tools
 
 ## Notebooks
-This directory contains notebooks for analyzing and comparing expanded survey results.
-These notebooks are designed to analyze **expanded** survey results (one record for each person in the region).
-It is expected that the weights will be applied through creating a synethic population based on sample weights.
-Scripts are provided to convert samples (with weight fields) into synthetic expanded files, in both CSV and h5 formats.
-The notebooks expect data in h5 formats, which should also match Soundcast's Daysim output format. 
-When survey results are expanded to h5 format, it provides a consistent comparison format between 2006 and 2014 surveys,
-and Daysim model results. 
+This directory contains notebooks and scripts for converting and expanding Daysim-formatted survey records. This is required so survey records can be prepared and compared for estimation, calibration, and validation (all of the -ations!). The workflow for producing Daysim-formatted survey files is as follows:
+
+   - Convert survey records into DaySim format. RSG has traditionally done this,
+   returning a space-delimited .dat file for persons, households, trips, etc.
+   - These records are usually missing skim for travel time, distance, and cost.
+   We must attach these, using a base run. For 2014, we do not quite have a full
+   base network and population, as of January 2016, so we'll be running the latest
+   2010 run to start. Before estimation we need to get 2014 inputs to create 2014 skims. 
+   Use the "attach_skim_values.py" script to produce a csv of skim values for each trip and join that to the survey .dat files.
+   - Write out the dat files joined with skim values to a new directory.
+   - Run the csv_to_h5 script on those files to produce a nicely-formatted h5 file that matches daysim outputs. 
+
+In addition to this workflow, we also developed scripts to "expand" survey records. This process basically copies survey records
+according to the size of the expansion factor to create a synthetic "full size" version of survey records. It turns out that processing 
+this many records for comparisons is highly memory intensive, so these scripts probably won't be used much. They do contain some useful code snippets.
 
 ## Scripts
-Four scripts are contained in this directory. 
+Five scripts are contained in this directory. 
+
+- attach_skim_values.py
+	- extracts skim values based on survey record information of origin and destinatino taz, as well as mode and vot (income) classes.
+	This is required to attach modeled skim values to survey records for model estimation (see description above.)
 
 - expand_survey.py
 	- converts survey sample records into full-length expanded records. Inputs are expected in 
