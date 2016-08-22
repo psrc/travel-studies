@@ -1,0 +1,208 @@
+---
+title: "carshare"
+author: "weiran"
+date: "April 12, 2016"
+output: html_document
+---
+
+
+
+```{r,message=FALSE,echo=FALSE}
+setwd("C:\\Users\\weiran\\Documents\\HHSurvey\\surveydat")
+
+library(dplyr)
+library(knitr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+
+person14<- read.csv("Copy of 2014-pr3-M-hhsurvey-persons.csv")
+person15<- read.csv("Copy of 2015-pr1-M-hhsurvey-person.csv")
+
+trip14<- read.csv("2014-pr3-M-hhsurvey-trips-LINKED.csv")
+trip15<- read.csv("2015-pr1-M-hhsurvey-trips-LINKED.csv")
+
+hh15<- read.csv("2015-pr1-M-hhsurvey-household.csv")
+
+
+#careshare 14
+
+infor14<- person14%>%
+  group_by(info_carshare)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_final))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+
+apps14<- person14%>%
+  group_by(apps_carshare)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_final))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+  
+carshare14<-cbind(infor14[,-3],apps14[,-3])
+rownames(carshare14) <- c("Wrong","Not selected","Selected","Missing")
+carshare14
+```
+
+
+```{r,message=FALSE,echo=FALSE}
+
+#carshare 15
+
+car2go<- person15%>%
+  group_by(carshare_car2go)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+
+zipcar<-  person15%>%
+  group_by(carshare_zipcar)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+
+relayrides<- person15%>%
+  group_by(carshare_relayrides)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+
+other <- person15%>%
+  group_by(carshare_other)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+dontknow<- person15%>%
+  group_by(carshare_dontknow)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+none<-person15%>%
+  group_by(carshare_none)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+
+carshare15<-cbind(car2go[,-3],relayrides[,-3],zipcar[,-3],none[,-3],dontknow[,-3],other[,-3])
+rownames(carshare15) <- c("Not selected","Selected","Missing")
+carshare15
+
+av_interest_carshare<- person15%>%
+  group_by(av_interest_carshare)%>%
+  summarise(Freq = n(),Freqw = sum(expwt_h1415))%>%
+  mutate(Percent =percent(round(Freq/sum(Freq),digit=3)),Percent_w = percent(round(Freqw/sum(Freqw),digit=3)))
+rownames(av_interest_carshare)<-c("Very interested",
+                                   "Somewhat interested",
+                                   "Neutral",
+                                   "Somewhat uninterested",
+                                   "Not at all interested",
+                                   "Don't know","NA")
+
+av_interest_carshare
+
+#---freq15----------------
+freq_car2go<- summarise(group_by(person15,share_freq_car2go),Freq = n(),Percent =round(Freq/4786,digit=3))
+freq_relayrides<- summarise(group_by(person15,share_freq_relayrides),Freq = n(),Percent =round(Freq/4786,digit=3))
+freq_zipcar<- summarise(group_by(person15,share_freq_zipcar),Freq = n(),Percent =round(Freq/4786,digit=3))
+freq_othercar<- summarise(group_by(person15,share_freq_othercar),Freq = n(),Percent =round(Freq/4786,digit=3))
+freq_lyft<- summarise(group_by(person15,share_freq_lyft),Freq = n(),Percent =round(Freq/4786,digit=3))
+freq_sidecar<- summarise(group_by(person15,share_freq_sidecar),Freq = n(),Percent =round(Freq/4786,digit=3))
+freq_uberx<- summarise(group_by(person15,share_freq_uberx),Freq = n(),Percent =round(Freq/4786,digit=3))
+
+
+# freq_carshare <- merge(freq_car2go,freq_relayrides,
+#                        by.x ="share_freq_car2go",by.y = "share_freq_relayrides" ,all = T)
+
+freq <-list(freq_car2go,freq_relayrides,freq_zipcar,
+            freq_othercar,freq_lyft,freq_sidecar,freq_uberx)
+
+
+v_type14 <- trip14 %>%
+  mutate(vehicle = ifelse(vehicle %in% c(1:10),"Household vehicle ",
+                          ifelse(vehicle == 97,"carshare",
+                                 ifelse(vehicle == 98,"vanpool","other"))))%>%
+  group_by(vehicle)%>%
+  summarise(freq14w = sum(expwt_final),freq14 = n())  #summarise(freq14 = n()) 
+
+v_type15 <- trip15 %>%
+  mutate(vehicle = ifelse(vehicle %in% c(1:10),"Household vehicle ",
+                          ifelse(vehicle == 97,"carshare",
+                                 ifelse(vehicle == 98,"vanpool","other"))))%>%
+  group_by(vehicle)%>%
+  summarise(freq15w = sum(expwt_h1415),freq15 = n())
+
+v_type <- merge(v_type14,v_type15,by = "vehicle")
+v_type[,-c(2,4)]
+
+
+panel <- select(hh15,hhid, sampletype)
+v_type14_p <- trip14 %>%
+  left_join(panel,by = 'hhid')%>%
+  filter(sampletype ==2)%>%
+  mutate(vehicle_n = ifelse(vehicle %in% c(1:10),"Household vehicle ",
+                          ifelse(vehicle == 97,"carshare",
+                                 ifelse(vehicle == 98,"vanpool","other"))))%>%
+  group_by(vehicle_n)%>%
+  summarise(freq14w = sum(expwt_final),freq14 = n())  #summarise(freq14 = n()) 
+
+v_type15_p <- trip15 %>%
+  left_join(panel,by = 'hhid')%>%
+  filter(sampletype ==2)%>%
+  mutate(vehicle_n = ifelse(vehicle %in% c(1:10),"Household vehicle ",
+                            ifelse(vehicle == 97,"carshare",
+                                   ifelse(vehicle == 98,"vanpool","other"))))%>%
+  group_by(vehicle_n)%>%
+  summarise(freq15w = sum(expwt_h1415),freq15 = n())
+
+v_type_p <- merge(v_type14_p,v_type15_p,by = "vehicle_n")
+v_type_p[,-c(2,4)]
+
+
+share14<-trip14 %>%
+  left_join(panel,by = 'hhid')%>%
+  filter(sampletype ==2 & vehicle == 97)%>%
+  select(vehicle,hhid,personID)%>%
+  group_by(hhid)%>%
+  summarise(n14=n())
+
+share15<-trip15 %>%
+  left_join(panel,by = 'hhid')%>%
+  filter(sampletype ==2 & vehicle == 97)%>%
+  select(vehicle,hhid,personID)%>%
+  group_by(hhid)%>%
+  summarise(n15=n())
+  
+carshare_panel<-full_join(share14,share15,by = 'hhid')
+
+a<-person15%>%
+  filter(carshare_none==0)%>%
+  left_join(panel,by = 'hhid')%>%
+  filter(sampletype ==2)%>%
+  select(personid,carshare_car2go,carshare_relayrides,carshare_zipcar,carshare_other)
+
+b<-person14%>%  
+  left_join(panel,by = 'hhid')%>%
+  filter(sampletype ==2)%>%
+  select(personid,info_carshare,apps_carshare)
+c<-left_join(a,b,by ='personid')
+
+apply(filter(c,apps_carshare==0),2,sum)
+```
+
+
+```{r kable,echo=FALSE}
+
+kable(carshare14,caption = "carshare in 2014")
+kable(carshare15[,c(1:12)])
+kable(carshare15[,c(13:24)])
+kable(av_interest_carshare)
+kable(v_type[,-c(2,4)])
+kable(v_type_p[,-c(2,4)])
+kable(carshare_panel)
+kable(freq[1])
+kable(freq[2])
+kable(freq[3])
+kable(freq[4])
+kable(freq[5])
+kable(freq[6])
+kable(freq[7])
+# kable(increase)
+
+```
+
+You can also embed plots, for example:
+
+
+
