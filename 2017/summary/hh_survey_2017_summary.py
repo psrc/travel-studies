@@ -1,7 +1,7 @@
 import pandas as pd
 import math
 import matplotlib.pyplot as plt
-import hh_survey_config
+#import hh_survey_config
 
 def merge_hh_person_trip(hh, person,trip):
     hh_person =pd.merge(hh, person, on= 'hhid', suffixes=['', 'person'], how ='right')
@@ -11,6 +11,30 @@ def merge_hh_person_trip(hh, person,trip):
 def merge_hh_person(hh, person):
     hh_person =pd.merge(hh, person, on= 'hhid', suffixes=['', 'person'], how ='right')
     return hh_person
+
+def code_race(person):
+   
+    person['race_category'] ='Children or missing'
+    person['race_category'][(person['race_noanswer']==1.0) | (person['race_other']==1.0)|(person['race_aiak']==1.0)| (person['race_hapi']==1.0)] ='Preferred not to answer or other'
+    person['race_category'][(person['race_hisp'] ==1.0)] = 'Hispanic, including Multiracial, non-African American'
+    person['race_category'][(person['race_afam']==1.0)]='African American, including Multiracial and Hispanic'
+    person['race_category'][(person['race_afam']!=1.0) & (person['race_aiak'] !=1.0) &
+                            (person['race_asian'] ==1.0) & (person['race_hapi'] !=1.0) &
+                            (person['race_hisp'] !=1.0) &(person['race_white'] !=1.0)&
+                            (person['race_other'] !=1.0)]= 'Asian Only'
+    person['race_category'][(person['race_afam']!=1.0) & (person['race_aiak'] !=1.0) &
+                            (person['race_asian'] !=1.0) & (person['race_hapi'] !=1.0) &
+                            (person['race_hisp'] !=1.0) &(person['race_white'] ==1.0)&
+                            (person['race_other'] !=1.0)]='White Only'
+    
+    return person
+
+def code_sov(trip):
+    trip['Main Mode'] = trip['Mode Simple']
+    trip['Main Mode'][(trip['Mode Simple'] =='Drive')] = 'SOV'
+    trip['Main Mode'][(trip['Mode Simple'] =='Drive')&(trip['travelers_total'] >1)]='HOV'
+ 
+    return trip
 
 def lookup_names(df, names):
     for col in df:
@@ -27,17 +51,30 @@ def prep_data(df, codebook):
     return df_w_names 
 
 #create_cross_tab_with_weights
-def cross_tab(table, var1, var2, wt_field):
-    raw = table.groupby([var1, var2]).count()[wt_field].reset_index()
-    raw.columns = [var1, var2, 'sample_count']
-    expanded = table.groupby([var1, var2]).sum()[wt_field].reset_index()
-    expanded_tot = table.groupby(var1).sum()[wt_field].reset_index()
-    expanded.columns = [var1, var2, 'estimate']
-    expanded = pd.merge(expanded, expanded_tot, on = var1)
-    expanded['share']= expanded['estimate']/expanded[wt_field]
-    crosstab = pd.merge(raw, expanded, on =[var1, var2])
+def cross_tab(table, var1, var2, wt_field, type):
+        if type == 'total':
+            raw = table.groupby([var1, var2]).count()[wt_field].reset_index()
+            raw.columns = [var1, var2, 'sample_count']
+            expanded = table.groupby([var1, var2]).sum()[wt_field].reset_index()
+            expanded_tot = expanded.groupby(var1).sum()[wt_field].reset_index()
+            expanded.columns = [var1, var2, 'estimate']
+            expanded = pd.merge(expanded, expanded_tot, on = var1)
+            expanded['share']= expanded['estimate']/expanded[wt_field]
+            crosstab = pd.merge(raw, expanded, on =[var1, var2])
+        if type == 'mean':
+            table [var2] = pd.to_numeric(table[var2], errors=coerce)
+            table = table.dropna(subset=[var2])
+            table = table[(table[var2] !=0)]
+            table = table[(table[var2] < 100)]
+            table['weighted_total'] = table[wt_field]*table[var2]
+            expanded = table.groupby([var1]).sum()['weighted_total'].reset_index()
+            expanded_tot = table.groupby([var1]).sum()[wt_field].reset_index()
+            #expanded.columns = [var1, var2, 'we']
+            expanded = pd.merge(expanded, expanded_tot, on = var1)
+            expanded['mean']= expanded['weighted_total']/expanded[wt_field]
+            crosstab = expanded
 
-    return crosstab
+        return crosstab
 
 
 
@@ -91,6 +128,7 @@ if __name__ == "__main__":
 
     print 'prepping data codes'
     hh_df = prep_data(hh, codebook_hh)
+    person =code_race(person)
     person_df = prep_data(person, codebook_person)
     trip_df = prep_data (trip, codebook_trip)
 
@@ -101,18 +139,18 @@ if __name__ == "__main__":
 
     trip_detail = pd.merge(trip_detail, purpose_lookup, how= 'left', on = 'Destination purpose')
     trip_detail = pd.merge(trip_detail, mode_lookup, how ='left', on = 'Primary Mode')
-
+    trip_detail = code_sov(trip_detail)
     #hh_df.to_csv(r'C:\travel-studies\2017\summary\household_2017.csv')
     #person_df.to_csv(r'C:\travel-studies\2017\summary\person_2017.csv', encoding = 'utf-8')
     #trip_detail.to_csv(r'C:\travel-studies\2017\summary\trip_2017.csv', encoding = 'utf-8')
 
     print 'doing summaries'
-    #How do travel patterns differ by gender?
     for col  in compare_person:
           print col
-          cross = cross_tab(person_detail, analysis_variable,col ,  'hh_wt_revised')
+          cross = cross_tab(person_detail, analysis_variable,col ,  'hh_wt_revised', 'total')
           sm_df = cross[[analysis_variable, col, 'share']]
           sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
+          cross= cross.pivot(index=col, columns = analysis_variable)
           ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
           fig =ax.get_figure()
           col = col.replace('/', '_')
@@ -122,14 +160,20 @@ if __name__ == "__main__":
 
     for col  in compare_trip:
               print col
-              cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised')
+              cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'total')
               sm_df = cross[[analysis_variable, col, 'share']]
               sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
+              cross= cross.pivot(index=col, columns = analysis_variable)
               ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
               fig =ax.get_figure()
               col = col.replace('/', '_')
               col = col[-8:]
               fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
+              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
+
+    for col  in trip_means:
+              print col
+              cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'mean')
               cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
 
     
