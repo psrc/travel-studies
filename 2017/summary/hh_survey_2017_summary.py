@@ -1,6 +1,7 @@
 import pandas as pd
 import math
 import matplotlib.pyplot as plt
+import numpy as np
 #import hh_survey_config
 
 def merge_hh_person_trip(hh, person,trip):
@@ -15,9 +16,9 @@ def merge_hh_person(hh, person):
 def code_race(person):
    
     person['race_category'] ='Children or missing'
-    person['race_category'][(person['race_noanswer']==1.0) | (person['race_other']==1.0)|(person['race_aiak']==1.0)| (person['race_hapi']==1.0)] ='Preferred not to answer or other'
-    person['race_category'][(person['race_hisp'] ==1.0)] = 'Hispanic, including Multiracial, non-African American'
-    person['race_category'][(person['race_afam']==1.0)]='African American, including Multiracial and Hispanic'
+    person['race_category'][(person['race_noanswer']==1.0) | (person['race_other']==1.0)|(person['race_aiak']==1.0)| (person['race_hapi']==1.0)] ='African-American, Hispanic, Multiracial, and Other'
+    person['race_category'][(person['race_hisp'] ==1.0)] = 'African-American, Hispanic, Multiracial, and Other'
+    person['race_category'][(person['race_afam']==1.0)]='African-American, Hispanic, Multiracial, and Other'
     person['race_category'][(person['race_afam']!=1.0) & (person['race_aiak'] !=1.0) &
                             (person['race_asian'] ==1.0) & (person['race_hapi'] !=1.0) &
                             (person['race_hisp'] !=1.0) &(person['race_white'] !=1.0)&
@@ -33,6 +34,11 @@ def code_sov(trip):
     trip['Main Mode'] = trip['Mode Simple']
     trip['Main Mode'][(trip['Mode Simple'] =='Drive')] = 'SOV'
     trip['Main Mode'][(trip['Mode Simple'] =='Drive')&(trip['travelers_total'] >1)]='HOV'
+ 
+    return trip
+
+#def code_age(trip):
+#    trip['age_category'] = [(person['Age']== 'Under 5 years old') | (person['race_other']==1.0)|(person['race_aiak']==1.0)| (person['race_hapi']==1.0)] ='Preferred not to answer or other'
  
     return trip
 
@@ -53,14 +59,25 @@ def prep_data(df, codebook):
 #create_cross_tab_with_weights
 def cross_tab(table, var1, var2, wt_field, type):
         if type == 'total':
+            print var1
+            print var2
             raw = table.groupby([var1, var2]).count()[wt_field].reset_index()
             raw.columns = [var1, var2, 'sample_count']
+            
+            # this isn't working
+            N_hh = table.groupby([var1])['hhid'].nunique().reset_index()
+            
             expanded = table.groupby([var1, var2]).sum()[wt_field].reset_index()
             expanded_tot = expanded.groupby(var1).sum()[wt_field].reset_index()
             expanded.columns = [var1, var2, 'estimate']
             expanded = pd.merge(expanded, expanded_tot, on = var1)
+            print expanded.head()
             expanded['share']= expanded['estimate']/expanded[wt_field]
-            crosstab = pd.merge(raw, expanded, on =[var1, var2])
+            expanded = pd.merge(expanded,N_hh, on = var1).reset_index()
+            print expanded.head()
+            expanded['in'] = (expanded['share']*(1-expanded['share']))/expanded['hhid']
+            expanded['MOE'] = z*np.sqrt(expanded['in'])
+            crosstab = pd.merge(raw, expanded, on =[var1, var2]).reset_index()
         if type == 'mean':
             table [var2] = pd.to_numeric(table[var2], errors=coerce)
             table = table.dropna(subset=[var2])
@@ -163,7 +180,7 @@ if __name__ == "__main__":
               cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'total')
               sm_df = cross[[analysis_variable, col, 'share']]
               sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
-              cross= cross.pivot(index=col, columns = analysis_variable)
+              cross= cross.pivot_table(index=col, columns = [analysis_variable])
               ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
               fig =ax.get_figure()
               col = col.replace('/', '_')
