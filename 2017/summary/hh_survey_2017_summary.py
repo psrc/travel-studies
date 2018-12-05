@@ -2,7 +2,7 @@ import pandas as pd
 import math
 import matplotlib.pyplot as plt
 import numpy as np
-#import hh_survey_config
+import hh_survey_config
 
 def merge_hh_person_trip(hh, person,trip):
     hh_person =pd.merge(hh, person, on= 'hhid', suffixes=['', 'person'], how ='right')
