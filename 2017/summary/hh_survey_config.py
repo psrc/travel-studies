@@ -12,14 +12,14 @@ codebook_person_name = '2-PERSON'
 codebook_vehicle_name = '3-VEHICLE'
 codebook_day_name = '4-DAY'
 codebook_trip_name = '5-TRIP'
-mode_lookup_f = 'C:/travel-studies/2017/summary/transit_simple.xlsx'
+mode_lookup_f = 'C:/travel-studies/2017/summary/transit_simplest.xlsx'
 purpose_lookup_f = 'C:/travel-studies/2017/summary/destination_simple.xlsx'
 output_file_loc = 'C:/travel-studies/2017/summary/output'
 
-analysis_variable = 'race_category'
-analysis_variable_name = 'race'
-compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belongs to carshare program', 
-                      'Off-street parking spaces at residence',
+analysis_variable = 'dest_purpose_simple'
+analysis_variable_name = 'purpose'
+compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belongs to carshare program',
+                   'license','Off-street parking spaces at residence',
                       'How important when chose current home: Being within a 30-minute commute to work',
                       'How important when chose current home: Affordability',
                       'How important when chose current home: Being close to family or friends',
@@ -57,7 +57,7 @@ compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belo
                       'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: Shared roadway lane',
                       'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: End of trip ammenities']
 
-compare_trip=  ['Destination purpose','dest_purpose_simple', 'Primary Mode', 'Auto trip, non-taxi: Park cost at end of trip', 
+compare_trip=  ['Primary Mode', 'Auto trip, non-taxi: Park cost at end of trip', 
                 'Used toll on trip: toll fare','Approximate taxi trip fare',
                 'travelers_hh', 'travelers_nonhh', 'travelers_total', 'driver', 'Transit trip: Travel mode from transit',
                 'Transit trip: Travel mode to transit', 'Auto trip, non-taxi: Park location at end of trip',
