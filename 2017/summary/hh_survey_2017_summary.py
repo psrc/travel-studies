@@ -75,10 +75,10 @@ def cross_tab(table, var1, var2, wt_field, type):
             expanded = pd.merge(expanded,N_hh, on = var1).reset_index()
             expanded['in'] = (expanded['share']*(1-expanded['share']))/expanded['hhid']
             expanded['MOE'] = z*np.sqrt(expanded['in'])
+            expanded['N_HH']=expanded['hhid']
             crosstab = pd.merge(raw, expanded, on =[var1, var2]).reset_index()
+
         if type == 'mean':
-            print var1
-            print var2
             table [var2] = pd.to_numeric(table[var2], errors=coerce)
             table = table.dropna(subset=[var2])
             table = table[(table[var2] !=0)]
@@ -95,6 +95,7 @@ def cross_tab(table, var1, var2, wt_field, type):
             expanded['mean']= expanded['weighted_total']/expanded[wt_field]
             crosstab = expanded
 
+
         return crosstab
 
 def simple_table(table,var2, wt_field, type):
@@ -110,6 +111,7 @@ def simple_table(table,var2, wt_field, type):
             expanded['share']= expanded['estimate']/expanded_tot
             expanded = pd.merge(expanded,N_hh, on = var2).reset_index()
             expanded['in'] = (expanded['share']*(1-expanded['share']))/expanded['hhid']
+            expanded['N_HH']=expanded['hhid']
             expanded['MOE'] = z*np.sqrt(expanded['in'])
             s_table = pd.merge(raw, expanded, on =var2).reset_index()
 
@@ -188,34 +190,42 @@ if __name__ == "__main__":
           cross = cross_tab(person_detail, analysis_variable,col ,  'hh_wt_revised', 'total')
           sm_df = cross[[analysis_variable, col, 'share']]
           sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
-          cross= cross.pivot(index=col, columns = analysis_variable)
+          cross= cross.pivot(index=col, columns = analysis_variable)[['sample_count', 'estimate', 'share', 'MOE', 'N_HH']]
+          simple = simple_table(person_detail, col, 'hh_wt_revised', 'total')
+          col = col.replace('/', '_')
+          col = col.replace(':', '_')
+          col = col.replace(',', '_')
+          col = col.replace('<>', '_')
+          col = col.replace('<', '_')
+          col = col[-100:]
+          simple.to_csv(output_file_loc + '/'+ col +'.csv')
           ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
           fig =ax.get_figure()
-          col = col.replace('/', '_')
-          col = col[-12:]
           fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
           cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
 
     for col  in compare_trip:
-              print col
               cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'total')
               sm_df = cross[[analysis_variable, col, 'share']]
               sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
-              cross= cross.pivot_table(index=col, columns = [analysis_variable])
+              cross= cross.pivot_table(index=col, columns = [analysis_variable])[['sample_count', 'estimate', 'share', 'MOE', 'N_HH']]
               simple = simple_table(trip_detail, col, 'trip_weight_revised', 'total')
               simple.to_csv(output_file_loc + '/'+ col +'.csv')
+              col = col.replace('/', '_')
+              col = col.replace(':', '_')
+              col = col.replace(',', '_')
+              col = col.replace('<>', '_')
+              col = col.replace('<', '_')
+              col = col[-100:]
               ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
               fig =ax.get_figure()
-              col = col.replace('/', '_')
-              col = col[-8:]
               fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
               cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
               
 
     for col  in trip_means:
-              print col
               cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'mean')
-              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
+              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')[['sample_count', 'mean', 'MOE']]
               simple = simple_table(trip_detail, col, 'trip_weight_revised', 'total')
               simple.to_csv(output_file_loc + '/'+ col +'.csv')
 

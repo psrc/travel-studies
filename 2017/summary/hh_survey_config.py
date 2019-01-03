@@ -14,12 +14,14 @@ codebook_day_name = '4-DAY'
 codebook_trip_name = '5-TRIP'
 mode_lookup_f = 'C:/travel-studies/2017/summary/transit_simplest.xlsx'
 purpose_lookup_f = 'C:/travel-studies/2017/summary/destination_simple.xlsx'
-output_file_loc = 'C:/travel-studies/2017/summary/output'
+output_file_loc = 'C:/travel-studies/2017/summary/output/new'
 
-analysis_variable = 'dest_purpose_simple'
-analysis_variable_name = 'purpose'
+analysis_variable = 'race_category'
+analysis_variable_name = 'race'
 compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belongs to carshare program',
                    'license','Off-street parking spaces at residence',
+                   'HH belongs to carshare program',
+                   'Parks at work: Usual way of paying for parking at work',
                       'How important when chose current home: Being within a 30-minute commute to work',
                       'How important when chose current home: Affordability',
                       'How important when chose current home: Being close to family or friends',
@@ -27,9 +29,6 @@ compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belo
                       'How important when chose current home: Quality of schools (K-12)',
                       'How important when chose current home: Being close to public transit',
                       'How important when chose current home: Having a walkable neighborhood and being near local activities',
-                      'Employed, fixed/varied workplace: Usual way of commuting to current location/office',
-                      'Employed, fixed workplace: How long has been commuting to current location/office',
-                      'Employed, fixed/varied workplace: How often telecommutes',
                       'Parks at work: Usual way of paying for parking at work',
                       'Times ridden transit in past 30 days',
                       'Times ridden a bike in past 30 days',
@@ -55,15 +54,16 @@ compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belo
                       'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: Neighborhood greenway',
                       'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: Bike lane',
                       'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: Shared roadway lane',
-                      'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: End of trip ammenities']
+                      'Age 18+, proxy <> 3, bike_freq < 5 days/wk: Use more bike: End of trip ammenities',
+                      'Ridden transit in past 30 days: Available and typically use when riding transit: Cash',
+                      'Ridden transit in past 30 days: Available and typically use when riding transit: Tickets',
+                      'Ridden transit in past 30 days: Available and typically use when riding transit: ORCA card']
 
-compare_trip=  ['Primary Mode', 'Auto trip, non-taxi: Park cost at end of trip', 
-                'Used toll on trip: toll fare','Approximate taxi trip fare',
-                'travelers_hh', 'travelers_nonhh', 'travelers_total', 'driver', 'Transit trip: Travel mode from transit',
+compare_trip=  ['Primary Mode', 'Approximate taxi trip fare','travelers_hh', 'travelers_nonhh', 'travelers_total', 'driver', 'Transit trip: Travel mode from transit',
                 'Transit trip: Travel mode to transit', 'Auto trip, non-taxi: Park location at end of trip',
                 'Mode Simple', 'Main Mode'
                 ]
 
-trip_means = ['trip_path_distance']
+trip_means = ['trip_path_distance','Auto trip, non-taxi: Park cost at end of trip','Used toll on trip: toll fare']
 
 z = 1.96

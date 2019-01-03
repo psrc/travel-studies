@@ -172,7 +172,7 @@ if __name__ == "__main__":
           ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
           fig =ax.get_figure()
           col = col.replace('/', '_')
-          col = col[-12:]
+          col = col[-20:]
           fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
           cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
 
@@ -187,7 +187,7 @@ if __name__ == "__main__":
               ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
               fig =ax.get_figure()
               col = col.replace('/', '_')
-              col = col[-8:]
+              col = col[-20:]
               fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
               cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
               
