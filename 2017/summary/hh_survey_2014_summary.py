@@ -169,12 +169,19 @@ if __name__ == "__main__":
           sm_df = cross[[analysis_variable, col, 'share']]
           sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
           cross= cross.pivot(index=col, columns = analysis_variable)
+          simple = simple_table(trip_detail, col, 'expwt_final', 'total')
           ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
           fig =ax.get_figure()
           col = col.replace('/', '_')
-          col = col[-20:]
+          col = col.replace(':', '_')
+          col = col.replace(',', '_')
+          col = col.replace('<>', '_')
+          col = col.replace('<', '_')
+          col = col[-100:]
+
           fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
           cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
+          simple.to_csv(output_file_loc + '/'+ col +'.csv')
 
     for col  in compare_trip:
               print col
@@ -187,7 +194,11 @@ if __name__ == "__main__":
               ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
               fig =ax.get_figure()
               col = col.replace('/', '_')
-              col = col[-20:]
+              col = col.replace(':', '_')
+              col = col.replace(',', '_')
+              col = col.replace('<>', '_')
+              col = col.replace('<', '_')
+              col = col[-100:]
               fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
               cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
               

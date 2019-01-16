@@ -210,7 +210,6 @@ if __name__ == "__main__":
               sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
               cross= cross.pivot_table(index=col, columns = [analysis_variable])[['sample_count', 'estimate', 'share', 'MOE', 'N_HH']]
               simple = simple_table(trip_detail, col, 'trip_weight_revised', 'total')
-              simple.to_csv(output_file_loc + '/'+ col +'.csv')
               col = col.replace('/', '_')
               col = col.replace(':', '_')
               col = col.replace(',', '_')
@@ -221,12 +220,18 @@ if __name__ == "__main__":
               fig =ax.get_figure()
               fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
               cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
-              
+              simple.to_csv(output_file_loc + '/'+ col +'.csv')
 
     for col  in trip_means:
               cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'mean')
-              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')[['sample_count', 'mean', 'MOE']]
               simple = simple_table(trip_detail, col, 'trip_weight_revised', 'total')
+              col = col.replace('/', '_')
+              col = col.replace(':', '_')
+              col = col.replace(',', '_')
+              col = col.replace('<>', '_')
+              col = col.replace('<', '_')
+              col = col[-100:]
+              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')[['sample_count', 'mean', 'MOE']]
               simple.to_csv(output_file_loc + '/'+ col +'.csv')
 
     

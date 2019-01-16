@@ -14,10 +14,10 @@ codebook_day_name = '4-DAY'
 codebook_trip_name = '5-TRIP'
 mode_lookup_f = 'C:/travel-studies/2017/summary/transit_simplest.xlsx'
 purpose_lookup_f = 'C:/travel-studies/2017/summary/destination_simple.xlsx'
-output_file_loc = 'C:/travel-studies/2017/summary/output/new'
+output_file_loc = 'C:/travel-studies/2017/summary/output/new/county'
 
-analysis_variable = 'race_category'
-analysis_variable_name = 'race'
+analysis_variable = 'Final home address: Regional growth center'
+analysis_variable_name = 'rgc'
 compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belongs to carshare program',
                    'license','Off-street parking spaces at residence',
                    'HH belongs to carshare program',
@@ -34,6 +34,7 @@ compare_person =  ['Participant number of trips', 'Number of vehicles', 'HH belo
                       'Times ridden a bike in past 30 days',
                       'Times gone for a walk in past 30 days',
                       'Age 16+: Times used rideshare in past 30 days',
+                      'Employer commuter benefits: Free/partially subsidized passes/fares',
                       'Employer commuter benefits: Flextime',
                       'Employer commuter benefits: Compressed Week',
                       'Employer commuter benefits: Other subsidized commute (vanpool, bike, etc.)',

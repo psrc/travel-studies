@@ -16,7 +16,9 @@ output_file_loc = 'C:/travel-studies/2017/summary/output'
 
 analysis_variable = 'Final home county'
 analysis_variable_name = 'county_14'
-compare_person =  ['Age 16+: Has valid drivers license',]
+compare_person =  ['Age 16+: Has valid drivers license',
+                   'How important when chose current home: Affordability',
+                   ]
 
 
 compare_trip=  ['Main Mode', 'travelers_hh', 'travelers_nonhh', 'How often in past 30 days: Ridden transit (bus, rail, ferry)', 
