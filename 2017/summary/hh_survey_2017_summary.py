@@ -69,9 +69,12 @@ def cross_tab(table, var1, var2, wt_field, type):
             N_hh = table.groupby([var1])['hhid'].nunique().reset_index()
             expanded = table.groupby([var1, var2]).sum()[wt_field].reset_index()
             expanded_tot = expanded.groupby(var1).sum()[wt_field].reset_index()
+            print expanded_tot
             expanded.columns = [var1, var2, 'estimate']
             expanded = pd.merge(expanded, expanded_tot, on = var1)
+            print expanded
             expanded['share']= expanded['estimate']/expanded[wt_field]
+            print expanded
             expanded = pd.merge(expanded,N_hh, on = var1).reset_index()
             expanded['in'] = (expanded['share']*(1-expanded['share']))/expanded['hhid']
             expanded['MOE'] = z*np.sqrt(expanded['in'])
@@ -180,10 +183,26 @@ if __name__ == "__main__":
     trip_detail = pd.merge(trip_detail, purpose_lookup, how= 'left', on = 'Destination purpose')
     trip_detail = pd.merge(trip_detail, mode_lookup, how ='left', on = 'Primary Mode')
     trip_detail = code_sov(trip_detail)
-    #hh_df.to_csv(r'C:\travel-studies\2017\summary\household_2017.csv')
-    #person_df.to_csv(r'C:\travel-studies\2017\summary\person_2017.csv', encoding = 'utf-8')
-    #trip_detail.to_csv(r'C:\travel-studies\2017\summary\trip_2017.csv', encoding = 'utf-8')
 
+    person_detail.columns = person_detail.columns.str.replace(',', '_')
+    person_detail.columns = person_detail.columns.str.replace(':', '_')
+    person_detail.columns = person_detail.columns.str.replace('/', '_')
+    person_detail.columns = person_detail.columns.str.replace('<>', '_')
+    person_detail.columns = person_detail.columns.str.replace('<', '_')
+
+    trip_detail.columns = trip_detail.columns.str.replace(',', '_')
+    trip_detail.columns = trip_detail.columns.str.replace(':', '_')
+    trip_detail.columns = trip_detail.columns.str.replace('/', '_')
+    trip_detail.columns = trip_detail.columns.str.replace('<>', '_')
+    trip_detail.columns = trip_detail.columns.str.replace('<', '_')
+
+    #hh_df.to_csv(r'C:\travel-studies\2017\summary\household_2017.csv')
+    person_detail.to_excel(r'C:\travel-studies\2017\summary\person_2017.xlsx')
+    trip_detail.to_excel(r'C:\travel-studies\2017\summary\trip_2017.xlsx')
+    #trip_detail = trip_detail.loc[trip_detail['dest_purpose_simple']=='Work']
+    #trip_detail = trip_detail.loc[pd.isnull(trip_detail['work_rgcname'])]
+    person_detail['work_in_rgc'] = np.where(pd.isnull(person_detail['work_rgcname']), 'Not RGC Work', 'RGC Work')
+    compare_person.append('work_in_rgc')
     print 'doing summaries'
     for col  in compare_person:
           print col
