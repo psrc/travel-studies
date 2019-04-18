@@ -3,7 +3,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import stats as st
-from  hh_survey_config import *
+from  hh_survey_config_format import *
 
 def merge_hh_person_trip(hh, person,trip):
     hh_person =pd.merge(hh, person, on= 'hhid', suffixes=['', 'person'], how ='right')
@@ -199,59 +199,8 @@ if __name__ == "__main__":
     #hh_df.to_csv(r'C:\travel-studies\2017\summary\household_2017.csv')
     person_detail.to_csv(output_person_file_loc, encoding='utf-8' )
     trip_detail.to_csv(output_trip_file_loc, encoding='utf-8')
-    #trip_detail = trip_detail.loc[trip_detail['dest_purpose_simple']=='Work']
-    #trip_detail = trip_detail.loc[pd.isnull(trip_detail['work_rgcname'])]
-    person_detail['work_in_rgc'] = np.where(pd.isnull(person_detail['work_rgcname']), 'Not RGC Work', 'RGC Work')
-    compare_person.append('work_in_rgc')
-    print 'doing summaries'
-    for col  in compare_person:
-          print col
-          cross = cross_tab(person_detail, analysis_variable,col ,  'hh_wt_revised', 'total')
-          sm_df = cross[[analysis_variable, col, 'share']]
-          sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
-          cross= cross.pivot(index=col, columns = analysis_variable)[['sample_count', 'estimate', 'share', 'MOE', 'N_HH']]
-          simple = simple_table(person_detail, col, 'hh_wt_revised', 'total')
-          col = col.replace('/', '_')
-          col = col.replace(':', '_')
-          col = col.replace(',', '_')
-          col = col.replace('<>', '_')
-          col = col.replace('<', '_')
-          col = col[-100:]
-          simple.to_csv(output_file_loc + '/'+ col +'.csv')
-          ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
-          fig =ax.get_figure()
-          fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
-          cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
 
-    for col  in compare_trip:
-              cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'total')
-              sm_df = cross[[analysis_variable, col, 'share']]
-              sm_df =sm_df.pivot(index=col, columns = analysis_variable, values ='share')
-              cross= cross.pivot_table(index=col, columns = [analysis_variable])[['sample_count', 'estimate', 'share', 'MOE', 'N_HH']]
-              simple = simple_table(trip_detail, col, 'trip_weight_revised', 'total')
-              col = col.replace('/', '_')
-              col = col.replace(':', '_')
-              col = col.replace(',', '_')
-              col = col.replace('<>', '_')
-              col = col.replace('<', '_')
-              col = col[-100:]
-              ax = sm_df.plot.bar(rot=0, title = col, fontsize =8)
-              fig =ax.get_figure()
-              fig.savefig(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.pdf')
-              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')
-              simple.to_csv(output_file_loc + '/'+ col +'.csv')
-
-    for col  in trip_means:
-              cross = cross_tab(trip_detail, analysis_variable,col ,  'trip_weight_revised', 'mean')
-              simple = simple_table(trip_detail, col, 'trip_weight_revised', 'total')
-              col = col.replace('/', '_')
-              col = col.replace(':', '_')
-              col = col.replace(',', '_')
-              col = col.replace('<>', '_')
-              col = col.replace('<', '_')
-              col = col[-100:]
-              cross.to_csv(output_file_loc + '/'+ analysis_variable_name +'_'+ col +'.csv')[['sample_count', 'mean', 'MOE']]
-              simple.to_csv(output_file_loc + '/'+ col +'.csv')
+   
 
     
           
