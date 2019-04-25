@@ -61,64 +61,6 @@ def prep_data(df, codebook):
     df_w_names = lookup_names(df, var_names)
     return df_w_names 
 
-#create_cross_tab_with_weights
-def cross_tab(table, var1, var2, wt_field, type):
-        if type == 'total':
-            raw = table.groupby([var1, var2]).count()[wt_field].reset_index()
-            raw.columns = [var1, var2, 'sample_count']
-            N_hh = table.groupby([var1])['hhid'].nunique().reset_index()
-            expanded = table.groupby([var1, var2]).sum()[wt_field].reset_index()
-            expanded_tot = expanded.groupby(var1).sum()[wt_field].reset_index()
-            print expanded_tot
-            expanded.columns = [var1, var2, 'estimate']
-            expanded = pd.merge(expanded, expanded_tot, on = var1)
-            print expanded
-            expanded['share']= expanded['estimate']/expanded[wt_field]
-            print expanded
-            expanded = pd.merge(expanded,N_hh, on = var1).reset_index()
-            expanded['in'] = (expanded['share']*(1-expanded['share']))/expanded['hhid']
-            expanded['MOE'] = z*np.sqrt(expanded['in'])
-            expanded['N_HH']=expanded['hhid']
-            crosstab = pd.merge(raw, expanded, on =[var1, var2]).reset_index()
-
-        if type == 'mean':
-            table [var2] = pd.to_numeric(table[var2], errors=coerce)
-            table = table.dropna(subset=[var2])
-            table = table[(table[var2] !=0)]
-            table = table[(table[var2] < 100)]
-            table['weighted_total'] = table[wt_field]*table[var2]
-            expanded = table.groupby([var1]).sum()['weighted_total'].reset_index()
-            expanded_tot = table.groupby([var1]).sum()[wt_field].reset_index()
-            expanded_moe = table[[var1,var2]].groupby(var1).agg(['sem'], axis=1).reset_index()
-            print expanded
-            print expanded_moe
-            #expanded.columns = [var1, var2, 'we']
-            expanded = pd.merge(expanded, expanded_tot, on = var1)
-            expanded = pd.merge(expanded, expanded_moe, on = var1)
-            expanded['mean']= expanded['weighted_total']/expanded[wt_field]
-            crosstab = expanded
-
-
-        return crosstab
-
-def simple_table(table,var2, wt_field, type):
-        if type == 'total':
-            print var2
-            raw = table.groupby(var2).count()[wt_field].reset_index()
-            raw.columns =  [var2, 'sample_count']
-            N_hh = table.groupby(var2)['hhid'].nunique().reset_index()
-            expanded = table.groupby(var2).sum()[wt_field].reset_index()
-            expanded_tot = expanded.sum()[wt_field]
-            expanded.columns = [var2, 'estimate']
-            #expanded = pd.merge(expanded, expanded_tot, on = var2)
-            expanded['share']= expanded['estimate']/expanded_tot
-            expanded = pd.merge(expanded,N_hh, on = var2).reset_index()
-            expanded['in'] = (expanded['share']*(1-expanded['share']))/expanded['hhid']
-            expanded['N_HH']=expanded['hhid']
-            expanded['MOE'] = z*np.sqrt(expanded['in'])
-            s_table = pd.merge(raw, expanded, on =var2).reset_index()
-
-        return s_table
 
 def make_codebook(codebook):
     var_names = pd.DataFrame(columns=['Field', 'Variable', 'Value', 'Label'])

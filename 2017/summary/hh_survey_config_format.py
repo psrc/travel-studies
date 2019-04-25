@@ -15,6 +15,7 @@ codebook_person_name = '2-PERSON'
 codebook_vehicle_name = '3-VEHICLE'
 codebook_day_name = '4-DAY'
 codebook_trip_name = '5-TRIP'
-mode_lookup_f = 'C:/travel-studies/2017/summary/transit_simplest.xlsx'
+mode_lookup_f = 'C:/travel-studies/2017/summary/transit_simple.xlsx'
 purpose_lookup_f = 'C:/travel-studies/2017/summary/destination_simple.xlsx'
+output_file_loc = 'C:/travel-studies/2017/summary/output/age'
 
