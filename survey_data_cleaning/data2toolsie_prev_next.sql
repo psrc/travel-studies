@@ -5,9 +5,9 @@ GO
 CREATE VIEW trip_pn
 AS
 (SELECT t1.tripid AS master_tripid, 'current'   AS reference, t1.* FROM trip as t1 JOIN trip_error_flags 	AS tef 	ON t1.personid=tef.personid AND t1.tripnum = tef.tripnum
- UNION
+ UNION ALL
  SELECT t1.tripid AS master_tripid, 'previous'  AS reference, t0.* FROM trip AS t1 JOIN trip 				AS t0 	ON (t1.tripid-1)=t0.tripid
- UNION
+ UNION ALL
  SELECT t1.tripid AS master_tripid, 'next'      AS reference, t2.* FROM trip AS t1 JOIN trip 				AS t2 	ON (t1.tripid+1)=t2.tripid)
 GO
 
