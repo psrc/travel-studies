@@ -14,6 +14,7 @@ SELECT
         trip.trip_path_distance, trip.google_duration, trip.travelers_total, 
         trip.dest_is_home, trip.dest_is_work
     FROM trip JOIN trip_error_flags AS tef ON trip.tripid = tef.tripid
+    WHERE tef.error_flag NOT IN('no activity time since prior arrival','missing next trip link','identical location as next trip')
  UNION
  SELECT 
         tef.tripid AS master_tripid, trip.tripnum, trip.personid,
@@ -25,6 +26,7 @@ SELECT
         trip.trip_path_distance, trip.google_duration, trip.travelers_total, 
         trip.dest_is_home, trip.dest_is_work
     FROM trip JOIN trip_error_flags AS tef ON trip.personid = tef.personid AND trip.tripnum= tef.tripnum-1
+    WHERE tef.error_flag NOT IN('no activity time since prior arrival','missing next trip link','identical location as next trip')
  UNION
  SELECT 
         tef.tripid AS master_tripid, trip.tripnum, trip.personid,
@@ -35,7 +37,8 @@ SELECT
         trip.dest_name, trip.dest_purpose, trip.dest_lat, trip.dest_lng, 
         trip.trip_path_distance, trip.google_duration, trip.travelers_total, 
         trip.dest_is_home, trip.dest_is_work
-    FROM trip JOIN trip_error_flags AS tef ON trip.personid = tef.personid AND trip.tripnum= tef.tripnum+1;
+    FROM trip JOIN trip_error_flags AS tef ON trip.personid = tef.personid AND trip.tripnum= tef.tripnum+1
+    WHERE tef.error_flag NOT IN('no activity time since prior arrival','missing next trip link','identical location as next trip');
 GO
 
 CREATE VIEW data2toolsie_prev_next
