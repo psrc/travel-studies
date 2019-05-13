@@ -139,8 +139,8 @@ if __name__ == "__main__":
     trip_detail.columns = trip_detail.columns.str.replace('<', '_')
 
     #hh_df.to_csv(r'C:\travel-studies\2017\summary\household_2017.csv')
-    person_detail.to_csv(output_person_file_loc, encoding='utf-8' )
-    trip_detail.to_csv(output_trip_file_loc, encoding='utf-8')
+    person_detail.to_csv(output_person_file_loc, encoding='utf-8-sig' )
+    trip_detail.to_csv(output_trip_file_loc, encoding='utf-8-sig')
 
    
 
