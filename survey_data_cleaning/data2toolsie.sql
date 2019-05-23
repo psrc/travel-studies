@@ -18,13 +18,13 @@ GO
 CREATE VIEW data2toolsie_t
 AS
 SELECT 	t1.personid, t1.hhid,
-		t1.tripnum, 
+		t1.tripnum, t1.tripid,
         STUFF(	COALESCE(',' + tmacc.mode_desc, '') +
 				COALESCE(',' + tm1.mode_desc, '') + 
 				COALESCE(',' + tm2.mode_desc, '') + 
 				COALESCE(',' + tm3.mode_desc, '') + 
 				COALESCE(',' + tm4.mode_desc, '') + 
-				COALESCE(',' + tmegr.mode_desc, ''), 1, 1, '') AS modes_desc,
+				COALESCE(',' + tmegr.mode_desc, ''), 1, 1, '') AS modes_desc, t1.depart_time_timestamp,
 		LEFT(CONVERT(time(0), t1.depart_time_timestamp, 108), 5) AS depart_hhmm, CONCAT(CAST(ROUND(t1.speed_mph,1) AS NVARCHAR(10)),'mph') AS speed, 
 		STUFF(	COALESCE(',' + RIGHT(CAST(t1.hhmember1 AS nvarchar),2), '') +
 				COALESCE(',' + RIGHT(CAST(t1.hhmember2 AS nvarchar),2), '') + 
@@ -35,7 +35,7 @@ SELECT 	t1.personid, t1.hhid,
 				COALESCE(',' + RIGHT(CAST(t1.hhmember7 AS nvarchar),2), '') + 
 				COALESCE(',' + RIGHT(CAST(t1.hhmember8 AS nvarchar),2), '') + 
 				COALESCE(',' + RIGHT(CAST(t1.hhmember9 AS nvarchar),2), ''), 1, 1, '') AS hhmemembers,
-		'' AS dest_name, '' AS dest_purpose, '' AS activity_duration_hhmm, t1.origin_lat AS lat, t1.origin_lng AS lng, 0 as dest
+		'' AS dest_name, '' AS dest_purpose, '' AS activity_duration_hhmm, t1.origin_lat AS lat, t1.origin_lng AS lng, 0 as dest, 'USA' AS country, 'WA' AS state, t1.dest_city AS city
 		FROM trip AS t1
 		LEFT JOIN trip_mode AS tmacc ON t1.mode_acc = tmacc.mode_id 
 		LEFT JOIN trip_mode AS tm1 ON t1.mode_1 = tm1.mode_id
@@ -46,10 +46,10 @@ SELECT 	t1.personid, t1.hhid,
 		WHERE t1.hhgroup = 2 
 UNION ALL
 SELECT 	t1.personid, t1.hhid,
-		t1.tripnum, '' AS modes, '' AS depart_hhmm, '' AS speed, '' AS hhmemembers,
+		t1.tripnum, t1.tripid, '' AS modes_desc, '' AS depart_time_timestamp,'' AS depart_hhmm, '' AS speed, '' AS hhmemembers,
 		t1.dest_name, tp.purpose AS dest_purpose, 
 		CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'hr',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'min') AS activity_duration_hhmm,
-		t1.dest_lat AS lat, t1.dest_lng AS lng, 1 AS dest
+		t1.dest_lat AS lat, t1.dest_lng AS lng, 1 AS dest, 'USA' AS country, 'WA' AS state, t1.dest_city AS city
 		FROM trip AS t1
 			LEFT JOIN trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
 			JOIN trip_purpose AS tp ON t1.dest_purpose = tp.purpose_id
