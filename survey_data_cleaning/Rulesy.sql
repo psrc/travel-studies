@@ -755,7 +755,7 @@ GO
 						OR dbo.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
 						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
-					OR(t.dest_purpose = 1 AND t.dest_name IS NULL))
+					OR(t.dest_purpose = 1))
 					AND t.dest_geom.STIntersects(household.home_geom.STBuffer(0.001)) = 1;
 
 			UPDATE t --Classify home destinations where destination code is absent; 30m proximity to home location on file
@@ -787,6 +787,12 @@ GO
 				WHERE (t.dest_purpose <> 1 and t.dest_is_home = 1) OR (t.dest_purpose <> 10 and t.dest_is_work = 1)
 					AND t.dest_purpose=prev_t.dest_purpose;
 
+			UPDATE t --revises purpose field for home return portion of a single stop loop trip 
+				SET t.dest_purpose = 1, t.revision_code = CONCAT(t.revision_code,'1,')
+				FROM trip AS t
+				WHERE (t.dest_purpose <> 1 and t.dest_is_home = 1) 
+					AND t.origin_name <> 'HOME';					
+
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
 				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM trip AS t
@@ -795,6 +801,22 @@ GO
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97)
 					AND t.travelers_total <> next_t.travelers_total
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
+
+			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
+				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
+				FROM trip AS t
+					JOIN person AS p ON t.personid=p.personid 
+					JOIN trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
+				WHERE (p.age < 4 OR p.worker = 0) AND t.dest_purpose IN(10,11,14)
+					AND t.travelers_total <> next_t.travelers_total
+					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;					
+
+			UPDATE t --Change code to pickup/dropoff when pickup/dropoff mentioned
+				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
+				FROM trip AS t
+					JOIN person AS p ON t.personid=p.personid 				
+				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97)
+					AND dbo.RgxFind(t.dest_name,'(pick|drop)',1) = 1;
 			
 			UPDATE t --changes code to 'family activity' when adult is present, multiple people involved and duration is from 30mins to 4hrs
 				SET t.dest_purpose = 56, t.revision_code = CONCAT(t.revision_code,'3,')
@@ -814,7 +836,14 @@ GO
 				WHERE t.dest_purpose = 97 AND t.dest_name = 'school'
 					AND t.travelers_total = 1
 					AND p.student IN(2,3,4)
-					AND DATEDIFF(Minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) > 30;		
+					AND DATEDIFF(Minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) > 30;
+
+			UPDATE t --Change purpose from 'school' to 'personal business' for non-students taking a course for interest
+				SET t.dest_purpose = 33, t.revision_code = CONCAT(t.revision_code,'4,')
+				FROM trip AS t
+					JOIN person AS p ON t.personid=p.personid 				
+				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97) AND t.travelers_hh = 1
+					AND dbo.RgxFind(t.dest_name,'(pick|drop|kid|child)',1) = 0 AND dbo.RgxFind(t.dest_name,'(class|lesson)',1) = 1;							
 
 		--Change 'Other' trip purpose when purpose is given in destination
 			UPDATE trip 	SET dest_purpose = 1,  revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose IN(-9998,97) AND dest_is_home = 1;
@@ -822,7 +851,8 @@ GO
 			UPDATE trip 	SET dest_purpose = 11, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dest_is_work <> 1 AND trip.dest_name = 'WORK';
 			UPDATE trip		SET dest_purpose = 30, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'(grocery|costco|safeway|trader ?joe)',1) = 1;				
 			UPDATE trip		SET dest_purpose = 32, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'\b(store)\b',1) = 1;	
-			UPDATE trip		SET dest_purpose = 33, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'\b(bank|gas|post ?office|library|barber|hair)\b',1) = 1;				UPDATE trip		SET dest_purpose = 33, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'(bank|gas|post ?office|library)',1) = 1;		
+			UPDATE trip		SET dest_purpose = 33, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'\b(bank|gas|post ?office|library|barber|hair)\b',1) = 1;				
+			UPDATE trip		SET dest_purpose = 33, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'(bank|gas|post ?office|library)',1) = 1;		
 			UPDATE trip		SET dest_purpose = 34, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'(doctor|dentist|hospital|medical|health)',1) = 1;	
 			UPDATE trip		SET dest_purpose = 50, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'(coffee|cafe|starbucks|lunch)',1) = 1;		
 			UPDATE trip		SET dest_purpose = 51, revision_code = CONCAT(revision_code,'5,')	WHERE dest_purpose = 97 AND dbo.RgxFind(dest_name,'dog',1) = 1 AND dbo.RgxFind(dest_name,'(walk|park)',1) = 1;
@@ -1228,6 +1258,20 @@ GO
 	EXECUTE tripnum_update; --after adding records, we need to renumber them consecutively
 	EXECUTE dest_purpose_updates;  --running these again to apply to linked trips, JIC
 
+	--recode driver flag when mistakenly applied to passengers and a hh driver is present
+	UPDATE t
+		SET t.driver = 2, t.revision_code = CONCAT(t.revision_code, '10,')
+		FROM trip AS t JOIN person AS p ON t.personid = p.personid
+		WHERE t.driver = 1 AND (p.age < 4 OR p.license = 3)
+			AND EXISTS (SELECT 1 FROM (VALUES (t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmem(member) JOIN person ON hhmem.member = person.personid WHERE person.license in(1,2) AND person.age > 3);
+
+	--recode work purpose when mistakenly applied to passengers and a hh worker is present
+	UPDATE t
+		SET t.dest_purpose = 97, t.revision_code = CONCAT(t.revision_code, '11,')
+		FROM trip AS t JOIN person AS p ON t.personid = p.personid
+		WHERE t.dest_purpose IN(10,11,14) AND (p.age < 4 OR p.worker = 0)
+			AND EXISTS (SELECT 1 FROM (VALUES (t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmem(member) JOIN person ON hhmem.member = person.personid WHERE person.worker = 1 AND person.age > 3);
+
 /* STEP 7. Flag inconsistencies */
 /*	as additional error patterns behind these flags are identified, rules to address them can be added to Step 3 or elsewhere in Rulesy as makes sense.*/
 
@@ -1293,13 +1337,9 @@ GO
 								FROM (VALUES(trip.transit_line_1),(trip.transit_line_2),(trip.transit_line_3),(trip.transit_line_4),(trip.transit_line_5)) AS transitline(member) 
 								WHERE member IS NOT NULL AND member <> 0 GROUP BY member HAVING count(*) > 1)
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					'non-home trip purpose, destination home' AS error_flag
+			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,	  		   'purpose no match for home or work destination' AS error_flag
 				FROM trip
-				WHERE trip.dest_purpose <> 1 AND trip.dest_is_home = 1
-
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,			'home or work trip purpose, destination elsewhere' AS error_flag
-				FROM trip
-				WHERE (trip.dest_purpose <> 1 and trip.dest_is_home = 1) OR (trip.dest_purpose <> 10 and trip.dest_is_work = 1)
+				WHERE (trip.dest_purpose <> 1 and trip.dest_is_home = 1) OR (trip.dest_purpose NOT IN(9,10,11,14,60) and trip.dest_is_work = 1)
 
 			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
 			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1315,11 +1355,16 @@ GO
 					AND dbo.TRIM(next_trip.origin_name)<>'HOME' 
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
+			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					        'PUDO but no change in passengers' AS error_flag
+				FROM trip
+				LEFT JOIN trip AS next_t ON trip.personid=next_t.personid	AND trip.tripnum + 1 = next_t.tripnum						
+				WHERE trip.dest_purpose = 9 AND (trip.travelers_total <> next_t.travelers_total)	
+
 			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					  'unusually long duration at destination' AS error_flag
 				FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-					WHERE   (trip.dest_purpose IN(6,10,11,12,14)    			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 720)
-    					OR  (trip.dest_purpose IN(30,33,34,50)      			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 180)
-   						OR  (trip.dest_purpose IN(32,51,52,53,54,56,60,61,62) 	AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 300)
+					WHERE   (trip.dest_purpose IN(6,10,11,14)    			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 720)
+    					OR  (trip.dest_purpose IN(30)      			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 240)
+   						OR  (trip.dest_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 480)
 
 			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum, 		  				   'non-student reporting school trip' AS error_flag
 				FROM trip JOIN trip as next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum JOIN person ON trip.personid=person.personid 					
