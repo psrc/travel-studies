@@ -1272,7 +1272,22 @@ GO
 		WHERE t.dest_purpose IN(10,11,14) AND (p.age < 4 OR p.worker = 0)
 			AND EXISTS (SELECT 1 FROM (VALUES (t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmem(member) JOIN person ON hhmem.member = person.personid WHERE person.worker = 1 AND person.age > 3);
 
-/* STEP 7. Flag inconsistencies */
+/* STEP 7. Remove Singletons */
+/* One-trip records imply no valid data.  Households composed only of such persons are flagged for removal as well */
+	SELECT * INTO singletons FROM trip WHERE 1=0;
+	
+	WITH cte AS (SELECT personid FROM trip GROUP BY personid HAVING count(tripid)=1)
+	DELETE FROM trip 
+	OUTPUT DELETED.* INTO singletons
+		WHERE EXISTS (SELECT 1 FROM cte WHERE cte.personid = trip.personid);
+
+	CREATE TABLE hh_error_flags (hhid INT, error_flag NVARCHAR(100));
+	INSERT INTO hh_error_flags (hhid, error_flag)
+	SELECT h.hhid, 'zero trips' FROM household AS h LEFT JOIN trip AS t ON h.hhid = t.hhid
+		WHERE t.hhid IS NULL
+		GROUP BY h.hhid;
+
+/* STEP 8. Flag inconsistencies */
 /*	as additional error patterns behind these flags are identified, rules to address them can be added to Step 3 or elsewhere in Rulesy as makes sense.*/
 
 		DROP TABLE IF EXISTS trip_error_flags;
@@ -1280,8 +1295,7 @@ GO
 			tripid bigint not NULL,
 			personid int not NULL,
 			tripnum int not null,
-			error_flag varchar(100),
-			rulesy_fixed varchar(10) default 'no'
+			error_flag varchar(100)
 			PRIMARY KEY (personid, tripid, error_flag)
 		);
 		GO
@@ -1374,6 +1388,15 @@ GO
 			SELECT tripid, personid, tripnum, error_flag FROM error_flag_compilation GROUP BY tripid, personid, tripnum, error_flag;
 		GO
 
-/* STEP 8. Impute missing fields [access/egress, etc] */
+	/* Flag households with predominantly problematic records */
+	WITH cte AS 
+		(SELECT hhid FROM trip AS t 
+			LEFT JOIN trip_error_flags AS tef ON t.tripid=tef.tripid
+			GROUP BY hhid 
+			HAVING avg(CASE WHEN tef.tripid IS NOT NULL THEN 1 ELSE 0 END)>.3)
+	INSERT INTO hh_error_flags (hhid, error_flag)
+	SELECT cte.hhid, 'high fraction of error trips' FROM cte
+
+/* STEP 9. Impute missing fields [access/egress, etc] */
 /* TBD */
 	
