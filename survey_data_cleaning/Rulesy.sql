@@ -1281,6 +1281,7 @@ GO
 	OUTPUT DELETED.* INTO singletons
 		WHERE EXISTS (SELECT 1 FROM cte WHERE cte.personid = trip.personid);
 
+	DROP TABLE IF EXISTS hh_error_flags;
 	CREATE TABLE hh_error_flags (hhid INT, error_flag NVARCHAR(100));
 	INSERT INTO hh_error_flags (hhid, error_flag)
 	SELECT h.hhid, 'zero trips' FROM household AS h LEFT JOIN trip AS t ON h.hhid = t.hhid
@@ -1365,8 +1366,14 @@ GO
 
 			UNION ALL SELECT next_trip.tripid, next_trip.personid, next_trip.tripnum,	           'starts from non-home location' AS error_flag
 			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --first trip of the day
+				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --next_trip is first trip of the day
 					AND dbo.TRIM(next_trip.origin_name)<>'HOME' 
+					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
+
+			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,	           				   'ends day in non-home location' AS error_flag
+			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
+				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --last trip of the day
+					AND trip.dest_is_home <> 1
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
 			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					        'PUDO but no change in passengers' AS error_flag
@@ -1380,22 +1387,36 @@ GO
     					OR  (trip.dest_purpose IN(30)      			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 240)
    						OR  (trip.dest_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 480)
 
+			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					  			'unusually slow & long travel' AS error_flag
+				FROM trip
+				WHERE DATEDIFF(Minute, trip.depart_time_timestamp, trip.arrival_time_timestamp) > 180 AND trip.speed_mph < 20		   
+
 			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum, 		  				   'non-student reporting school trip' AS error_flag
 				FROM trip JOIN trip as next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum JOIN person ON trip.personid=person.personid 					
 				WHERE trip.dest_purpose = 6		
-					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)
+					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)	
 		INSERT INTO trip_error_flags (tripid, personid, tripnum, error_flag)
 			SELECT tripid, personid, tripnum, error_flag FROM error_flag_compilation GROUP BY tripid, personid, tripnum, error_flag;
 		GO
 
 	/* Flag households with predominantly problematic records */
 	WITH cte AS 
-		(SELECT hhid FROM trip AS t 
-			LEFT JOIN trip_error_flags AS tef ON t.tripid=tef.tripid
-			GROUP BY hhid 
-			HAVING avg(CASE WHEN tef.tripid IS NOT NULL THEN 1 ELSE 0 END)>.3)
+		(SELECT t1.hhid FROM trip AS t1 
+			LEFT JOIN trip_error_flags AS tef ON t1.tripid=tef.tripid LEFT JOIN error_types AS et ON tef.error_flag=et.error_flag
+			GROUP BY t1.hhid 
+			HAVING avg(CASE WHEN et.vital = 1 THEN 1 ELSE 0 END)>.3
+		UNION
+		SELECT t2.hhid FROM trip AS t2 
+			GROUP BY t2.hhid 
+			HAVING avg(CASE WHEN t2.dest_purpose IS NULL OR t2.dest_purpose=-9998 OR t2.mode_1 IS NULL OR t2.mode_1=-9998 THEN 1.0 ELSE 0 END)>.3
+		UNION 
+		SELECT t3.hhid FROM trip as t3
+			LEFT JOIN trip AS next_trip ON t3.personid = next_trip.personid AND t3.tripnum +1 = next_trip.tripnum
+			LEFT JOIN trip AS prior_trip ON t3.personid = prior_trip.personid AND t3.tripnum -1 = prior_trip.tripnum
+			GROUP BY t3.hhid
+			HAVING avg(CASE WHEN t3.dest_purpose IS NOT NULL AND t3.dest_purpose = prior_trip.dest_purpose AND t3.dest_purpose = next_trip.dest_purpose THEN 1.0 ELSE 0 END)>.2)
 	INSERT INTO hh_error_flags (hhid, error_flag)
-	SELECT cte.hhid, 'high fraction of error trips' FROM cte
+	SELECT cte.hhid, 'high fraction of errors or missing data' FROM cte
 
 /* STEP 9. Impute missing fields [access/egress, etc] */
 /* TBD */
