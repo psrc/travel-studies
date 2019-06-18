@@ -1404,17 +1404,17 @@ GO
 		(SELECT t1.hhid FROM trip AS t1 
 			LEFT JOIN trip_error_flags AS tef ON t1.tripid=tef.tripid LEFT JOIN error_types AS et ON tef.error_flag=et.error_flag
 			GROUP BY t1.hhid 
-			HAVING avg(CASE WHEN et.vital = 1 THEN 1 ELSE 0 END)>.3
+			HAVING avg(CASE WHEN et.vital = 1 THEN 1 ELSE 0 END)>.29
 		UNION
 		SELECT t2.hhid FROM trip AS t2 
 			GROUP BY t2.hhid 
-			HAVING avg(CASE WHEN t2.dest_purpose IS NULL OR t2.dest_purpose=-9998 OR t2.mode_1 IS NULL OR t2.mode_1=-9998 THEN 1.0 ELSE 0 END)>.3
+			HAVING avg(CASE WHEN t2.dest_purpose IS NULL OR t2.dest_purpose=-9998 OR t2.mode_1 IS NULL OR t2.mode_1=-9998 THEN 1.0 ELSE 0 END)>.29
 		UNION 
 		SELECT t3.hhid FROM trip as t3
 			LEFT JOIN trip AS next_trip ON t3.personid = next_trip.personid AND t3.tripnum +1 = next_trip.tripnum
 			LEFT JOIN trip AS prior_trip ON t3.personid = prior_trip.personid AND t3.tripnum -1 = prior_trip.tripnum
 			GROUP BY t3.hhid
-			HAVING avg(CASE WHEN t3.dest_purpose IS NOT NULL AND t3.dest_purpose = prior_trip.dest_purpose AND t3.dest_purpose = next_trip.dest_purpose THEN 1.0 ELSE 0 END)>.2)
+			HAVING avg(CASE WHEN t3.dest_purpose IS NOT NULL AND t3.dest_purpose = prior_trip.dest_purpose AND t3.dest_purpose = next_trip.dest_purpose THEN 1.0 ELSE 0 END)>.19)
 	INSERT INTO hh_error_flags (hhid, error_flag)
 	SELECT cte.hhid, 'high fraction of errors or missing data' FROM cte
 
