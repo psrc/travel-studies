@@ -44,15 +44,23 @@ def code_age(person):
    person['age_category'] [(person['Age']== '12-15 years') | (person['Age']== '16-17 years')] = 'Under 18 years'
    person['age_category'] [(person['Age']== '65-74 years') ] = '65 years+'
    person['age_category'] [(person['Age']== '75+ years')|(person['Age']== '75-84 years') | (person['Age']== '85 or years older')] = '65 years+'
-   return trip
+   return person
+
+def code_seattle(person):
+   person['seattle_home'] = 'Home Not in Seattle'
+   person['seattle_home'][person['Final home address: PUMA 2010'].str.startswith('Seattle City')] = 'Home in Seattle'
+   return person
 
 
 def lookup_names(df, names):
     for col in df:
         names_col = pd.DataFrame(names.loc[names.Field == col])
         if not names_col.empty:
-            df_named = pd.merge(df, names_col, how='left', left_on = col, right_on = 'Variable')
-            df[names_col['Label'].iloc[0]] = df_named.Value
+                try: 
+                    df_named = pd.merge(df, names_col, how='left', left_on = col, right_on = 'Variable')
+                    df[names_col['Label'].iloc[0]] = df_named.Value
+                except Exception:
+                    pass
 
     return df
 
@@ -98,7 +106,7 @@ def make_codebook(codebook):
 
 
 if __name__ == "__main__":
-    print 'reading excel files'
+    print('reading excel files')
     hh = pd.read_excel(survey_2017_dir+hh_file_name, skiprows=1)
     person= pd.read_excel(survey_2017_dir+person_file_name, skiprows=1)
     trip = pd.read_excel(survey_2017_dir+trip_file_name, skiprows=1)
@@ -110,16 +118,18 @@ if __name__ == "__main__":
     purpose_lookup = pd.read_excel(purpose_lookup_f)
     mode_lookup = pd.read_excel(mode_lookup_f)
 
-    print 'prepping data codes'
+    print('prepping data codes')
     hh_df = prep_data(hh, codebook_hh)
     person_df = prep_data(person, codebook_person)
-    person =code_race(person)
-    person = code_age(person)
+    person_df =code_race(person_df)
+    person_df = code_age(person_df)
+    
     trip_df = prep_data (trip, codebook_trip)
 
 
-    print 'merging data'
+    print('merging data')
     person_detail = merge_hh_person(hh_df, person_df)
+    person_detail = code_seattle(person_detail)
     trip_detail = merge_hh_person_trip(hh_df, person_df, trip_df)
 
     trip_detail = pd.merge(trip_detail, purpose_lookup, how= 'left', on = 'Destination purpose')
