@@ -5,8 +5,8 @@ import numpy as np
 from scipy import stats as st
 from  hh_survey_config_format import *
 
-def merge_hh_person_trip(hh, person,trip):
-    hh_person =pd.merge(hh, person, on= 'hhid', suffixes=['', 'person'], how ='right')
+def merge_hh_person_trip(hh_person, trip):
+    #hh_person =pd.merge(hh, person, on= 'hhid', suffixes=['', 'person'], how ='right')
     hh_person_trip = pd.merge(hh_person, trip, on= ['hhid', 'personid'], suffixes=['','trip'], how ='right')
     return hh_person_trip
 
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     print('merging data')
     person_detail = merge_hh_person(hh_df, person_df)
     person_detail = code_seattle(person_detail)
-    trip_detail = merge_hh_person_trip(hh_df, person_df, trip_df)
+    trip_detail = merge_hh_person_trip(person_detail, trip_df)
 
     trip_detail = pd.merge(trip_detail, purpose_lookup, how= 'left', on = 'Destination purpose')
     trip_detail = pd.merge(trip_detail, mode_lookup, how ='left', on = 'Primary Mode')
