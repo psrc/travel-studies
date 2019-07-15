@@ -18,7 +18,7 @@ GO
 CREATE VIEW data2toolsie_t 
 AS
 SELECT 	t1.personid, t1.hhid,
-		t1.tripnum, t1.tripid,
+		t1.tripnum, t1.recid,
         STUFF(	COALESCE(',' + tmacc.mode_desc, '') +
 				COALESCE(',' + tm1.mode_desc, '') + 
 				COALESCE(',' + tm2.mode_desc, '') + 
@@ -46,7 +46,7 @@ SELECT 	t1.personid, t1.hhid,
 		WHERE t1.hhgroup = 2 
 UNION ALL
 SELECT 	t1.personid, t1.hhid,
-		t1.tripnum, t1.tripid, '' AS modes_desc, '' AS depart_time_timestamp,'' AS depart_hhmm, '' AS speed, '' AS hhmemembers,
+		t1.tripnum, t1.recid, '' AS modes_desc, '' AS depart_time_timestamp,'' AS depart_hhmm, '' AS speed, '' AS hhmemembers,
 		t1.dest_name, tp.purpose AS dest_purpose, 
 		CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'hr',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'min') AS duration_at_dest,
 		t1.dest_lat AS lat, t1.dest_lng AS lng, 1 AS dest, 'USA' AS country, 'WA' AS state, t1.dest_city AS city
@@ -60,8 +60,8 @@ DROP VIEW IF EXISTS data2frontend;
 GO
 CREATE VIEW data2frontend
 AS
-SELECT t1.personid, t1.hhid,
-		t1.tripnum, 
+SELECT t1.personid, t1.hhid, t1.pernum,
+		t1.tripnum, t1.recid, 
         STUFF(	COALESCE(',' + CAST(ma.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m1.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m2.mode_desc AS nvarchar), '') + 
@@ -88,13 +88,13 @@ SELECT t1.personid, t1.hhid,
 			CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'m') AS duration_at_dest,
 			t1.revision_code AS rc
 	FROM trip AS t1 LEFT JOIN trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
-	LEFT JOIN trip_mode AS ma ON t1.mode_1=ma.mode_id
-	LEFT JOIN trip_mode AS m1 ON t1.mode_1=m1.mode_id
-	LEFT JOIN trip_mode AS m2 ON t1.mode_2=m2.mode_id
-	LEFT JOIN trip_mode AS m3 ON t1.mode_3=m3.mode_id
-	LEFT JOIN trip_mode AS m4 ON t1.mode_4=m4.mode_id
-	LEFT JOIN trip_mode AS me ON t1.mode_1=me.mode_id
-	LEFT JOIN trip_purpose AS tp ON t1.dest_purpose=tp.purpose_id
-	LEFT JOIN trip_error_flags AS tef ON t1.tripid=tef.tripid
+		LEFT JOIN trip_mode AS ma ON t1.mode_1=ma.mode_id
+		LEFT JOIN trip_mode AS m1 ON t1.mode_1=m1.mode_id
+		LEFT JOIN trip_mode AS m2 ON t1.mode_2=m2.mode_id
+		LEFT JOIN trip_mode AS m3 ON t1.mode_3=m3.mode_id
+		LEFT JOIN trip_mode AS m4 ON t1.mode_4=m4.mode_id
+		LEFT JOIN trip_mode AS me ON t1.mode_1=me.mode_id
+		LEFT JOIN trip_purpose AS tp ON t1.dest_purpose=tp.purpose_id
+		LEFT JOIN trip_error_flags AS tef ON t1.recid=tef.recid
 	WHERE EXISTS (SELECT 1 FROM trip_error_flags AS tef WHERE t1.personid=tef.personid);
 GO
