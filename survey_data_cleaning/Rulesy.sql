@@ -3,7 +3,7 @@
 
 	Required CLR regex functions coded here as RgxFind, RgxExtract, RgxReplace
 	--see https://www.codeproject.com/Articles/19502/A-T-SQL-Regular-Expression-Library-for-SQL-Server
-	Required CLR string_agg function coded here as 
+	/*Required CLR string_agg function coded here as [not using yet]*/
 
 
 */
@@ -17,37 +17,39 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-		DROP SEQUENCE IF EXISTS tripid_increment;
-		CREATE SEQUENCE tripid_increment AS int START WITH 1 INCREMENT BY 1 NO CYCLE;  -- Create sequence object to generate tripid for new records & add indices
-		DROP TABLE IF EXISTS household, person, tripx_raw, trip, transitmodes, automodes, pedmodes, walkmodes, nontransitmodes, trip_ingredients;
-
-		--Create mode uber-categories for access/egress characterization, etc.
-		CREATE TABLE transitmodes (mode_id int PRIMARY KEY NOT NULL);
-		CREATE TABLE automodes (mode_id int PRIMARY KEY NOT NULL);
-		CREATE TABLE pedmodes (mode_id int PRIMARY KEY NOT NULL);
-		CREATE TABLE walkmodes (mode_id int PRIMARY KEY NOT NULL);
-		CREATE TABLE bikemodes (mode_id int PRIMARY KEY NOT NULL);		
+	--Create mode uber-categories for access/egress characterization, etc.
+		DROP TABLE IF EXISTS transitmodes, automodes, pedmodes, walkmodes, bikemodes, nontransitmodes, trip_ingredients;
+		CREATE TABLE transitmodes 	 (mode_id int PRIMARY KEY NOT NULL);
+		CREATE TABLE automodes 		 (mode_id int PRIMARY KEY NOT NULL);
+		CREATE TABLE pedmodes 		 (mode_id int PRIMARY KEY NOT NULL);
+		CREATE TABLE walkmodes 		 (mode_id int PRIMARY KEY NOT NULL);
+		CREATE TABLE bikemodes 		 (mode_id int PRIMARY KEY NOT NULL);		
 		CREATE TABLE nontransitmodes (mode_id int PRIMARY KEY NOT NULL);
 		GO
+	-- if editing the mode groups for a new survey year, also review the Regex in STEP 5 below -- these can't be referenced as tables and must be changed separately.
 
+/*	--2019 mode groupings
 		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(39),(42),(52);
 		INSERT INTO automodes(mode_id) values (6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(21),(22),(33),(34),(36),(47),(49),(71);
 		INSERT INTO pedmodes(mode_id) values (1),(2),(3),(4),(69);
 		INSERT INTO walkmodes(mode_id) values(1);
 		INSERT INTO bikemodes(mode_id) values (2),(3),(4),(69);		
 		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;	
-
-/* 		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
+*/
+	--2017 mode groupings
+ 		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
 		INSERT INTO automodes(mode_id) values (3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(16),(17),(18),(21),(22),(33),(34),(36),(37),(47);
 		INSERT INTO pedmodes(mode_id) values(1),(2);
 		INSERT INTO walkmodes(mode_id) values (1);
 		INSERT INTO bikemodes(mode_id) values(2);				
 		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;	
- */
+ 
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
 
+		DROP TABLE IF EXISTS household, person, tripx_raw, trip;
+		GO
 		CREATE TABLE household (
 			hhid int NOT NULL,
 			sample_segment int NOT NULL,
@@ -243,6 +245,7 @@ GO
 		)
 
 		CREATE TABLE hhts_tripx (
+			[recid] [int] NOT NULL DEFAULT 0,
 			[hhid] [int] NULL,
 			[personid] [int] NULL,
 			[pernum] [int] NULL,
@@ -343,16 +346,18 @@ GO
 			[nonproxy_derived_trip] [nvarchar](255) NULL,
 			[child_trip_location_tripid] [nvarchar](255) NULL
 		)
-
 		GO
 
+/*	--Getting the file on the same location is problematic-- currently using flat file import wizard for these three tables instead.
 		BULK INSERT household	FROM '\\aws-prod-file01\SQL2016\DSADEV\1-Household.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 		BULK INSERT person		FROM '\\aws-prod-file01\SQL2016\DSADEV\2-Person.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 		BULK INSERT tripx_raw	FROM '\\aws-prod-file01\SQL2016\DSADEV\5-Trip.csv'		WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
+*/
 
 		DROP TABLE IF EXISTS trip;
 		GO
 		CREATE TABLE trip (
+			[recid] [int] NOT NULL,
 			[hhid] [int] NOT NULL,
 			[personid] [int] NOT NULL,
 			[pernum] [int] NULL,
@@ -453,6 +458,10 @@ GO
 			[nonproxy_derived_trip] bit NULL,
 			[child_trip_location_tripid] bit NULL
 		)
+		DROP SEQUENCE IF EXISTS recid_increment;
+		CREATE SEQUENCE recid_increment AS int START WITH 1 INCREMENT BY 1 NO CYCLE;  -- Create sequence object to generate tripid for new records & add indices
+		ALTER TABLE trip ADD CONSTRAINT recid_autonumber DEFAULT NEXT VALUE FOR recid_increment FOR recid;
+		GO
 
 		INSERT INTO trip(
 			 [hhid]
@@ -659,6 +668,10 @@ GO
 			ORDER BY tripid;
 		GO
 
+		UPDATE x
+		SET x.recid = t.recid 
+		FROM hhts_tripx AS x JOIN trip AS t ON x.tripid=t.tripid;
+
 		ALTER TABLE trip --additional destination address fields
 			ADD origin_geom 	GEOMETRY NULL,
 				dest_geom 		GEOMETRY NULL,
@@ -685,11 +698,7 @@ GO
 		UPDATE trip	SET dest_geom = 	geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 AS VARCHAR(20)) + ')', 4326),
 						origin_geom = 	geometry::STPointFromText('POINT(' + CAST(origin_lng AS VARCHAR(20)) + ' ' + CAST(origin_lat AS VARCHAR(20)) + ')', 4326);
 						
-		ALTER TABLE trip ADD CONSTRAINT PK_trip PRIMARY KEY CLUSTERED (tripid) WITH FILLFACTOR=80;
-
-	/*	DROP SEQUENCE IF EXISTS workhorse_sequence;
-		CREATE SEQUENCE workhorse_sequence AS int START WITH 1 INCREMENT BY 1 NO CYCLE; -- Create second sequence object for linking purposes; doesn't appear to be necessary */
-		ALTER TABLE trip ADD CONSTRAINT tripid_autonumber DEFAULT NEXT VALUE FOR tripid_increment FOR tripid;
+		ALTER TABLE trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
 		CREATE INDEX person_idx ON trip (personid ASC);
 		CREATE INDEX tripnum_idx ON trip (tripnum ASC);
 		CREATE INDEX dest_purpose_idx ON trip (dest_purpose);
@@ -718,11 +727,11 @@ GO
 		GO
 		CREATE PROCEDURE tripnum_update AS
 		BEGIN
-		WITH tripnum_rev(tripid, personid, tripnum) AS
-			(SELECT tripid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM trip)
+		WITH tripnum_rev(recid, personid, tripnum) AS
+			(SELECT recid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM trip)
 		UPDATE t
 			SET t.tripnum = tripnum_rev.tripnum
-			FROM trip AS t JOIN tripnum_rev ON t.tripid=tripnum_rev.tripid AND t.personid = tripnum_rev.personid;
+			FROM trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid;
 		END
 		GO
 		EXECUTE tripnum_update;
@@ -884,7 +893,7 @@ GO
 
 		--if traveling with another hhmember, take this from the most adult member with whom they traveled
 		WITH cte AS
-			(SELECT myself.tripid AS self_tripid, family.personid AS referent, family.tripid AS referent_tripid
+			(SELECT myself.recid AS self_recid, family.personid AS referent, family.recid AS referent_recid
 			 FROM trip AS myself JOIN trip AS family ON myself.hhid=family.hhid AND myself.pernum <> family.pernum 
 			 WHERE EXISTS (SELECT 1 FROM (VALUES (family.hhmember1),(family.hhmember2),(family.hhmember3),(family.hhmember4),(family.hhmember5),(family.hhmember6),(family.hhmember7),(family.hhmember8),(family.hhmember9)) AS hhmem(member) WHERE myself.personid IN(member))
 			    AND (myself.depart_time_timestamp BETWEEN DATEADD(Minute, -5, family.depart_time_timestamp) AND DATEADD(Minute, 5, family.arrival_time_timestamp))
@@ -894,7 +903,7 @@ GO
 			SET t.dest_purpose = ref_t.dest_purpose, 
 				t.mode_1 	   = ref_t.mode_1,
 				t.revision_code = CONCAT(t.revision_code,'6,')		
-			FROM trip AS t JOIN cte ON t.tripid = cte.self_tripid JOIN trip AS ref_t ON cte.referent_tripid = ref_t.tripid AND cte.referent = ref_t.personid
+			FROM trip AS t JOIN cte ON t.recid = cte.self_recid JOIN trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
 			WHERE t.dest_purpose = -9998 AND t.mode_1 = -9998;
 
 		--update modes on the extremes of speed and distance
@@ -948,12 +957,12 @@ GO
 			WHERE (CONCAT(ti.personid, (ti.tripnum - 1)) <> CONCAT(previous_et.personid, previous_et.tripnum));
 		
 		-- assign trip_link value to remaining records in the trip.
-		WITH cte (tripid, ref_link) AS 
-		(SELECT ti1.tripid, MAX(ti1.trip_link) OVER(PARTITION BY ti1.personid ORDER BY ti1.tripnum ROWS UNBOUNDED PRECEDING) AS ref_link
+		WITH cte (recid, ref_link) AS 
+		(SELECT ti1.recid, MAX(ti1.trip_link) OVER(PARTITION BY ti1.personid ORDER BY ti1.tripnum ROWS UNBOUNDED PRECEDING) AS ref_link
 			FROM trip_ingredient AS ti1)
 		UPDATE ti
 			SET ti.trip_link = cte.ref_link
-			FROM trip_ingredient AS ti JOIN cte ON ti.tripid = cte.tripid
+			FROM trip_ingredient AS ti JOIN cte ON ti.recid = cte.recid
 			WHERE ti.trip_link = 0;	
 
 		-- add the 1st component without deleting it from the trip table.
@@ -1005,7 +1014,7 @@ GO
 
 		-- delete the components that will get replaced with linked trips
 		DELETE t
-		FROM trip AS t JOIN trip_ingredient AS ti ON t.tripid=ti.tripid
+		FROM trip AS t JOIN trip_ingredient AS ti ON t.recid=ti.recid
 		WHERE ti.trip_link <> -1 AND t.tripnum <> ti.trip_link;	
 		GO
 
@@ -1171,11 +1180,11 @@ GO
 
 		-- Populate separate mode fields, removing access/egress from the beginning and end of 1) transit and 2) auto trip strings
 			WITH cte AS 
-		(SELECT t.tripid, dbo.RgxReplace(dbo.RgxReplace(dbo.RgxReplace(t.modes,'\b(1|2|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47),)+','',1) AS mode_reduced
+		(SELECT t.recid, dbo.RgxReplace(dbo.RgxReplace(dbo.RgxReplace(t.modes,'\b(1|2|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47),)+','',1) AS mode_reduced
 			FROM trip as t
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM transitmodes))
 		UNION ALL 	
-		SELECT t.tripid, dbo.RgxReplace(t.modes,'\b(1|2|97)\b','',1) AS mode_reduced
+		SELECT t.recid, dbo.RgxReplace(t.modes,'\b(1|2|97)\b','',1) AS mode_reduced
 			FROM trip as t
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM automodes))
 			AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM transitmodes)))
@@ -1184,7 +1193,7 @@ GO
 				t.mode_2 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.mode_3 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.mode_4 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)
-		FROM trip AS t JOIN cte ON t.tripid = cte.tripid;
+		FROM trip AS t JOIN cte ON t.recid = cte.recid;
 
 		-- Populate transit_system and transit_line fields with the revised concatenated data 		
 		UPDATE 	t
@@ -1206,16 +1215,16 @@ GO
    DROP TABLE IF EXISTS silent_passenger_trip;
    GO
    WITH cte AS --create CTE set of passenger trips
-        (         SELECT tripid, pernum AS respondent, hhmember1 as passengerid FROM trip WHERE hhmember1 IS NOT NULL AND hhmember1 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember2 as passengerid FROM trip WHERE hhmember2 IS NOT NULL AND hhmember2 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember3 as passengerid FROM trip WHERE hhmember3 IS NOT NULL AND hhmember3 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember4 as passengerid FROM trip WHERE hhmember4 IS NOT NULL AND hhmember4 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember5 as passengerid FROM trip WHERE hhmember5 IS NOT NULL AND hhmember5 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember6 as passengerid FROM trip WHERE hhmember6 IS NOT NULL AND hhmember6 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember7 as passengerid FROM trip WHERE hhmember7 IS NOT NULL AND hhmember7 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember8 as passengerid FROM trip WHERE hhmember8 IS NOT NULL AND hhmember8 <> personid
-        UNION ALL SELECT tripid, pernum AS respondent, hhmember9 as passengerid FROM trip WHERE hhmember9 IS NOT NULL AND hhmember9 <> personid)
-	SELECT tripid, respondent, passengerid INTO silent_passenger_trip FROM cte GROUP BY tripid, respondent, passengerid;
+        (         SELECT recid, pernum AS respondent, hhmember1 as passengerid FROM trip WHERE hhmember1 IS NOT NULL AND hhmember1 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember2 as passengerid FROM trip WHERE hhmember2 IS NOT NULL AND hhmember2 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember3 as passengerid FROM trip WHERE hhmember3 IS NOT NULL AND hhmember3 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember4 as passengerid FROM trip WHERE hhmember4 IS NOT NULL AND hhmember4 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember5 as passengerid FROM trip WHERE hhmember5 IS NOT NULL AND hhmember5 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember6 as passengerid FROM trip WHERE hhmember6 IS NOT NULL AND hhmember6 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember7 as passengerid FROM trip WHERE hhmember7 IS NOT NULL AND hhmember7 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember8 as passengerid FROM trip WHERE hhmember8 IS NOT NULL AND hhmember8 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember9 as passengerid FROM trip WHERE hhmember9 IS NOT NULL AND hhmember9 <> personid)
+	SELECT recid, respondent, passengerid INTO silent_passenger_trip FROM cte GROUP BY recid, respondent, passengerid;
 
 	DROP PROCEDURE IF EXISTS silent_passenger_trips_inserted;
 	GO
@@ -1244,7 +1253,7 @@ GO
 		t.toll, t.toll_pay, t.taxi_type, t.taxi_pay, t.bus_type, t.bus_pay, t.bus_cost_dk, t.ferry_type, t.ferry_pay, t.ferry_cost_dk, t.rail_type, t.rail_pay, t.rail_cost_dk, t.air_type, t.air_pay, t.airfare_cost_dk,
 		t.origin_geom, t.origin_lat, t.origin_lng, t.dest_geom, t.dest_county, t.dest_city, t.dest_zip, t.dest_is_home, t.dest_is_work, 1 AS psrc_inserted, CONCAT(t.revision_code, '9,') AS revision_code
 	FROM silent_passenger_trip AS spt -- insert only when the CTE trip doesn't overlap any trip by the same person; doesn't matter if an intersecting trip reports the other hhmembers or not.
-        JOIN trip as t ON spt.tripid = t.tripid
+        JOIN trip as t ON spt.recid = t.recid
 		LEFT JOIN trip as compare_t ON spt.passengerid = compare_t.personid
 		WHERE compare_t.personid IS NULL AND spt.respondent = @respondent
 			AND NOT EXISTS(SELECT 1 WHERE (t.depart_time_timestamp BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp)
@@ -1286,11 +1295,16 @@ GO
 		WHERE t.dest_purpose IN(10,11,14) AND (p.age < 4 OR p.worker = 0)
 			AND EXISTS (SELECT 1 FROM (VALUES (t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmem(member) JOIN person ON hhmem.member = person.personid WHERE person.worker = 1 AND person.age > 3);
 
+DROP PROCEDURE IF EXISTS generate_error_flags;
+GO
+CREATE PROCEDURE generate_error_flags AS 
+BEGIN
+
 /* STEP 7. Remove Singletons */
 /* One-trip records imply no valid data.  Households composed only of such persons are flagged for removal as well */
 	/*SELECT * INTO singletons FROM trip WHERE 1=0;
 	
-	WITH cte AS (SELECT personid FROM trip GROUP BY personid HAVING count(tripid)=1)
+	WITH cte AS (SELECT personid FROM trip GROUP BY personid HAVING count(recid)=1)
 	DELETE FROM trip 
 	OUTPUT DELETED.* INTO singletons
 		WHERE EXISTS (SELECT 1 FROM cte WHERE cte.personid = trip.personid);
@@ -1308,32 +1322,31 @@ GO
 
 		DROP TABLE IF EXISTS trip_error_flags;
 		CREATE TABLE trip_error_flags(
-			tripid bigint not NULL,
+			recid bigint not NULL,
 			personid int not NULL,
 			tripnum int not null,
 			error_flag varchar(100)
-			PRIMARY KEY (personid, tripid, error_flag)
-		);
-		GO
-		TRUNCATE TABLE trip_error_flags;
+			PRIMARY KEY (personid, recid, error_flag)
+			);
+
 		-- 																									  LOGICAL ERROR LABEL 		
-		WITH error_flag_compilation(tripid, personid, tripnum, error_flag) AS
-			(SELECT max(t1.tripid), t1.personid, max(t1.tripnum), 													  'lone trip' AS error_flag
+		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
+			(SELECT max(t1.recid), t1.personid, max(t1.tripnum), 													  'lone trip' AS error_flag
 				FROM trip AS t1 GROUP BY t1.personid HAVING max(t1.tripnum)=1
-			UNION ALL SELECT t1.tripid, t1.personid, t1.tripnum, 												'underage driver' AS error_flag
+			UNION ALL SELECT t1.recid, t1.personid, t1.tripnum, 												'underage driver' AS error_flag
 					FROM hhts_agecodes AS age JOIN person AS p ON age.agecode = p.age
 						JOIN trip AS t1 ON p.personid = t1.personid
 					WHERE t1.driver = 1 AND p.age BETWEEN 1 AND 3
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum, 										  'unlicensed driver' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 										  'unlicensed driver' AS error_flag
 				FROM trip JOIN person AS p ON p.personid=trip.personid
 				WHERE p.license = 3 AND trip.driver=1
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum, 							 		 'non-worker + work trip' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 							 		 'non-worker + work trip' AS error_flag
 				FROM trip JOIN person AS p ON p.personid=trip.personid
 				WHERE p.worker = 0 AND trip.dest_purpose in(10,11,14)
 
-			UNION ALL SELECT t.tripid, t.personid, t.tripnum, 													'excessive speed' AS error_flag
+			UNION ALL SELECT t.recid, t.personid, t.tripnum, 													'excessive speed' AS error_flag
 				FROM trip AS t									
 				WHERE 	(EXISTS (SELECT 1 FROM walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
 					OR 	(EXISTS (SELECT 1 FROM bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
@@ -1341,87 +1354,86 @@ GO
 					OR	(EXISTS (SELECT 1 FROM transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 85)	
 					OR 	(t.speed_mph > 600)	
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
 				FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60
 
-			UNION ALL SELECT next_trip.tripid, next_trip.personid, next_trip.tripnum,	   				'no activity time before' AS error_flag
+			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	   				'no activity time before' AS error_flag
 				FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					        	 		   'same dest as next' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					        	 		   'same dest as next' AS error_flag
 				FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 					AND trip.dest_lat = next_trip.dest_lat AND trip.dest_lng = next_trip.dest_lng
 
-			UNION ALL SELECT next_trip.tripid, next_trip.personid, next_trip.tripnum,	       				  'same dest as prior' AS error_flag
+			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	       				  'same dest as prior' AS error_flag
 				FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum 
 					AND trip.dest_lat = next_trip.dest_lat AND trip.dest_lng = next_trip.dest_lng
 
-			UNION ALL (SELECT trip.tripid, trip.personid, trip.tripnum,					         					'time overlap' AS error_flag
-				FROM trip JOIN trip AS compare_t ON trip.personid=compare_t.personid AND trip.tripid <> compare_t.tripid
+			UNION ALL (SELECT trip.recid, trip.personid, trip.tripnum,					         					'time overlap' AS error_flag
+				FROM trip JOIN trip AS compare_t ON trip.personid=compare_t.personid AND trip.recid <> compare_t.recid
 				WHERE 	(compare_t.depart_time_timestamp  BETWEEN DATEADD(Minute, 2, trip.depart_time_timestamp) AND DATEADD(Minute, -2, trip.arrival_time_timestamp))
 					OR	(compare_t.arrival_time_timestamp BETWEEN DATEADD(Minute, 2, trip.depart_time_timestamp) AND DATEADD(Minute, -2, trip.arrival_time_timestamp))
 					OR	(trip.depart_time_timestamp  BETWEEN DATEADD(Minute, 2, compare_t.depart_time_timestamp) AND DATEADD(Minute, -2, compare_t.arrival_time_timestamp))
 					OR	(trip.arrival_time_timestamp BETWEEN DATEADD(Minute, 2, compare_t.depart_time_timestamp) AND DATEADD(Minute, -2, compare_t.arrival_time_timestamp)))
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,								'same transit line listed 2x+' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,								'same transit line listed 2x+' AS error_flag
 				FROM trip
     			WHERE EXISTS(SELECT count(*) 
 								FROM (VALUES(trip.transit_line_1),(trip.transit_line_2),(trip.transit_line_3),(trip.transit_line_4),(trip.transit_line_5)) AS transitline(member) 
 								WHERE member IS NOT NULL AND member <> 0 GROUP BY member HAVING count(*) > 1)
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,	  		   			 		   	 'purpose at odds w/ dest' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	  		   			 		   	 'purpose at odds w/ dest' AS error_flag
 				FROM trip
 				WHERE (trip.dest_purpose <> 1 and trip.dest_is_home = 1) OR (trip.dest_purpose NOT IN(9,10,11,14,60) and trip.dest_is_work = 1)
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
 			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE ABS(trip.dest_lat - next_trip.origin_lat) >.0045  --roughly 500m difference or more, using degrees
 
-			UNION ALL SELECT next_trip.tripid, next_trip.personid, next_trip.tripnum,	              	 'missing prior trip link' AS error_flag
+			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	              	 'missing prior trip link' AS error_flag
 			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE ABS(trip.dest_lat - next_trip.origin_lat) >.0045	--roughly 500m difference or more, using degrees
 
-			UNION ALL SELECT next_trip.tripid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
+			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
 			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --next_trip is first trip of the day
 					AND dbo.TRIM(next_trip.origin_name)<>'HOME' 
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
 			FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --last trip of the day
 					AND trip.dest_is_home <> 1
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag
 				FROM trip
 				LEFT JOIN trip AS next_t ON trip.personid=next_t.personid	AND trip.tripnum + 1 = next_t.tripnum						
 				WHERE trip.dest_purpose = 9 AND (trip.travelers_total = next_t.travelers_total)	
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
 				FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 					WHERE   (trip.dest_purpose IN(6,10,11,14)    			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 720)
     					OR  (trip.dest_purpose IN(30)      			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 240)
    						OR  (trip.dest_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 480)
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum,					  					   	 	    'too slow' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  					   	 	    'too slow' AS error_flag
 				FROM trip
 				WHERE DATEDIFF(Minute, trip.depart_time_timestamp, trip.arrival_time_timestamp) > 180 AND trip.speed_mph < 20		   
 
-			UNION ALL SELECT trip.tripid, trip.personid, trip.tripnum, 		  				   		   'non-student + school trip' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 		  				   		   'non-student + school trip' AS error_flag
 				FROM trip JOIN trip as next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum JOIN person ON trip.personid=person.personid 					
 				WHERE trip.dest_purpose = 6		
 					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)	
-		INSERT INTO trip_error_flags (tripid, personid, tripnum, error_flag)
-			SELECT tripid, personid, tripnum, error_flag FROM error_flag_compilation GROUP BY tripid, personid, tripnum, error_flag;
-		GO
+		INSERT INTO trip_error_flags (recid, personid, tripnum, error_flag)
+			SELECT recid, personid, tripnum, error_flag FROM error_flag_compilation GROUP BY recid, personid, tripnum, error_flag;
 
 	/* Flag households with predominantly problematic records */
 	TRUNCATE TABLE hh_error_flags;
 	WITH cte AS 
 		(SELECT t1.hhid FROM trip AS t1 
-			LEFT JOIN trip_error_flags AS tef ON t1.tripid=tef.tripid LEFT JOIN error_types AS et ON tef.error_flag=et.error_flag
+			LEFT JOIN trip_error_flags AS tef ON t1.recid=tef.recid LEFT JOIN error_types AS et ON tef.error_flag=et.error_flag
 			GROUP BY t1.hhid 
 			HAVING avg(CASE WHEN et.vital = 1 THEN 1 ELSE 0 END)>.29
 		UNION
@@ -1436,6 +1448,10 @@ GO
 			HAVING avg(CASE WHEN t3.dest_purpose IS NOT NULL AND t3.dest_purpose = prior_trip.dest_purpose AND t3.dest_purpose = next_trip.dest_purpose THEN 1.0 ELSE 0 END)>.19)
 	INSERT INTO hh_error_flags (hhid, error_flag)
 	SELECT cte.hhid, 'high fraction of errors or missing data' FROM cte
+
+END
+GO
+EXECUTE generate_error_flags;
 
 /* STEP 9. Impute missing fields [access/egress, etc] */
 /* TBD */
