@@ -73,7 +73,12 @@ SELECT t1.personid, t1.hhid, t1.pernum,
 		ROUND(t1.speed_mph,1) AS mph, 
 		ROUND(t1.trip_path_distance,1) AS miles,
 		FORMAT(t1.arrival_time_timestamp,N'hh\:mm tt','en-US') AS arrive_dhm,
-		CASE WHEN tef.error_flag IS NOT NULL THEN tef.error_flag ELSE '' END AS error,
+		STUFF(
+				(SELECT ',' + tef.error_flag
+					FROM trip_error_flags AS tef
+					WHERE tef.recid = t1.recid
+					ORDER BY error_flag DESC
+					FOR XML PATH('')), 1, 1, NULL) AS Error,
 		CASE WHEN t1.travelers_total > 1 THEN CONCAT(CAST(t1.travelers_total - 1 AS nvarchar) ,' - ', 
 				STUFF(	COALESCE(',' + CASE WHEN t1.hhmember1 <> t1.personid THEN RIGHT(CAST(t1.hhmember1 AS nvarchar),2) ELSE NULL END, '') +
 				COALESCE(',' + CASE WHEN t1.hhmember2 <> t1.personid THEN RIGHT(CAST(t1.hhmember2 AS nvarchar),2) ELSE NULL END, '') + 
@@ -88,13 +93,12 @@ SELECT t1.personid, t1.hhid, t1.pernum,
 			CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'m') AS duration_at_dest,
 			t1.revision_code AS rc
 	FROM trip AS t1 LEFT JOIN trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
-		LEFT JOIN trip_mode AS ma ON t1.mode_1=ma.mode_id
+		LEFT JOIN trip_mode AS ma ON t1.mode_acc=ma.mode_id
 		LEFT JOIN trip_mode AS m1 ON t1.mode_1=m1.mode_id
 		LEFT JOIN trip_mode AS m2 ON t1.mode_2=m2.mode_id
 		LEFT JOIN trip_mode AS m3 ON t1.mode_3=m3.mode_id
 		LEFT JOIN trip_mode AS m4 ON t1.mode_4=m4.mode_id
-		LEFT JOIN trip_mode AS me ON t1.mode_1=me.mode_id
+		LEFT JOIN trip_mode AS me ON t1.mode_egr=me.mode_id
 		LEFT JOIN trip_purpose AS tp ON t1.dest_purpose=tp.purpose_id
-		LEFT JOIN trip_error_flags AS tef ON t1.recid=tef.recid
-	WHERE EXISTS (SELECT 1 FROM trip_error_flags AS tef WHERE t1.personid=tef.personid);
+	WHERE EXISTS (SELECT 1 FROM trip_error_flags WHERE t1.personid=trip_error_flags.personid);
 GO
