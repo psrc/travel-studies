@@ -43,7 +43,6 @@ GO
 		INSERT INTO walkmodes(mode_id) values (1);
 		INSERT INTO bikemodes(mode_id) values(2);				
 		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;	
- 
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
@@ -694,6 +693,106 @@ GO
 			ADD work_geom GEOMETRY NULL;*/
 		
 		GO
+
+	-- create an auto-loggint trigger for updates to the trip table
+		create  trigger [Mike].[tr_trip] on [Mike].[trip] for insert, update, delete
+		as
+
+		declare @bit int ,
+		    @field int ,
+		    @maxfield int ,
+		    @char int ,
+		    @fieldname varchar(128) ,
+		    @TableName varchar(128) ,
+			@SchemaName varchar(128),
+		    @PKCols varchar(1000) ,
+		    @sql varchar(2000), 
+		    @UpdateDate varchar(21) ,
+		    @UserName varchar(128) ,
+		    @Type char(1) ,
+		    @PKSelect varchar(1000)
+		    
+		    select @TableName = 'trip'
+			select @SchemaName = 'Mike'
+
+		    -- date and user
+		    select  @UserName = system_user ,
+		        @UpdateDate = convert(varchar(8), getdate(), 112) + ' ' + convert(varchar(12), getdate(), 114)
+
+		    -- Action
+		    if exists (select * from inserted)
+		        if exists (select * from deleted)
+		            select @Type = 'U'
+		        else
+		            select @Type = 'I'
+		    else
+		        select @Type = 'D'
+		    
+		    -- get list of columns
+		    select * into #ins from inserted
+		    select * into #del from deleted
+		    
+		    -- Get primary key columns for full outer join
+		    select  @PKCols = coalesce(@PKCols + ' and', ' on') + ' i.[' + c.COLUMN_NAME + '] = d.[' + c.COLUMN_NAME + ']'
+		    from    INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk ,
+		        INFORMATION_SCHEMA.KEY_COLUMN_USAGE c
+		    where   pk.TABLE_NAME = @TableName
+		    and CONSTRAINT_TYPE = 'PRIMARY KEY'
+		    and c.TABLE_NAME = pk.TABLE_NAME
+		    and c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME
+		    
+		    -- Get primary key select for insert.  @PKSelect will contain the ProjID and Phase info defining the precise line
+		    -- in tblFinancial that is edited.  This variable is formatted to be used as part of the SELECT clause in the query 
+		    -- (below) that inserts the data into tblFinancialAuditTrail.
+		    select  @PKSelect = coalesce(@PKSelect+',','') + 'convert(varchar(100),coalesce(i.[' + COLUMN_NAME +'],d.[' + COLUMN_NAME + ']))' 
+		        from    INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk ,
+		            INFORMATION_SCHEMA.KEY_COLUMN_USAGE c
+		        where   pk.TABLE_NAME = @TableName
+				and pk.TABLE_SCHEMA = @SchemaName
+				AND c.TABLE_SCHEMA = @SchemaName
+		        and CONSTRAINT_TYPE = 'PRIMARY KEY'
+		        and c.TABLE_NAME = pk.TABLE_NAME
+		        and c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME
+		        ORDER BY c.ORDINAL_POSITION
+
+		    if @PKCols is null
+		    begin
+		        raiserror('no PK on table %s', 16, -1, @TableName)
+		        return
+		    end
+
+		    select @field = 0, @maxfield = max(ORDINAL_POSITION) from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and TABLE_SCHEMA = @SchemaName
+		    while @field < @maxfield
+		    begin
+		        select @field = min(ORDINAL_POSITION) from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION > @field and TABLE_SCHEMA = @SchemaName
+		        select @bit = (@field - 1 )% 8 + 1
+		        select @bit = power(2,@bit - 1)
+		        select @char = ((@field - 1) / 8) + 1
+		        if ( substring(COLUMNS_UPDATED(),@char, 1) & @bit > 0 or @Type in ('I','D') )
+		        begin
+		            select @fieldname = COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION = @field and TABLE_SCHEMA = @SchemaName
+		            begin
+		                select @sql =       'insert into dbo.tblTripAudit (Type, tripid,FieldName, OldValue, NewValue, UpdateDate, UserName)'
+		                select @sql = @sql +    ' select ''' + @Type + ''''
+		                select @sql = @sql +    ',' + @PKSelect
+		                select @sql = @sql +    ',''' + @fieldname + ''''
+		                select @sql = @sql +    ',convert(varchar(1000),d.[' + @fieldname + '])'
+		                select @sql = @sql +    ',convert(varchar(1000),i.[' + @fieldname + '])'
+		                select @sql = @sql +    ',''' + @UpdateDate + ''''
+		                select @sql = @sql +    ',''' + @UserName + ''''
+		                select @sql = @sql +    ' from #ins i full outer join #del d'
+		                select @sql = @sql +    @PKCols
+		                select @sql = @sql +    ' where i.[' + @fieldname + '] <> d.[' + @fieldname + ']'
+		                select @sql = @sql +    ' or (i.[' + @fieldname + '] is null and  d.[' + @fieldname + '] is not null)' 
+		                select @sql = @sql +    ' or (i.[' + @fieldname + '] is not null and  d.[' + @fieldname + '] is null)' 
+		                exec (@sql)
+		            end
+		        end
+		    end
+
+		GO
+		ALTER TABLE trip DISABLE TRIGGER tr_trip
+	-- end of trigger creation
 		
 		UPDATE trip	SET dest_geom = 	geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 AS VARCHAR(20)) + ')', 4326),
 						origin_geom = 	geometry::STPointFromText('POINT(' + CAST(origin_lng AS VARCHAR(20)) + ' ' + CAST(origin_lat AS VARCHAR(20)) + ')', 4326);
@@ -710,6 +809,9 @@ GO
 
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
 		UPDATE trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
+
+	-- Enable the audit trail/logger
+		ALTER TABLE trip ENABLE TRIGGER [tr_trip]
 
 	-- Revise travelers count to reflect passengers (lazy response?)
 		UPDATE t
@@ -776,7 +878,7 @@ GO
 					OR(
 						(dbo.RgxFind(t.dest_name,' home',1) = 1 
 						OR dbo.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
-						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
+						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0 -- add 'his'? -cp
 					)
 					OR(t.dest_purpose = 1))
 					AND t.dest_geom.STIntersects(household.home_geom.STBuffer(0.001)) = 1;
@@ -811,12 +913,13 @@ GO
 					AND t.dest_purpose=prev_t.dest_purpose;
 
 			UPDATE t --revises purpose field for home return portion of a single stop loop trip 
-				SET t.dest_purpose = 1, t.revision_code = CONCAT(t.revision_code,'1,')
+				SET t.dest_purpose = 1, t.revision_code = CONCAT(t.revision_code,'1,') 
 				FROM trip AS t
-				WHERE (t.dest_purpose <> 1 and t.dest_is_home = 1) 
+				WHERE t.dest_is_home = 1 
 					AND t.origin_name <> 'HOME';					
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
+			-- Possible edge case: a second home-based errand trip within 30 minutes of completing another, this time with a different number of passengers 
 				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM trip AS t
 					JOIN person AS p ON t.personid=p.personid 
@@ -826,7 +929,7 @@ GO
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
-				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
+				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,') --same comment as previous query
 				FROM trip AS t
 					JOIN person AS p ON t.personid=p.personid 
 					JOIN trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
@@ -849,7 +952,7 @@ GO
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL)
 					AND (t.travelers_total > 1 OR next_t.travelers_total > 1)
 					AND (t.dest_purpose = 6 OR dbo.RgxFind(t.dest_name,'(school|care)',1) = 1)
-					AND DATEDIFF(Minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) Between 30 and 250;
+					AND DATEDIFF(Minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) Between 30 and 240;
 
 			UPDATE t --updates empty purpose code to 'school' when single student traveler with school destination and duration > 30 minutes.
 				SET t.dest_purpose = 6, t.revision_code = CONCAT(t.revision_code,'4,')
@@ -903,7 +1006,9 @@ GO
 			SET t.dest_purpose = ref_t.dest_purpose, 
 				t.mode_1 	   = ref_t.mode_1,
 				t.revision_code = CONCAT(t.revision_code,'6,')		
-			FROM trip AS t JOIN cte ON t.recid = cte.self_recid JOIN trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
+			FROM trip AS t 
+				JOIN cte ON t.recid = cte.self_recid 
+				JOIN trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
 			WHERE t.dest_purpose = -9998 AND t.mode_1 = -9998;
 
 		--update modes on the extremes of speed and distance
