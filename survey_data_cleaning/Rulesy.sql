@@ -1138,13 +1138,13 @@ GO
 			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
 			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
-			t.speed 			= t.trip_path_distance / (DATEDIFF (Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60),
+			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) THEN 0 
+									ELSE t.trip_path_distance / CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600 END,
 			t.dayofweek 		= DATEPART(dw, t.depart_time_timestamp)
-			FROM trip AS t;
+			FROM trip AS t;	
 		END
 		EXECUTE calculate_derived_fields;
 		GO	
-
 
 /* STEP 5.	Mode number standardization, including access and egress characterization */
 
