@@ -3,7 +3,7 @@
 
 	Required CLR regex functions coded here as RgxFind, RgxExtract, RgxReplace
 	--see https://www.codeproject.com/Articles/19502/A-T-SQL-Regular-Expression-Library-for-SQL-Server
-	/*Required CLR string_agg function coded here as [not using yet]*/
+	
 
 
 */
@@ -26,7 +26,7 @@ GO
 		CREATE TABLE bikemodes 		 (mode_id int PRIMARY KEY NOT NULL);		
 		CREATE TABLE nontransitmodes (mode_id int PRIMARY KEY NOT NULL);
 		GO
-	-- if editing the mode groups for a new survey year, also review the Regex in STEP 5 below -- these can't be referenced as tables and must be changed separately.
+	-- I haven't yet found a way to build the CLR regex pattern string from a variable expression, so if the sets in these tables change, the groupings in STEP 5 will likely need to be updated as well.
 
 /*	--2019 mode groupings
 		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(39),(42),(52);
@@ -456,7 +456,9 @@ GO
 			[flag_teleport] bit NULL,
 			[proxy_added_trip] bit NULL,
 			[nonproxy_derived_trip] bit NULL,
-			[child_trip_location_tripid] bit NULL
+			[child_trip_location_tripid] bit NULL, 
+			[psrc_comment] NVARCHAR(250) NULL,
+			[psrc_resolved] TINYINT NULL
 		)
 		DROP SEQUENCE IF EXISTS recid_increment;
 		CREATE SEQUENCE recid_increment AS int START WITH 1 INCREMENT BY 1 NO CYCLE;  -- Create sequence object to generate tripid for new records & add indices
@@ -1051,7 +1053,7 @@ GO
 					(ti_agg.toll_pay)				AS toll_pay, 
 					(ti_agg.taxi_pay)				AS taxi_pay 					
 				CASE WHEN (ti_agg.driver) ...							AS driver,*/
-						FROM trip_ingredient as ti_agg WHERE ti_agg.trip_link > 0 GROUP BY ti_agg.personid, ti_agg.trip_link),
+			FROM trip_ingredient as ti_agg WHERE ti_agg.trip_link > 0 GROUP BY ti_agg.personid, ti_agg.trip_link),
 		cte_wndw AS	
 		(SELECT DISTINCT
 				ti_wndw.personid AS personid2,
@@ -1125,6 +1127,24 @@ GO
 																		t.air_type		= lt.air_type,	
 				t.revision_code 		= CONCAT(t.revision_code, '8,')
 			FROM trip AS t JOIN linked_trip AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
+
+		-- recalculate derived fields
+		DROP PROCEDURE IF EXISTS calculate_derived_fields;
+		GO
+		CREATE PROCEDURE calculate_derived_fields AS 
+		BEGIN
+		UPDATE t SET
+			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
+			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
+			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
+			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
+			t.speed 			= t.trip_path_distance / (DATEDIFF (Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60),
+			t.dayofweek 		= DATEPART(dw, t.depart_time_timestamp)
+			FROM trip AS t;
+		END
+		EXECUTE calculate_derived_fields;
+		GO	
+
 
 /* STEP 5.	Mode number standardization, including access and egress characterization */
 
@@ -1299,6 +1319,7 @@ DROP PROCEDURE IF EXISTS generate_error_flags;
 GO
 CREATE PROCEDURE generate_error_flags AS 
 BEGIN
+SET NOCOUNT ON
 
 /* STEP 7. Remove Singletons */
 /* One-trip records imply no valid data.  Households composed only of such persons are flagged for removal as well */
@@ -1427,7 +1448,10 @@ BEGIN
 				WHERE trip.dest_purpose = 6		
 					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)	
 		INSERT INTO trip_error_flags (recid, personid, tripnum, error_flag)
-			SELECT recid, personid, tripnum, error_flag FROM error_flag_compilation GROUP BY recid, personid, tripnum, error_flag;
+			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
+			FROM error_flag_compilation AS efc JOIN trip AS t_active ON efc.recid = t_active.recid
+			WHERE t_active.psrc_resolved IS NULL
+			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
 	/* Flag households with predominantly problematic records */
 	TRUNCATE TABLE hh_error_flags;
@@ -1453,5 +1477,30 @@ END
 GO
 EXECUTE generate_error_flags;
 
-/* STEP 9. Impute missing fields [access/egress, etc] */
+/* STEP 9. Steps to enable trip deletion & linking through the MS Access front end*/
+
+	--For deletions
+		
+		DROP TABLE IF EXISTS removed_trip;
+		GO
+		SELECT TOP 0 trip.* INTO removed_trip
+		FROM trip;
+		GO
+		TRUNCATE TABLE removed_trip;
+		GO
+
+		DROP PROCEDURE IF EXISTS remove_trip;
+		GO
+		CREATE PROCEDURE remove_trip 
+			@target_recid int  NULL --Parameter necessary to have passed
+		AS BEGIN
+		DELETE FROM trip OUTPUT deleted.* INTO removed_trip
+		WHERE trip.recid = @target_recid;
+		END
+		GO
+
+
+
+
+
 /* TBD */
