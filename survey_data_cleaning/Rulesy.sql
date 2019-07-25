@@ -18,7 +18,7 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 	--Create mode uber-categories for access/egress characterization, etc.
-		DROP TABLE IF EXISTS transitmodes, automodes, pedmodes, walkmodes, bikemodes, nontransitmodes, trip_ingredients;
+		DROP TABLE IF EXISTS transitmodes, automodes, pedmodes, walkmodes, bikemodes, nontransitmodes, trip_ingredients_done;
 		CREATE TABLE transitmodes 	 (mode_id int PRIMARY KEY NOT NULL);
 		CREATE TABLE automodes 		 (mode_id int PRIMARY KEY NOT NULL);
 		CREATE TABLE pedmodes 		 (mode_id int PRIMARY KEY NOT NULL);
@@ -941,9 +941,15 @@ GO
 									COALESCE(',' + CAST(transit_line_5 AS nvarchar), ''), 1, 1, '')							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
-		DROP TABLE IF EXISTS trip_ingredient;
+		DROP TABLE IF EXISTS trip_ingredients_done;
 		GO
-		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO trip_ingredient
+		SELECT TOP 0 trip.*, CAST(0 AS int) AS trip_link 
+			INTO trip_ingredients_done 
+			FROM trip;
+		GO
+
+		--select the trip ingredients that will be linked; this selects all but the first component 
+		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient
 		FROM trip JOIN trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 			WHERE 	trip.dest_is_home IS NULL AND trip.dest_is_work IS NULL 
 				AND trip.travelers_total = next_trip.travelers_total
@@ -955,47 +961,52 @@ GO
 		-- set the trip_link value of the 2nd component to the tripnum of the 1st component.
 		UPDATE ti  
 			SET ti.trip_link = (ti.tripnum - 1)
-			FROM trip_ingredient AS ti LEFT JOIN trip_ingredient AS previous_et ON ti.personid = previous_et.personid AND (ti.tripnum - 1) = previous_et.tripnum
+			FROM #trip_ingredient AS ti LEFT JOIN #trip_ingredient AS previous_et ON ti.personid = previous_et.personid AND (ti.tripnum - 1) = previous_et.tripnum
 			WHERE (CONCAT(ti.personid, (ti.tripnum - 1)) <> CONCAT(previous_et.personid, previous_et.tripnum));
 		
 		-- assign trip_link value to remaining records in the trip.
 		WITH cte (recid, ref_link) AS 
 		(SELECT ti1.recid, MAX(ti1.trip_link) OVER(PARTITION BY ti1.personid ORDER BY ti1.tripnum ROWS UNBOUNDED PRECEDING) AS ref_link
-			FROM trip_ingredient AS ti1)
+			FROM #trip_ingredient AS ti1)
 		UPDATE ti
 			SET ti.trip_link = cte.ref_link
-			FROM trip_ingredient AS ti JOIN cte ON ti.recid = cte.recid
+			FROM #trip_ingredient AS ti JOIN cte ON ti.recid = cte.recid
 			WHERE ti.trip_link = 0;	
 
 		-- add the 1st component without deleting it from the trip table.
-		INSERT INTO trip_ingredient
-			SELECT t.*, t.tripnum AS trip_link FROM trip AS t JOIN trip_ingredient AS ti ON t.personid = ti.personid AND t.tripnum = ti.trip_link AND t.tripnum = ti.tripnum - 1;
+		INSERT INTO #trip_ingredient
+			SELECT t.*, t.tripnum AS trip_link FROM trip AS t JOIN #trip_ingredient AS ti ON t.personid = ti.personid AND t.tripnum = ti.trip_link AND t.tripnum = ti.tripnum - 1;
+
+		DROP PROCEDURE IF EXISTS link_trips;
+		GO
+		CREATE PROCEDURE link_trips AS
+		BEGIN
 
 		-- denote trips with too many components or other attributes suggesting multiple trips, for later examination.  
-		WITH cte_a AS																				--non-adjacent repeated transit line
+		WITH cte_a AS										--non-adjacent repeated transit line, i.e. suggests a loop trip
 			(SELECT DISTINCT ti_wndw1.personid, ti_wndw1.trip_link, dbo.TRIM(dbo.RgxReplace(
 				STUFF((SELECT ',' + ti1.transit_lines
-					FROM trip_ingredient AS ti1 
+					FROM #trip_ingredient AS ti1 
 					WHERE ti1.personid = ti_wndw1.personid AND ti1.trip_link = ti_wndw1.trip_link
 					GROUP BY ti1.transit_lines
 					ORDER BY ti_wndw1.personid DESC, ti_wndw1.tripnum DESC
 					FOR XML PATH('')), 1, 1, NULL),'(\b\d+\b),(?=\1)','',1)) AS transit_lines	
-				FROM trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),
+				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),
 		cte_b AS 
 			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, dbo.TRIM(dbo.RgxReplace(
-				STUFF((SELECT ',' + ti2.modes
-					FROM trip_ingredient AS ti2
+				STUFF((SELECT ',' + ti2.modes				--non-adjacent repeated modes, i.e. suggests a loop trip
+					FROM #trip_ingredient AS ti2
 					WHERE ti2.personid = ti_wndw2.personid AND ti2.trip_link = ti_wndw2.trip_link
 					GROUP BY ti2.modes
 					ORDER BY ti_wndw2.personid DESC, ti_wndw2.tripnum DESC
 					FOR XML PATH('')), 1, 1, NULL),'(\b\d+\b),(?=\1)','',1)) AS modes	
-				FROM trip_ingredient as ti_wndw2),
+				FROM #trip_ingredient as ti_wndw2),
 		cte2 AS 
 			(SELECT ti3.personid, ti3.trip_link 			--sets with more than 4 trip components
-				FROM trip_ingredient as ti3 GROUP BY ti3.personid, ti3.trip_link 
+				FROM #trip_ingredient as ti3 GROUP BY ti3.personid, ti3.trip_link 
 				HAVING count(*) > 4
 			UNION ALL SELECT ti4.personid, ti4.trip_link	--sets with two items that each denote a separate trip
-				FROM trip_ingredient as ti4 GROUP BY ti4.personid, ti4.trip_link
+				FROM #trip_ingredient as ti4 GROUP BY ti4.personid, ti4.trip_link
 				HAVING sum(CASE WHEN LEN(ti4.pool_start) 			<>0 THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN LEN(ti4.change_vehicles) 		<>0 THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN LEN(ti4.park_ride_area_start) 	<>0 THEN 1 ELSE 0 END) > 1
@@ -1011,18 +1022,15 @@ GO
 				WHERE dbo.RgxFind(cte_b.modes,'\b(\d+),(\d+)\b,.+(?=\2,\1)',1)=1)		
 		UPDATE ti
 			SET ti.trip_link = -1 * ti.trip_link
-			FROM trip_ingredient AS ti JOIN cte2 ON cte2.personid = ti.personid AND cte2.trip_link = ti.trip_link;
-		GO
+			FROM #trip_ingredient AS ti JOIN cte2 ON cte2.personid = ti.personid AND cte2.trip_link = ti.trip_link;
 
 		-- delete the components that will get replaced with linked trips
 		DELETE t
-		FROM trip AS t JOIN trip_ingredient AS ti ON t.recid=ti.recid
+		FROM trip AS t JOIN #trip_ingredient AS ti ON t.recid=ti.recid
 		WHERE ti.trip_link <> -1 AND t.tripnum <> ti.trip_link;	
-		GO
 
-		-- meld the trip_ingredients to create the fields that will populate the linked trip, and saves those as a separate table, 'linked_trip'.
-		DROP TABLE IF EXISTS linked_trip;
-		GO
+		-- meld the trip ingredients to create the fields that will populate the linked trip, and saves those as a separate table, 'linked_trip'.
+
 		WITH cte_agg AS
 		(SELECT ti_agg.personid,
 				ti_agg.trip_link,
@@ -1053,7 +1061,7 @@ GO
 					(ti_agg.toll_pay)				AS toll_pay, 
 					(ti_agg.taxi_pay)				AS taxi_pay 					
 				CASE WHEN (ti_agg.driver) ...							AS driver,*/
-			FROM trip_ingredient as ti_agg WHERE ti_agg.trip_link > 0 GROUP BY ti_agg.personid, ti_agg.trip_link),
+			FROM #trip_ingredient as ti_agg WHERE ti_agg.trip_link > 0 GROUP BY ti_agg.personid, ti_agg.trip_link),
 		cte_wndw AS	
 		(SELECT DISTINCT
 				ti_wndw.personid AS personid2,
@@ -1072,7 +1080,7 @@ GO
 				--STRING_AGG(ti_wnd.modes,',') 		OVER (PARTITION BY ti_wnd.trip_link ORDER BY ti_wndw.tripnum ASC) AS modes,
 				STUFF(
 					(SELECT ',' + ti1.modes
-					FROM trip_ingredient AS ti1 
+					FROM #trip_ingredient AS ti1 
 					WHERE ti1.personid = ti_wndw.personid AND ti1.trip_link = ti_wndw.trip_link
 					GROUP BY ti1.modes
 					ORDER BY ti_wndw.personid DESC, ti_wndw.tripnum DESC
@@ -1080,7 +1088,7 @@ GO
 				--STRING_AGG(ti2.transit_systems,',') OVER (PARTITION BY ti_wnd.trip_link ORDER BY ti_wndw.tripnum ASC) AS transit_systems,
 				STUFF(
 					(SELECT ',' + ti2.transit_systems
-					FROM trip_ingredient AS ti2
+					FROM #trip_ingredient AS ti2
 					WHERE ti2.personid = ti_wndw.personid AND ti2.trip_link = ti_wndw.trip_link
 					GROUP BY ti2.transit_systems
 					ORDER BY ti_wndw.personid DESC, ti_wndw.tripnum DESC
@@ -1088,15 +1096,14 @@ GO
 				--STRING_AGG(ti_wnd.transit_lines,',') OVER (PARTITION BY trip_link ORDER BY ti_wndw.tripnum ASC) AS transit_lines	
 				STUFF(
 					(SELECT ',' + ti3.transit_lines
-					FROM trip_ingredient AS ti3 JOIN trip AS t ON ti3.personid = t.personid AND ti3.trip_link = t.tripnum
+					FROM #trip_ingredient AS ti3 JOIN trip AS t ON ti3.personid = t.personid AND ti3.trip_link = t.tripnum
 					WHERE ti3.personid = ti_wndw.personid AND ti3.trip_link = ti_wndw.trip_link
 					GROUP BY ti3.transit_lines
 					ORDER BY ti_wndw.personid DESC, ti_wndw.tripnum DESC
 					FOR XML PATH('')), 1, 1, NULL) AS transit_lines	
-			FROM trip_ingredient as ti_wndw WHERE ti_wndw.trip_link > 0 )
-		SELECT cte_wndw.*, cte_agg.* INTO linked_trip
+			FROM #trip_ingredient as ti_wndw WHERE ti_wndw.trip_link > 0 )
+		SELECT cte_wndw.*, cte_agg.* INTO #linked_trip
 			FROM cte_wndw JOIN cte_agg ON cte_wndw.personid2 = cte_agg.personid AND cte_wndw.trip_link2 = cte_agg.trip_link;
-		GO	
 
 		-- this update achieves trip linking via revising elements of the 1st component (purposely left in the trip table).		
 		UPDATE 	t
@@ -1126,9 +1133,28 @@ GO
 																		t.rail_type		= lt.rail_type, 
 																		t.air_type		= lt.air_type,	
 				t.revision_code 		= CONCAT(t.revision_code, '8,')
-			FROM trip AS t JOIN linked_trip AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
+			FROM trip AS t JOIN #linked_trip AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
+		END
 
-		-- recalculate derived fields
+		--move the ingredients to another named table so this procedure can be re-run as sproc during manual cleaning
+		DELETE FROM #trip_ingredients
+		OUTPUT deleted.* INTO trip_ingredients_done;
+
+		--temp tables should disappear when the spoc ends, but to be tidy we explicitly delete them.	
+		IF(OBJECT_ID('#trip_ingredient') Is Not Null)
+		BEGIN
+			DROP TABLE #trip_ingredient
+		END
+
+		IF(OBJECT_ID('#linked_trip') Is Not Null)
+		BEGIN
+			DROP TABLE #linked_trip
+		END
+
+		EXECUTE link_trips;
+		GO	
+
+		-- recalculate derived fields (this should happen after trip linking or trip splitting/adding)
 		DROP PROCEDURE IF EXISTS calculate_derived_fields;
 		GO
 		CREATE PROCEDURE calculate_derived_fields AS 
@@ -1477,7 +1503,7 @@ END
 GO
 EXECUTE generate_error_flags;
 
-/* STEP 9. Steps to enable trip deletion & linking through the MS Access front end*/
+/* STEP 9. Steps to enable trip deletion & linking through the MS Access UI*/
 
 	--For deletions
 		
@@ -1499,8 +1525,23 @@ EXECUTE generate_error_flags;
 		END
 		GO
 
+	--for trip linking
 
+		DROP PROCEDURE IF EXISTS link_trip_via_ui;
+		GO
+		CREATE PROCEDURE link_trip_via_ui
+			@recid_list nvarchar NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
+		AS BEGIN
+				SELECT CAST(dbo.TRIM(value) AS int) AS recid INTO #recid_list 
+			FROM STRING_SPLIT(@recid_list, ',')
+			WHERE RTRIM(value) <> '';
+	
+		SELECT t.*, 1 AS trip_link INTO #trip_ingredient
+			FROM trip AS t
+			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid)
 
-
+		EXECUTE link_trips;
+		EXECUTE calculate_derived_fields;
+		END
 
 /* TBD */
