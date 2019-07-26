@@ -1475,12 +1475,14 @@ SET NOCOUNT ON
 
 		-- 																									  LOGICAL ERROR LABEL 		
 		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
-			(SELECT max(t1.recid), t1.personid, max(t1.tripnum) AS tripnum, 										  'lone trip' AS error_flag
-				FROM trip AS t1 GROUP BY t1.personid HAVING max(t1.tripnum)=1
-			UNION ALL SELECT t.recid, t.personid, t.tripnum														'underage driver' AS error_flag
-					FROM person AS p
-					JOIN trip AS t ON p.personid = t.personid
-					WHERE t.driver = 1 AND (p.age BETWEEN 1 AND 3)
+			(SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 									  'lone trip' AS error_flag
+				FROM trip 
+				GROUP BY trip.personid 
+				HAVING max(trip.tripnum)=1
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,											'underage driver' AS error_flag
+				FROM person AS p
+				JOIN trip ON p.personid = trip.personid
+				WHERE trip.driver = 1 AND (p.age BETWEEN 1 AND 3)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 										  'unlicensed driver' AS error_flag
 				FROM trip JOIN person AS p ON p.personid=trip.personid
