@@ -27,22 +27,13 @@ GO
 		CREATE TABLE nontransitmodes (mode_id int PRIMARY KEY NOT NULL);
 		GO
 	-- I haven't yet found a way to build the CLR regex pattern string from a variable expression, so if the sets in these tables change, the groupings in STEP 5 will likely need to be updated as well.
-
-/*	--2019 mode groupings
-		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(39),(42),(52);
-		INSERT INTO automodes(mode_id) values (6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(21),(22),(33),(34),(36),(47),(49),(71);
-		INSERT INTO pedmodes(mode_id) values (1),(2),(3),(4),(69);
-		INSERT INTO walkmodes(mode_id) values(1);
-		INSERT INTO bikemodes(mode_id) values (2),(3),(4),(69);		
-		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;	
-*/
-	--2017 mode groupings
- 		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
-		INSERT INTO automodes(mode_id) values (3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(16),(17),(18),(21),(22),(33),(34),(36),(37),(47);
-		INSERT INTO pedmodes(mode_id) values(1),(2);
+	-- mode groupings
+		INSERT INTO transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
+		INSERT INTO automodes(mode_id) values (3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(16),(17),(18),(21),(22),(33),(34),(36),(37),(47),(70),(71);
+		INSERT INTO pedmodes(mode_id) values(1),(2),(72),(73),(74),(75);
 		INSERT INTO walkmodes(mode_id) values (1);
-		INSERT INTO bikemodes(mode_id) values(2);				
-		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;	
+		INSERT INTO bikemodes(mode_id) values(2),(72),(73),(74),(75);				
+		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;		
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
