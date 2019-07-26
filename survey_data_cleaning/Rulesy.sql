@@ -908,26 +908,25 @@ GO
 			UPDATE t --revises purpose field for home return portion of a single stop loop trip 
 				SET t.dest_purpose = 1, t.revision_code = CONCAT(t.revision_code,'1,') 
 				FROM trip AS t
-				WHERE t.dest_is_home = 1 
+				WHERE t.dest_purpose <> 1 AND t.dest_is_home = 1 
 					AND t.origin_name <> 'HOME';					
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
-			-- Possible edge case: a second home-based errand trip within 30 minutes of completing another, this time with a different number of passengers 
-				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
+					SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM trip AS t
 					JOIN person AS p ON t.personid=p.personid 
 					JOIN trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97)
-					AND t.travelers_total <> next_t.travelers_total
+					AND t.travelers_total <> next_t.travelers_total AND t.dest_is_home <> 1
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
-				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,') --same comment as previous query
+				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM trip AS t
 					JOIN person AS p ON t.personid=p.personid 
 					JOIN trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
 				WHERE (p.age < 4 OR p.worker = 0) AND t.dest_purpose IN(10,11,14)
-					AND t.travelers_total <> next_t.travelers_total
+					AND t.travelers_total <> next_t.travelers_total AND t.dest_is_home <> 1
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;					
 
 			UPDATE t --Change code to pickup/dropoff when pickup/dropoff mentioned
@@ -935,7 +934,7 @@ GO
 				FROM trip AS t
 					JOIN person AS p ON t.personid=p.personid 				
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97)
-					AND dbo.RgxFind(t.dest_name,'(pick|drop)',1) = 1;
+					AND dbo.RgxFind(t.dest_name,'(pick|drop)',1) = 1 AND t.dest_is_home <> 1;
 			
 			UPDATE t --changes code to 'family activity' when adult is present, multiple people involved and duration is from 30mins to 4hrs
 				SET t.dest_purpose = 56, t.revision_code = CONCAT(t.revision_code,'3,')
