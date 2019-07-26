@@ -917,7 +917,7 @@ GO
 					JOIN person AS p ON t.personid=p.personid 
 					JOIN trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97)
-					AND t.travelers_total <> next_t.travelers_total AND t.dest_is_home <> 1
+					AND t.travelers_total <> next_t.travelers_total
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
@@ -926,7 +926,7 @@ GO
 					JOIN person AS p ON t.personid=p.personid 
 					JOIN trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
 				WHERE (p.age < 4 OR p.worker = 0) AND t.dest_purpose IN(10,11,14)
-					AND t.travelers_total <> next_t.travelers_total AND t.dest_is_home <> 1
+					AND t.travelers_total <> next_t.travelers_total
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;					
 
 			UPDATE t --Change code to pickup/dropoff when pickup/dropoff mentioned
@@ -934,7 +934,7 @@ GO
 				FROM trip AS t
 					JOIN person AS p ON t.personid=p.personid 				
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.dest_purpose IN(-9998,6,97)
-					AND dbo.RgxFind(t.dest_name,'(pick|drop)',1) = 1 AND t.dest_is_home <> 1;
+					AND dbo.RgxFind(t.dest_name,'(pick|drop)',1) = 1;
 			
 			UPDATE t --changes code to 'family activity' when adult is present, multiple people involved and duration is from 30mins to 4hrs
 				SET t.dest_purpose = 56, t.revision_code = CONCAT(t.revision_code,'3,')
@@ -1475,12 +1475,12 @@ SET NOCOUNT ON
 
 		-- 																									  LOGICAL ERROR LABEL 		
 		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
-			(SELECT max(t1.recid), t1.personid, max(t1.tripnum), 													  'lone trip' AS error_flag
+			(SELECT max(t1.recid), t1.personid, max(t1.tripnum) AS tripnum, 										  'lone trip' AS error_flag
 				FROM trip AS t1 GROUP BY t1.personid HAVING max(t1.tripnum)=1
-			UNION ALL SELECT t1.recid, t1.personid, t1.tripnum, 												'underage driver' AS error_flag
-					FROM hhts_agecodes AS age JOIN person AS p ON age.agecode = p.age
-						JOIN trip AS t1 ON p.personid = t1.personid
-					WHERE t1.driver = 1 AND p.age BETWEEN 1 AND 3
+			UNION ALL SELECT t.recid, t.personid, t.tripnum														'underage driver' AS error_flag
+					FROM person AS p
+					JOIN trip AS t ON p.personid = t.personid
+					WHERE t.driver = 1 AND (p.age BETWEEN 1 AND 3)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 										  'unlicensed driver' AS error_flag
 				FROM trip JOIN person AS p ON p.personid=trip.personid
