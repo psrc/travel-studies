@@ -36,7 +36,8 @@ GO
 		INSERT INTO nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;		
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
-	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
+/*	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
+	-- 	Bulk insert isn't working right now because locations and permissions won't allow it.  For now, manually import household, persons and tripx tables via microsoft.import extension (wizard)
 
 		DROP TABLE IF EXISTS household, person, tripx_raw, trip;
 		GO
@@ -338,7 +339,7 @@ GO
 		)
 		GO
 
-/*	--Getting the file on the same location is problematic-- currently using flat file import wizard for these three tables instead.
+	--Getting the file on the same location is problematic-- currently using flat file import wizard for these three tables instead.
 		BULK INSERT household	FROM '\\aws-prod-file01\SQL2016\DSADEV\1-Household.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 		BULK INSERT person		FROM '\\aws-prod-file01\SQL2016\DSADEV\2-Person.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 		BULK INSERT tripx_raw	FROM '\\aws-prod-file01\SQL2016\DSADEV\5-Trip.csv'		WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
@@ -677,17 +678,41 @@ GO
 				transit_lines 	nvarchar(MAX),
 				psrc_inserted 	bit NULL,
 				revision_code 	nvarchar(MAX) NULL;
+
+		ALTER TABLE household 	ADD home_geom GEOMETRY NULL;
+		ALTER TABLE person 		ADD work_geom GEOMETRY NULL;
 		GO
 						
-		/*ALTER TABLE household -- add home geometry
-			ADD home_geom GEOMETRY NULL;
+		UPDATE trip			SET dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
+							  origin_geom   = geometry::STPointFromText('POINT(' + CAST(origin_lng 	 AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
 
-		ALTER TABLE person --add work geometry	
-			ADD work_geom GEOMETRY NULL;*/
-		
+		UPDATE household 	SET home_geom 	= geometry::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE person 		SET work_geom	= geometry::STPointFromText('POINT(' + CAST(work_lng 	 AS VARCHAR(20)) + ' ' + CAST(work_lat 	 	AS VARCHAR(20)) + ')', 4326);
+
+		ALTER TABLE trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
+		CREATE INDEX person_idx ON trip (personid ASC);
+		CREATE INDEX tripnum_idx ON trip (tripnum ASC);
+		CREATE INDEX dest_purpose_idx ON trip (dest_purpose);
+		CREATE INDEX travelers_total_idx ON trip(travelers_total);
+		GO 
+
+		CREATE SPATIAL INDEX dest_geom_idx ON trip(dest_geom)
+			USING GEOMETRY_AUTO_GRID
+			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+
+/*		CREATE SPATIAL INDEX home_geom_idx ON household(home_geom)
+			USING GEOMETRY_AUTO_GRID
+			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+
+		CREATE SPATIAL INDEX work_geom_idx ON person(work_geom)
+			USING GEOMETRY_AUTO_GRID
+			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));		
+*/
+	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
+		UPDATE trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
 		GO
 
-	-- create an auto-loggint trigger for updates to the trip table
+	-- create an auto-logging trigger for updates to the trip table
 		create  trigger [Mike].[tr_trip] on [Mike].[trip] for insert, update, delete
 		as
 
@@ -787,22 +812,6 @@ GO
 		ALTER TABLE trip DISABLE TRIGGER tr_trip
 	-- end of trigger creation
 		
-		UPDATE trip	SET dest_geom = 	geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 AS VARCHAR(20)) + ')', 4326),
-						origin_geom = 	geometry::STPointFromText('POINT(' + CAST(origin_lng AS VARCHAR(20)) + ' ' + CAST(origin_lat AS VARCHAR(20)) + ')', 4326);
-						
-		ALTER TABLE trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
-		CREATE INDEX person_idx ON trip (personid ASC);
-		CREATE INDEX tripnum_idx ON trip (tripnum ASC);
-		CREATE INDEX dest_purpose_idx ON trip (dest_purpose);
-		CREATE INDEX travelers_total_idx ON trip(travelers_total);
-		GO 
-		CREATE SPATIAL INDEX dest_geom_idx ON trip(dest_geom)
-			USING GEOMETRY_AUTO_GRID
-			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
-
-	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
-		UPDATE trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
-
 	-- Enable the audit trail/logger
 		ALTER TABLE trip ENABLE TRIGGER [tr_trip]
 
@@ -871,7 +880,7 @@ GO
 					OR(
 						(dbo.RgxFind(t.dest_name,' home',1) = 1 
 						OR dbo.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
-						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0 -- add 'his'? -cp
+						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
 					OR(t.dest_purpose = 1))
 					AND t.dest_geom.STIntersects(household.home_geom.STBuffer(0.001)) = 1;
