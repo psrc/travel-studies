@@ -27,22 +27,13 @@ GO
 		CREATE TABLE HHSurvey.nontransitmodes (mode_id int PRIMARY KEY NOT NULL);
 		GO
 	-- I haven't yet found a way to build the CLR regex pattern string from a variable expression, so if the sets in these tables change, the groupings in STEP 5 will likely need to be updated as well.
-
-/*	--2019 mode groupings
-		INSERT INTO HHSurvey.transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(39),(42),(52);
-		INSERT INTO HHSurvey.automodes(mode_id) values (6),(7),(8),(9),(10),(11),(12),(13),(14),(15),(16),(17),(18),(21),(22),(33),(34),(36),(47),(49),(71);
-		INSERT INTO HHSurvey.pedmodes(mode_id) values (1),(2),(3),(4),(69);
-		INSERT INTO HHSurvey.walkmodes(mode_id) values(1);
-		INSERT INTO HHSurvey.bikemodes(mode_id) values (2),(3),(4),(69);		
-		INSERT INTO HHSurvey.nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;	
-*/
-	--2017 mode groupings
- 		INSERT INTO HHSurvey.transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
-		INSERT INTO HHSurvey.automodes(mode_id) values (3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(16),(17),(18),(21),(22),(33),(34),(36),(37),(47);
-		INSERT INTO HHSurvey.pedmodes(mode_id) values(1),(2);
+	-- mode groupings
+		INSERT INTO HHSurvey.transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
+		INSERT INTO HHSurvey.automodes(mode_id) values (3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(16),(17),(18),(21),(22),(33),(34),(36),(37),(47),(70),(71);
+		INSERT INTO HHSurvey.pedmodes(mode_id) values(1),(2),(72),(73),(74),(75);
 		INSERT INTO HHSurvey.walkmodes(mode_id) values (1);
-		INSERT INTO HHSurvey.bikemodes(mode_id) values(2);				
-		INSERT INTO HHSurvey.nontransitmodes(mode_id) SELECT mode_id FROM HHSurvey.pedmodes UNION SELECT mode_id FROM HHSurvey.automodes;	
+		INSERT INTO HHSurvey.bikemodes(mode_id) values(2),(72),(73),(74),(75);				
+		INSERT INTO HHSurvey.nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;		
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
@@ -917,12 +908,11 @@ GO
 			UPDATE t --revises purpose field for home return portion of a single stop loop trip 
 				SET t.dest_purpose = 1, t.revision_code = CONCAT(t.revision_code,'1,') 
 				FROM HHSurvey.trip AS t
-				WHERE t.dest_is_home = 1 
+				WHERE t.dest_purpose <> 1 AND t.dest_is_home = 1 
 					AND t.origin_name <> 'HOME';					
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
-			-- Possible edge case: a second home-based errand trip within 30 minutes of completing another, this time with a different number of passengers 
-				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
+					SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
@@ -931,7 +921,7 @@ GO
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
-				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,') --same comment as previous query
+				SET t.dest_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
@@ -1272,6 +1262,7 @@ GO
 			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
 									   THEN  t.trip_path_distance / CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600 
 									   ELSE 0 END,
+			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
 			t.dayofweek 		= DATEPART(dw, t.depart_time_timestamp)
 			FROM HHSurvey.trip AS t;	
 		END
@@ -1295,26 +1286,26 @@ GO
 		-- [Unions must be used here; otherwise the VALUE set from the dbo.Rgx table object gets reused across cte fields.]
 		WITH cte_acc_egr1  AS 
 		(	SELECT t1.personid, t1.tripnum, 'A' AS label, 'transit' AS trip_type,
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t1.modes,'^((?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47),)+',1),',')) AS link_value
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t1.modes,'^((?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75),)+',1),',')) AS link_value
 			FROM HHSurvey.trip AS t1 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t1.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)) 
-								AND dbo.RgxExtract(t1.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47)\b,?)+',1) IS NOT NULL
+								AND dbo.RgxExtract(t1.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75)\b,?)+',1) IS NOT NULL
 			UNION ALL 
 			SELECT t2.personid, t2.tripnum, 'E' AS label, 'transit' AS trip_type,	
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t2.modes,'(,(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47))+$',1),',')) AS link_value 
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t2.modes,'(,(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75))+$',1),',')) AS link_value 
 			FROM HHSurvey.trip AS t2 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t2.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
-								AND dbo.RgxExtract(t2.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47)\b,?)+',1) IS NOT NULL			
+								AND dbo.RgxExtract(t2.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75)\b,?)+',1) IS NOT NULL			
 			UNION ALL 
 			SELECT t3.personid, t3.tripnum, 'A' AS label, 'auto' AS trip_type,
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t3.modes,'^((?:1|2)\b,?)+',1),',')) AS link_value
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t3.modes,'^((?:1|2|72|73|74|75)\b,?)+',1),',')) AS link_value
 			FROM HHSurvey.trip AS t3 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t3.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes)) 
 								  AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t3.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
-								  AND dbo.RgxReplace(t3.modes,'^(\b(?:1|2)\b,?)+','',1) IS NOT NULL
+								  AND dbo.RgxReplace(t3.modes,'^(\b(?:1|2|72|73|74|75)\b,?)+','',1) IS NOT NULL
 			UNION ALL 
 			SELECT t4.personid, t4.tripnum, 'E' AS label, 'auto' AS trip_type,
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t4.modes,'(,(?:1|2))+$',1),',')) AS link_value
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t4.modes,'(,(?:1|2|72|73|74|75))+$',1),',')) AS link_value
 			FROM HHSurvey.trip AS t4 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t4.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes)) 
 								  AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t4.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
-								  AND dbo.RgxReplace(t4.modes,'^(\b(?:1|2)\b,?)+','',1) IS NOT NULL),
+								  AND dbo.RgxReplace(t4.modes,'^(\b(?:1|2|72|73|74|75)\b,?)+','',1) IS NOT NULL),
 		cte_acc_egr2 AS (SELECT cte.personid, cte.tripnum, cte.trip_type,
 								MAX(CASE WHEN cte.label = 'A' THEN cte.link_value ELSE NULL END) AS mode_acc,
 								MAX(CASE WHEN cte.label = 'E' THEN cte.link_value ELSE NULL END) AS mode_egr
@@ -1332,11 +1323,11 @@ GO
 
 		-- Populate separate mode fields, removing access/egress from the beginning and end of 1) transit and 2) auto trip strings
 			WITH cte AS 
-		(SELECT t.recid, dbo.RgxReplace(dbo.RgxReplace(dbo.RgxReplace(t.modes,'\b(1|2|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47),)+','',1) AS mode_reduced
+		(SELECT t.recid, dbo.RgxReplace(dbo.RgxReplace(dbo.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71),)+','',1) AS mode_reduced
 			FROM HHSurvey.trip as t
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
 		UNION ALL 	
-		SELECT t.recid, dbo.RgxReplace(t.modes,'\b(1|2|97)\b','',1) AS mode_reduced
+		SELECT t.recid, dbo.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1) AS mode_reduced
 			FROM HHSurvey.trip as t
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes))
 			AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)))
@@ -1484,12 +1475,14 @@ SET NOCOUNT ON
 
 		-- 																									  LOGICAL ERROR LABEL 		
 		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
-			(SELECT max(t1.recid), t1.personid, max(t1.tripnum), 													  'lone trip' AS error_flag
-				FROM HHSurvey.trip AS t1 GROUP BY t1.personid HAVING max(t1.tripnum)=1
-			UNION ALL SELECT t1.recid, t1.personid, t1.tripnum, 												'underage driver' AS error_flag
-					FROM HHSurvey.person AS p 
-						JOIN HHSurvey.trip AS t1 ON p.personid = t1.personid
-					WHERE t1.driver = 1 AND p.age BETWEEN 1 AND 3
+			(SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 									  'lone trip' AS error_flag
+				FROM HHSurvey.trip 
+				GROUP BY trip.personid 
+				HAVING max(trip.tripnum)=1
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,											'underage driver' AS error_flag
+				FROM HHSurvey.person AS p
+				JOIN HHSurvey.trip ON p.personid = trip.personid
+				WHERE trip.driver = 1 AND (p.age BETWEEN 1 AND 3)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 										  'unlicensed driver' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.person AS p ON p.personid=trip.personid

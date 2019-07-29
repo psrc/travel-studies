@@ -60,7 +60,7 @@ DROP VIEW IF EXISTS data2frontend;
 GO
 CREATE VIEW data2frontend
 AS
-SELECT t1.personid, t1.hhid, t1.pernum,
+SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 FROM trip WHERE trip.psrc_comment IS NOT NULL AND t1.personid = trip.personid) THEN 1 ELSE 0 END AS Elevated, 0 AS Seattle,
 		t1.tripnum, t1.recid, 
         STUFF(	COALESCE(',' + CAST(ma.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m1.mode_desc AS nvarchar), '') + 
@@ -89,7 +89,7 @@ SELECT t1.personid, t1.hhid, t1.pernum,
 				COALESCE(',' + CASE WHEN t1.hhmember7 <> t1.personid THEN RIGHT(CAST(t1.hhmember7 AS nvarchar),2) ELSE NULL END, '') + 
 				COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
 				COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 1, 1, '')) ELSE '' END AS cotravelers,
-			t1.dest_name, tp.purpose AS dest_purpose, 
+			t1.dest_name, CONCAT(t1.dest_purpose, '-',tp.purpose) AS dest_purpose, 
 			CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'m') AS duration_at_dest,
 			t1.revision_code AS rc, t1.psrc_comment AS elevate_issue
 	FROM trip AS t1 LEFT JOIN trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
