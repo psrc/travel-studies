@@ -853,8 +853,7 @@ GO
 		WITH tripnum_rev(recid, personid, tripnum) AS
 			(SELECT recid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM HHSurvey.trip)
 		UPDATE t
-			SET t.tripnum = tripnum_rev.tripnum, 
-				t.tripid  = CAST(CONCAT(CAST(t.personid AS nvarchar), CAST(tripnum_rev.tripnum AS nvarchar)) AS bigint)
+			SET t.tripnum = tripnum_rev.tripnum
 			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid;
 		END
 		GO
