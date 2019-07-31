@@ -574,6 +574,7 @@ GO
 			,[proxy_added_trip]
 			,[nonproxy_derived_trip]
 			,[child_trip_location_tripid]
+			,[Quality_flag]
 			)
 		SELECT 
 			[hhid]
@@ -676,6 +677,7 @@ GO
 			,cast((CASE [proxy_added_trip] when 'true' then 1 when 'false' then 0 ELSE NULL END) as bit)
 			,cast([nonproxy_derived_trip] as bit)
 			,cast([child_trip_location_tripid] as bit)
+			,[Quality_flag]
 			FROM HHSurvey.tripx
 			ORDER BY tripid;
 		GO
