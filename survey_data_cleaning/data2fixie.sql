@@ -164,7 +164,7 @@ GO
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.city_is_seattle = 1;
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.cityofseattle = 1;
 	GO
 
 	CREATE VIEW HHSurvey.person_rm_else AS
@@ -173,7 +173,7 @@ GO
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.city_is_seattle <> 1;
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.cityofseattle <> 1;
 	GO
 
 	CREATE VIEW HHSurvey.person_rs AS
@@ -192,8 +192,8 @@ GO
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode
 		LEFT JOIN HHSurvey.trip AS t ON p.personid = t.personid AND t.psrc_comment IS NOT NULL
-	WHERE (Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND t.psrc_comment IS NOT NULL) 
-		OR Exists (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid);
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND (t.psrc_comment IS NOT NULL 
+		OR Exists (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid));
 	GO
 
 
