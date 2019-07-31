@@ -1,0 +1,1 @@
+EXECUTE delete_record;
