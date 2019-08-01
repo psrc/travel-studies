@@ -779,9 +779,9 @@ GO
 		    and c.TABLE_NAME = pk.TABLE_NAME
 		    and c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME
 		    
-		    -- Get primary key select for insert.  @PKSelect will contain the ProjID and Phase info defining the precise line
-		    -- in tblFinancial that is edited.  This variable is formatted to be used as part of the SELECT clause in the query 
-		    -- (below) that inserts the data into tblFinancialAuditTrail.
+		    -- Get primary key select for insert.  @PKSelect will contain the recid info defining the precise line
+		    -- in trips that is edited.  This variable is formatted to be used as part of the SELECT clause in the query 
+		    -- (below) that inserts the data into.
 		    select  @PKSelect = coalesce(@PKSelect+',','') + 'convert(varchar(100),coalesce(i.[' + COLUMN_NAME +'],d.[' + COLUMN_NAME + ']))' 
 		        from    INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk ,
 		            INFORMATION_SCHEMA.KEY_COLUMN_USAGE c
@@ -810,7 +810,7 @@ GO
 		        begin
 		            select @fieldname = COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION = @field and TABLE_SCHEMA = @SchemaName
 		            begin
-		                select @sql =       'insert into dbo.tblTripAudit (Type, tripid,FieldName, OldValue, NewValue, UpdateDate, UserName)'
+		                select @sql =       'insert into dbo.tblTripAudit (Type, recid, FieldName, OldValue, NewValue, UpdateDate, UserName)'
 		                select @sql = @sql +    ' select ''' + @Type + ''''
 		                select @sql = @sql +    ',' + @PKSelect
 		                select @sql = @sql +    ',''' + @fieldname + ''''
