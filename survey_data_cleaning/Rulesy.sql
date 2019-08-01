@@ -574,6 +574,7 @@ GO
 			,[proxy_added_trip]
 			,[nonproxy_derived_trip]
 			,[child_trip_location_tripid]
+			,[Quality_flag]
 			)
 		SELECT 
 			[hhid]
@@ -615,7 +616,8 @@ GO
 			,cast([hhmember6] as int)
 			,cast([hhmember7] as int)
 			,cast([hhmember8] as int)
-			,cast([hhmember9] as int)
+			--,cast([hhmember9] as int)
+			,NULL
 			,cast([hhmember_none] as int)
 			,[travelers_hh]
 			,[travelers_nonhh]
@@ -675,6 +677,7 @@ GO
 			,cast((CASE [proxy_added_trip] when 'true' then 1 when 'false' then 0 ELSE NULL END) as bit)
 			,cast([nonproxy_derived_trip] as bit)
 			,cast([child_trip_location_tripid] as bit)
+			,[Quality_flag]
 			FROM HHSurvey.tripx
 			ORDER BY tripid;
 		GO
@@ -778,9 +781,9 @@ GO
 		    and c.TABLE_NAME = pk.TABLE_NAME
 		    and c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME
 		    
-		    -- Get primary key select for insert.  @PKSelect will contain the ProjID and Phase info defining the precise line
-		    -- in tblFinancial that is edited.  This variable is formatted to be used as part of the SELECT clause in the query 
-		    -- (below) that inserts the data into tblFinancialAuditTrail.
+		    -- Get primary key select for insert.  @PKSelect will contain the recid info defining the precise line
+		    -- in trips that is edited.  This variable is formatted to be used as part of the SELECT clause in the query 
+		    -- (below) that inserts the data into.
 		    select  @PKSelect = coalesce(@PKSelect+',','') + 'convert(varchar(100),coalesce(i.[' + COLUMN_NAME +'],d.[' + COLUMN_NAME + ']))' 
 		        from    INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk ,
 		            INFORMATION_SCHEMA.KEY_COLUMN_USAGE c
@@ -809,7 +812,7 @@ GO
 		        begin
 		            select @fieldname = COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION = @field and TABLE_SCHEMA = @SchemaName
 		            begin
-		                select @sql =       'insert into dbo.tblTripAudit (Type, tripid,FieldName, OldValue, NewValue, UpdateDate, UserName)'
+		                select @sql =       'insert into dbo.tblTripAudit (Type, recid, FieldName, OldValue, NewValue, UpdateDate, UserName)'
 		                select @sql = @sql +    ' select ''' + @Type + ''''
 		                select @sql = @sql +    ',' + @PKSelect
 		                select @sql = @sql +    ',''' + @fieldname + ''''
@@ -1674,6 +1677,7 @@ EXECUTE HHSurvey.generate_error_flags;
 		CREATE PROCEDURE HHSurvey.link_trip_via_ui
 			@recid_list nvarchar NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
 		AS BEGIN
+		SET NOCOUNT ON; 
 		SELECT CAST(dbo.TRIM(value) AS int) AS recid INTO #recid_list 
 			FROM STRING_SPLIT(@recid_list, ',')
 			WHERE RTRIM(value) <> '';
@@ -1687,7 +1691,35 @@ EXECUTE HHSurvey.generate_error_flags;
 		END
 		GO
 
+	--RECALCULATION
+
+		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit
+		GO
+
+		CREATE PROCEDURE HHSurvey.recalculate_after_edit 
+			@personid int NULL --limited just to the person who was just edited
+		AS BEGIN
+
+		UPDATE t SET t.trip_path_distance = t.dest_geom.STDistance(t.origin_geom) / 1609.344,
+					 t.revision_code = CONCAT(t.revision_code, '12,')
+			FROM HHSurvey.trip AS t		 
+			WHERE t.personid = @personid AND t.trip_path_distance IS NULL AND t.dest_geom IS NOT NULL AND t.origin_geom IS NOT NULL;
+
+		UPDATE t SET
+			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
+			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
+			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
+			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
+			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
+									   THEN  t.trip_path_distance / CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600 
+									   ELSE 0 END,
+			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
+			t.dayofweek 		= DATEPART(dw, t.depart_time_timestamp)
+			FROM HHSurvey.trip AS t
+			WHERE t.personid = @personid;	
+		
+		END
+		GO	
 
 
-
-/* TBD */
+/* More yet to be determined . . .  */
