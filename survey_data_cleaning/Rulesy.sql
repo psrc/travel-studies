@@ -366,7 +366,7 @@ GO
 		DROP TABLE IF EXISTS HHSurvey.trip;
 		GO
 		CREATE TABLE HHSurvey.trip (
-			[recid] [int] NOT NULL,
+			[recid] [int] IDENTITY NOT NULL,
 			[hhid] [int] NOT NULL,
 			[personid] [int] NOT NULL,
 			[pernum] [int] NULL,
@@ -469,9 +469,6 @@ GO
 			[psrc_comment] NVARCHAR(250) NULL,
 			[psrc_resolved] TINYINT NULL
 		)
-		DROP SEQUENCE IF EXISTS HHSurvey.recid_increment;
-		CREATE SEQUENCE HHSurvey.recid_increment AS int START WITH 1 INCREMENT BY 1 NO CYCLE;  -- Create sequence object to generate recid for new records & add indices
-		ALTER TABLE HHSurvey.trip ADD CONSTRAINT recid_autonumber DEFAULT NEXT VALUE FOR HHSurvey.recid_increment FOR recid;
 		GO
 
 		INSERT INTO HHSurvey.trip(
