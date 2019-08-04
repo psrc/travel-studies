@@ -358,9 +358,9 @@ GO
 		DROP TABLE IF EXISTS HHSurvey.trip;
 		GO
 		CREATE TABLE HHSurvey.trip (
-			[recid] [int] IDENTITY NOT NULL,
-			[hhid] [int] NOT NULL,
-			[personid] [int] NOT NULL,
+			[recid] [int] NOT NULL,
+			[hhid] [bigint] NOT NULL,
+			[personid] [bigint] NOT NULL,
 			[pernum] [int] NULL,
 			[tripid] bigint NULL,
 			[tripnum] [int] NOT NULL DEFAULT 0,
@@ -375,40 +375,43 @@ GO
 			[svy_complete] [int] NULL,
 			[depart_time_mam] [int] NULL,
 			[depart_time_hhmm] [nvarchar](255) NULL,
-			[depart_time_timestamp] datetime2 NOT NULL,
+			[depart_time_timestamp] datetime2 NULL,
 			[arrival_time_mam] [int] NULL,
 			[arrival_time_hhmm] [nvarchar](255) NULL,
-			[arrival_time_timestamp] datetime2 NOT NULL,
+			[arrival_time_timestamp] datetime2 NULL,
 			[origin_name] [nvarchar](255) NULL,
 			[origin_address] [nvarchar](255) NULL,
-			[origin_lat] [float] NOT NULL,
-			[origin_lng] [float] NOT NULL,
+			[origin_lat] [float] NULL,
+			[origin_lng] [float] NULL,
 			[dest_name] [nvarchar](255) NULL,
 			[dest_address] [nvarchar](255) NULL,
-			[dest_lat] [float] NOT NULL,
-			[dest_lng] [float] NOT NULL,
+			[dest_lat] [float] NULL,
+			[dest_lng] [float] NULL,
 			[trip_path_distance] [float] NULL,
 			[google_duration] [int] NULL,
 			[reported_duration] [int] NULL,
-			[hhmember1] int NULL,
-			[hhmember2] int NULL,
-			[hhmember3] int NULL,
-			[hhmember4] int NULL,
-			[hhmember5] int NULL,
-			[hhmember6] int NULL,
-			[hhmember7] int NULL,
-			[hhmember8] int NULL,
-			[hhmember9] int NULL,
+			[hhmember1] bigint NULL,
+			[hhmember2] bigint NULL,
+			[hhmember3] bigint NULL,
+			[hhmember4] bigint NULL,
+			[hhmember5] bigint NULL,
+			[hhmember6] bigint NULL,
+			[hhmember7] bigint NULL,
+			[hhmember8] bigint NULL,
+			[hhmember9] bigint NULL,
 			[travelers_hh] [int] NOT NULL,
 			[travelers_nonhh] [int] NOT NULL,
 			[travelers_total] [int] NOT NULL,
 			[o_purpose] [int] NULL,
 			[o_purpose_other] [nvarchar](max) NULL,
+			o_purp_cat int null,
 			[d_purpose] [int] NULL,
+			[d_purp_cat] int null,
 			[mode_1] smallint NOT NULL,
 			[mode_2] smallint NULL,
 			[mode_3] smallint NULL,
 			[mode_4] smallint NULL,
+			mode_type int null,
 			[driver] smallint NULL,
 			[pool_start] smallint NULL,
 			[change_vehicles] smallint NULL,
@@ -439,16 +442,21 @@ GO
 			[transit_system_3] smallint NULL,
 			[transit_system_4] smallint NULL,
 			[transit_system_5] smallint NULL,
+			[transit_system_6] smallint NULL,
 			[transit_line_1] smallint NULL,
 			[transit_line_2] smallint NULL,
 			[transit_line_3] smallint NULL,
 			[transit_line_4] smallint NULL,
 			[transit_line_5] smallint NULL,
+			[transit_line_6] smallint NULL,
 			[speed_mph] [float] NULL,
+			user_added int null,
 			[user_merged] bit NULL,
 			[user_split] bit NULL,
 			[analyst_merged] bit NULL,
 			[analyst_split] bit NULL,
+			analyst_split_loop int null,
+			quality_flag nvarchar(255) null,
 			[nonproxy_derived_trip] bit NULL,
 			[psrc_comment] NVARCHAR(250) NULL,
 			[psrc_resolved] TINYINT NULL
@@ -456,7 +464,8 @@ GO
 		GO
 
 		INSERT INTO HHSurvey.trip(
-			 [hhid]
+			recid
+			,[hhid]
 			,[personid]
 			,[pernum]
 			,[tripid]
@@ -532,11 +541,13 @@ GO
 			,[transit_system_3]
 			,[transit_system_4]
 			,[transit_system_5]
+			,[transit_system_6]
 			,[transit_line_1]
 			,[transit_line_2]
 			,[transit_line_3]
 			,[transit_line_4]
 			,[transit_line_5]
+			,[transit_line_6]
 			,[speed_mph]
 			,[user_merged]
 			,[user_split]
@@ -544,9 +555,15 @@ GO
 			,[analyst_split]
 			,[nonproxy_derived_trip]
 			,[Quality_flag]
+			,analyst_split_loop
+			,d_purp_cat
+			,mode_type
+			,o_purp_cat
+			,user_added
 			)
 		SELECT 
-			[hhid]
+			recid
+			,[hhid]
 			,[personid]
 			,[pernum]
 			,[tripid]
@@ -573,14 +590,14 @@ GO
 			,[trip_path_distance]
 			,[google_duration]
 			,[reported_duration]
-			,cast([hhmember1] as int)
-			,cast([hhmember2] as int)
-			,cast([hhmember3] as int)
-			,cast([hhmember4] as int)
-			,cast([hhmember5] as int)
-			,cast([hhmember6] as int)
-			,cast([hhmember7] as int)
-			,cast([hhmember8] as int)
+			,cast([hhmember1] as bigint)
+			,cast([hhmember2] as bigint)
+			,cast([hhmember3] as bigint)
+			,cast([hhmember4] as bigint)
+			,cast([hhmember5] as bigint)
+			,cast([hhmember6] as bigint)
+			,cast([hhmember7] as bigint)
+			,cast([hhmember8] as bigint)
 			--,cast([hhmember9] as int)
 			,NULL
 			,[travelers_hh]
@@ -623,11 +640,13 @@ GO
 			,cast([transit_system_3] as smallint)
 			,cast([transit_system_4] as smallint)
 			,cast([transit_system_5] as smallint)
+			,cast([transit_system_6] as smallint)
 			,cast([transit_line_1] as smallint)
 			,cast([transit_line_2] as smallint)
 			,cast([transit_line_3] as smallint)
 			,cast([transit_line_4] as smallint)
 			,cast([transit_line_5] as smallint)
+			,cast([transit_line_6] as smallint)
 			,[speed_mph]
 			,cast([user_merged] as bit)
 			,cast([user_split] as bit)
@@ -635,6 +654,11 @@ GO
 			,cast([analyst_split] as bit)
 			,cast([nonproxy_derived_trip] as bit)
 			,[Quality_flag]
+			,analyst_split_loop
+			,d_purp_cat
+			,mode_type
+			,o_purp_cat
+			,user_added
 			FROM HHSurvey.[5_trip]
 			ORDER BY tripid;
 		GO
@@ -904,7 +928,9 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
-				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.d_purpose IN(-9998,6,97)
+				WHERE p.age > 4 
+					AND (p.student = 1 OR p.student IS NULL) 
+					AND t.d_purpose IN(-9998,6,97)
 					AND t.travelers_total <> next_t.travelers_total
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
 
@@ -913,7 +939,8 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
-				WHERE (p.age < 4 OR p.worker = 0) AND t.d_purpose IN(10,11,14)
+				WHERE (p.age < 4 OR p.worker = 0) 
+					AND t.d_purpose IN(10,11,14)
 					AND t.travelers_total <> next_t.travelers_total
 					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;					
 
@@ -929,7 +956,8 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					LEFT JOIN HHSurvey.trip as next_t ON t.personid=next_t.personid AND t.tripnum + 1 = next_t.tripnum
-				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL)
+				WHERE p.age > 4 
+					AND (p.student = 1 OR p.student IS NULL)
 					AND (t.travelers_total > 1 OR next_t.travelers_total > 1)
 					AND (t.d_purpose = 6 OR dbo.RgxFind(t.dest_name,'(school|care)',1) = 1)
 					AND DATEDIFF(Minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) Between 30 and 240;
@@ -1535,6 +1563,7 @@ SET NOCOUNT ON
 				FROM HHSurvey.trip
 				WHERE (trip.d_purpose <> 1 and trip.dest_is_home = 1) OR (trip.d_purpose NOT IN(9,10,11,14,60) and trip.dest_is_work = 1)
 
+			--cp note: shouldn't the next two queries include checks on longitude in addition to lattitude?  
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE ABS(trip.dest_lat - next_trip.origin_lat) >.0045  --roughly 500m difference or more, using degrees
