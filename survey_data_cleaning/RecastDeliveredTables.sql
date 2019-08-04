@@ -8,6 +8,13 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
+/*
+This copies the data originally delivered in dbo.1_household, dbo.2_Person, dbo.3_Vehicle, dbo.4_Day,
+  dbo.4_Trip and dbo.6_Location into copies of these under schema HHSurvey.
+The copied tables each have a primary key [recid] that is an alternate to the candidate key provided
+  in the original tables in the dbo schema.  
+*/
+
 drop table if exists HHSurvey.[1_Household]
 
 CREATE TABLE [HHSurvey].[1_Household](
@@ -93,6 +100,9 @@ CREATE TABLE [HHSurvey].[1_Household](
 	[num_trips] [int] NULL
 ) ON [PRIMARY]
 GO
+
+alter table HHSurvey.[1_Household] 
+	add constraint PK_1_Household_recid PRIMARY KEY CLUSTERED (recid)
 
 INSERT INTO HHSurvey.[1_Household] (
 	HHID
@@ -365,6 +375,8 @@ CREATE TABLE [HHSurvey].[2_Person](
 ) ON [PRIMARY] 
 
 GO
+alter table HHSurvey.[2_Person] 
+	add constraint PK_2_Person_recid PRIMARY KEY CLUSTERED (recid)
 
 insert into HHSurvey.[2_Person] (
 	HHID
@@ -588,6 +600,8 @@ CREATE TABLE [HHSurvey].[3_Vehicle](
 ) ON [PRIMARY]
 
 
+alter table HHSurvey.[3_Vehicle]
+	add constraint PK_3_Vehicle_recid PRIMARY KEY CLUSTERED (recid)
 
 insert into HHSurvey.[3_Vehicle] (
 	hhid
@@ -668,6 +682,8 @@ CREATE TABLE [HHSurvey].[4_Day](
 ) ON [PRIMARY] 
 GO
 
+alter table HHSurvey.[4_Day]
+	add constraint PK_4_Day_recid PRIMARY KEY CLUSTERED (recid)
 
 insert into HHSurvey.[4_Day] (
 	hhid
@@ -876,6 +892,9 @@ CREATE TABLE [HHSurvey].[5_Trip](
 	[quality_flag] [nvarchar](255) NULL
 ) ON [PRIMARY]
 go
+
+alter table HHSurvey.[5_Trip]
+	add constraint PK__recid PRIMARY KEY CLUSTERED (recid)
 
 insert into HHSurvey.[5_Trip] (
 	hhid
@@ -1095,6 +1114,8 @@ CREATE TABLE [HHSurvey].[6_Location](
 	[lng] [decimal](13, 5) NULL
 ) ON [PRIMARY]
 
+alter table HHSurvey.[6_Location]
+	add constraint PK_6_Location_recid PRIMARY KEY CLUSTERED (recid)
 
 insert into HHSurvey.[6_Location](
 	hhid
