@@ -793,7 +793,7 @@ GO
 		        begin
 		            select @fieldname = COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION = @field and TABLE_SCHEMA = @SchemaName
 		            begin
-		                select @sql =       'insert into dbo.tblTripAudit (Type, recid, FieldName, OldValue, NewValue, UpdateDate, UserName)'
+		                select @sql =       'insert into HHSurvey.tblTripAudit (Type, recid, FieldName, OldValue, NewValue, UpdateDate, UserName)'
 		                select @sql = @sql +    ' select ''' + @Type + ''''
 		                select @sql = @sql +    ',' + @PKSelect
 		                select @sql = @sql +    ',''' + @fieldname + ''''
