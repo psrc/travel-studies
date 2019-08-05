@@ -359,14 +359,15 @@ GO
 		GO
 		CREATE TABLE HHSurvey.trip (
 			[recid] [int] NOT NULL,
-			[hhid] [bigint] NOT NULL,
-			[personid] [bigint] NOT NULL,
+			[hhid] decimal(19,0) NOT NULL,
+			[personid] decimal(19,0) NOT NULL,
 			[pernum] [int] NULL,
-			[tripid] bigint NULL,
+			[tripid] decimal(19,0) NULL,
 			[tripnum] [int] NOT NULL DEFAULT 0,
 			[traveldate] date NULL,
 			[daynum] [int] NULL,
 			[dayofweek] [int] NULL,
+			[data_source] int null,
 			[hhgroup] [int] NULL,
 			[copied_trip] [int] NULL,
 			[completed_at] datetime2 NULL,
@@ -390,22 +391,23 @@ GO
 			[trip_path_distance] [float] NULL,
 			[google_duration] [int] NULL,
 			[reported_duration] [int] NULL,
-			[hhmember1] bigint NULL,
-			[hhmember2] bigint NULL,
-			[hhmember3] bigint NULL,
-			[hhmember4] bigint NULL,
-			[hhmember5] bigint NULL,
-			[hhmember6] bigint NULL,
-			[hhmember7] bigint NULL,
-			[hhmember8] bigint NULL,
-			[hhmember9] bigint NULL,
+			[hhmember1] decimal(19,0) NULL,
+			[hhmember2] decimal(19,0) NULL,
+			[hhmember3] decimal(19,0) NULL,
+			[hhmember4] decimal(19,0) NULL,
+			[hhmember5] decimal(19,0) NULL,
+			[hhmember6] decimal(19,0) NULL,
+			[hhmember7] decimal(19,0) NULL,
+			[hhmember8] decimal(19,0) NULL,
+			[hhmember9] decimal(19,0) NULL,
 			[travelers_hh] [int] NOT NULL,
 			[travelers_nonhh] [int] NOT NULL,
 			[travelers_total] [int] NOT NULL,
 			[o_purpose] [int] NULL,
-			[o_purpose_other] [nvarchar](max) NULL,
+			[o_purpose_other] [nvarchar](255) NULL,
 			o_purp_cat int null,
 			[d_purpose] [int] NULL,
+			[d_purpose_other] nvarchar(255) null,
 			[d_purp_cat] int null,
 			[mode_1] smallint NOT NULL,
 			[mode_2] smallint NULL,
@@ -450,7 +452,7 @@ GO
 			[transit_line_5] smallint NULL,
 			[transit_line_6] smallint NULL,
 			[speed_mph] [float] NULL,
-			user_added int null,
+			[user_added] int null,
 			[user_merged] bit NULL,
 			[user_split] bit NULL,
 			[analyst_merged] bit NULL,
@@ -473,6 +475,7 @@ GO
 			,[traveldate]
 			,[daynum]
 			,[dayofweek]
+			,[data_source]
 			,[hhgroup]
 			,[copied_trip]
 			,[completed_at]
@@ -507,6 +510,7 @@ GO
 			,[o_purpose]
 			,[o_purpose_other]
 			,[d_purpose]
+			,[d_purpose_other]
 			,[mode_1]
 			,[mode_2]
 			,[mode_3]
@@ -549,17 +553,17 @@ GO
 			,[transit_line_5]
 			,[transit_line_6]
 			,[speed_mph]
-			,[user_merged]
-			,[user_split]
-			,[analyst_merged]
-			,[analyst_split]
 			,[nonproxy_derived_trip]
-			,[Quality_flag]
+			,[quality_flag]
 			,analyst_split_loop
 			,d_purp_cat
 			,mode_type
 			,o_purp_cat
 			,user_added
+			,[user_merged]
+			,[user_split]
+			,[analyst_merged]
+			,[analyst_split]
 			)
 		SELECT 
 			recid
@@ -571,6 +575,7 @@ GO
 			,convert(date, [traveldate], 121)
 			,[daynum]
 			,[dayofweek]
+			,[data_source]
 			,[hhgroup]
 			,[copied_trip]
 			,convert(datetime2, [completed_at], 121)
@@ -590,14 +595,14 @@ GO
 			,[trip_path_distance]
 			,[google_duration]
 			,[reported_duration]
-			,cast([hhmember1] as bigint)
-			,cast([hhmember2] as bigint)
-			,cast([hhmember3] as bigint)
-			,cast([hhmember4] as bigint)
-			,cast([hhmember5] as bigint)
-			,cast([hhmember6] as bigint)
-			,cast([hhmember7] as bigint)
-			,cast([hhmember8] as bigint)
+			,[hhmember1] 
+			,[hhmember2]
+			,[hhmember3]
+			,[hhmember4]
+			,[hhmember5]
+			,[hhmember6]
+			,[hhmember7]
+			,[hhmember8]
 			--,cast([hhmember9] as int)
 			,NULL
 			,[travelers_hh]
@@ -606,6 +611,7 @@ GO
 			,[o_purpose]
 			,[o_purpose_other]
 			,[d_purpose]
+			,[d_purpose_other]
 			,cast([mode_1] as smallint)
 			,cast([mode_2] as smallint)
 			,cast([mode_3] as smallint)
@@ -648,10 +654,6 @@ GO
 			,cast([transit_line_5] as smallint)
 			,cast([transit_line_6] as smallint)
 			,[speed_mph]
-			,cast([user_merged] as bit)
-			,cast([user_split] as bit)
-			,cast([analyst_merged] as bit)
-			,cast([analyst_split] as bit)
 			,cast([nonproxy_derived_trip] as bit)
 			,[Quality_flag]
 			,analyst_split_loop
@@ -659,6 +661,10 @@ GO
 			,mode_type
 			,o_purp_cat
 			,user_added
+			,[user_merged]
+			,[user_split]
+			,[analyst_merged]
+			,[analyst_split]
 			FROM HHSurvey.[5_trip]
 			ORDER BY tripid;
 		GO
@@ -675,11 +681,11 @@ GO
 				dest_zip		varchar(5) NULL,
 				dest_is_home	bit NULL, 
 				dest_is_work 	bit NULL,
-				modes 			nvarchar(MAX),
-				transit_systems nvarchar(MAX),
-				transit_lines 	nvarchar(MAX),
+				modes 			nvarchar(255),
+				transit_systems nvarchar(255),
+				transit_lines 	nvarchar(255),
 				psrc_inserted 	bit NULL,
-				revision_code 	nvarchar(MAX) NULL;
+				revision_code 	nvarchar(255) NULL;
 
 		ALTER TABLE HHSurvey.household 	ADD home_geom GEOMETRY NULL;
 		ALTER TABLE HHSurvey.person 	ADD work_geom GEOMETRY NULL;
