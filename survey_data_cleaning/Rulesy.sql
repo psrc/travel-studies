@@ -55,9 +55,9 @@ GO
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 /*	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
-	-- 	Bulk insert isn't working right now because locations and permissions won't allow it.  For now, manually import household, persons and tripx tables via microsoft.import extension (wizard)
+	-- 	Bulk insert isn't working right now because locations and permissions won't allow it.  For now, manually import household, persons tables via microsoft.import extension (wizard)
 
-		DROP TABLE IF EXISTS HHSurvey.household, HHSurvey.person, HHSurvey.tripx, HHSurvey.trip;
+		DROP TABLE IF EXISTS HHSurvey.household, HHSurvey.person, HHSurvey.trip;
 		GO
 		CREATE TABLE HHSurvey.household (
 			hhid int NOT NULL,
@@ -253,112 +253,16 @@ GO
 			num_trips int NOT NULL
 		)
 
-		CREATE TABLE HHSurvey.tripx (
-			[recid] [int] NOT NULL DEFAULT 0,
-			[hhid] [int] NULL,
-			[personid] [int] NULL,
-			[pernum] [int] NULL,
-			[tripid] [nvarchar](255) NULL,
-			[tripnum] [int] NULL,
-			[traveldate] [nvarchar](255) NULL,
-			[daynum] [int] NULL,
-			[dayofweek] [int] NULL,
-			[hhgroup] [int] NULL,
-			[copied_trip] [int] NULL,
-			[completed_at] [nvarchar](255) NULL,
-			[revised_at] [nvarchar](255) NULL,
-			[revised_count] [nvarchar](255) NULL,
-			[svy_complete] [int] NULL,
-			[depart_time_mam] [int] NULL,
-			[depart_time_hhmm] [nvarchar](255) NULL,
-			[depart_time_timestamp] [nvarchar](255) NULL,
-			[arrival_time_mam] [int] NULL,
-			[arrival_time_hhmm] [nvarchar](255) NULL,
-			[arrival_time_timestamp] [nvarchar](255) NULL,
-			[origin_name] [nvarchar](255) NULL,
-			[origin_address] [nvarchar](255) NULL,
-			[origin_lat] [float] NULL,
-			[origin_lng] [float] NULL,
-			[dest_name] [nvarchar](255) NULL,
-			[dest_address] [nvarchar](255) NULL,
-			[dest_lat] [float] NULL,
-			[dest_lng] [float] NULL,
-			[trip_path_distance] [float] NULL,
-			[google_duration] [int] NULL,
-			[reported_duration] [int] NULL,
-			[hhmember1] [nvarchar](255) NULL,
-			[hhmember2] [nvarchar](255) NULL,
-			[hhmember3] [nvarchar](255) NULL,
-			[hhmember4] [nvarchar](255) NULL,
-			[hhmember5] [nvarchar](255) NULL,
-			[hhmember6] [nvarchar](255) NULL,
-			[hhmember7] [nvarchar](255) NULL,
-			[hhmember8] [nvarchar](255) NULL,
-			[hhmember9] [nvarchar](255) NULL,
-			[travelers_hh] [int] NULL,
-			[travelers_nonhh] [int] NULL,
-			[travelers_total] [int] NULL,
-			[o_purpose] [int] NULL,
-			[o_purpose_other] [nvarchar](max) NULL,
-			[d_purpose] [int] NULL,
-			[mode_1] [int] NULL,
-			[mode_2] [nvarchar](255) NULL,
-			[mode_3] [nvarchar](255) NULL,
-			[mode_4] [nvarchar](255) NULL,
-			[driver] [nvarchar](255) NULL,
-			[pool_start] [nvarchar](255) NULL,
-			[change_vehicles] [nvarchar](255) NULL,
-			[park_ride_area_start] [nvarchar](255) NULL,
-			[park_ride_area_end] [nvarchar](255) NULL,
-			[park_ride_lot_start] [nvarchar](255) NULL,
-			[park_ride_lot_end] [nvarchar](255) NULL,
-			[toll] [nvarchar](255) NULL,
-			[toll_pay] [nvarchar](255) NULL,
-			[taxi_type] [nvarchar](255) NULL,
-			[taxi_pay] [nvarchar](255) NULL,
-			[bus_type] [nvarchar](255) NULL,
-			[bus_pay] [nvarchar](255) NULL,
-			[bus_cost_dk] [nvarchar](255) NULL,
-			[ferry_type] [nvarchar](255) NULL,
-			[ferry_pay] [nvarchar](255) NULL,
-			[ferry_cost_dk] [nvarchar](255) NULL,
-			[air_type] [nvarchar](255) NULL,
-			[air_pay] [nvarchar](255) NULL,
-			[airfare_cost_dk] [nvarchar](255) NULL,
-			[mode_acc] [nvarchar](255) NULL,
-			[mode_egr] [nvarchar](255) NULL,
-			[park] [nvarchar](255) NULL,
-			[park_type] [nvarchar](255) NULL,
-			[park_pay] [nvarchar](255) NULL,
-			[transit_system_1] [nvarchar](255) NULL,
-			[transit_system_2] [nvarchar](255) NULL,
-			[transit_system_3] [nvarchar](255) NULL,
-			[transit_system_4] [nvarchar](255) NULL,
-			[transit_system_5] [nvarchar](255) NULL,
-			[transit_line_1] [nvarchar](255) NULL,
-			[transit_line_2] [nvarchar](255) NULL,
-			[transit_line_3] [nvarchar](255) NULL,
-			[transit_line_4] [nvarchar](255) NULL,
-			[transit_line_5] [nvarchar](255) NULL,
-			[speed_mph] [float] NULL,
-			[user_merged] [nvarchar](255) NULL,
-			[user_split] [nvarchar](255) NULL,
-			[analyst_merged] [nvarchar](255) NULL,
-			[analyst_split] [nvarchar](255) NULL,
-			[nonproxy_derived_trip] [nvarchar](255) NULL
-		)
-		GO
 
 	--Getting the file on the same location is problematic-- currently using flat file import wizard for these three tables instead.
 		BULK INSERT household	FROM '\\aws-prod-file01\SQL2016\DSADEV\1-Household.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 		BULK INSERT person		FROM '\\aws-prod-file01\SQL2016\DSADEV\2-Person.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
-		BULK INSERT tripx		FROM '\\aws-prod-file01\SQL2016\DSADEV\5-Trip.csv'		WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 */
 
-		DROP TABLE IF EXISTS HHSurvey.trip;
+		DROP TABLE IF EXISTS HHSurvey.Trip;
 		GO
-		CREATE TABLE HHSurvey.trip (
-			[recid] [int] NOT NULL,
+		CREATE TABLE HHSurvey.Trip (
+			[recid] [int] IDENTITY NOT NULL,
 			[hhid] decimal(19,0) NOT NULL,
 			[personid] decimal(19,0) NOT NULL,
 			[pernum] [int] NULL,
@@ -461,13 +365,13 @@ GO
 			quality_flag nvarchar(255) null,
 			[nonproxy_derived_trip] bit NULL,
 			[psrc_comment] NVARCHAR(250) NULL,
-			[psrc_resolved] TINYINT NULL
+			[psrc_resolved] TINYINT NULL,
+			CONSTRAINT PK_HHSurvey_Trip_Recid PRIMARY KEY CLUSTERED (recid)
 		)
 		GO
 
 		INSERT INTO HHSurvey.trip(
-			recid
-			,[hhid]
+			[hhid]
 			,[personid]
 			,[pernum]
 			,[tripid]
@@ -566,8 +470,7 @@ GO
 			,[analyst_split]
 			)
 		SELECT 
-			recid
-			,[hhid]
+			[hhid]
 			,[personid]
 			,[pernum]
 			,[tripid]
@@ -665,15 +568,12 @@ GO
 			,[user_split]
 			,[analyst_merged]
 			,[analyst_split]
-			FROM HHSurvey.[5_trip]
+			FROM dbo.[4_trip]
 			ORDER BY tripid;
 		GO
 
-		UPDATE x
-		SET x.recid = t.recid 
-		FROM HHSurvey.tripx AS x JOIN HHSurvey.trip AS t ON x.tripid=t.tripid;
 
-		ALTER TABLE HHSurvey.trip --additional destination address fields
+		ALTER TABLE HHSurvey.Trip --additional destination address fields
 			ADD origin_geom 	GEOMETRY NULL,
 				dest_geom 		GEOMETRY NULL,
 				dest_county		varchar(3) NULL,
@@ -691,13 +591,13 @@ GO
 		ALTER TABLE HHSurvey.person 	ADD work_geom GEOMETRY NULL;
 		GO
 						
-		UPDATE HHSurvey.trip		SET dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
+		UPDATE HHSurvey.Trip		SET dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
 							  		  origin_geom   = geometry::STPointFromText('POINT(' + CAST(origin_lng 	 AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
 
 		UPDATE HHSurvey.household 	SET home_geom 	= geometry::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat 	AS VARCHAR(20)) + ')', 4326);
 		UPDATE HHSurvey.person 		SET work_geom	= geometry::STPointFromText('POINT(' + CAST(work_lng 	 AS VARCHAR(20)) + ' ' + CAST(work_lat 	 	AS VARCHAR(20)) + ')', 4326);
 
-		ALTER TABLE HHSurvey.trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
+		--ALTER TABLE HHSurvey.trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
 		CREATE INDEX person_idx ON HHSurvey.trip (personid ASC);
 		CREATE INDEX tripnum_idx ON HHSurvey.trip (tripnum ASC);
 		CREATE INDEX d_purpose_idx ON HHSurvey.trip (d_purpose);
@@ -816,7 +716,6 @@ GO
 		            end
 		        end
 		    end
-
 		GO
 		ALTER TABLE HHSurvey.trip DISABLE TRIGGER tr_trip
 	-- end of trigger creation
@@ -1502,7 +1401,7 @@ SET NOCOUNT ON
 
 		DROP TABLE IF EXISTS HHSurvey.trip_error_flags;
 		CREATE TABLE HHSurvey.trip_error_flags(
-			recid bigint not NULL,
+			recid decimal(19,0) not NULL,
 			personid int not NULL,
 			tripnum int not null,
 			error_flag varchar(100)
