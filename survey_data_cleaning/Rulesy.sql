@@ -18,7 +18,8 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 	--Create mode uber-categories for access/egress characterization, etc.
-		DROP TABLE IF EXISTS HHSurvey.transitmodes, HHSurvey.automodes, HHSurvey.pedmodes, HHSurvey.walkmodes, HHSurvey.bikemodes, HHSurvey.nontransitmodes, HHSurvey.trip_ingredients_done;
+		DROP TABLE IF EXISTS HHSurvey.transitmodes, HHSurvey.automodes, HHSurvey.pedmodes, HHSurvey.walkmodes, HHSurvey.bikemodes, 
+			HHSurvey.nontransitmodes, HHSurvey.trip_ingredients_done, HHSurvey.NullFlags;
 		CREATE TABLE HHSurvey.transitmodes 	  (mode_id int PRIMARY KEY NOT NULL);
 		CREATE TABLE HHSurvey.automodes 	  (mode_id int PRIMARY KEY NOT NULL);
 		CREATE TABLE HHSurvey.pedmodes 		  (mode_id int PRIMARY KEY NOT NULL);
@@ -26,6 +27,7 @@ GO
 		CREATE TABLE HHSurvey.bikemodes 	  (mode_id int PRIMARY KEY NOT NULL);		
 		CREATE TABLE HHSurvey.nontransitmodes (mode_id int PRIMARY KEY NOT NULL);
 		CREATE TABLE HHSurvey.error_types	  (error_flag nvarchar(100) NULL, vital int NULL);
+		CREATE TABLE HHSurvey.NullFlags (flag_value int not null, label int null); 
 		GO
 	-- I haven't yet found a way to build the CLR regex pattern string from a variable expression, so if the sets in these tables change, the groupings in STEP 5 will likely need to be updated as well.
 	-- mode groupings
@@ -52,6 +54,8 @@ GO
 			('missing next trip link',0),
 			('PUDO, no +/- travelers',0),
 			('non-worker + work trip',0);	
+		INSERT INTO HHSurvey.NullFlags (flag_value, label)
+		VALUES	(-9998, NULL), (-9999, NULL), (995, NULL);
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 /*	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
@@ -618,8 +622,10 @@ GO
 
 
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
+	/* The average trip_path_distance is comensurate between hhgroups 1 and 2, so I don't think we need this step for 2019.
 		UPDATE HHSurvey.trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
 		GO
+	*/
 
 	-- create an auto-loggint trigger for updates to the trip table
 		create  trigger tr_trip on HHSurvey.[trip] for insert, update, delete
@@ -724,15 +730,50 @@ GO
 		ALTER TABLE HHSurvey.trip ENABLE TRIGGER [tr_trip]
 
 	-- Revise travelers count to reflect passengers (lazy response?)
-		UPDATE t
-			SET t.travelers_hh =  (SELECT count(member) FROM (VALUES(t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmembers(member))
-			FROM HHSurvey.trip AS t
-			WHERE (SELECT count(member) FROM (VALUES(t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmembers(member)) <> t.travelers_hh;
+	-- query changed from previous version, which assumed NULLs in hhmember columns rather than missing data flags
+		with membercounts (tripid, membercount)
+		as (
+			select tripid, count(member) 
+			from (
+				SELECT tripid, hhmember1 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember2 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember3 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember4 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember5 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember6 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember7 as member
+				FROM HHSurvey.trip 
+				union all
+				SELECT tripid, hhmember8 as member
+				FROM HHSurvey.trip 
+			) as members
+			where member not in (select flag_value from HHSurvey.NullFlags)
+			group by tripid
+		)
+		update t
+		set t.travelers_hh = membercounts.membercount
+		from membercounts
+			join HHSurvey.trip t ON t.tripid = membercounts.tripid
+		where t.travelers_hh <> membercounts.membercount 
+			or t.travelers_hh is null
 		
 		UPDATE t
 			SET t.travelers_total = t.travelers_hh
 			FROM HHSurvey.trip AS t
-			WHERE t.travelers_total < t.travelers_hh;
+			WHERE t.travelers_total < t.travelers_hh	
+				or t.travelers_total in (select flag_value from HHSurvey.NullFlags)
 
 	-- Tripnum must be sequential or later steps will fail. Create procedure and employ where required.
 		DROP PROCEDURE IF EXISTS HHSurvey.tripnum_update;
@@ -751,15 +792,16 @@ GO
 /* STEP 2.  Parse/Fill missing address fields */
 
 	--address parsing
-		UPDATE t SET t.dest_zip = SUBSTRING(dbo.RgxExtract(dest_address, 'WA (\d{5}), USA', 0),4,5) FROM HHSurvey.trip AS t;
-		UPDATE t SET t.dest_city = LTRIM(RTRIM(SUBSTRING(dbo.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0),0,PATINDEX('%,%',dbo.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0))))) FROM HHSurvey.trip AS t;
-		UPDATE t SET t.dest_county = zipwgs.county FROM HHSurvey.trip AS t JOIN dbo.zipcode_wgs AS zipwgs ON t.dest_zip=zipwgs.zipcode;
+		UPDATE t SET t.dest_zip = SUBSTRING(HHSurvey.RgxExtract(dest_address, 'WA (\d{5}), USA', 0),4,5) FROM HHSurvey.trip AS t;
+		UPDATE t SET t.dest_city = LTRIM(RTRIM(SUBSTRING(HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0),0,PATINDEX('%,%',HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0))))) FROM HHSurvey.trip AS t;
+		UPDATE t SET t.dest_county = zipwgs.county FROM HHSurvey.trip AS t JOIN Sandbox.dbo.zipcode_wgs AS zipwgs ON t.dest_zip=zipwgs.zipcode;
 		GO
 
 	--fill missing zipcode
 		UPDATE t SET t.dest_zip = zipwgs.zipcode  
-			FROM HHSurvey.trip AS t join dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
-			WHERE t.dest_zip IS NULL;
+			FROM HHSurvey.trip AS t join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
+			WHERE t.dest_zip IS NULL
+				or t.dest_zip in (SELECT flag_value FROM HHSurvey.NullFlags);
 
 	/*	UPDATE trip --fill missing city --NOT YET AVAILABLE
 			SET trip.dest_city = [ENTER CITY GEOGRAPHY HERE].City
@@ -768,8 +810,9 @@ GO
 	*/
 		UPDATE t --fill missing county
 			SET t.dest_county = zipwgs.county
-			FROM HHSurvey.trip AS t JOIN dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
-			WHERE t.dest_county IS NULL;
+			FROM HHSurvey.trip AS t JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
+			WHERE t.dest_county IS NULL
+				or t.dest_county in (SELECT flag_value FROM HHSurvey.NullFlags);
 
 	-- -- [Create geographic check where assigned zip/county doesn't match the x,y.]		
 
@@ -783,14 +826,8 @@ GO
 			UPDATE t--Classify home destinations; criteria plus 100m proximity to household home location
 				SET t.dest_is_home = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
-				WHERE t.dest_is_home IS NULL AND
-					(t.dest_name = 'HOME' 
-					OR(
-						(dbo.RgxFind(t.dest_name,' home',1) = 1 
-						OR dbo.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
-						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
-					)
-					OR(t.d_purpose = 1))
+				WHERE (t.dest_is_home IS NULL or t.dest_is_home in (select flag_value from HHSurvey.NullFlags)) 
+					AND t.d_purpose = 1
 					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1;
 
 			UPDATE t --Classify home destinations where destination code is absent; 30m proximity to home location on file
@@ -804,8 +841,8 @@ GO
 				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid
 				WHERE t.dest_is_work IS NULL AND
 					(t.dest_name = 'WORK' 
-					OR((dbo.RgxFind(t.dest_name,' work',1) = 1 
-						OR dbo.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
+					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
+						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
 					OR(t.d_purpose = 10 AND t.dest_name IS NULL))
 					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.001))=1;
 
@@ -854,7 +891,7 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 				
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.d_purpose IN(-9998,6,97)
-					AND dbo.RgxFind(t.dest_name,'(pick|drop)',1) = 1;
+					AND HHSurvey.RgxFind(t.dest_name,'(pick|drop)',1) = 1;
 			
 			UPDATE t --changes code to 'family activity' when adult is present, multiple people involved and duration is from 30mins to 4hrs
 				SET t.d_purpose = 56, t.revision_code = CONCAT(t.revision_code,'3,')
@@ -864,7 +901,7 @@ GO
 				WHERE p.age > 4 
 					AND (p.student = 1 OR p.student IS NULL)
 					AND (t.travelers_total > 1 OR next_t.travelers_total > 1)
-					AND (t.d_purpose = 6 OR dbo.RgxFind(t.dest_name,'(school|care)',1) = 1)
+					AND (t.d_purpose = 6 OR HHSurvey.RgxFind(t.dest_name,'(school|care)',1) = 1)
 					AND DATEDIFF(Minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) Between 30 and 240;
 
 			UPDATE t --updates empty purpose code to 'school' when single student traveler with school destination and duration > 30 minutes.
@@ -882,25 +919,25 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 				
 				WHERE p.age > 4 AND (p.student = 1 OR p.student IS NULL) AND t.d_purpose IN(-9998,6,97) AND t.travelers_hh = 1
-					AND dbo.RgxFind(t.dest_name,'(pick|drop|kid|child)',1) = 0 AND dbo.RgxFind(t.dest_name,'(class|lesson)',1) = 1;							
+					AND HHSurvey.RgxFind(t.dest_name,'(pick|drop|kid|child)',1) = 0 AND HHSurvey.RgxFind(t.dest_name,'(class|lesson)',1) = 1;							
 
 		--Change 'Other' trip purpose when purpose is given in destination
 			UPDATE t  SET t.d_purpose = 1,  t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose IN(-9998,97) AND t.dest_is_home = 1;
 			UPDATE t  SET t.d_purpose = 10, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose IN(-9998,97) AND t.dest_is_work = 1;
 			UPDATE t  SET t.d_purpose = 11, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND t.dest_is_work <> 1 AND t.dest_name = 'WORK';
-			UPDATE t  SET t.d_purpose = 30, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'(grocery|costco|safeway|trader ?joe)',1) = 1;				
-			UPDATE t  SET t.d_purpose = 32, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'\b(store)\b',1) = 1;	
-			UPDATE t  SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'\b(bank|gas|post ?office|library|barber|hair)\b',1) = 1;				
-			UPDATE t  SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'(bank|gas|post ?office|library)',1) = 1;		
-			UPDATE t  SET t.d_purpose = 34, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'(doctor|dentist|hospital|medical|health)',1) = 1;	
-			UPDATE t  SET t.d_purpose = 50, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'(coffee|cafe|starbucks|lunch)',1) = 1;		
-			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'dog',1) = 1 AND dbo.RgxFind(t.dest_name,'(walk|park)',1) = 1;
-			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'\bwalk$',1) = 1;	
-			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'\bgym$',1) = 1;						
-			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'park',1) = 1 AND dbo.RgxFind(t.dest_name,'(parking|ride)',1) = 0;
-			UPDATE t  SET t.d_purpose = 53, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'casino',1) = 1;
-			UPDATE t  SET t.d_purpose = 54, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'(church|volunteer)',1) = 1;
-			UPDATE t  SET t.d_purpose = 60, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND dbo.RgxFind(t.dest_name,'\b(bus|transit|ferry|airport|station)\b',1) = 1;  
+			UPDATE t  SET t.d_purpose = 30, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'(grocery|costco|safeway|trader ?joe)',1) = 1;				
+			UPDATE t  SET t.d_purpose = 32, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'\b(store)\b',1) = 1;	
+			UPDATE t  SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'\b(bank|gas|post ?office|library|barber|hair)\b',1) = 1;				
+			UPDATE t  SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'(bank|gas|post ?office|library)',1) = 1;		
+			UPDATE t  SET t.d_purpose = 34, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'(doctor|dentist|hospital|medical|health)',1) = 1;	
+			UPDATE t  SET t.d_purpose = 50, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'(coffee|cafe|starbucks|lunch)',1) = 1;		
+			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'dog',1) = 1 AND HHSurvey.RgxFind(t.dest_name,'(walk|park)',1) = 1;
+			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'\bwalk$',1) = 1;	
+			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'\bgym$',1) = 1;						
+			UPDATE t  SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'park',1) = 1 AND HHSurvey.RgxFind(t.dest_name,'(parking|ride)',1) = 0;
+			UPDATE t  SET t.d_purpose = 53, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'casino',1) = 1;
+			UPDATE t  SET t.d_purpose = 54, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'(church|volunteer)',1) = 1;
+			UPDATE t  SET t.d_purpose = 60, t.revision_code = CONCAT(t.revision_code,'5,') FROM HHSurvey.trip AS t WHERE t.d_purpose = 97 AND HHSurvey.RgxFind(t.dest_name,'\b(bus|transit|ferry|airport|station)\b',1) = 1;  
 		END
 		GO
 		EXECUTE HHSurvey.d_purpose_updates;
@@ -1000,7 +1037,7 @@ GO
 
 		-- denote trips with too many components or other attributes suggesting multiple trips, for later examination.  
 		WITH cte_a AS										--non-adjacent repeated transit line, i.e. suggests a loop trip
-			(SELECT DISTINCT ti_wndw1.personid, ti_wndw1.trip_link, dbo.TRIM(dbo.RgxReplace(
+			(SELECT DISTINCT ti_wndw1.personid, ti_wndw1.trip_link, dbo.TRIM(HHSurvey.RgxReplace(
 				STUFF((SELECT ',' + ti1.transit_lines
 					FROM #trip_ingredient AS ti1 
 					WHERE ti1.personid = ti_wndw1.personid AND ti1.trip_link = ti_wndw1.trip_link
@@ -1009,7 +1046,7 @@ GO
 					FOR XML PATH('')), 1, 1, NULL),'(\b\d+\b),(?=\1)','',1)) AS transit_lines	
 				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),
 		cte_b AS 
-			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, dbo.TRIM(dbo.RgxReplace(
+			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, dbo.TRIM(HHSurvey.RgxReplace(
 				STUFF((SELECT ',' + ti2.modes				--non-adjacent repeated modes, i.e. suggests a loop trip
 					FROM #trip_ingredient AS ti2
 					WHERE ti2.personid = ti_wndw2.personid AND ti2.trip_link = ti_wndw2.trip_link
@@ -1032,10 +1069,10 @@ GO
 					OR sum(CASE WHEN LEN(ti4.park_type) 			<>0 THEN 1 ELSE 0 END) > 1
 			UNION ALL SELECT cte_a.personid, cte_a.trip_link 	--sets with nonadjacent repeating transit lines (i.e., return trip)
 				FROM cte_a
-				WHERE dbo.RgxFind(cte_a.transit_lines,'(\b\d+\b),.+(?=\1)',1)=1	
+				WHERE HHSurvey.RgxFind(cte_a.transit_lines,'(\b\d+\b),.+(?=\1)',1)=1	
 			UNION ALL SELECT cte_b.personid, cte_b.trip_link 	--sets with a pair of modes repeating in reverse (i.e., return trip)
 				FROM cte_b
-				WHERE dbo.RgxFind(cte_b.modes,'\b(\d+),(\d+)\b,.+(?=\2,\1)',1)=1)		
+				WHERE HHSurvey.RgxFind(cte_b.modes,'\b(\d+),(\d+)\b,.+(?=\2,\1)',1)=1)		
 		UPDATE ti
 			SET ti.trip_link = -1 * ti.trip_link
 			FROM #trip_ingredient AS ti JOIN cte2 ON cte2.personid = ti.personid AND cte2.trip_link = ti.trip_link;
@@ -1208,9 +1245,9 @@ GO
 
 		--eliminate repeated values for modes, transit_systems, and transit_lines
 		UPDATE t 
-			SET t.modes				= dbo.TRIM(dbo.RgxReplace(t.modes,'(-?\b\d+\b),(?=\b\1\b)','',1)),
-				t.transit_systems 	= dbo.TRIM(dbo.RgxReplace(t.transit_systems,'(\b\d+\b),(?=\b\1\b)','',1)), 
-				t.transit_lines 	= dbo.TRIM(dbo.RgxReplace(t.transit_lines,'(\b\d+\b),(?=\b\1\b)','',1))
+			SET t.modes				= dbo.TRIM(HHSurvey.RgxReplace(t.modes,'(-?\b\d+\b),(?=\b\1\b)','',1)),
+				t.transit_systems 	= dbo.TRIM(HHSurvey.RgxReplace(t.transit_systems,'(\b\d+\b),(?=\b\1\b)','',1)), 
+				t.transit_lines 	= dbo.TRIM(HHSurvey.RgxReplace(t.transit_lines,'(\b\d+\b),(?=\b\1\b)','',1))
 			FROM HHSurvey.trip AS t;
 
 		EXECUTE HHSurvey.tripnum_update; 
@@ -1221,26 +1258,26 @@ GO
 		-- [Unions must be used here; otherwise the VALUE set from the dbo.Rgx table object gets reused across cte fields.]
 		WITH cte_acc_egr1  AS 
 		(	SELECT t1.personid, t1.tripnum, 'A' AS label, 'transit' AS trip_type,
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t1.modes,'^((?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75),)+',1),',')) AS link_value
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(HHSurvey.RgxExtract(t1.modes,'^((?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75),)+',1),',')) AS link_value
 			FROM HHSurvey.trip AS t1 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t1.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)) 
-								AND dbo.RgxExtract(t1.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75)\b,?)+',1) IS NOT NULL
+								AND HHSurvey.RgxExtract(t1.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75)\b,?)+',1) IS NOT NULL
 			UNION ALL 
 			SELECT t2.personid, t2.tripnum, 'E' AS label, 'transit' AS trip_type,	
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t2.modes,'(,(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75))+$',1),',')) AS link_value 
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(HHSurvey.RgxExtract(t2.modes,'(,(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75))+$',1),',')) AS link_value 
 			FROM HHSurvey.trip AS t2 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t2.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
-								AND dbo.RgxExtract(t2.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75)\b,?)+',1) IS NOT NULL			
+								AND HHSurvey.RgxExtract(t2.modes,'^(\b(?:1|2|3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71|72|73|74|75)\b,?)+',1) IS NOT NULL			
 			UNION ALL 
 			SELECT t3.personid, t3.tripnum, 'A' AS label, 'auto' AS trip_type,
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t3.modes,'^((?:1|2|72|73|74|75)\b,?)+',1),',')) AS link_value
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(HHSurvey.RgxExtract(t3.modes,'^((?:1|2|72|73|74|75)\b,?)+',1),',')) AS link_value
 			FROM HHSurvey.trip AS t3 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t3.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes)) 
 								  AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t3.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
-								  AND dbo.RgxReplace(t3.modes,'^(\b(?:1|2|72|73|74|75)\b,?)+','',1) IS NOT NULL
+								  AND HHSurvey.RgxReplace(t3.modes,'^(\b(?:1|2|72|73|74|75)\b,?)+','',1) IS NOT NULL
 			UNION ALL 
 			SELECT t4.personid, t4.tripnum, 'E' AS label, 'auto' AS trip_type,
-				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(dbo.RgxExtract(t4.modes,'(,(?:1|2|72|73|74|75))+$',1),',')) AS link_value
+				(SELECT MAX(CAST(VALUE AS int)) FROM STRING_SPLIT(HHSurvey.RgxExtract(t4.modes,'(,(?:1|2|72|73|74|75))+$',1),',')) AS link_value
 			FROM HHSurvey.trip AS t4 WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t4.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes)) 
 								  AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t4.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
-								  AND dbo.RgxReplace(t4.modes,'^(\b(?:1|2|72|73|74|75)\b,?)+','',1) IS NOT NULL),
+								  AND HHSurvey.RgxReplace(t4.modes,'^(\b(?:1|2|72|73|74|75)\b,?)+','',1) IS NOT NULL),
 		cte_acc_egr2 AS (SELECT cte.personid, cte.tripnum, cte.trip_type,
 								MAX(CASE WHEN cte.label = 'A' THEN cte.link_value ELSE NULL END) AS mode_acc,
 								MAX(CASE WHEN cte.label = 'E' THEN cte.link_value ELSE NULL END) AS mode_egr
@@ -1251,40 +1288,40 @@ GO
 			FROM HHSurvey.trip AS t JOIN cte_acc_egr2 ON t.personid = cte_acc_egr2.personid AND t.tripnum = cte_acc_egr2.tripnum;
 
 		--handle the 'other' category left out of the operation above (it is the largest integer but secondary to listed modes)
-		UPDATE HHSurvey.trip SET trip.mode_acc = 97 WHERE trip.mode_acc IS NULL AND dbo.RgxFind(trip.modes,'^97,\d+',1) = 1
+		UPDATE HHSurvey.trip SET trip.mode_acc = 97 WHERE trip.mode_acc IS NULL AND HHSurvey.RgxFind(trip.modes,'^97,\d+',1) = 1
 			AND EXISTS (SELECT 1 FROM STRING_SPLIT(trip.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes UNION select mode_id FROM HHSurvey.transitmodes));
-		UPDATE HHSurvey.trip SET trip.mode_egr = 97 WHERE trip.mode_egr IS NULL AND dbo.RgxFind(trip.modes,'\d+,97$',1) = 1
+		UPDATE HHSurvey.trip SET trip.mode_egr = 97 WHERE trip.mode_egr IS NULL AND HHSurvey.RgxFind(trip.modes,'\d+,97$',1) = 1
 			AND EXISTS (SELECT 1 FROM STRING_SPLIT(trip.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes UNION select mode_id FROM HHSurvey.transitmodes));	
 
 		-- Populate separate mode fields, removing access/egress from the beginning and end of 1) transit and 2) auto trip strings
 			WITH cte AS 
-		(SELECT t.recid, dbo.RgxReplace(dbo.RgxReplace(dbo.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71),)+','',1) AS mode_reduced
+		(SELECT t.recid, HHsurvey.RgxReplace(HHSurvey.RgxReplace(HHSurvey.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71),)+','',1) AS mode_reduced
 			FROM HHSurvey.trip as t
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
 		UNION ALL 	
-		SELECT t.recid, dbo.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1) AS mode_reduced
+		SELECT t.recid, HHSurvey.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1) AS mode_reduced
 			FROM HHSurvey.trip as t
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes))
 			AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)))
 		UPDATE t
-			SET t.mode_1 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.mode_2 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.mode_3 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.mode_4 = (SELECT Match FROM dbo.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)
+			SET t.mode_1 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.mode_2 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.mode_3 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.mode_4 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)
 		FROM HHSurvey.trip AS t JOIN cte ON t.recid = cte.recid;
 
 		-- Populate transit_system and transit_line fields with the revised concatenated data 		
 		UPDATE 	t
-			SET t.transit_system_1	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_2	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_3	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_4	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_5	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_1	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_2	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_3	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_4	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_5	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY)
+			SET t.transit_system_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY)
 			FROM HHSurvey.trip AS t;
 			 
 /* STEP 6. Insert trips for those who were reported as a passenger by another traveler but did not report the trip themselves */
