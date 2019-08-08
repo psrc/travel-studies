@@ -1,7 +1,7 @@
 USE [HouseholdTravelSurvey2019]
 GO
 
-/****** Object:  Table [dbo].[1_Household]    Script Date: 8/3/2019 6:49:49 AM ******/
+/****** Object:  Table [dbo].[Household]    Script Date: 8/3/2019 6:49:49 AM ******/
 SET ANSI_NULLS ON
 GO
 
@@ -15,11 +15,11 @@ The copied tables each have a primary key [recid] that is an alternate to the ca
   in the original tables in the dbo schema.  
 */
 
-drop table if exists HHSurvey.[1_Household]
+drop table if exists HHSurvey.[Household]
 
-CREATE TABLE [HHSurvey].[1_Household](
+CREATE TABLE [HHSurvey].[Household](
 	recid int identity not null,
-	[hhid] [decimal](19, 0) NULL,
+	[hhid] [decimal](19, 0) not NULL,
 	[sample_segment] [real] NULL,
 	[sample_county] [nvarchar](150) NULL,
 	[cityofseattle] [int] NULL,
@@ -34,7 +34,7 @@ CREATE TABLE [HHSurvey].[1_Household](
 	[final_home_puma10] [decimal](19, 0) NULL,
 	[final_home_rgcnum] [int] NULL,
 	[final_home_uvnum] [int] NULL,
-	[hhgroup] [int] NULL,
+	[hhgroup] [int] not NULL,
 	[travelweek] [int] NULL,
 	[traveldate_start] [datetime] NULL,
 	[traveldate_end] [datetime] NULL,
@@ -101,10 +101,12 @@ CREATE TABLE [HHSurvey].[1_Household](
 ) ON [PRIMARY]
 GO
 
-alter table HHSurvey.[1_Household] 
-	add constraint PK_1_Household_recid PRIMARY KEY CLUSTERED (recid)
+alter table HHSurvey.[Household] 
+	add constraint PK_Household_recid PRIMARY KEY CLUSTERED (recid)
 
-INSERT INTO HHSurvey.[1_Household] (
+create unique nonclustered index idx_HHSurvey_Household_hhid on HHSurvey.Household (HHID)
+
+INSERT INTO HHSurvey.[Household] (
 	HHID
       ,[sample_segment]
       ,[sample_county]
@@ -268,15 +270,15 @@ SELECT [hhid]
 GO
 
 
-drop table if exists HHSurvey.[2_Person]
+drop table if exists HHSurvey.[Person]
 go
-CREATE TABLE [HHSurvey].[2_Person](
+CREATE TABLE [HHSurvey].[Person](
 	recid int identity not null,
-	[hhid] [decimal](19, 0) NULL,
-	[personid] [decimal](19, 0) NULL,
-	[pernum] [int] NULL,
+	[hhid] [decimal](19, 0) not NULL,
+	[personid] [decimal](19, 0) not NULL,
+	[pernum] [int] not NULL,
 	[sample_segment] [real] NULL,
-	[hhgroup] [int] NULL,
+	[hhgroup] [int] not NULL,
 	[traveldate_start] [datetime] NULL,
 	[traveldate_end] [datetime] NULL,
 	[relationship] [int] NULL,
@@ -375,10 +377,10 @@ CREATE TABLE [HHSurvey].[2_Person](
 ) ON [PRIMARY] 
 
 GO
-alter table HHSurvey.[2_Person] 
-	add constraint PK_2_Person_recid PRIMARY KEY CLUSTERED (recid)
+alter table HHSurvey.[Person] 
+	add constraint PK_Person_recid PRIMARY KEY CLUSTERED (recid)
 
-insert into HHSurvey.[2_Person] (
+insert into HHSurvey.[Person] (
 	HHID
       ,[personid]
       ,[pernum]
@@ -583,14 +585,14 @@ SELECT [hhid]
   FROM [dbo].[2_Person]
 GO
 
-drop table if exists HHSurvey.[3_Vehicle]
+drop table if exists HHSurvey.[Vehicle]
 go
 
-CREATE TABLE [HHSurvey].[3_Vehicle](
+CREATE TABLE [HHSurvey].[Vehicle](
 	recid int identity not null,
-	[hhid] [decimal](19, 0) NULL,
-	[vehnum] [int] NULL,
-	[vehid] [decimal](19, 0) NULL,
+	[hhid] [decimal](19, 0) not NULL,
+	[vehnum] [int] not NULL,
+	[vehid] [decimal](19, 0) not NULL,
 	[year] [nvarchar](150) NULL,
 	[make] [nvarchar](150) NULL,
 	[model] [nvarchar](150) NULL,
@@ -600,10 +602,10 @@ CREATE TABLE [HHSurvey].[3_Vehicle](
 ) ON [PRIMARY]
 
 
-alter table HHSurvey.[3_Vehicle]
-	add constraint PK_3_Vehicle_recid PRIMARY KEY CLUSTERED (recid)
+alter table HHSurvey.[Vehicle]
+	add constraint PK_Vehicle_recid PRIMARY KEY CLUSTERED (recid)
 
-insert into HHSurvey.[3_Vehicle] (
+insert into HHSurvey.[Vehicle] (
 	hhid
       ,[vehnum]
       ,[vehid]
@@ -627,15 +629,15 @@ SELECT [hhid]
 GO
 
 
-drop table if exists HHSurvey.[4_Day]
+drop table if exists HHSurvey.[Day]
 go
-CREATE TABLE [HHSurvey].[4_Day](
+CREATE TABLE [HHSurvey].[Day](
 	recid int identity not null,
-	[hhid] [decimal](19, 0) NULL,
-	[hhgroup] [int] NULL,
-	[personid] [decimal](19, 0) NULL,
-	[pernum] [int] NULL,
-	[daynum] [int] NULL,
+	[hhid] [decimal](19, 0) not NULL,
+	[hhgroup] [int] not NULL,
+	[personid] [decimal](19, 0) not NULL,
+	[pernum] [int] not NULL,
+	[daynum] [int] not NULL,
 	[dayofweek] [float] NULL,
 	[traveldate] [datetime] NULL,
 	[svy_complete] [int] NULL,
@@ -682,10 +684,10 @@ CREATE TABLE [HHSurvey].[4_Day](
 ) ON [PRIMARY] 
 GO
 
-alter table HHSurvey.[4_Day]
-	add constraint PK_4_Day_recid PRIMARY KEY CLUSTERED (recid)
+alter table HHSurvey.[Day]
+	add constraint PK_Day_recid PRIMARY KEY CLUSTERED (recid)
 
-insert into HHSurvey.[4_Day] (
+insert into HHSurvey.[Day] (
 	hhid
       ,[hhgroup]
       ,[personid]
@@ -786,11 +788,11 @@ SELECT [hhid]
   FROM [dbo].[4_Day]
 GO
 
+/*
 
-
-drop table if exists HHSurvey.[5_trip]
+drop table if exists HHSurvey.[trip]
 go
-CREATE TABLE [HHSurvey].[5_Trip](
+CREATE TABLE [HHSurvey].[Trip](
 	recid int identity not null,
 	[hhid] [decimal](19, 0) NULL,
 	[hhgroup] [int] NULL,
@@ -893,10 +895,10 @@ CREATE TABLE [HHSurvey].[5_Trip](
 ) ON [PRIMARY]
 go
 
-alter table HHSurvey.[5_Trip]
+alter table HHSurvey.[Trip]
 	add constraint PK__recid PRIMARY KEY CLUSTERED (recid)
 
-insert into HHSurvey.[5_Trip] (
+insert into HHSurvey.[Trip] (
 	hhid
       ,[hhgroup]
       ,[personid]
@@ -1096,10 +1098,11 @@ SELECT [hhid]
       ,[quality_flag]
   FROM [dbo].[4_Trip]
 GO
+*/
 
-drop table if exists HHSurvey.[6_Location]
+drop table if exists HHSurvey.[Location]
 go
-CREATE TABLE [HHSurvey].[6_Location](
+CREATE TABLE [HHSurvey].[Location](
 	recid int identity not null,
 	[hhid] [decimal](19, 0) NULL,
 	[personid] [decimal](19, 0) NULL,
@@ -1114,10 +1117,10 @@ CREATE TABLE [HHSurvey].[6_Location](
 	[lng] [decimal](13, 5) NULL
 ) ON [PRIMARY]
 
-alter table HHSurvey.[6_Location]
-	add constraint PK_6_Location_recid PRIMARY KEY CLUSTERED (recid)
+alter table HHSurvey.[Location]
+	add constraint PK_Location_recid PRIMARY KEY CLUSTERED (recid)
 
-insert into HHSurvey.[6_Location](
+insert into HHSurvey.[Location](
 	hhid
       ,[personid]
       ,[pernum]
