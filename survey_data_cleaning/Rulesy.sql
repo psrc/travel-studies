@@ -55,7 +55,9 @@ GO
 			('PUDO, no +/- travelers',0),
 			('non-worker + work trip',0);	
 		INSERT INTO HHSurvey.NullFlags (flag_value, label)
-		VALUES	(-9998, NULL), (-9999, NULL), (995, NULL);
+		VALUES		(-9998, NULL), 
+					(-9999, NULL), 
+					(995, NULL);
 
 /* STEP 1. 	Load data from fixed format .csv files.  */
 /*	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
@@ -272,9 +274,9 @@ GO
 			[pernum] [int] NULL,
 			[tripid] decimal(19,0) NULL,
 			[tripnum] [int] NOT NULL DEFAULT 0,
-			[traveldate] date NULL,
+			[traveldate] datetime2 NULL,
 			[daynum] [int] NULL,
-			[dayofweek] [int] NULL,
+			[dayofweek] [int] NULL, --float in 4_trip
 			[data_source] int null,
 			[hhgroup] [int] NULL,
 			[copied_trip] [int] NULL,
@@ -283,10 +285,10 @@ GO
 			[revised_count] int NULL,
 			[svy_complete] [int] NULL,
 			[depart_time_mam] [int] NULL,
-			[depart_time_hhmm] [nvarchar](255) NULL,
+			[depart_time_hhmm] [nvarchar](20) NULL,
 			[depart_time_timestamp] datetime2 NULL,
 			[arrival_time_mam] [int] NULL,
-			[arrival_time_hhmm] [nvarchar](255) NULL,
+			[arrival_time_hhmm] [nvarchar](20) NULL,
 			[arrival_time_timestamp] datetime2 NULL,
 			[origin_name] [nvarchar](255) NULL,
 			[origin_address] [nvarchar](255) NULL,
@@ -361,16 +363,16 @@ GO
 			[transit_line_5] smallint NULL,
 			[transit_line_6] smallint NULL,
 			[speed_mph] [float] NULL,
-			[user_added] int null,
-			[user_merged] bit NULL,
-			[user_split] bit NULL,
-			[analyst_merged] bit NULL,
-			[analyst_split] bit NULL,
-			analyst_split_loop int null,
-			quality_flag nvarchar(255) null,
-			[nonproxy_derived_trip] bit NULL,
-			[psrc_comment] NVARCHAR(250) NULL,
-			[psrc_resolved] TINYINT NULL,
+			[user_added] smallint null,
+			[user_merged] smallint NULL,
+			[user_split] smallint NULL,
+			[analyst_merged] smallint NULL,
+			[analyst_split] smallint NULL,
+			analyst_split_loop smallint null,
+			quality_flag nvarchar(20) null,
+			[nonproxy_derived_trip] smallint NULL,
+			[psrc_comment] NVARCHAR(255) NULL,
+			[psrc_resolved] smallint NULL,
 			CONSTRAINT PK_HHSurvey_Trip_Recid PRIMARY KEY CLUSTERED (recid)
 		)
 		GO
@@ -736,7 +738,7 @@ GO
 		ALTER TABLE HHSurvey.trip ENABLE TRIGGER [tr_trip]
 
 	-- Revise travelers count to reflect passengers (lazy response?)
-	-- query changed from previous version, which assumed NULLs in hhmember columns rather than missing data flags
+	-- moremore query changed from previous version, which assumed NULLs in hhmember columns rather than missing data flags
 		with membercounts (tripid, membercount)
 		as (
 			select tripid, count(member) 
@@ -774,6 +776,7 @@ GO
 			join HHSurvey.trip t ON t.tripid = membercounts.tripid
 		where t.travelers_hh <> membercounts.membercount 
 			or t.travelers_hh is null
+			or t.travelers_hh in (select flag_value from HHSurvey.NullFlags)
 		
 		UPDATE t
 			SET t.travelers_total = t.travelers_hh
@@ -808,7 +811,6 @@ GO
 			FROM HHSurvey.trip AS t 
 				join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
 			WHERE t.dest_zip IS NULL
-				or t.dest_zip in (SELECT flag_value FROM HHSurvey.NullFlags);
 
 	/*	UPDATE trip --fill missing city --NOT YET AVAILABLE
 			SET trip.dest_city = [ENTER CITY GEOGRAPHY HERE].City
@@ -820,7 +822,6 @@ GO
 			FROM HHSurvey.trip AS t 
 				JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
 			WHERE t.dest_county IS NULL
-				or t.dest_county in (SELECT flag_value FROM HHSurvey.NullFlags);
 
 	-- -- [Create geographic check where assigned zip/county doesn't match the x,y.]		
 
@@ -836,7 +837,7 @@ GO
 				FROM HHSurvey.trip AS t 
 					JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
-				WHERE (t.dest_is_home IS NULL or t.dest_is_home in (select flag_value from HHSurvey.NullFlags)) --moremore reference resolved value here rather than NullFlags
+				WHERE t.dest_is_home IS NULL 
 					AND vl.label = 'Went home'
 					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1;
 
@@ -890,7 +891,7 @@ GO
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
 					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (p.student = 1 OR p.student IS NULL) 
+					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) 
 					and (vl.label like 'Went to school/daycare%'
 						or vl.label = 'Other purpose'
 						or vl.label like 'Missing%'
@@ -918,7 +919,7 @@ GO
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 				
 					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (p.student = 1 OR p.student IS NULL) 
+					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
 					AND t.d_purpose IN(-9998,6,97)
 					and (vl.label like 'Went to school/daycare%'
 						or vl.label = 'Other purpose'
@@ -933,7 +934,7 @@ GO
 					LEFT JOIN HHSurvey.trip as next_t ON t.personid=next_t.personid AND t.tripnum + 1 = next_t.tripnum
 					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (p.student = 1 OR p.student IS NULL)
+					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
 					AND (t.travelers_total > 1 OR next_t.travelers_total > 1)
 					AND ( vl.label like 'Went to school/daycare%'
 						OR HHSurvey.RgxFind(t.dest_name,'(school|care)',1) = 1
@@ -961,7 +962,7 @@ GO
 					join HHSurvey.fnVariableLookup('student') vls ON p.student = vls.code
 					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (vls.label like '% not a student' OR p.student IS NULL)
+					AND (vls.label like '% not a student' OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
 					and (vl.label like 'Went to school/daycare%'
 						or vl.label = 'Other purpose'
 						or vl.label like 'Missing%'
@@ -1130,18 +1131,19 @@ GO
 		UPDATE t 
 		SET t.mode_1 = 31, t.revision_code = CONCAT(t.revision_code,'7,')	
 		FROM HHSurvey.trip AS t 
-		WHERE (t.mode_1 = -9998 OR t.mode_1 IS NULL) 
+		WHERE (t.mode_1 IS NULL or t.mode_1 in (select flag_value from HHSurvey.NullFlags)) 
 			AND t.trip_path_distance > 200 
 			AND t.speed_mph > 200;
 
 		UPDATE t 
 		SET t.mode_1 = 1,  t.revision_code = CONCAT(t.revision_code,'7,') 	
 		FROM HHSurvey.trip AS t 
-		WHERE (t.mode_1 = -9998 OR t.mode_1 IS NULL) 
+		WHERE (t.mode_1 IS NULL or t.mode_1 in (select flag_value from HHSurvey.NullFlags)) 
 			AND t.trip_path_distance < 0.6 
 			AND t.speed_mph < 5;	
 		
 /* STEP 4.	Trip linking */
+	--moremore: Could you add more documentation on what exactly the logic is behind the linking?  A general overview and query-by-query descriptors would be helpful. 
 
 	-- Populate consolidated modes, transit_sytems, and transit_lines fields, used later
 
@@ -1234,7 +1236,7 @@ GO
 					GROUP BY ti1.transit_lines
 					ORDER BY ti_wndw1.personid DESC, ti_wndw1.tripnum DESC
 					FOR XML PATH('')), 1, 1, NULL),'(\b\d+\b),(?=\1)','',1)) AS transit_lines	
-				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),
+				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),--moremore update NULL checks to handle Missing data (995, -9998, -9999)
 		cte_b AS 
 			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, dbo.TRIM(HHSurvey.RgxReplace(
 				STUFF((SELECT ',' + ti2.modes				--non-adjacent repeated modes, i.e. suggests a loop trip
@@ -1403,7 +1405,9 @@ GO
 		UPDATE t SET t.trip_path_distance = t.dest_geom.STDistance(t.origin_geom) / 1609.344,
 					 t.revision_code = CONCAT(t.revision_code, '12,')
 			FROM HHSurvey.trip AS t		 
-			WHERE t.trip_path_distance IS NULL AND t.dest_geom IS NOT NULL AND t.origin_geom IS NOT NULL;
+			WHERE (t.trip_path_distance IS NULL and t.trip_path_distance not in (select flag_value from HHSurvey.NullFlags))
+				AND t.dest_geom IS NOT NULL 
+				AND t.origin_geom IS NOT NULL 
 
 		UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
@@ -1520,15 +1524,14 @@ GO
    DROP TABLE IF EXISTS HHSurvey.silent_passenger_trip;
    GO
    WITH cte AS --create CTE set of passenger trips
-        (         SELECT recid, pernum AS respondent, hhmember1 as passengerid FROM HHSurvey.trip WHERE hhmember1 IS NOT NULL AND hhmember1 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember2 as passengerid FROM HHSurvey.trip WHERE hhmember2 IS NOT NULL AND hhmember2 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember3 as passengerid FROM HHSurvey.trip WHERE hhmember3 IS NOT NULL AND hhmember3 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember4 as passengerid FROM HHSurvey.trip WHERE hhmember4 IS NOT NULL AND hhmember4 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember5 as passengerid FROM HHSurvey.trip WHERE hhmember5 IS NOT NULL AND hhmember5 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember6 as passengerid FROM HHSurvey.trip WHERE hhmember6 IS NOT NULL AND hhmember6 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember7 as passengerid FROM HHSurvey.trip WHERE hhmember7 IS NOT NULL AND hhmember7 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember8 as passengerid FROM HHSurvey.trip WHERE hhmember8 IS NOT NULL AND hhmember8 <> personid
-        UNION ALL SELECT recid, pernum AS respondent, hhmember9 as passengerid FROM HHSurvey.trip WHERE hhmember9 IS NOT NULL AND hhmember9 <> personid)
+        (         SELECT recid, pernum AS respondent, hhmember1 as passengerid FROM HHSurvey.trip WHERE hhmember1 IS NOT NULL AND hhmember1 not in (select flag_value from HHSurvey.NullFlags) AND hhmember1 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember2 as passengerid FROM HHSurvey.trip WHERE hhmember2 IS NOT NULL AND hhmember2 not in (select flag_value from HHSurvey.NullFlags) AND hhmember2 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember3 as passengerid FROM HHSurvey.trip WHERE hhmember3 IS NOT NULL AND hhmember3 not in (select flag_value from HHSurvey.NullFlags) AND hhmember3 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember4 as passengerid FROM HHSurvey.trip WHERE hhmember4 IS NOT NULL AND hhmember4 not in (select flag_value from HHSurvey.NullFlags) AND hhmember4 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember5 as passengerid FROM HHSurvey.trip WHERE hhmember5 IS NOT NULL AND hhmember5 not in (select flag_value from HHSurvey.NullFlags) AND hhmember5 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember6 as passengerid FROM HHSurvey.trip WHERE hhmember6 IS NOT NULL AND hhmember6 not in (select flag_value from HHSurvey.NullFlags) AND hhmember6 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember7 as passengerid FROM HHSurvey.trip WHERE hhmember7 IS NOT NULL AND hhmember7 not in (select flag_value from HHSurvey.NullFlags) AND hhmember7 <> personid
+        UNION ALL SELECT recid, pernum AS respondent, hhmember8 as passengerid FROM HHSurvey.trip WHERE hhmember8 IS NOT NULL AND hhmember8 not in (select flag_value from HHSurvey.NullFlags) AND hhmember8 <> personid)
 	SELECT recid, respondent, passengerid INTO HHSurvey.silent_passenger_trip FROM cte GROUP BY recid, respondent, passengerid;
 
 	DROP PROCEDURE IF EXISTS HHSurvey.silent_passenger_trips_inserted;
@@ -1560,9 +1563,11 @@ GO
 	FROM HHSurvey.silent_passenger_trip AS spt -- insert only when the CTE trip doesn't overlap any trip by the same person; doesn't matter if an intersecting trip reports the other hhmembers or not.
         JOIN HHSurvey.trip as t ON spt.recid = t.recid
 		LEFT JOIN HHSurvey.trip as compare_t ON spt.passengerid = compare_t.personid
-		WHERE compare_t.personid IS NULL AND spt.respondent = @respondent
+		WHERE (compare_t.personid IS NULL or compare_6.personid in (select flag_value from HHSurvey.NullFlags)) 
+			AND spt.respondent = @respondent
 			AND NOT EXISTS(SELECT 1 WHERE (t.depart_time_timestamp BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp)
-			AND (t.arrival_time_timestamp NOT BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp));
+				AND (t.arrival_time_timestamp NOT BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp)
+			);
 	SET @respondent = @respondent + 1	
 	END
 	GO
@@ -1689,7 +1694,7 @@ SET NOCOUNT ON
 				FROM HHSurvey.trip
     			WHERE EXISTS(SELECT count(*) 
 								FROM (VALUES(trip.transit_line_1),(trip.transit_line_2),(trip.transit_line_3),(trip.transit_line_4),(trip.transit_line_5)) AS transitline(member) 
-								WHERE member IS NOT NULL AND member <> 0 GROUP BY member HAVING count(*) > 1)
+								WHERE member IS NOT NULL and member not in (select flag_value from HHSurvey.NullFlags) AND member <> 0 GROUP BY member HAVING count(*) > 1)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	  		   			 		   	 'purpose at odds w/ dest' AS error_flag
 				FROM HHSurvey.trip
