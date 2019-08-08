@@ -297,8 +297,9 @@ GO
 			[dest_lat] [float] NULL,
 			[dest_lng] [float] NULL,
 			[trip_path_distance] [float] NULL,
-			[google_duration] [int] NULL,
-			[reported_duration] [int] NULL,
+			[google_duration] [float] NULL,
+			[reported_duration] [float] NULL,
+			travel_time float null, -- google_duration for rMove , reported_duration for rSurvey
 			[hhmember1] decimal(19,0) NULL,
 			[hhmember2] decimal(19,0) NULL,
 			[hhmember3] decimal(19,0) NULL,
@@ -403,6 +404,7 @@ GO
 			,[trip_path_distance]
 			,[google_duration]
 			,[reported_duration]
+			,[travel_time]
 			,[hhmember1]
 			,[hhmember2]
 			,[hhmember3]
@@ -502,6 +504,10 @@ GO
 			,[trip_path_distance]
 			,[google_duration]
 			,[reported_duration]
+			,case hhgroup
+				when 1 then [google_duration] -- rMove
+				when 2 then [reported_duration] -- rSurvey
+			end
 			,[hhmember1] 
 			,[hhmember2]
 			,[hhmember3]
