@@ -702,23 +702,41 @@ GO
 		        return
 		    end
 
-		    select @field = 0, @maxfield = max(ORDINAL_POSITION) from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and TABLE_SCHEMA = @SchemaName
+		    select @field = 0, @maxfield = max(ORDINAL_POSITION) 
+			from INFORMATION_SCHEMA.COLUMNS 
+			where TABLE_NAME = @TableName 
+				and TABLE_SCHEMA = @SchemaName
+
 		    while @field < @maxfield
 		    begin
-		        select @field = min(ORDINAL_POSITION) from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION > @field and TABLE_SCHEMA = @SchemaName
+		        select @field = min(ORDINAL_POSITION) 
+				from INFORMATION_SCHEMA.COLUMNS 
+				where TABLE_NAME = @TableName 
+					and ORDINAL_POSITION > @field 
+					and TABLE_SCHEMA = @SchemaName
+					and data_type <> 'geometry'
+
 		        select @bit = (@field - 1 )% 8 + 1
+
 		        select @bit = power(2,@bit - 1)
+
 		        select @char = ((@field - 1) / 8) + 1
+
 		        if ( substring(COLUMNS_UPDATED(),@char, 1) & @bit > 0 or @Type in ('I','D') )
 		        begin
-		            select @fieldname = COLUMN_NAME from INFORMATION_SCHEMA.COLUMNS where TABLE_NAME = @TableName and ORDINAL_POSITION = @field and TABLE_SCHEMA = @SchemaName
+		            select @fieldname = COLUMN_NAME 
+					from INFORMATION_SCHEMA.COLUMNS 
+					where TABLE_NAME = @TableName 
+						and ORDINAL_POSITION = @field 
+						and TABLE_SCHEMA = @SchemaName
+
 		            begin
 		                select @sql =       'insert into HHSurvey.tblTripAudit (Type, recid, FieldName, OldValue, NewValue, UpdateDate, UserName)'
 		                select @sql = @sql +    ' select ''' + @Type + ''''
 		                select @sql = @sql +    ',' + @PKSelect
 		                select @sql = @sql +    ',''' + @fieldname + ''''
-		                select @sql = @sql +    ',convert(varchar(1000),d.[' + @fieldname + '])'
-		                select @sql = @sql +    ',convert(varchar(1000),i.[' + @fieldname + '])'
+		                select @sql = @sql +    ',convert(varchar(max),d.[' + @fieldname + '])'
+		                select @sql = @sql +    ',convert(varchar(max),i.[' + @fieldname + '])'
 		                select @sql = @sql +    ',''' + @UpdateDate + ''''
 		                select @sql = @sql +    ',''' + @UserName + ''''
 		                select @sql = @sql +    ' from #ins i full outer join #del d'
