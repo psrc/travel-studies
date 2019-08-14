@@ -1,3 +1,5 @@
+USE HouseholdTravelSurvey2019
+GO
 DROP VIEW IF EXISTS HHSurvey.data2fixie;
 GO
 CREATE VIEW HHSurvey.data2fixie
@@ -31,18 +33,18 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 				COALESCE(',' + CASE WHEN t1.hhmember7 <> t1.personid THEN RIGHT(CAST(t1.hhmember7 AS nvarchar),2) ELSE NULL END, '') + 
 				COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
 				COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 1, 1, '')) ELSE '' END AS cotravelers,
-			t1.dest_name, CONCAT(t1.dest_purpose, '-',tp.purpose) AS dest_purpose, 
+			t1.dest_name, CONCAT(t1.d_purpose, '-',tp.purpose) AS d_purpose, 
 			CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'m') AS duration_at_dest,
 			t1.revision_code AS rc, t1.psrc_comment AS elevate_issue
-	FROM trip AS t1 LEFT JOIN trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
-		LEFT JOIN trip_mode AS ma ON t1.mode_acc=ma.mode_id
-		LEFT JOIN trip_mode AS m1 ON t1.mode_1=m1.mode_id
-		LEFT JOIN trip_mode AS m2 ON t1.mode_2=m2.mode_id
-		LEFT JOIN trip_mode AS m3 ON t1.mode_3=m3.mode_id
-		LEFT JOIN trip_mode AS m4 ON t1.mode_4=m4.mode_id
-		LEFT JOIN trip_mode AS me ON t1.mode_egr=me.mode_id
-		LEFT JOIN trip_purpose AS tp ON t1.dest_purpose=tp.purpose_id
-	WHERE EXISTS (SELECT 1 FROM trip_error_flags WHERE t1.personid=trip_error_flags.personid);
+	FROM HHSurvey.trip AS t1 LEFT JOIN HHSurvey.trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
+		LEFT JOIN HHSurvey.trip_mode AS ma ON t1.mode_acc=ma.mode_id
+		LEFT JOIN HHSurvey.trip_mode AS m1 ON t1.mode_1=m1.mode_id
+		LEFT JOIN HHSurvey.trip_mode AS m2 ON t1.mode_2=m2.mode_id
+		LEFT JOIN HHSurvey.trip_mode AS m3 ON t1.mode_3=m3.mode_id
+		LEFT JOIN HHSurvey.trip_mode AS m4 ON t1.mode_4=m4.mode_id
+		LEFT JOIN HHSurvey.trip_mode AS me ON t1.mode_egr=me.mode_id
+		LEFT JOIN HHSurvey.trip_purpose AS tp ON t1.d_purpose=tp.purpose_id
+	WHERE EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags WHERE t1.personid=trip_error_flags.personid);
 GO
 
 DROP VIEW IF EXISTS HHSurvey.pass2trip;
@@ -90,14 +92,11 @@ SELECT [recid]
 			,[hhmember7]
 			,[hhmember8]
 			,[hhmember9]
-			,[hhmember_none]
 			,[travelers_hh]
 			,[travelers_nonhh]
 			,[travelers_total]
-			,[origin_purpose]
-			,[o_purpose_other]
-			,[dest_purpose]
-			,[dest_purpose_comment]
+			,[o_purpose]
+			,[d_purpose]
 			,[mode_1]
 			,[mode_2]
 			,[mode_3]
@@ -119,9 +118,6 @@ SELECT [recid]
 			,[ferry_type]
 			,[ferry_pay]
 			,[ferry_cost_dk]
-			,[rail_type]
-			,[rail_pay]
-			,[rail_cost_dk]
 			,[air_type]
 			,[air_pay]
 			,[airfare_cost_dk]
@@ -135,23 +131,17 @@ SELECT [recid]
 			,[transit_system_3]
 			,[transit_system_4]
 			,[transit_system_5]
+			,[transit_system_6]			
 			,[transit_line_1]
 			,[transit_line_2]
 			,[transit_line_3]
 			,[transit_line_4]
 			,[transit_line_5]
+			,[transit_line_6]
 			,[speed_mph]
-			,[user_merged]
-			,[user_split]
-			,[analyst_merged]
-			,[analyst_split]
-			,[flag_teleport]
-			,[proxy_added_trip]
-			,[nonproxy_derived_trip]
-			,[child_trip_location_tripid]
 			,[psrc_comment]
 			,[psrc_resolved]
-FROM trip;
+FROM HHSurvey.Trip;
 GO
 
 --create separate views for FixieUI major record divisions
@@ -163,7 +153,7 @@ GO
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.cityofseattle = 1;
 	GO
 
@@ -172,7 +162,7 @@ GO
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.cityofseattle <> 1;
 	GO
 
@@ -181,7 +171,7 @@ GO
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=2;
 	GO
 
@@ -190,7 +180,7 @@ GO
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-	FROM HHSurvey.person AS p INNER JOIN HHSurvey.person_agecodes AS ac ON p.age = ac.agecode
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 		LEFT JOIN HHSurvey.trip AS t ON p.personid = t.personid AND t.psrc_comment IS NOT NULL
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND (t.psrc_comment IS NOT NULL 
 		OR Exists (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid));
