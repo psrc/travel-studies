@@ -340,11 +340,13 @@ GO
 			[transit_system_3] [nvarchar](255) NULL,
 			[transit_system_4] [nvarchar](255) NULL,
 			[transit_system_5] [nvarchar](255) NULL,
+			[transit_system_6] [nvarchar](255) NULL,
 			[transit_line_1] [nvarchar](255) NULL,
 			[transit_line_2] [nvarchar](255) NULL,
 			[transit_line_3] [nvarchar](255) NULL,
 			[transit_line_4] [nvarchar](255) NULL,
 			[transit_line_5] [nvarchar](255) NULL,
+			[transit_line_6] [nvarchar](255) NULL,
 			[speed_mph] [float] NULL,
 			[user_merged] [nvarchar](255) NULL,
 			[user_split] [nvarchar](255) NULL,
@@ -452,11 +454,13 @@ GO
 			[transit_system_3] smallint NULL,
 			[transit_system_4] smallint NULL,
 			[transit_system_5] smallint NULL,
+			[transit_system_6] smallint NULL,
 			[transit_line_1] smallint NULL,
 			[transit_line_2] smallint NULL,
 			[transit_line_3] smallint NULL,
 			[transit_line_4] smallint NULL,
 			[transit_line_5] smallint NULL,
+			[transit_line_6] smallint NULL,			
 			[speed_mph] [float] NULL,
 			[user_merged] bit NULL,
 			[user_split] bit NULL,
@@ -560,11 +564,13 @@ GO
 			,[transit_system_3]
 			,[transit_system_4]
 			,[transit_system_5]
+			,[transit_system_6]			
 			,[transit_line_1]
 			,[transit_line_2]
 			,[transit_line_3]
 			,[transit_line_4]
 			,[transit_line_5]
+			,[transit_line_6]			
 			,[speed_mph]
 			,[user_merged]
 			,[user_split]
@@ -663,11 +669,13 @@ GO
 			,cast([transit_system_3] as smallint)
 			,cast([transit_system_4] as smallint)
 			,cast([transit_system_5] as smallint)
+			,cast([transit_system_6] as smallint)			
 			,cast([transit_line_1] as smallint)
 			,cast([transit_line_2] as smallint)
 			,cast([transit_line_3] as smallint)
 			,cast([transit_line_4] as smallint)
 			,cast([transit_line_5] as smallint)
+			,cast([transit_line_6] as smallint)			
 			,[speed_mph]
 			,cast([user_merged] as bit)
 			,cast([user_split] as bit)
@@ -1044,9 +1052,9 @@ GO
 
 		/*	These are MSSQL17 commands for the UPDATE query below--faster and clearer, once we upgrade.
 		UPDATE trip
-			SET modes 			= CONCAT_WS(',',ti_wndw.transit_system_1, ti_wndw.transit_system_2, ti_wndw.transit_system_3, ti_wndw.transit_system_4, ti_wndw.transit_system_5),
-				transit_systems = CONCAT_WS(',',ti_wndw.transit_system_1, ti_wndw.transit_system_2, ti_wndw.transit_system_3, ti_wndw.transit_system_4, ti_wndw.transit_system_5),
-				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5)
+			SET modes 			= CONCAT_WS(',',ti_wndw.mode_acc, ti_wndw.mode_1, ti_wndw.mode_2, ti_wndw.mode_3, ti_wndw.mode_4, ti_wndw.mode_5, ti_wndw.mode_egr),
+				transit_systems = CONCAT_WS(',',ti_wndw.transit_system_1, ti_wndw.transit_system_2, ti_wndw.transit_system_3, ti_wndw.transit_system_4, ti_wndw.transit_system_5, ti_wndw.transit_system_6),
+				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5, ti_wndw.transit_line_6)
 		*/
 		UPDATE HHSurvey.trip
 				SET modes = STUFF(	COALESCE(',' + CAST(mode_acc AS nvarchar), '') +
@@ -1059,12 +1067,14 @@ GO
 									COALESCE(',' + CAST(transit_system_2 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_system_3 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_system_4 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_5 AS nvarchar), ''), 1, 1, ''),
+									COALESCE(',' + CAST(transit_system_5 AS nvarchar), '') + 
+									COALESCE(',' + CAST(transit_system_6 AS nvarchar), ''), 1, 1, ''),
 			transit_lines = STUFF(	COALESCE(',' + CAST(transit_line_1 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_line_2 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_line_3 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_line_4 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_5 AS nvarchar), ''), 1, 1, '')							
+									COALESCE(',' + CAST(transit_line_5 AS nvarchar), '') + 
+									COALESCE(',' + CAST(transit_line_6 AS nvarchar), ''), 1, 1, '')							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
@@ -1392,11 +1402,13 @@ GO
 				t.transit_system_3	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_system_4	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_system_5	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_6	= (SELECT Match FROM dbo.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY),			
 				t.transit_line_1	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_2	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_3	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_4	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_5	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY)
+				t.transit_line_5	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),				
+				t.transit_line_6	= (SELECT Match FROM dbo.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY)
 			FROM HHSurvey.trip AS t;
 			 
 /* STEP 6. Insert trips for those who were reported as a passenger by another traveler but did not report the trip themselves */
