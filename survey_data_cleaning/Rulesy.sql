@@ -260,6 +260,7 @@ GO
 		)
 
 
+
 	--Getting the file on the same location is problematic-- currently using flat file import wizard for these three tables instead.
 		BULK INSERT household	FROM '\\aws-prod-file01\SQL2016\DSADEV\1-Household.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
 		BULK INSERT person		FROM '\\aws-prod-file01\SQL2016\DSADEV\2-Person.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
@@ -463,7 +464,7 @@ GO
 			,[transit_line_3]
 			,[transit_line_4]
 			,[transit_line_5]
-			,[transit_line_6]
+			,[transit_line_6]			
 			,[speed_mph]
 			,[nonproxy_derived_trip]
 			,[quality_flag]
@@ -561,7 +562,7 @@ GO
 			,cast([transit_system_3] as smallint)
 			,cast([transit_system_4] as smallint)
 			,cast([transit_system_5] as smallint)
-			,cast([transit_system_6] as smallint)
+			,cast([transit_system_6] as smallint)			
 			,cast([transit_line_1] as smallint)
 			,cast([transit_line_2] as smallint)
 			,cast([transit_line_3] as smallint)
@@ -1169,9 +1170,9 @@ GO
 
 		/*	These are MSSQL17 commands for the UPDATE query below--faster and clearer, once we upgrade.
 		UPDATE trip
-			SET modes 			= CONCAT_WS(',',ti_wndw.transit_system_1, ti_wndw.transit_system_2, ti_wndw.transit_system_3, ti_wndw.transit_system_4, ti_wndw.transit_system_5),
-				transit_systems = CONCAT_WS(',',ti_wndw.transit_system_1, ti_wndw.transit_system_2, ti_wndw.transit_system_3, ti_wndw.transit_system_4, ti_wndw.transit_system_5),
-				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5)
+			SET modes 			= CONCAT_WS(',',ti_wndw.mode_acc, ti_wndw.mode_1, ti_wndw.mode_2, ti_wndw.mode_3, ti_wndw.mode_4, ti_wndw.mode_5, ti_wndw.mode_egr),
+				transit_systems = CONCAT_WS(',',ti_wndw.transit_system_1, ti_wndw.transit_system_2, ti_wndw.transit_system_3, ti_wndw.transit_system_4, ti_wndw.transit_system_5, ti_wndw.transit_system_6),
+				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5, ti_wndw.transit_line_6)
 		*/
 		UPDATE HHSurvey.trip
 				SET modes = STUFF(	COALESCE(',' + CAST(mode_acc AS nvarchar), '') +
@@ -1184,12 +1185,14 @@ GO
 									COALESCE(',' + CAST(transit_system_2 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_system_3 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_system_4 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_5 AS nvarchar), ''), 1, 1, ''),
+									COALESCE(',' + CAST(transit_system_5 AS nvarchar), '') + 
+									COALESCE(',' + CAST(transit_system_6 AS nvarchar), ''), 1, 1, ''),
 			transit_lines = STUFF(	COALESCE(',' + CAST(transit_line_1 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_line_2 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_line_3 AS nvarchar), '') + 
 									COALESCE(',' + CAST(transit_line_4 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_5 AS nvarchar), ''), 1, 1, '')							
+									COALESCE(',' + CAST(transit_line_5 AS nvarchar), '') + 
+									COALESCE(',' + CAST(transit_line_6 AS nvarchar), ''), 1, 1, '')							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
