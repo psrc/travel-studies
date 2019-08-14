@@ -892,8 +892,8 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.trip AS prev_t on t.personid=prev_t.personid AND t.tripnum - 1 = prev_t.tripnum
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE (vl.label <> 'Went home' and t.dest_is_home = 1) 
-					OR (vl.label <> 'Went to primary workplace' and t.dest_is_work = 1) --moremore: check order of precedence between ANDs and ORs.  
+				WHERE ((vl.label <> 'Went home' and t.dest_is_home = 1) 
+					OR (vl.label <> 'Went to primary workplace' and t.dest_is_work = 1))
 					AND t.d_purpose=prev_t.d_purpose
 
 			UPDATE t --revises purpose field for home return portion of a single stop loop trip 
