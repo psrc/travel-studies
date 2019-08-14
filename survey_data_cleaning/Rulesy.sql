@@ -757,7 +757,6 @@ GO
 		ALTER TABLE HHSurvey.trip ENABLE TRIGGER [tr_trip]
 
 	-- Revise travelers count to reflect passengers (lazy response?)
-	-- moremore query changed from previous version, which assumed NULLs in hhmember columns rather than missing data flags
 		with membercounts (tripid, membercount)
 		as (
 			select tripid, count(member) 
@@ -1164,7 +1163,6 @@ GO
 			AND t.speed_mph < 5;	
 		
 /* STEP 4.	Trip linking */
-	--moremore: Could you add more documentation on what exactly the logic is behind the linking?  A general overview and query-by-query descriptors would be helpful. 
 
 	-- Populate consolidated modes, transit_sytems, and transit_lines fields, used later
 
@@ -1235,7 +1233,6 @@ GO
 			WHERE (CONCAT(ti.personid, (ti.tripnum - 1)) <> CONCAT(previous_et.personid, previous_et.tripnum));
 		
 		-- assign trip_link value to remaining records in the trip.
-		--moremore verify that MAX(ti1.trip_link) is the appropriate value to assign here, not MIN.
 		WITH cte (recid, ref_link) AS 
 		(SELECT ti1.recid, MAX(ti1.trip_link) OVER(PARTITION BY ti1.personid ORDER BY ti1.tripnum ROWS UNBOUNDED PRECEDING) AS ref_link
 			FROM #trip_ingredient AS ti1)
@@ -1264,7 +1261,7 @@ GO
 					GROUP BY ti1.transit_lines
 					ORDER BY ti_wndw1.personid DESC, ti_wndw1.tripnum DESC
 					FOR XML PATH('')), 1, 1, NULL),'(\b\d+\b),(?=\1)','',1)) AS transit_lines	
-				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),--moremore update NULL checks to handle Missing data (995, -9998, -9999)
+				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),
 		cte_b AS 
 			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, dbo.TRIM(HHSurvey.RgxReplace(
 				STUFF((SELECT ',' + ti2.modes				--non-adjacent repeated modes, i.e. suggests a loop trip
