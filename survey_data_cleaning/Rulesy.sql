@@ -911,7 +911,7 @@ GO
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) 
+					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags)) 
 					and (vl.label like 'Went to school/daycare%'
 						or vl.label = 'Other purpose'
 						or vl.label like 'Missing%'
@@ -939,7 +939,7 @@ GO
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 				
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
+					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags))
 					AND t.d_purpose IN(-9998,6,97)
 					and (vl.label like 'Went to school/daycare%'
 						or vl.label = 'Other purpose'
@@ -954,7 +954,7 @@ GO
 					LEFT JOIN HHSurvey.trip as next_t ON t.personid=next_t.personid AND t.tripnum + 1 = next_t.tripnum
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
+					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags))
 					AND (t.travelers_total > 1 OR next_t.travelers_total > 1)
 					AND ( vl.label like 'Went to school/daycare%'
 						OR HHSurvey.RgxFind(t.dest_name,'(school|care)',1) = 1
@@ -982,7 +982,7 @@ GO
 					join HHSurvey.fnVariableLookup('student') as vls ON p.student = vls.code
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
-					AND (vls.label like '% not a student' OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
+					AND (vls.label like '% not a student' OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags))
 					and (vl.label like 'Went to school/daycare%'
 						or vl.label = 'Other purpose'
 						or vl.label like 'Missing%'
@@ -1145,15 +1145,14 @@ GO
 				JOIN HHSurvey.trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
 			WHERE t.d_purpose = -9998 AND t.mode_1 = -9998;
 
-		--update modes on the extremes of speed and distance 
-		--moremore aren't speeds in excess of 200 mph suspect already?  Should we be basing decisions on them?
-		-- The raw trips table has 168 trips in excess of 4000 MPH.
+		--update modes on the spectrum ends of speed + distance: 
+		-- -- slow, short trips are walk; long, fast trips are airplane.  Other modes can't be easily assumed.
 		UPDATE t 
 		SET t.mode_1 = 31, t.revision_code = CONCAT(t.revision_code,'7,')	
 		FROM HHSurvey.trip AS t 
 		WHERE (t.mode_1 IS NULL or t.mode_1 in (select flag_value from HHSurvey.NullFlags)) 
 			AND t.trip_path_distance > 200 
-			AND t.speed_mph > 200;
+			AND t.speed_mph between 200 and 600;
 
 		UPDATE t 
 		SET t.mode_1 = 1,  t.revision_code = CONCAT(t.revision_code,'7,') 	
