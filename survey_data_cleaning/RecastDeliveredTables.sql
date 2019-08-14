@@ -13,6 +13,7 @@ This copies the data originally delivered in dbo.1_household, dbo.2_Person, dbo.
   dbo.4_Trip and dbo.6_Location into copies of these under schema HHSurvey.
 The copied tables each have a primary key [recid] that is an alternate to the candidate key provided
   in the original tables in the dbo schema.  
+The copied tables each have triggers to log any changes to fields other than those of type GEOMETRY. 
 */
 
 drop table if exists HHSurvey.[Household]

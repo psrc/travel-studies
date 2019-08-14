@@ -276,7 +276,7 @@ GO
 			[tripnum] [int] NOT NULL DEFAULT 0,
 			[traveldate] datetime2 NULL,
 			[daynum] [int] NULL,
-			[dayofweek] [int] NULL, --float in 4_trip
+			[dayofweek] [int] NULL, 
 			[data_source] int null,
 			[hhgroup] [int] NULL,
 			[copied_trip] [int] NULL,
@@ -791,7 +791,7 @@ GO
 		update t
 		set t.travelers_hh = membercounts.membercount
 		from membercounts
-			join HHSurvey.trip t ON t.tripid = membercounts.tripid
+			join HHSurvey.trip as t ON t.tripid = membercounts.tripid
 		where t.travelers_hh <> membercounts.membercount 
 			or t.travelers_hh is null
 			or t.travelers_hh in (select flag_value from HHSurvey.NullFlags)
@@ -852,35 +852,37 @@ GO
 			
 			UPDATE t--Classify home destinations; criteria plus 100m proximity to household home location
 				SET t.dest_is_home = 1
-				FROM HHSurvey.trip AS t 
-					JOIN HHSurvey.household AS h ON t.hhid = h.hhid
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
-				WHERE t.dest_is_home IS NULL 
-					AND vl.label = 'Went home'
-					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1
+				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
+				WHERE t.dest_is_home IS NULL AND
+					(t.dest_name = 'HOME' 
+					OR(
+						(dbo.RgxFind(t.dest_name,' home',1) = 1 
+						OR dbo.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
+						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
+					)
+					OR(t.dest_purpose = 1))
+					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1;
 
 			UPDATE t --Classify home destinations where destination code is absent; 30m proximity to home location on file
-				SET t.dest_is_home = 1, t.d_purpose = 1
-				FROM HHSurvey.trip AS t 
-					JOIN HHSurvey.household AS h ON t.hhid = h.hhid
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
-					LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
-				WHERE (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) --moremore: why are we checking for t.d_purpose=prior_t.d_purpose?  Should this be added to the comment at the beginning of the query? 
-					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.0003)) = 1
+				SET t.dest_is_home = 1, t.dest_purpose = 1
+				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
+						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
+				WHERE (t.dest_purpose = -9998 OR t.dest_purpose = prior_t.dest_purpose) AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.0003)) = 1
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
-					JOIN HHSurvey.person AS p ON t.personid = p.personid
-				WHERE t.dest_is_work IS NULL 
-					AND  vl.label = 'Went to primary workplace'
-					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.001))=1
+				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid
+				WHERE t.dest_is_work IS NULL AND
+					(t.dest_name = 'WORK' 
+					OR((dbo.RgxFind(t.dest_name,' work',1) = 1 
+						OR dbo.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
+					OR(t.dest_purpose = 10 AND t.dest_name IS NULL))
+					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.001))=1;
 
 			UPDATE t --Classify work destinations where destination code is absent; 30m proximity to work location on file
 				SET t.dest_is_work = 1, t.d_purpose = 10
 				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
 					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.0003))=1		
@@ -889,7 +891,7 @@ GO
 				SET t.d_purpose = (CASE WHEN t.dest_is_home = 1 THEN 1 WHEN t.dest_is_work = 1 THEN 10 ELSE t.d_purpose END), t.revision_code = CONCAT(t.revision_code,'1,')
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.trip AS prev_t on t.personid=prev_t.personid AND t.tripnum - 1 = prev_t.tripnum
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE (vl.label <> 'Went home' and t.dest_is_home = 1) 
 					OR (vl.label <> 'Went to primary workplace' and t.dest_is_work = 1) --moremore: check order of precedence between ANDs and ORs.  
 					AND t.d_purpose=prev_t.d_purpose
@@ -897,7 +899,7 @@ GO
 			UPDATE t --revises purpose field for home return portion of a single stop loop trip 
 				SET t.d_purpose = 1, t.revision_code = CONCAT(t.revision_code,'1,') 
 				FROM HHSurvey.trip AS t
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label <> 'Went home'
 					AND t.dest_is_home = 1 
 					AND t.origin_name <> 'HOME'					
@@ -907,7 +909,7 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
 					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) 
 					and (vl.label like 'Went to school/daycare%'
@@ -915,27 +917,27 @@ GO
 						or vl.label like 'Missing%'
 						)
 					AND t.travelers_total <> next_t.travelers_total
-					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30
+					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
 				SET t.d_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					JOIN HHSurvey.trip AS next_t ON t.personid=next_t.personid	AND t.tripnum + 1 = next_t.tripnum						
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE (p.age < 4 OR p.worker = 0) 
 					and vl.label in ('Went to primary workplace', 
 									'Went to work-related place (e.g., meeting, second job, delivery)',
 									'Went to other work-related activity'
 					)
 					AND t.travelers_total <> next_t.travelers_total
-					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30					
+					AND DATEDIFF(minute, t.arrival_time_timestamp, next_t.depart_time_timestamp) < 30;					
 
 			UPDATE t --Change code to pickup/dropoff when pickup/dropoff mentioned
 				SET t.d_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 				
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
 					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
 					AND t.d_purpose IN(-9998,6,97)
@@ -950,7 +952,7 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 
 					LEFT JOIN HHSurvey.trip as next_t ON t.personid=next_t.personid AND t.tripnum + 1 = next_t.tripnum
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
 					AND (p.student = 1 OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
 					AND (t.travelers_total > 1 OR next_t.travelers_total > 1)
@@ -964,8 +966,8 @@ GO
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.trip as next_t ON t.hhid=next_t.hhid AND t.personid=next_t.personid AND t.tripnum + 1 = next_t.tripnum
 					JOIN HHSurvey.person AS p ON t.personid = p.personid
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
-					join HHSurvey.fnVariableLookup('student') vls ON p.student = vls.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('student') as vls ON p.student = vls.code
 				WHERE vl.label = 'Other purpose'
 					AND t.dest_name = 'school'
 					AND t.travelers_total = 1
@@ -977,8 +979,8 @@ GO
 				SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'4,')
 				FROM HHSurvey.trip AS t
 					JOIN HHSurvey.person AS p ON t.personid=p.personid 				
-					join HHSurvey.fnVariableLookup('student') vls ON p.student = vls.code
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('student') as vls ON p.student = vls.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE p.age > 4 
 					AND (vls.label like '% not a student' OR p.student IS NULL or p.student in (select distinct [flag_value] from HHSurvey.NullFlags) )
 					and (vl.label like 'Went to school/daycare%'
@@ -993,7 +995,7 @@ GO
 			UPDATE t  
 				SET t.d_purpose = 1,  t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE ( vl.label like 'Missing%'
 						or vl.label = 'Other purpose'
 						)
@@ -1002,7 +1004,7 @@ GO
 			UPDATE t  
 				SET t.d_purpose = 10, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE ( vl.label like 'Missing%'
 						or vl.label = 'Other purpose'
 						)
@@ -1011,7 +1013,7 @@ GO
 			UPDATE t  
 				SET t.d_purpose = 11, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND t.dest_is_work <> 1 
 					AND t.dest_name = 'WORK'
@@ -1019,49 +1021,49 @@ GO
 			UPDATE t  
 				SET t.d_purpose = 30, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'(grocery|costco|safeway|trader ?joe)',1) = 1				
 
 			UPDATE t  
 				SET t.d_purpose = 32, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'\b(store)\b',1) = 1	
 
 			UPDATE t  
 				SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'\b(bank|gas|post ?office|library|barber|hair)\b',1) = 1				
 
 			UPDATE t  
 				SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'(bank|gas|post ?office|library)',1) = 1		
 
 			UPDATE t  
 				SET t.d_purpose = 34, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'(doctor|dentist|hospital|medical|health)',1) = 1	
 
 			UPDATE t  
 				SET t.d_purpose = 50, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'(coffee|cafe|starbucks|lunch)',1) = 1		
 
 			UPDATE t  
 				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'dog',1) = 1 
 					AND HHSurvey.RgxFind(t.dest_name,'(walk|park)',1) = 1
@@ -1069,21 +1071,21 @@ GO
 			UPDATE t  
 				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'\bwalk$',1) = 1	
 
 			UPDATE t  
 				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'\bgym$',1) = 1						
 
 			UPDATE t  
 				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'park',1) = 1 
 					AND HHSurvey.RgxFind(t.dest_name,'(parking|ride)',1) = 0;
@@ -1091,21 +1093,21 @@ GO
 			UPDATE t  
 				SET t.d_purpose = 53, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'casino',1) = 1;
 
 			UPDATE t  
 				SET t.d_purpose = 54, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'(church|volunteer)',1) = 1;
 
 			UPDATE t  
 				SET t.d_purpose = 60, t.revision_code = CONCAT(t.revision_code,'5,') 
 				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') vl ON t.d_purpose = vl.code
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'\b(bus|transit|ferry|airport|station)\b',1) = 1;  
 		END
@@ -1205,9 +1207,9 @@ GO
 		--select the trip ingredients that will be linked; this selects all but the first component 
 		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient
 		FROM HHSurvey.trip as trip 
-			join HHSurvey.fnVariableLookup('d_purpose') tvl ON trip.d_purpose = tvl.code
+			join HHSurvey.fnVariableLookup('d_purpose') as tvl ON trip.d_purpose = tvl.code
 			JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-			join HHSurvey.fnVariableLookup('d_purpose') ntvl ON next_trip.d_purpose = ntvl.code
+			join HHSurvey.fnVariableLookup('d_purpose') as ntvl ON next_trip.d_purpose = ntvl.code
 		WHERE 	trip.dest_is_home IS NULL 
 			AND trip.dest_is_work IS NULL 
 			AND trip.travelers_total = next_trip.travelers_total
