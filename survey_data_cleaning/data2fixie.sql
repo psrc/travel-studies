@@ -4,7 +4,7 @@ DROP VIEW IF EXISTS HHSurvey.data2fixie;
 GO
 CREATE VIEW HHSurvey.data2fixie
 AS
-SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 FROM trip WHERE trip.psrc_comment IS NOT NULL AND t1.personid = trip.personid) THEN 1 ELSE 0 END AS Elevated, 0 AS Seattle,
+SELECT CAST(t1.personid AS int) AS personid, CAST(t1.hhid AS int) AS hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 FROM trip WHERE trip.psrc_comment IS NOT NULL AND t1.personid = trip.personid) THEN 1 ELSE 0 END AS Elevated, 0 AS Seattle,
 		t1.tripnum, t1.recid, 
         STUFF(	COALESCE(',' + CAST(ma.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m1.mode_desc AS nvarchar), '') + 
@@ -24,15 +24,17 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 					ORDER BY error_flag DESC
 					FOR XML PATH('')), 1, 1, NULL) AS Error,
 		CASE WHEN t1.travelers_total > 1 THEN CONCAT(CAST(t1.travelers_total - 1 AS nvarchar) ,' - ', 
-				STUFF(	COALESCE(',' + CASE WHEN t1.hhmember1 <> t1.personid THEN RIGHT(CAST(t1.hhmember1 AS nvarchar),2) ELSE NULL END, '') +
-				COALESCE(',' + CASE WHEN t1.hhmember2 <> t1.personid THEN RIGHT(CAST(t1.hhmember2 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember3 <> t1.personid THEN RIGHT(CAST(t1.hhmember3 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember4 <> t1.personid THEN RIGHT(CAST(t1.hhmember4 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember5 <> t1.personid THEN RIGHT(CAST(t1.hhmember5 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember6 <> t1.personid THEN RIGHT(CAST(t1.hhmember6 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember7 <> t1.personid THEN RIGHT(CAST(t1.hhmember7 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
-				COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 1, 1, '')) ELSE '' END AS cotravelers,
+				STUFF(	
+					COALESCE(',' + CASE WHEN t1.hhmember1 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember1) THEN RIGHT(CAST(t1.hhmember1 AS nvarchar),2) ELSE NULL END, '') +
+					COALESCE(',' + CASE WHEN t1.hhmember2 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember2) THEN RIGHT(CAST(t1.hhmember2 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember3 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember3) THEN RIGHT(CAST(t1.hhmember3 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember4 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember4) THEN RIGHT(CAST(t1.hhmember4 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember5 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember5) THEN RIGHT(CAST(t1.hhmember5 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember6 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember6) THEN RIGHT(CAST(t1.hhmember6 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember7 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember7) THEN RIGHT(CAST(t1.hhmember7 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember8) THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
+					COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember9) THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 
+						1, 1, '')) ELSE '' END AS cotravelers,
 			t1.dest_name, CONCAT(t1.d_purpose, '-',tp.purpose) AS d_purpose, 
 			CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) % 60)),2),'m') AS duration_at_dest,
 			t1.revision_code AS rc, t1.psrc_comment AS elevate_issue
@@ -149,7 +151,7 @@ DROP VIEW IF EXISTS HHSurvey.person_rm_seattle, HHSurvey.person_rm_else, HHSurve
 GO
 
 	CREATE VIEW HHSurvey.person_rm_seattle AS
-	SELECT p.personid, p.hhid, p.pernum, ac.agedesc AS Age, 
+	SELECT CAST(p.personid AS int) AS personid, CAST(p.hhid AS int) AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
@@ -158,7 +160,7 @@ GO
 	GO
 
 	CREATE VIEW HHSurvey.person_rm_else AS
-	SELECT p.personid, p.hhid, p.pernum, ac.agedesc AS Age, 
+	SELECT CAST(p.personid AS int) AS personid, CAST(p.hhid AS int) AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
@@ -167,7 +169,7 @@ GO
 	GO
 
 	CREATE VIEW HHSurvey.person_rs AS
-	SELECT p.personid, p.hhid, p.pernum, ac.agedesc AS Age, 
+	SELECT CAST(p.personid AS int) AS personid, CAST(p.hhid AS int) AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
@@ -176,7 +178,7 @@ GO
 	GO
 
 	CREATE VIEW HHSurvey.person_elev AS
-	SELECT p.personid, p.hhid, p.pernum, ac.agedesc AS Age, 
+	SELECT CAST(p.personid AS int) AS personid, CAST(p.hhid AS int) AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup

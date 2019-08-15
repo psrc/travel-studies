@@ -1688,7 +1688,7 @@ SET NOCOUNT ON
 				WHERE 	(EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
 					OR 	(EXISTS (SELECT 1 FROM HHSurvey.bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
 					OR	(EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
-					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 85)	
+					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
 					OR 	(t.speed_mph > 600)	
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
@@ -1752,9 +1752,21 @@ SET NOCOUNT ON
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
 				FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-					WHERE   (trip.d_purpose IN(6,10,11,14)    			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 720)
-    					OR  (trip.d_purpose IN(30)      			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 240)
-   						OR  (trip.d_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) > 480)
+					WHERE   (trip.d_purpose IN(6,10,11,14)    		
+						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
+								CASE WHEN next_trip.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE next_trip.depart_time_timestamp END) > 720)
+    					OR  (trip.d_purpose IN(30)      			
+						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
+								CASE WHEN next_trip.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE next_trip.depart_time_timestamp END) > 240)
+   						OR  (trip.d_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	
+						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
+						   		CASE WHEN next_trip.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE next_trip.depart_time_timestamp END) > 480)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  					   	 	    'too slow' AS error_flag
 				FROM HHSurvey.trip
