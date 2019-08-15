@@ -1431,13 +1431,6 @@ GO
 		CREATE PROCEDURE HHSurvey.calculate_derived_fields AS 
 		BEGIN
 
-		UPDATE t SET t.trip_path_distance = t.dest_geom.STDistance(t.origin_geom) / 1609.344,
-					 t.revision_code = CONCAT(t.revision_code, '12,')
-			FROM HHSurvey.trip AS t		 
-			WHERE (t.trip_path_distance IS NULL and t.trip_path_distance not in (select flag_value from HHSurvey.NullFlags))
-				AND t.dest_geom IS NOT NULL 
-				AND t.origin_geom IS NOT NULL 
-
 		UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
 			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
@@ -1863,11 +1856,6 @@ EXECUTE HHSurvey.generate_error_flags;
 		CREATE PROCEDURE HHSurvey.recalculate_after_edit 
 			@personid int NULL --limited just to the person who was just edited
 		AS BEGIN
-
-		UPDATE t SET t.trip_path_distance = t.dest_geom.STDistance(t.origin_geom) / 1609.344,
-					 t.revision_code = CONCAT(t.revision_code, '12,')
-			FROM HHSurvey.trip AS t		 
-			WHERE t.personid = @personid AND t.trip_path_distance IS NULL AND t.dest_geom IS NOT NULL AND t.origin_geom IS NOT NULL;
 
 		UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
