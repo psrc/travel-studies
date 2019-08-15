@@ -10,7 +10,7 @@
 
 /* STEP 0. 	Settings and steps independent of data tables.  */
 
-USE Sandbox --start in a fresh db if there is danger of overwriting tables. Queries use the default user schema.
+--USE Sandbox --start in a fresh db if there is danger of overwriting tables. Queries use the default user schema.
 GO
 SET ANSI_NULLS ON
 GO
@@ -635,6 +635,11 @@ GO
 		UPDATE HHSurvey.trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
 		GO
 	*/
+
+	--Remove any audit trail records that may already exist from previous runs of Rulesy.
+	delete
+	from HHSurvey.tblTripAudit
+	go
 
 	-- create an auto-loggint trigger for updates to the trip table
 		create  trigger tr_trip on HHSurvey.[trip] for insert, update, delete
