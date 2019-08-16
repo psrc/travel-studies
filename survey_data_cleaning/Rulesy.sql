@@ -861,9 +861,9 @@ GO
 				WHERE t.dest_is_home IS NULL AND
 					(t.dest_name = 'HOME' 
 					OR(
-						(dbo.RgxFind(t.dest_name,' home',1) = 1 
-						OR dbo.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
-						and dbo.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
+						(HHSurvey.RgxFind(t.dest_name,' home',1) = 1 
+						OR HHSurvey.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
+						and HHSurvey.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
 					OR(t.dest_purpose = 1))
 					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1;
@@ -879,8 +879,8 @@ GO
 				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid
 				WHERE t.dest_is_work IS NULL AND
 					(t.dest_name = 'WORK' 
-					OR((dbo.RgxFind(t.dest_name,' work',1) = 1 
-						OR dbo.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
+					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
+						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
 					OR(t.dest_purpose = 10 AND t.dest_name IS NULL))
 					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.001))=1;
 
@@ -1258,7 +1258,7 @@ GO
 
 		-- denote trips with too many components or other attributes suggesting multiple trips, for later examination.  
 		WITH cte_a AS										--non-adjacent repeated transit line, i.e. suggests a loop trip
-			(SELECT DISTINCT ti_wndw1.personid, ti_wndw1.trip_link, dbo.TRIM(HHSurvey.RgxReplace(
+			(SELECT DISTINCT ti_wndw1.personid, ti_wndw1.trip_link, HHSurvey.TRIM(HHSurvey.RgxReplace(
 				STUFF((SELECT ',' + ti1.transit_lines
 					FROM #trip_ingredient AS ti1 
 					WHERE ti1.personid = ti_wndw1.personid AND ti1.trip_link = ti_wndw1.trip_link
@@ -1267,7 +1267,7 @@ GO
 					FOR XML PATH('')), 1, 1, NULL),'(\b\d+\b),(?=\1)','',1)) AS transit_lines	
 				FROM #trip_ingredient as ti_wndw1 WHERE ti_wndw1.transit_lines IS NOT NULL),
 		cte_b AS 
-			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, dbo.TRIM(HHSurvey.RgxReplace(
+			(SELECT DISTINCT ti_wndw2.personid, ti_wndw2.trip_link, HHSurvey.TRIM(HHSurvey.RgxReplace(
 				STUFF((SELECT ',' + ti2.modes				--non-adjacent repeated modes, i.e. suggests a loop trip
 					FROM #trip_ingredient AS ti2
 					WHERE ti2.personid = ti_wndw2.personid AND ti2.trip_link = ti_wndw2.trip_link
@@ -1445,9 +1445,9 @@ GO
 
 		--eliminate repeated values for modes, transit_systems, and transit_lines
 		UPDATE t 
-			SET t.modes				= dbo.TRIM(HHSurvey.RgxReplace(t.modes,'(-?\b\d+\b),(?=\b\1\b)','',1)),
-				t.transit_systems 	= dbo.TRIM(HHSurvey.RgxReplace(t.transit_systems,'(\b\d+\b),(?=\b\1\b)','',1)), 
-				t.transit_lines 	= dbo.TRIM(HHSurvey.RgxReplace(t.transit_lines,'(\b\d+\b),(?=\b\1\b)','',1))
+			SET t.modes				= HHSurvey.TRIM(HHSurvey.RgxReplace(t.modes,'(-?\b\d+\b),(?=\b\1\b)','',1)),
+				t.transit_systems 	= HHSurvey.TRIM(HHSurvey.RgxReplace(t.transit_systems,'(\b\d+\b),(?=\b\1\b)','',1)), 
+				t.transit_lines 	= HHSurvey.TRIM(HHSurvey.RgxReplace(t.transit_lines,'(\b\d+\b),(?=\b\1\b)','',1))
 			FROM HHSurvey.trip AS t;
 
 		EXECUTE HHSurvey.tripnum_update; 
@@ -1819,7 +1819,7 @@ EXECUTE HHSurvey.generate_error_flags;
 			@recid_list nvarchar(max) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
 		AS BEGIN
 		SET NOCOUNT ON; 
-		SELECT CAST(dbo.TRIM(value) AS int) AS recid INTO #recid_list 
+		SELECT CAST(HHSurvey.TRIM(value) AS int) AS recid INTO #recid_list 
 			FROM STRING_SPLIT(@recid_list, ',')
 			WHERE RTRIM(value) <> ''
 	
