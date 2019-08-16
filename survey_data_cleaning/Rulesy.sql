@@ -825,7 +825,7 @@ GO
 
 	--address parsing
 		update t set t.dest_zip = substring(hhsurvey.rgxextract(dest_address, 'wa (\d{5}), usa', 0),4,5) from hhsurvey.trip as t;
-		UPDATE t SET t.dest_city = LTRIM(RTRIM(SUBSTRING(HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0),0,PATINDEX('%,%',HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0))))) FROM HHSurvey.trip AS t;
+		UPDATE t SET t.dest_city = HHSurvey.TRIM(SUBSTRING(HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0),0,PATINDEX('%,%',HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0)))) FROM HHSurvey.trip AS t;
 		UPDATE t SET t.dest_county = zipwgs.county FROM HHSurvey.trip AS t JOIN Sandbox.dbo.zipcode_wgs AS zipwgs ON t.dest_zip=zipwgs.zipcode;
 		GO
 
@@ -1387,7 +1387,23 @@ GO
 				t.modes				= lt.modes,							t.dest_zip		= lt.dest_zip,
 				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
 				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
-											
+				
+				t.depart_time_hhmm  = FORMAT(lt.depart_time_timestamp,N'hh\:mm tt','en-US'),
+				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
+				t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,lt.depart_time_timestamp),
+																		  DATEPART(month,lt.depart_time_timestamp),
+																		  DATEPART(day,lt.depart_time_timestamp),0,0,0,0,0),
+												lt.depart_time_timestamp),
+				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
+																		  DATEPART(month,lt.arrival_time_timestamp), 
+																		  DATEPART(day,lt.arrival_time_timestamp),0,0,0,0,0),
+												lt.arrival_time_timestamp),
+				t.speed_mph			= CASE WHEN (lt.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric) > 0)) 
+									   THEN  lt.trip_path_distance / CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/3600 
+									   ELSE 0 END,
+				t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
+				t.dayofweek 		= DATEPART(dw, lt.depart_time_timestamp),
+
 				t.arrival_time_timestamp = lt.arrival_time_timestamp,	t.hhmember1 	= lt.hhmember1, 
 				t.trip_path_distance 	= lt.trip_path_distance, 		t.hhmember2 	= lt.hhmember2, 
 				t.google_duration 		= lt.google_duration, 			t.hhmember3 	= lt.hhmember3, 
@@ -1423,38 +1439,6 @@ GO
 			END
 		END 
 		EXECUTE HHSurvey.link_trips;
-		GO	
-
-		-- recalculate derived fields (this should happen after trip linking or trip splitting/adding)
-		DROP PROCEDURE IF EXISTS HHSurvey.calculate_derived_fields;
-		GO
-		CREATE PROCEDURE HHSurvey.calculate_derived_fields AS 
-		BEGIN
-
-		UPDATE t SET
-			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
-			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
-			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
-			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
-			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
-									   THEN  t.trip_path_distance / CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600 
-									   ELSE 0 END,
-			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
-			t.dayofweek 		= DATEPART(dw, t.depart_time_timestamp)
-			FROM HHSurvey.trip AS t
-			WHERE 
-				t.depart_time_hhmm  <> FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US') OR
-				t.arrival_time_hhmm <> FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US') OR
-				t.depart_time_mam   <> DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp) OR
-				t.arrival_time_mam  <> DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp) OR
-				t.speed_mph			<> CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
-									   THEN  t.trip_path_distance / CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600 
-									   ELSE 0 END OR
-				t.reported_duration	<> CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60 OR			   	
-				t.dayofweek 		<> DATEPART(dw, t.depart_time_timestamp);	
-		
-		END
-		EXECUTE HHSurvey.calculate_derived_fields;
 		GO	
 
 /* STEP 5.	Mode number standardization, including access and egress characterization */
@@ -1691,11 +1675,11 @@ SET NOCOUNT ON
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(51,60)
+				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	   				'no activity time before' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(51,60) 
+				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					        	 		   'same dest as next' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1734,7 +1718,7 @@ SET NOCOUNT ON
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --next_trip is first trip of the day
-					AND LTRIM(RTRIM(next_trip.origin_name))<>'HOME' 
+					AND HHSurvey.TRIM(next_trip.origin_name)<>'HOME' 
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
@@ -1746,7 +1730,7 @@ SET NOCOUNT ON
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag
 				FROM HHSurvey.trip
 				LEFT JOIN HHSurvey.trip AS next_t ON trip.personid=next_t.personid	AND trip.tripnum + 1 = next_t.tripnum						
-				WHERE trip.d_purpose = 9 AND (trip.travelers_total = next_t.travelers_total)	
+				WHERE trip.d_purpose = 9 AND (trip.travelers_total = next_t.travelers_total)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
 				FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1844,9 +1828,6 @@ EXECUTE HHSurvey.generate_error_flags;
 			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid)
 
 		EXECUTE HHSurvey.link_trips;
-	/*	EXECUTE HHSurvey.calculate_derived_fields; */ --pass a smaller set of records for update
-		END
-		GO
 
 	--RECALCULATION
 
