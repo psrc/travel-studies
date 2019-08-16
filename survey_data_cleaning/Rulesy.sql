@@ -1633,7 +1633,7 @@ GO
 			FROM HHSurvey.trip AS t 
 			JOIN 		HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum AND t.daynum = prior_t.daynum
 			LEFT JOIN 	HHSurvey.trip AS next_t  ON t.personid = next_t.personid  AND t.tripnum + 1 = next_t.tripnum  AND t.daynum = next_t.daynum
-			WHERE t.o_purpose = 1 AND t.d_purpose = 1 AND next_t.recid IS NULL AND ABS(t.dest_geom.STDistance(prior_t.dest_geom)) < .0009 )
+			WHERE t.o_purpose = 1 AND t.d_purpose = 1 AND next_t.recid IS NULL AND ABS(t.dest_geom.STDistance(t.origin_geom)) < .0009 ) -- points within 100m of one another
 		DELETE FROM HHSurvey.trip OUTPUT deleted.* INTO HHSurvey.removed_trip
 			WHERE EXISTS (SELECT 1 FROM cte WHERE trip.recid = cte.recid);
 
