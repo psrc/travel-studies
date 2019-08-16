@@ -1691,11 +1691,11 @@ SET NOCOUNT ON
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60
+				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(51,60)
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	   				'no activity time before' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60
+				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(51,60) 
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					        	 		   'same dest as next' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1776,8 +1776,8 @@ SET NOCOUNT ON
 					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)	
 		INSERT INTO HHSurvey.trip_error_flags (recid, personid, tripnum, error_flag)
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
-			FROM error_flag_compilation AS efc JOIN HHSurvey.trip AS t_active ON efc.recid = t_active.recid
-			WHERE t_active.psrc_resolved IS NULL
+			FROM error_flag_compilation AS efc
+			WHERE NOT EXISTS (SELECT 1 FROM HHSurvey.trip AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved =1)
 			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
 	/* Flag households with predominantly problematic records */
