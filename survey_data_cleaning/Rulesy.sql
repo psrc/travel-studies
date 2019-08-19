@@ -10,7 +10,7 @@
 
 /* STEP 0. 	Settings and steps independent of data tables.  */
 
---USE Sandbox --start in a fresh db if there is danger of overwriting tables. Queries use the default user schema.
+--USE HouseholdTravelSurvey2019 --start in a fresh db if there is danger of overwriting tables. Queries use the default user schema.
 GO
 SET ANSI_NULLS ON
 GO
@@ -1724,11 +1724,11 @@ GO
  
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE ABS(trip.dest_geom.STDistance(next_trip.dest_geom)) >.0045  --roughly 500m difference or more, using degrees
+				WHERE ABS(trip.dest_geom.STDistance(next_trip.origin_geom)) >.0045  --roughly 500m difference or more, using degrees
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	              	 'missing prior trip link' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE ABS(trip.dest_geom.STDistance(next_trip.dest_geom)) >.0045	--roughly 500m difference or more, using degrees
+				WHERE ABS(trip.dest_geom.STDistance(next_trip.origin_geom)) >.0045	--roughly 500m difference or more, using degrees
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
