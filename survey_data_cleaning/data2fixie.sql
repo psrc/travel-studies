@@ -17,12 +17,10 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 		FORMAT(t1.arrival_time_timestamp,N'hh\:mm tt','en-US') AS arrive_dhm,
 		ROUND(t1.trip_path_distance,1) AS miles,
 		ROUND(t1.speed_mph,1) AS mph, 
-		ROUND(t1.dest_geom.STDistance(t1.origin_geom) / 1609.344, 2) AS linear_miles,
-		CASE WHEN (DATEDIFF(minute, t1.depart_time_timestamp, t1.arrival_time_timestamp) > 1 
-						AND t1.dest_geom IS NOT NULL 
-						AND t1.origin_geom IS NOT NULL) 
-					THEN ROUND(t1.dest_geom.STDistance(t1.origin_geom) / 1609.344 / (CAST(DATEDIFF(second, t1.depart_time_timestamp, t1.arrival_time_timestamp) AS decimal) / 360),2) 
-					ELSE -9999 END AS linear_mph,
+		ROUND(t1.dest_geom.STDistance(t1.origin_geom) * 69.171, 1) AS linear_miles,
+		CASE WHEN DATEDIFF(minute, t1.depart_time_timestamp, t1.arrival_time_timestamp) > 0 
+				THEN ROUND(t1.dest_geom.STDistance(t1.origin_geom) * 69.171 / (CAST(DATEDIFF(second, t1.depart_time_timestamp, t1.arrival_time_timestamp) AS decimal) / 3600),1) 
+				ELSE -9999 END AS linear_mph,
 		STUFF(
 				(SELECT ',' + tef.error_flag
 					FROM trip_error_flags AS tef
@@ -159,7 +157,7 @@ USE HouseholdTravelSurvey2019
 GO
 
 --create separate views for FixieUI major record divisions
-DROP VIEW IF EXISTS HHSurvey.person_rm_seattle, HHSurvey.person_rm_else, HHSurvey.person_rs, HHSurvey.person_elev, HHSurvey.person_by_error
+DROP VIEW IF EXISTS HHSurvey.person_rm_seattle, HHSurvey.person_rm_else, HHSurvey.person_rs, HHSurvey.person_elev, 
 GO
 
 	CREATE VIEW HHSurvey.person_rm_seattle AS
@@ -203,14 +201,17 @@ GO
 		AND Exists (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND t.psrc_comment IS NOT NULL);
 	GO
 
+	DROP VIEW IF EXISTS HHSurvey.person_by_error;
+	GO
 	CREATE VIEW HHSurvey.person_by_error AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		LEFT JOIN HHSurvey.trip AS t ON p.personid = t.personid
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('missing next trip link','missing prior trip link'));
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('too slow','lone trip'))
+	    AND (Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geom.STIntersects(t.dest_geom)=1) 
+   			 OR Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geom.STIntersects(t.origin_geom)=1));
 	GO
 
 	

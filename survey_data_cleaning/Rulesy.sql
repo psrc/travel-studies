@@ -38,22 +38,25 @@ GO
 		INSERT INTO HHSurvey.bikemodes(mode_id)    VALUES (2),(72),(73),(74),(75);				
 		INSERT INTO HHSurvey.nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;
 		INSERT INTO HHSurvey.error_types (error_flag, vital) VALUES
+			('unlicensed driver',0),
+			('underage driver',0),
 			('non-student + school trip',0),
+			('non-worker + work trip',0),
+			('no activity time after',0),			
 			('no activity time before',0),
+			('missing next trip link',0),
 			('missing prior trip link',1),
 			('same dest as next',0),
+			('same dest as prior',1),
 			('same transit line listed 2x+',0),
 			('starts, not from home',0),
-			('unlicensed driver',0),
-			('same dest as prior',1),
+			('ends day, not home',0),
 			('too long at dest',1),
 			('excessive speed',1),
 			('too slow',1),
-			('no activity time after',0),
 			('purpose at odds w/ dest',1),
-			('missing next trip link',0),
 			('PUDO, no +/- travelers',0),
-			('non-worker + work trip',0);	
+			('time overlap',1);	
 		INSERT INTO HHSurvey.NullFlags (flag_value, label)
 		VALUES		(-9998, NULL), 
 					(-9999, NULL), 
@@ -1399,7 +1402,7 @@ GO
 																		  DATEPART(day,lt.arrival_time_timestamp),0,0,0,0,0),
 												lt.arrival_time_timestamp),
 				t.speed_mph			= CASE WHEN (lt.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric) > 0)) 
-									   THEN  lt.trip_path_distance / CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/3600 
+									   THEN  lt.trip_path_distance / (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
 				t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
 				t.dayofweek 		= DATEPART(dw, lt.depart_time_timestamp),
@@ -1668,6 +1671,7 @@ GO
 				FROM HHSurvey.trip 
 				GROUP BY trip.personid 
 				HAVING max(trip.tripnum)=1
+
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,											'underage driver' AS error_flag
 				FROM HHSurvey.person AS p
 				JOIN HHSurvey.trip ON p.personid = trip.personid
