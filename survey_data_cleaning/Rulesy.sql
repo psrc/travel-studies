@@ -1180,24 +1180,24 @@ GO
 				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5, ti_wndw.transit_line_6)
 		*/
 		UPDATE HHSurvey.trip
-				SET modes = STUFF(	COALESCE(',' + CAST(mode_acc AS nvarchar), '') +
-									COALESCE(',' + CAST(mode_1 	 AS nvarchar), '') + 
-									COALESCE(',' + CAST(mode_2 	 AS nvarchar), '') + 
-									COALESCE(',' + CAST(mode_3 	 AS nvarchar), '') + 
-									COALESCE(',' + CAST(mode_4 	 AS nvarchar), '') + 
-									COALESCE(',' + CAST(mode_egr AS nvarchar), ''), 1, 1, ''),
-		  transit_systems = STUFF(	COALESCE(',' + CAST(transit_system_1 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_2 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_3 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_4 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_5 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_system_6 AS nvarchar), ''), 1, 1, ''),
-			transit_lines = STUFF(	COALESCE(',' + CAST(transit_line_1 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_2 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_3 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_4 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_5 AS nvarchar), '') + 
-									COALESCE(',' + CAST(transit_line_6 AS nvarchar), ''), 1, 1, '')							
+				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_acc 		 THEN trip.mode_acc 		ELSE NULL END AS nvarchar), '') +
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_1 		 	 THEN trip.mode_1 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_2 			 THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_3 			 THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_4 			 THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_egr 		 THEN trip.mode_1 			ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_1 THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_2 THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_3 THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_4 THEN trip.transit_system_4 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_5 THEN trip.transit_system_5 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_6 THEN trip.transit_system_6 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_1 	 THEN trip.transit_line_1  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_2 	 THEN trip.transit_line_2  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_3 	 THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_4 	 THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_5 	 THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_6 	 THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '')							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
@@ -1520,11 +1520,13 @@ GO
 				t.transit_system_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_system_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_system_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_6	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
 				t.transit_line_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY)
+				t.transit_line_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_6	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY)
 			FROM HHSurvey.trip AS t;
 			 
 /* STEP 6. Insert trips for those who were reported as a passenger by another traveler but did not report the trip themselves */
