@@ -1215,22 +1215,17 @@ GO
 		--select the trip ingredients that will be linked; this selects all but the first component 
 		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient
 		FROM HHSurvey.trip as trip 
-			join HHSurvey.fnVariableLookup('d_purpose') as tvl ON trip.d_purpose = tvl.code
+			JOIN HHSurvey.fnVariableLookup('d_purpose') as tvl ON trip.d_purpose = tvl.code
 			JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-			join HHSurvey.fnVariableLookup('d_purpose') as ntvl ON next_trip.d_purpose = ntvl.code
-		WHERE 	trip.dest_is_home IS NULL 
-			AND trip.dest_is_work IS NULL 
-			AND trip.travelers_total = next_trip.travelers_total
-			AND (
-				(tvl.label like 'Transferred to another mode of transporation%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 30) 
-				OR 	(trip.d_purpose = next_trip.d_purpose 
-					AND ntvl.label like 'Dropped off/picked up someone%'
-					AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 15 
-					AND (trip.mode_1<>next_trip.mode_1 
-						OR (trip.mode_1 = next_trip.mode_1 AND EXISTS (SELECT trip.mode_1 FROM HHSurvey.transitmodes))
-					)
-				)
-			);
+			JOIN HHSurvey.fnVariableLookup('d_purpose') as ntvl ON next_trip.d_purpose = ntvl.code
+		WHERE 	trip.dest_is_home IS NULL 																			-- destination of preceding leg isn't home
+			AND trip.dest_is_work IS NULL																			-- destination of preceding leg isn't work
+			AND trip.travelers_total = next_trip.travelers_total	 												-- traveler # the same								
+			AND (trip.mode_1<>next_trip.mode_1 
+				OR (trip.mode_1 = next_trip.mode_1 AND EXISTS (SELECT trip.mode_1 FROM HHSurvey.transitmodes)))		--either change modes or switch transit lines
+			AND ((tvl.label LIKE 'Transferred to another mode of transporation%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 30) -- change modes under 30min dwell
+				  OR (trip.d_purpose = next_trip.d_purpose AND ntvl.label NOT LIKE 'Dropped off/picked up someone%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 15)  -- other non-PUDO purposes if identical, under 15min dwell
+				);
 
 		-- set the trip_link value of the 2nd component to the tripnum of the 1st component.
 		UPDATE ti  
