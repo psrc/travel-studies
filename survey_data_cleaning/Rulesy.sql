@@ -404,6 +404,8 @@ GO
 			,[arrival_time_hhmm]
 			,[arrival_time_timestamp]
 			,[origin_lat]
+			,[origin_name]
+			,[dest_name]
 			,[origin_lng]
 			,[dest_lat]
 			,[dest_lng]
@@ -505,6 +507,8 @@ GO
 			,convert(datetime2, arrival_time_timestamp, 121)
 			,[origin_lat]
 			,[origin_lng]
+			,l.[origin_name]
+			,l.[dest_name]
 			,[dest_lat]
 			,[dest_lng]
 			,[trip_path_distance]
@@ -584,7 +588,8 @@ GO
 			,[user_split]
 			,[analyst_merged]
 			,[analyst_split]
-			FROM dbo.[4_trip]
+			FROM dbo.[4_trip] as t
+				join dbo.location_names_082119 as l ON t.tripid = l.tripid
 			ORDER BY tripid;
 		GO
 
