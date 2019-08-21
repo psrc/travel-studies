@@ -1184,24 +1184,24 @@ GO
 				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5, ti_wndw.transit_line_6)
 		*/
 		UPDATE HHSurvey.trip
-				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_acc 		 THEN trip.mode_acc 		ELSE NULL END AS nvarchar), '') +
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_1 		 	 THEN trip.mode_1 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_2 			 THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_3 			 THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_4 			 THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_egr 		 THEN trip.mode_1 			ELSE NULL END AS nvarchar), ''), 1, 1, ''),
-		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_1 THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_2 THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_3 THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_4 THEN trip.transit_system_4 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_5 THEN trip.transit_system_5 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_6 THEN trip.transit_system_6 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
-			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_1 	 THEN trip.transit_line_1  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_2 	 THEN trip.transit_line_2  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_3 	 THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_4 	 THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_5 	 THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_6 	 THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '')							
+				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_acc) 		  THEN trip.mode_acc 		ELSE NULL END AS nvarchar), '') +
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_1)		 	  THEN trip.mode_1 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_2)			  THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_3) 		  THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_4) 		  THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_1 			ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_1) THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_2) THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_3) THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_4) THEN trip.transit_system_4 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_5) THEN trip.transit_system_5 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_6) THEN trip.transit_system_6 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_1)	  THEN trip.transit_line_1  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_2)   THEN trip.transit_line_2  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_3)   THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_4)   THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_5)   THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '')							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
@@ -1618,6 +1618,19 @@ GO
 /* STEP 7. */
 
 	/* Snap coordinates to either home or regular work location when specified as destination and within reasonable distance */
+
+/*	-- holding off on this until greenlighted completely.  Speed etc will also need to be recalculated.
+	UPDATE t 
+		SET t.dest_geom = h.final_geom, t.dest_lat = p.work_lat, t.dest_lng = p.work_lng, t.revision_code = CONCAT(t.revision_code, '12,')
+		FROM HHSurvey.Trip AS t JOIN HHSurvey.Person AS p ON t.personid = p.personid
+		WHERE t.dest_is_work = 1 AND t.dest_geom <> p.work_geom;
+
+  	--we currently don't have a way to specify which of the two provided home locations is more legitimate
+	UPDATE t 
+		SET t.dest_geom = p.work_geom, t.dest_lat = p.work_lat, t.dest_lng = p.work_lng, t.revision_code = CONCAT(t.revision_code, '12,')
+		FROM HHSurvey.Trip AS t JOIN HHSurvey.Person AS p ON t.personid = p.personid
+		WHERE t.dest_is_work = 1 AND t.dest_geom <> p.work_geom;
+*/
 
 	/* Remove duplicated home trips generated by the app */
 		USE HouseholdTravelSurvey2019
