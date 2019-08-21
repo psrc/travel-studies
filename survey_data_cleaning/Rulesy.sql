@@ -33,10 +33,10 @@ GO
 	-- mode groupings
 		INSERT INTO HHSurvey.transitmodes(mode_id) VALUES (23),(24),(26),(27),(28),(31),(32),(41),(42),(52);
 		INSERT INTO HHSurvey.automodes(mode_id)    VALUES (3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(16),(17),(18),(21),(22),(33),(34),(36),(37),(47),(70),(71);
-		INSERT INTO HHSurvey.pedmodes(mode_id) 	   VALUES (1),(2),(72),(73),(74),(75);
+		INSERT INTO HHSurvey.PedModes(mode_id) 	   VALUES (1),(2),(72),(73),(74),(75);
 		INSERT INTO HHSurvey.walkmodes(mode_id)    VALUES (1);
 		INSERT INTO HHSurvey.bikemodes(mode_id)    VALUES (2),(72),(73),(74),(75);				
-		INSERT INTO HHSurvey.nontransitmodes(mode_id) SELECT mode_id FROM pedmodes UNION SELECT mode_id FROM automodes;
+		INSERT INTO HHSurvey.nontransitmodes(mode_id) SELECT mode_id FROM HHSurvey.pedmodes UNION SELECT mode_id FROM HHSurvey.automodes;
 		INSERT INTO HHSurvey.error_types (error_flag, vital) VALUES
 			('unlicensed driver',0),
 			('underage driver',0),
@@ -404,9 +404,9 @@ GO
 			,[arrival_time_hhmm]
 			,[arrival_time_timestamp]
 			,[origin_lat]
+			,[origin_lng]
 			,[origin_name]
 			,[dest_name]
-			,[origin_lng]
 			,[dest_lat]
 			,[dest_lng]
 			,[trip_path_distance]
@@ -487,7 +487,7 @@ GO
 			[hhid]
 			,[personid]
 			,[pernum]
-			,[tripid]
+			,t.[tripid]
 			,[tripnum]
 			,convert(date, [traveldate], 121)
 			,[daynum]
@@ -516,7 +516,7 @@ GO
 			,[reported_duration]
 			,case hhgroup
 				when 1 then [google_duration] -- rMove
-				when 2 then [reported_duration] -- rSurvey
+				when 2 then cast([reported_duration] as float) -- rSurvey
 			end
 			,[hhmember1] 
 			,[hhmember2]
@@ -526,7 +526,6 @@ GO
 			,[hhmember6]
 			,[hhmember7]
 			,[hhmember8]
-			--,cast([hhmember9] as int)
 			,NULL
 			,[travelers_hh]
 			,[travelers_nonhh]
