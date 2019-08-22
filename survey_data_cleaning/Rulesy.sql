@@ -588,7 +588,7 @@ GO
 			,[analyst_merged]
 			,[analyst_split]
 			FROM dbo.[4_trip] as t
-				join dbo.location_names_082119 as l ON t.tripid = l.tripid
+				LEFT JOIN dbo.location_names_082119 as l ON t.tripid = l.tripid
 			ORDER BY tripid;
 		GO
 
@@ -607,14 +607,17 @@ GO
 				psrc_inserted 	bit NULL,
 				revision_code 	nvarchar(255) NULL;
 
-		ALTER TABLE HHSurvey.household 	ADD home_geom GEOMETRY NULL;
-		ALTER TABLE HHSurvey.person 	ADD work_geom GEOMETRY NULL;
+		ALTER TABLE HHSurvey.household 	ADD home_geom 	GEOMETRY NULL,
+											sample_geom GEOMETRY NULL;
+		ALTER TABLE HHSurvey.person 	ADD work_geom 	GEOMETRY NULL;
 		GO
 						
 		UPDATE HHSurvey.Trip		SET dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
 							  		  origin_geom   = geometry::STPointFromText('POINT(' + CAST(origin_lng 	 AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
 
-		UPDATE HHSurvey.household 	SET home_geom 	= geometry::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.household 	SET home_geom 	= geometry::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat 	AS VARCHAR(20)) + ')', 4326),
+										sample_geom = geometry::STPointFromText('POINT(' + CAST(sample_lng AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
+
 		UPDATE HHSurvey.person 		SET work_geom	= geometry::STPointFromText('POINT(' + CAST(work_lng 	 AS VARCHAR(20)) + ' ' + CAST(work_lat 	 	AS VARCHAR(20)) + ')', 4326);
 
 		--ALTER TABLE HHSurvey.trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
@@ -628,7 +631,15 @@ GO
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
 
+		CREATE SPATIAL INDEX origin_geom_idx ON HHSurvey.trip(origin_geom)
+			USING GEOMETRY_AUTO_GRID
+			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+
 		CREATE SPATIAL INDEX home_geom_idx ON HHSurvey.household(home_geom)
+			USING GEOMETRY_AUTO_GRID
+			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+
+		CREATE SPATIAL INDEX sample_geom_idx ON HHSurvey.household(sample_geom)
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
 
@@ -636,11 +647,49 @@ GO
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));		
 
+	/* Determine legitimate home location: */ 
+	
+		UPDATE h	-- Default is reported home location; remove that when not within 500m of any home-purpose trip
+			SET h.home_geom = NULL
+			FROM HHSurvey.Household AS h
+			WHERE NOT EXISTS 
+				(SELECT 1 FROM HHSurvey.Trip AS t
+				 WHERE t.hhid = h.hhid 
+				   AND t.d_purpose = 1 
+				   AND (t.dest_geom.STDistance(h.home_geom) < .0045)
+				)
+				AND EXISTS
+				(SELECT 1 FROM HHSurvey.Trip AS tt
+				 WHERE tt.hhid = h.hhid 
+				   AND tt.d_purpose = 1);	
+
+		UPDATE h	-- Replace with sample home location when within 500m of any home-purpose trip
+			SET h.home_geom = h.sample_geom
+			FROM HHSurvey.Household AS h 
+			WHERE h.home_geom IS NULL 
+				AND EXISTS 
+				(SELECT 1 FROM HHSurvey.Trip AS t
+				  WHERE t.hhid = h.hhid 
+					AND t.d_purpose = 1 
+					AND (t.dest_geom.STDistance(h.sample_geom) < .0045));				
+
+					-- When neither of the above works, take the most central home-purpose trip destination for the household,
+					-- i.e. the location with the shortest cumulative distance to all the other home-purpose trips.
+		WITH cte AS 
+		(SELECT t1.hhid, t1.recid, ROW_NUMBER() OVER (PARTITION BY t1.hhid ORDER BY sum(t1.dest_geom.STDistance(t2.dest_geom)) ASC) AS ranker
+		 FROM HHSurvey.Trip AS t1 JOIN HHSurvey.Trip AS t2 ON t1.hhid = t2.hhid AND t1.d_purpose = 1 AND t2.d_purpose = 1 
+		 WHERE EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t1.hhid AND h.home_geom IS NULL)
+		 AND EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t2.hhid AND h.home_geom IS NULL)
+		 GROUP BY t1.hhid, t1.recid
+		)
+		UPDATE h
+		SET h.home_geom = t.dest_geom
+		FROM HHSurvey.Household AS h JOIN cte ON h.hhid = cte.hhid JOIN HHSurvey.Trip AS t ON t.recid = cte.recid
+		WHERE cte.ranker = 1 AND h.home_geom IS NULL;
 
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
-	/* The average trip_path_distance is comensurate between hhgroups 1 and 2, so I don't think we need this step for 2019.
+	/* Not necessary for 2019, as rMove is reported in miles rather than meters
 		UPDATE HHSurvey.trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
-		GO
 	*/
 
 	--Remove any audit trail records that may already exist from previous runs of Rulesy.
@@ -1403,8 +1452,8 @@ GO
 				t.speed_mph			= CASE WHEN (lt.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric) > 0)) 
 									   THEN  lt.trip_path_distance / (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
-				t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
-				t.dayofweek 		= DATEPART(dw, lt.depart_time_timestamp),
+				t.reported_duration	= CAST(DATEDIFF(second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/60,					   	
+				t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, lt.depart_time_timestamp)),
 
 				t.arrival_time_timestamp = lt.arrival_time_timestamp,	t.hhmember1 	= lt.hhmember1, 
 				t.trip_path_distance 	= lt.trip_path_distance, 		t.hhmember2 	= lt.hhmember2, 
@@ -1854,9 +1903,8 @@ EXECUTE HHSurvey.generate_error_flags;
 
 	--RECALCULATION
 
-		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit
+		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
 		GO
-
 		CREATE PROCEDURE HHSurvey.recalculate_after_edit 
 			@personid int NULL --limited just to the person who was just edited
 		AS BEGIN
@@ -1867,10 +1915,10 @@ EXECUTE HHSurvey.generate_error_flags;
 			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
 			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
 			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
-									   THEN  t.trip_path_distance / CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600 
+									   THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
 			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
-			t.dayofweek 		= DATEPART(dw, t.depart_time_timestamp)
+			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp))
 			FROM HHSurvey.trip AS t
 			WHERE t.personid = @personid;	
 		
