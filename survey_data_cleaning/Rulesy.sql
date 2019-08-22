@@ -607,9 +607,11 @@ GO
 				psrc_inserted 	bit NULL,
 				revision_code 	nvarchar(255) NULL;
 
-		ALTER TABLE HHSurvey.household 	ADD home_geom 	GEOMETRY NULL,
-											sample_geom GEOMETRY NULL;
-		ALTER TABLE HHSurvey.person 	ADD work_geom 	GEOMETRY NULL;
+		ALTER TABLE HHSurvey.household 	ADD home_geom 	GEOMETRY 	NULL,
+											home_lat 	FLOAT 		NULL,
+											home_lng	FLOAT 		NULL,
+											sample_geom GEOMETRY 	NULL;
+		ALTER TABLE HHSurvey.person 	ADD work_geom 	GEOMETRY 	NULL;
 		GO
 						
 		UPDATE HHSurvey.Trip		SET dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
@@ -649,7 +651,7 @@ GO
 
 	/* Determine legitimate home location: */ 
 	
-		UPDATE h	-- Default is reported home location; remove that when not within 500m of any home-purpose trip
+		UPDATE h	-- Default is reported home location; invalidate when not within 500m of any home-purpose trip
 			SET h.home_geom = NULL
 			FROM HHSurvey.Household AS h
 			WHERE NOT EXISTS 
@@ -663,7 +665,7 @@ GO
 				 WHERE tt.hhid = h.hhid 
 				   AND tt.d_purpose = 1);	
 
-		UPDATE h	-- Replace with sample home location when within 500m of any home-purpose trip
+		UPDATE h	-- When Reported home location is invalidated, fill with sample home location when within 500m of any home-purpose trip
 			SET h.home_geom = h.sample_geom
 			FROM HHSurvey.Household AS h 
 			WHERE h.home_geom IS NULL 
@@ -673,19 +675,24 @@ GO
 					AND t.d_purpose = 1 
 					AND (t.dest_geom.STDistance(h.sample_geom) < .0045));				
 
-					-- When neither of the above works, take the most central home-purpose trip destination for the household,
-					-- i.e. the location with the shortest cumulative distance to all the other home-purpose trips.
-		WITH cte AS 
-		(SELECT t1.hhid, t1.recid, ROW_NUMBER() OVER (PARTITION BY t1.hhid ORDER BY sum(t1.dest_geom.STDistance(t2.dest_geom)) ASC) AS ranker
+		WITH cte AS 		-- When neither Reported or Sampled home location is valid, take the most central home-purpose trip destination
+		(SELECT t1.hhid, 	-- i.e. the home-purpose destination w/ shortest cumulative distance to all other household home-purpose destinations.
+				t1.recid, 
+				ROW_NUMBER() OVER (PARTITION BY t1.hhid ORDER BY sum(t1.dest_geom.STDistance(t2.dest_geom)) ASC) AS ranker
 		 FROM HHSurvey.Trip AS t1 JOIN HHSurvey.Trip AS t2 ON t1.hhid = t2.hhid AND t1.d_purpose = 1 AND t2.d_purpose = 1 
-		 WHERE EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t1.hhid AND h.home_geom IS NULL)
-		 AND EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t2.hhid AND h.home_geom IS NULL)
+		 WHERE  EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t1.hhid AND h.home_geom IS NULL)
+		 	AND EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t2.hhid AND h.home_geom IS NULL)
 		 GROUP BY t1.hhid, t1.recid
 		)
 		UPDATE h
-		SET h.home_geom = t.dest_geom
-		FROM HHSurvey.Household AS h JOIN cte ON h.hhid = cte.hhid JOIN HHSurvey.Trip AS t ON t.recid = cte.recid
-		WHERE cte.ranker = 1 AND h.home_geom IS NULL;
+			SET h.home_geom = t.dest_geom
+			FROM HHSurvey.Household AS h JOIN cte ON h.hhid = cte.hhid JOIN HHSurvey.Trip AS t ON t.recid = cte.recid
+			WHERE cte.ranker = 1 AND h.home_geom IS NULL;
+
+		UPDATE 	h	-- Gives back latitude and longitude of the determined home location point
+			SET h.home_lat = h.home_geom.STY,
+				h.home_lng = h.home_geom.STX 
+			FROM HHSurvey.Household AS h;
 
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
 	/* Not necessary for 2019, as rMove is reported in miles rather than meters
