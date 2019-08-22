@@ -10,7 +10,7 @@
 
 /* STEP 0. 	Settings and steps independent of data tables.  */
 
---USE HouseholdTravelSurvey2019 --start in a fresh db if there is danger of overwriting tables. Queries use the default user schema.
+USE HouseholdTravelSurvey2019 --start in a fresh db if there is danger of overwriting tables. Queries use the default user schema.
 GO
 SET ANSI_NULLS ON
 GO
@@ -614,7 +614,7 @@ GO
 		ALTER TABLE HHSurvey.person 	ADD work_geom 	GEOMETRY 	NULL;
 		GO
 						
-		UPDATE HHSurvey.Trip		SET dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
+		UPDATE HHSurvey.Trip	SET 	dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
 							  		  origin_geom   = geometry::STPointFromText('POINT(' + CAST(origin_lng 	 AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
 
 		UPDATE HHSurvey.household 	SET home_geom 	= geometry::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat 	AS VARCHAR(20)) + ')', 4326),
@@ -1444,6 +1444,7 @@ GO
 				t.modes				= lt.modes,							t.dest_zip		= lt.dest_zip,
 				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
 				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
+				t.dest_geom			= lt.dest_geom,
 			
 				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
