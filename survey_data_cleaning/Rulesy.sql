@@ -928,14 +928,14 @@ GO
 						OR HHSurvey.RgxFind(t.dest_name,'^h[om]?$',1) = 1) 
 						and HHSurvey.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
-					OR(t.dest_purpose = 1))
+					OR(t.d_purpose = 1))
 					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1;
 
 			UPDATE t --Classify home destinations where destination code is absent; 30m proximity to home location on file
-				SET t.dest_is_home = 1, t.dest_purpose = 1
+				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
-				WHERE (t.dest_purpose = -9998 OR t.dest_purpose = prior_t.dest_purpose) AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.0003)) = 1
+				WHERE (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.0003)) = 1
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
@@ -944,7 +944,7 @@ GO
 					(t.dest_name = 'WORK' 
 					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
 						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
-					OR(t.dest_purpose = 10 AND t.dest_name IS NULL))
+					OR(t.d_purpose = 10 AND t.dest_name IS NULL))
 					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.001))=1;
 
 			UPDATE t --Classify work destinations where destination code is absent; 30m proximity to work location on file
@@ -1240,24 +1240,24 @@ GO
 				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5, ti_wndw.transit_line_6)
 		*/
 		UPDATE HHSurvey.trip
-				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_acc) 		  THEN trip.mode_acc 		ELSE NULL END AS nvarchar), '') +
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_1)		 	  THEN trip.mode_1 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_2)			  THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_3) 		  THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_4) 		  THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_1 			ELSE NULL END AS nvarchar), ''), 1, 1, ''),
-		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_1) THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_2) THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_3) THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_4) THEN trip.transit_system_4 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_5) THEN trip.transit_system_5 ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_system_6) THEN trip.transit_system_6 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
-			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_1)	  THEN trip.transit_line_1  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_2)   THEN trip.transit_line_2  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_3)   THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_4)   THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_5)   THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM null_flags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '')							
+				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_acc) 		  THEN trip.mode_acc 		ELSE NULL END AS nvarchar), '') +
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_1)		 	  THEN trip.mode_1 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_2)			  THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_3) 		  THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_4) 		  THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_1 			ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_1) THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_2) THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_3) THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_4) THEN trip.transit_system_4 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_5) THEN trip.transit_system_5 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_6) THEN trip.transit_system_6 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_1)	  THEN trip.transit_line_1  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_2)   THEN trip.transit_line_2  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_3)   THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_4)   THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_5)   THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '')							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
@@ -1269,8 +1269,6 @@ GO
 		SELECT TOP 0 HHSurvey.trip.*, CAST(0 AS int) AS trip_link 
 			FROM HHSurvey.trip
 		GO
-
-
 
 		--select the trip ingredients that will be linked; this selects all but the first component 
 		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient
@@ -1374,7 +1372,7 @@ GO
 				MAX(ti_agg.travelers_hh) 			AS travelers_hh, 				MAX(ti_agg.hhmember5) 	AS hhmember5, 
 				MAX(ti_agg.travelers_nonhh) 		AS travelers_nonhh, 			MAX(ti_agg.hhmember6) 	AS hhmember6,
 				MAX(ti_agg.travelers_total) 		AS travelers_total,				MAX(ti_agg.hhmember7) 	AS hhmember7, 
-				--MAX(ti_agg.hhmember_none) 			AS hhmember_none, 				MAX(ti_agg.hhmember8) 	AS hhmember8, 
+																					MAX(ti_agg.hhmember8) 	AS hhmember8, 
 				MAX(ti_agg.pool_start)				AS pool_start, 					MAX(ti_agg.hhmember9) 	AS hhmember9, 
 				MAX(ti_agg.change_vehicles)			AS change_vehicles, 			MAX(ti_agg.park) 		AS park, 
 				MAX(ti_agg.park_ride_area_start)	AS park_ride_area_start, 		MAX(ti_agg.toll)		AS toll, 
@@ -1390,7 +1388,8 @@ GO
 					(ti_agg.air_pay)				AS air_pay, 
 					(ti_agg.park_pay)				AS park_pay,
 					(ti_agg.toll_pay)				AS toll_pay, 
-					(ti_agg.taxi_pay)				AS taxi_pay 					
+					(ti_agg.taxi_pay)				AS taxi_pay,
+				--MAX(ti_agg.hhmember_none) 			AS hhmember_none  					
 				CASE WHEN (ti_agg.driver) ...							AS driver,*/
 			FROM #trip_ingredient as ti_agg WHERE ti_agg.trip_link > 0 GROUP BY ti_agg.personid, ti_agg.trip_link),
 		cte_wndw AS	
@@ -1445,31 +1444,25 @@ GO
 				t.modes				= lt.modes,							t.dest_zip		= lt.dest_zip,
 				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
 				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
-				
-				t.depart_time_hhmm  = FORMAT(lt.depart_time_timestamp,N'hh\:mm tt','en-US'),
+			
 				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
-				t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,lt.depart_time_timestamp),
-																		  DATEPART(month,lt.depart_time_timestamp),
-																		  DATEPART(day,lt.depart_time_timestamp),0,0,0,0,0),
-												lt.depart_time_timestamp),
 				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
 																		  DATEPART(month,lt.arrival_time_timestamp), 
 																		  DATEPART(day,lt.arrival_time_timestamp),0,0,0,0,0),
 												lt.arrival_time_timestamp),
-				t.speed_mph			= CASE WHEN (lt.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric) > 0)) 
-									   THEN  lt.trip_path_distance / (CAST(DATEDIFF_BIG (second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/3600) 
+				t.speed_mph			= CASE WHEN (lt.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric) > 0)) 
+									   THEN  lt.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
-				t.reported_duration	= CAST(DATEDIFF(second, lt.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/60,					   	
-				t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, lt.depart_time_timestamp)),
+				t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, lt.arrival_time_timestamp) AS numeric)/60,					   	
 
 				t.arrival_time_timestamp = lt.arrival_time_timestamp,	t.hhmember1 	= lt.hhmember1, 
 				t.trip_path_distance 	= lt.trip_path_distance, 		t.hhmember2 	= lt.hhmember2, 
 				t.google_duration 		= lt.google_duration, 			t.hhmember3 	= lt.hhmember3, 
-				t.reported_duration 	= lt.reported_duration,			t.hhmember4 	= lt.hhmember4, 
+																		t.hhmember4 	= lt.hhmember4, 
 				t.travelers_hh 			= lt.travelers_hh, 				t.hhmember5 	= lt.hhmember5, 
 				t.travelers_nonhh 		= lt.travelers_nonhh, 			t.hhmember6 	= lt.hhmember6,
 				t.travelers_total 		= lt.travelers_total,			t.hhmember7 	= lt.hhmember7, 
-				--t.hhmember_none 		= lt.hhmember_none, 			t.hhmember8 	= lt.hhmember8, 
+																		t.hhmember8 	= lt.hhmember8, 
 				t.pool_start			= lt.pool_start, 				t.hhmember9 	= lt.hhmember9, 
 				t.change_vehicles		= lt.change_vehicles, 			t.park 			= lt.park, 
 				t.park_ride_area_start	= lt.park_ride_area_start, 		t.toll			= lt.toll, 
@@ -1477,7 +1470,8 @@ GO
 				t.park_ride_lot_start	= lt.park_ride_lot_start, 		t.taxi_type		= lt.taxi_type, 
 				t.park_ride_lot_end		= lt.park_ride_lot_end, 		t.bus_type		= lt.bus_type, 	
 																		t.ferry_type	= lt.ferry_type, 
-																		t.air_type		= lt.air_type,	
+																		t.air_type		= lt.air_type,
+				--t.hhmember_none 		= lt.hhmember_none, 	
 				t.revision_code 		= CONCAT(t.revision_code, '8,')
 			FROM HHSurvey.trip AS t JOIN #linked_trips AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
 
@@ -1905,8 +1899,8 @@ EXECUTE HHSurvey.generate_error_flags;
 		SELECT t.*, 1 AS trip_link INTO #trip_ingredient
 			FROM HHSurvey.trip AS t
 			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid)
-
-		EXECUTE HHSurvey.link_trips;
+		END
+		GO
 
 	--RECALCULATION
 
@@ -1928,7 +1922,6 @@ EXECUTE HHSurvey.generate_error_flags;
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp))
 			FROM HHSurvey.trip AS t
 			WHERE t.personid = @personid;	
-		
 		END
 		GO	
 
