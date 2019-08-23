@@ -862,13 +862,13 @@ GO
 			join HHSurvey.trip as t ON t.tripid = membercounts.tripid
 		where t.travelers_hh <> membercounts.membercount 
 			or t.travelers_hh is null
-			or t.travelers_hh in (select flag_value from HHSurvey.NullFlags)
+			or t.travelers_hh in (select flag_value from HHSurvey.NullFlags);
 		
 		UPDATE t
 			SET t.travelers_total = t.travelers_hh
 			FROM HHSurvey.trip AS t
 			WHERE t.travelers_total < t.travelers_hh	
-				or t.travelers_total in (select flag_value from HHSurvey.NullFlags)
+				or t.travelers_total in (select flag_value from HHSurvey.NullFlags);
 
 	-- Tripnum must be sequential or later steps will fail. Create procedure and employ where required.
 		DROP PROCEDURE IF EXISTS HHSurvey.tripnum_update;
@@ -896,7 +896,7 @@ GO
 		UPDATE t SET t.dest_zip = zipwgs.zipcode  
 			FROM HHSurvey.trip AS t 
 				join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
-			WHERE t.dest_zip IS NULL
+			WHERE t.dest_zip IS NULL;
 
 	/*	UPDATE trip --fill missing city --NOT YET AVAILABLE
 			SET trip.dest_city = [ENTER CITY GEOGRAPHY HERE].City
@@ -907,13 +907,13 @@ GO
 			SET t.dest_county = zipwgs.county
 			FROM HHSurvey.trip AS t 
 				JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
-			WHERE t.dest_county IS NULL
+			WHERE t.dest_county IS NULL;
 
 	-- -- [Create geographic check where assigned zip/county doesn't match the x,y.]		
 
 /* STEP 3.  Corrections to purpose, etc fields -- utilized in subsequent steps */
 	
-		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates
+		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates;
 		GO
 		CREATE PROCEDURE HHSurvey.d_purpose_updates AS 
 		BEGIN
@@ -1257,7 +1257,7 @@ GO
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_3)   THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_4)   THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_5)   THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '')							
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '');							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
@@ -1271,6 +1271,8 @@ GO
 		GO
 
 		--select the trip ingredients that will be linked; this selects all but the first component 
+		DROP TABLE IF EXISTS #trip_ingredient;
+		GO
 		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient
 		FROM HHSurvey.trip as trip 
 			JOIN HHSurvey.fnVariableLookup('d_purpose') as tvl ON trip.d_purpose = tvl.code
@@ -1333,17 +1335,17 @@ GO
 				FROM #trip_ingredient as ti_wndw2),
 		cte2 AS 
 			(SELECT ti3.personid, ti3.trip_link 			--sets with more than 4 trip components
-				FROM #trip_ingredient as ti3 GROUP BY ti3.personid, ti3.trip_link 
+				FROM #trip_ingredient as ti3 GROUP BY ti3.personid, ti3.trip_link
 				HAVING count(*) > 4
 			UNION ALL SELECT ti4.personid, ti4.trip_link	--sets with two items that each denote a separate trip
 				FROM #trip_ingredient as ti4 GROUP BY ti4.personid, ti4.trip_link
-				HAVING sum(CASE WHEN LEN(ti4.pool_start) 			<>0 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN LEN(ti4.change_vehicles) 		<>0 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN LEN(ti4.park_ride_area_start) 	<>0 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN LEN(ti4.park_ride_area_end) 	<>0 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN LEN(ti4.park_ride_lot_start) 	<>0 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN LEN(ti4.park_ride_lot_end) 	<>0 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN LEN(ti4.park_type) 			<>0 THEN 1 ELSE 0 END) > 1
+				HAVING sum(CASE WHEN ti4.pool_start 			NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.change_vehicles 		NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_start 	NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_end 	NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_lot_start 	NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_lot_end 		NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_type 				NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
 			UNION ALL SELECT cte_a.personid, cte_a.trip_link 	--sets with nonadjacent repeating transit lines (i.e., return trip)
 				FROM cte_a
 				WHERE HHSurvey.RgxFind(cte_a.transit_lines,'(\b\d+\b),.+(?=\1)',1)=1	
@@ -1357,32 +1359,45 @@ GO
 		-- delete the components that will get replaced with linked trips
 		DELETE t
 		FROM HHSurvey.trip AS t JOIN #trip_ingredient AS ti ON t.recid=ti.recid
-		WHERE ti.trip_link <> -1 AND t.tripnum <> ti.trip_link;	
+		WHERE ti.trip_link > 0 AND t.tripnum <> ti.trip_link;	
 
 		-- meld the trip ingredients to create the fields that will populate the linked trip, and saves those as a separate table, 'linked_trip'.
 
 		WITH cte_agg AS
 		(SELECT ti_agg.personid,
 				ti_agg.trip_link,
-				MAX(CASE WHEN ti_agg.d_purpose = 60 THEN 0 ELSE ti_agg.d_purpose END) AS d_purpose,
-				MAX(ti_agg.arrival_time_timestamp) 	AS arrival_time_timestamp,		MAX(ti_agg.hhmember1) 	AS hhmember1, 
-				SUM(ti_agg.trip_path_distance) 		AS trip_path_distance, 			MAX(ti_agg.hhmember2) 	AS hhmember2, 
-				SUM(ti_agg.google_duration) 		AS google_duration, 			MAX(ti_agg.hhmember3) 	AS hhmember3, 
-				SUM(ti_agg.reported_duration) 		AS reported_duration,			MAX(ti_agg.hhmember4) 	AS hhmember4, 
-				MAX(ti_agg.travelers_hh) 			AS travelers_hh, 				MAX(ti_agg.hhmember5) 	AS hhmember5, 
-				MAX(ti_agg.travelers_nonhh) 		AS travelers_nonhh, 			MAX(ti_agg.hhmember6) 	AS hhmember6,
-				MAX(ti_agg.travelers_total) 		AS travelers_total,				MAX(ti_agg.hhmember7) 	AS hhmember7, 
-																					MAX(ti_agg.hhmember8) 	AS hhmember8, 
-				MAX(ti_agg.pool_start)				AS pool_start, 					MAX(ti_agg.hhmember9) 	AS hhmember9, 
-				MAX(ti_agg.change_vehicles)			AS change_vehicles, 			MAX(ti_agg.park) 		AS park, 
-				MAX(ti_agg.park_ride_area_start)	AS park_ride_area_start, 		MAX(ti_agg.toll)		AS toll, 
-				MAX(ti_agg.park_ride_area_end)		AS park_ride_area_end, 			MAX(ti_agg.park_type)	AS park_type, 
-				MAX(ti_agg.park_ride_lot_start)		AS park_ride_lot_start, 		MAX(ti_agg.taxi_type)	AS taxi_type, 
-				MAX(ti_agg.park_ride_lot_end)		AS park_ride_lot_end, 			MAX(ti_agg.bus_type)	AS bus_type, 	
-				MAX(ti_agg.bus_cost_dk)				AS bus_cost_dk, 				MAX(ti_agg.ferry_type)	AS ferry_type, 
-				MAX(ti_agg.ferry_cost_dk)			AS ferry_cost_dk,				
-				MAX(ti_agg.air_type)	AS air_type,	
-				MAX(ti_agg.airfare_cost_dk)			AS airfare_cost_dk
+				MAX(ti_agg.arrival_time_timestamp) AS arrival_time_timestamp,	
+				MAX(CASE WHEN ti_agg.d_purpose 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.d_purpose 			 END) AS d_purpose,
+				SUM(CASE WHEN ti_agg.google_duration 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.google_duration 		 END) AS google_duration, 
+				SUM(CASE WHEN ti_agg.trip_path_distance 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.trip_path_distance 	 END) AS trip_path_distance, 	
+				MAX(CASE WHEN ti_agg.hhmember1 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember1 			 END) AS hhmember1, 		
+				MAX(CASE WHEN ti_agg.hhmember2 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember2 			 END) AS hhmember2,
+				MAX(CASE WHEN ti_agg.hhmember3 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember3 			 END) AS hhmember3, 
+				MAX(CASE WHEN ti_agg.hhmember4 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember4 			 END) AS hhmember4, 
+				MAX(CASE WHEN ti_agg.hhmember5 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember5 			 END) AS hhmember5, 
+				MAX(CASE WHEN ti_agg.hhmember6 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember6 			 END) AS hhmember6,
+				MAX(CASE WHEN ti_agg.hhmember7 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember7 			 END) AS hhmember7, 
+				MAX(CASE WHEN ti_agg.hhmember8 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember8 			 END) AS hhmember8, 
+				MAX(CASE WHEN ti_agg.hhmember9 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember9 			 END) AS hhmember9, 
+				MAX(CASE WHEN ti_agg.travelers_hh 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.travelers_hh 			 END) AS travelers_hh, 				
+				MAX(CASE WHEN ti_agg.travelers_nonhh 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.travelers_nonhh 		 END) AS travelers_nonhh,				
+				MAX(CASE WHEN ti_agg.travelers_total 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.travelers_total 		 END) AS travelers_total,				
+				MAX(CASE WHEN ti_agg.pool_start 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.pool_start 			 END) AS pool_start,					
+				MAX(CASE WHEN ti_agg.change_vehicles 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.change_vehicles 		 END) AS change_vehicles,	
+				MAX(CASE WHEN ti_agg.toll 					IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.toll 					 END) AS toll, 							
+				MAX(CASE WHEN ti_agg.park 					IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park 					 END) AS park,
+				MAX(CASE WHEN ti_agg.park_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_type  			 END) AS park_type,
+				MAX(CASE WHEN ti_agg.taxi_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.taxi_type 			 END) AS taxi_type, 				
+				MAX(CASE WHEN ti_agg.bus_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.bus_type 				 END) AS bus_type, 
+				MAX(CASE WHEN ti_agg.ferry_type 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.ferry_type 			 END) AS ferry_type,
+				MAX(CASE WHEN ti_agg.park_ride_area_start 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_area_start 	 END) AS park_ride_area_start, 		
+				MAX(CASE WHEN ti_agg.park_ride_area_end 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_area_end 	 END) AS park_ride_area_end, 			
+				MAX(CASE WHEN ti_agg.park_ride_lot_start 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_lot_start 	 END) AS park_ride_lot_start, 		
+				MAX(CASE WHEN ti_agg.park_ride_lot_end 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_lot_end 	 END) AS park_ride_lot_end, 			
+				MAX(CASE WHEN ti_agg.bus_cost_dk 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.bus_cost_dk 			 END) AS bus_cost_dk, 				
+ 				MAX(CASE WHEN ti_agg.ferry_cost_dk 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.ferry_cost_dk 		 END) AS ferry_cost_dk,				
+				MAX(CASE WHEN ti_agg.air_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.air_type 				 END) AS air_type,	
+				MAX(CASE WHEN ti_agg.airfare_cost_dk 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.airfare_cost_dk 		 END) AS airfare_cost_dk
 			/*		(ti_agg.bus_pay)				AS bus_pay, 
 					(ti_agg.ferry_pay)				AS ferry_pay, 
 					(ti_agg.air_pay)				AS air_pay, 
@@ -1393,7 +1408,7 @@ GO
 				CASE WHEN (ti_agg.driver) ...							AS driver,*/
 			FROM #trip_ingredient as ti_agg WHERE ti_agg.trip_link > 0 GROUP BY ti_agg.personid, ti_agg.trip_link),
 		cte_wndw AS	
-		(SELECT DISTINCT
+		(SELECT 
 				ti_wndw.personid AS personid2,
 				ti_wndw.trip_link AS trip_link2,
 				FIRST_VALUE(ti_wndw.dest_name) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_name,
@@ -1444,7 +1459,7 @@ GO
 				t.modes				= lt.modes,							t.dest_zip		= lt.dest_zip,
 				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
 				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
-				t.dest_geom			= lt.dest_geom,
+				t.dest_geom			= geometry::STPointFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326),
 			
 				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
