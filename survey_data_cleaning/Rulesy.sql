@@ -1639,11 +1639,10 @@ GO
 	FROM HHSurvey.silent_passenger_trip AS spt -- insert only when the CTE trip doesn't overlap any trip by the same person; doesn't matter if an intersecting trip reports the other hhmembers or not.
         JOIN HHSurvey.trip as t ON spt.recid = t.recid
 		LEFT JOIN HHSurvey.trip as compare_t ON spt.passengerid = compare_t.personid
-		WHERE (compare_t.personid IS NULL or compare_t.personid in (select flag_value from HHSurvey.NullFlags)) 
+		WHERE spt.passengerid <> compare_t.personid
 			AND spt.respondent = @respondent
-			AND NOT EXISTS(SELECT 1 WHERE (t.depart_time_timestamp BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp)
-				AND (t.arrival_time_timestamp NOT BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp)
-			);
+			AND (t.depart_time_timestamp NOT BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp)
+				AND (t.arrival_time_timestamp NOT BETWEEN compare_t.depart_time_timestamp AND compare_t.arrival_time_timestamp);
 	SET @respondent = @respondent + 1	
 	END
 	GO
@@ -1934,7 +1933,7 @@ EXECUTE HHSurvey.generate_error_flags;
 			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
 									   THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
-			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,					   	
+			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,				   	
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp))
 			FROM HHSurvey.trip AS t
 			WHERE t.personid = @personid;	
