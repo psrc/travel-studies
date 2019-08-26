@@ -594,8 +594,8 @@ GO
 
 
 		ALTER TABLE HHSurvey.Trip --additional destination address fields
-			ADD origin_geom 	GEOMETRY NULL,
-				dest_geom 		GEOMETRY NULL,
+			ADD origin_geog 	GEOGRAPHY NULL,
+				dest_geog 		GEOGRAPHY NULL,
 				dest_county		varchar(3) NULL,
 				dest_city		varchar(25) NULL,
 				dest_zip		varchar(5) NULL,
@@ -607,20 +607,20 @@ GO
 				psrc_inserted 	bit NULL,
 				revision_code 	nvarchar(255) NULL;
 
-		ALTER TABLE HHSurvey.household 	ADD home_geom 	GEOMETRY 	NULL,
+		ALTER TABLE HHSurvey.household 	ADD home_geog 	GEOGRAPHY 	NULL,
 											home_lat 	FLOAT 		NULL,
 											home_lng	FLOAT 		NULL,
-											sample_geom GEOMETRY 	NULL;
-		ALTER TABLE HHSurvey.person 	ADD work_geom 	GEOMETRY 	NULL;
+											sample_geog GEOGRAPHY 	NULL;
+		ALTER TABLE HHSurvey.person 	ADD work_geog 	GEOGRAPHY	NULL;
 		GO
 						
-		UPDATE HHSurvey.Trip	SET 	dest_geom 	= geometry::STPointFromText('POINT(' + CAST(dest_lng 	 AS VARCHAR(20)) + ' ' + CAST(dest_lat 	 	AS VARCHAR(20)) + ')', 4326),
-							  		  origin_geom   = geometry::STPointFromText('POINT(' + CAST(origin_lng 	 AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.Trip	SET 	dest_geog 	= geography::STPointFromText('POINT(' + CAST(dest_lng 	  AS VARCHAR(20)) + ' ' + CAST(dest_lat 	AS VARCHAR(20)) + ')', 4326),
+							  		  origin_geog   = geography::STPointFromText('POINT(' + CAST(origin_lng   AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
 
-		UPDATE HHSurvey.household 	SET home_geom 	= geometry::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat 	AS VARCHAR(20)) + ')', 4326),
-										sample_geom = geometry::STPointFromText('POINT(' + CAST(sample_lng AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.household 	SET home_geog 	= geography::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat AS VARCHAR(20)) + ')', 4326),
+									  sample_geog   = geography::STPointFromText('POINT(' + CAST(sample_lng   AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
 
-		UPDATE HHSurvey.person 		SET work_geom	= geometry::STPointFromText('POINT(' + CAST(work_lng 	 AS VARCHAR(20)) + ' ' + CAST(work_lat 	 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.person 		SET work_geog	= geography::STPointFromText('POINT(' + CAST(work_lng 	  AS VARCHAR(20)) + ' ' + CAST(work_lat 	AS VARCHAR(20)) + ')', 4326);
 
 		--ALTER TABLE HHSurvey.trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
 		CREATE INDEX person_idx ON HHSurvey.trip (personid ASC);
@@ -629,36 +629,36 @@ GO
 		CREATE INDEX travelers_total_idx ON HHSurvey.trip(travelers_total);
 		GO 
 
-		CREATE SPATIAL INDEX dest_geom_idx ON HHSurvey.trip(dest_geom)
+		CREATE SPATIAL INDEX dest_geog_idx ON HHSurvey.trip(dest_geog)
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
 
-		CREATE SPATIAL INDEX origin_geom_idx ON HHSurvey.trip(origin_geom)
+		CREATE SPATIAL INDEX origin_geog_idx ON HHSurvey.trip(origin_geog)
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
 
-		CREATE SPATIAL INDEX home_geom_idx ON HHSurvey.household(home_geom)
+		CREATE SPATIAL INDEX home_geog_idx ON HHSurvey.household(home_geog)
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
 
-		CREATE SPATIAL INDEX sample_geom_idx ON HHSurvey.household(sample_geom)
+		CREATE SPATIAL INDEX sample_geog_idx ON HHSurvey.household(sample_geog)
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
 
-		CREATE SPATIAL INDEX work_geom_idx ON HHSurvey.person(work_geom)
+		CREATE SPATIAL INDEX work_geog_idx ON HHSurvey.person(work_geog)
 			USING GEOMETRY_AUTO_GRID
 			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));		
 
 	/* Determine legitimate home location: */ 
 	
 		UPDATE h	-- Default is reported home location; invalidate when not within 500m of any home-purpose trip
-			SET h.home_geom = NULL
+			SET h.home_geog = NULL
 			FROM HHSurvey.Household AS h
 			WHERE NOT EXISTS 
 				(SELECT 1 FROM HHSurvey.Trip AS t
 				 WHERE t.hhid = h.hhid 
 				   AND t.d_purpose = 1 
-				   AND (t.dest_geom.STDistance(h.home_geom) < .0045)
+				   AND (t.dest_geog.STDistance(h.home_geog) < 300)
 				)
 				AND EXISTS
 				(SELECT 1 FROM HHSurvey.Trip AS tt
@@ -666,32 +666,32 @@ GO
 				   AND tt.d_purpose = 1);	
 
 		UPDATE h	-- When Reported home location is invalidated, fill with sample home location when within 500m of any home-purpose trip
-			SET h.home_geom = h.sample_geom
+			SET h.home_geog = h.sample_geog
 			FROM HHSurvey.Household AS h 
-			WHERE h.home_geom IS NULL 
+			WHERE h.home_geog IS NULL 
 				AND EXISTS 
 				(SELECT 1 FROM HHSurvey.Trip AS t
 				  WHERE t.hhid = h.hhid 
 					AND t.d_purpose = 1 
-					AND (t.dest_geom.STDistance(h.sample_geom) < .0045));				
+					AND (t.dest_geog.STDistance(h.sample_geog) < 300));				
 
 		WITH cte AS 		-- When neither Reported or Sampled home location is valid, take the most central home-purpose trip destination
 		(SELECT t1.hhid, 	-- i.e. the home-purpose destination w/ shortest cumulative distance to all other household home-purpose destinations.
 				t1.recid, 
-				ROW_NUMBER() OVER (PARTITION BY t1.hhid ORDER BY sum(t1.dest_geom.STDistance(t2.dest_geom)) ASC) AS ranker
+				ROW_NUMBER() OVER (PARTITION BY t1.hhid ORDER BY sum(t1.dest_geog.STDistance(t2.dest_geog)) ASC) AS ranker
 		 FROM HHSurvey.Trip AS t1 JOIN HHSurvey.Trip AS t2 ON t1.hhid = t2.hhid AND t1.d_purpose = 1 AND t2.d_purpose = 1 
-		 WHERE  EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t1.hhid AND h.home_geom IS NULL)
-		 	AND EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t2.hhid AND h.home_geom IS NULL)
+		 WHERE  EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t1.hhid AND h.home_geog IS NULL)
+		 	AND EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t2.hhid AND h.home_geog IS NULL)
 		 GROUP BY t1.hhid, t1.recid
 		)
 		UPDATE h
-			SET h.home_geom = t.dest_geom
+			SET h.home_geog = t.dest_geog
 			FROM HHSurvey.Household AS h JOIN cte ON h.hhid = cte.hhid JOIN HHSurvey.Trip AS t ON t.recid = cte.recid
-			WHERE cte.ranker = 1 AND h.home_geom IS NULL;
+			WHERE cte.ranker = 1 AND h.home_geog IS NULL;
 
 		UPDATE 	h	-- Gives back latitude and longitude of the determined home location point
-			SET h.home_lat = h.home_geom.STY,
-				h.home_lng = h.home_geom.STX 
+			SET h.home_lat = h.home_geog.STY,
+				h.home_lng = h.home_geog.STX 
 			FROM HHSurvey.Household AS h;
 
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
@@ -783,7 +783,7 @@ GO
 				where TABLE_NAME = @TableName 
 					and ORDINAL_POSITION > @field 
 					and TABLE_SCHEMA = @SchemaName
-					and data_type <> 'geometry'
+					and data_type <> 'geogetry'
 
 		        select @bit = (@field - 1 )% 8 + 1
 
@@ -895,18 +895,18 @@ GO
 	--fill missing zipcode
 		UPDATE t SET t.dest_zip = zipwgs.zipcode  
 			FROM HHSurvey.trip AS t 
-				join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
+				join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geog.STIntersects(zipwgs.geog)=1
 			WHERE t.dest_zip IS NULL;
 
 	/*	UPDATE trip --fill missing city --NOT YET AVAILABLE
 			SET trip.dest_city = [ENTER CITY GEOGRAPHY HERE].City
-			FROM trip join [ENTER CITY GEOGRAPHY HERE] ON trip.dest_geom.STIntersects([ENTER CITY GEOGRAPHY HERE].geom)=1
+			FROM trip join [ENTER CITY GEOGRAPHY HERE] ON trip.dest_geog.STIntersects([ENTER CITY GEOGRAPHY HERE].geog)=1
 			WHERE trip.dest_city IS NULL;
 	*/
 		UPDATE t --fill missing county
 			SET t.dest_county = zipwgs.county
 			FROM HHSurvey.trip AS t 
-				JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geom.STIntersects(zipwgs.geom)=1
+				JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geog.STIntersects(zipwgs.geog)=1
 			WHERE t.dest_county IS NULL;
 
 	-- -- [Create geographic check where assigned zip/county doesn't match the x,y.]		
@@ -929,13 +929,13 @@ GO
 						and HHSurvey.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
 					OR(t.d_purpose = 1))
-					AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.001)) = 1;
+					AND t.dest_geog.STIntersects(h.home_geog.STBuffer(100)) = 1;
 
 			UPDATE t --Classify home destinations where destination code is absent; 30m proximity to home location on file
 				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
-				WHERE (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geom.STIntersects(h.home_geom.STBuffer(0.0003)) = 1
+				WHERE (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(30)) = 1
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
@@ -945,7 +945,7 @@ GO
 					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
 						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
 					OR(t.d_purpose = 10 AND t.dest_name IS NULL))
-					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.001))=1;
+					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(100))=1;
 
 			UPDATE t --Classify work destinations where destination code is absent; 30m proximity to work location on file
 				SET t.dest_is_work = 1, t.d_purpose = 10
@@ -953,7 +953,7 @@ GO
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
-					AND t.dest_geom.STIntersects(p.work_geom.STBuffer(0.0003))=1		
+					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(30))=1		
 					
 			UPDATE t --revises purpose field for return portion of a single stop loop trip 
 				SET t.d_purpose = (CASE WHEN t.dest_is_home = 1 THEN 1 WHEN t.dest_is_work = 1 THEN 10 ELSE t.d_purpose END), t.revision_code = CONCAT(t.revision_code,'1,')
@@ -1459,7 +1459,7 @@ GO
 				t.modes				= lt.modes,							t.dest_zip		= lt.dest_zip,
 				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
 				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
-				t.dest_geom			= geometry::STPointFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326),
+				t.dest_geog			= geogetry::STPointFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326),
 			
 				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
@@ -1625,7 +1625,7 @@ GO
 		mode_acc, mode_egr, mode_1, mode_2, mode_3, mode_4, change_vehicles, transit_system_1, transit_system_2, transit_system_3,
 		park_ride_area_start, park_ride_area_end, park_ride_lot_start, park_ride_lot_end, park, park_type, park_pay,
 		toll, toll_pay, taxi_type, taxi_pay, bus_type, bus_pay, bus_cost_dk, ferry_type, ferry_pay, ferry_cost_dk, air_type, air_pay, airfare_cost_dk,
-		origin_geom, origin_lat, origin_lng, dest_geom, dest_county, dest_city, dest_zip, dest_is_home, dest_is_work, psrc_inserted, revision_code)
+		origin_geog, origin_lat, origin_lng, dest_geog, dest_county, dest_city, dest_zip, dest_is_home, dest_is_work, psrc_inserted, revision_code)
 	SELECT -- select fields necessary for new trip records	
 		t.hhid, spt.passengerid AS personid, CAST(RIGHT(spt.passengerid,2) AS int) AS pernum, t.hhgroup,
 		t.depart_time_timestamp, t.arrival_time_timestamp,
@@ -1635,7 +1635,7 @@ GO
 		t.mode_acc, t.mode_egr, t.mode_1, t.mode_2, t.mode_3, t.mode_4, t.change_vehicles, t.transit_system_1, t.transit_system_2, t.transit_system_3,
 		t.park_ride_area_start, t.park_ride_area_end, t.park_ride_lot_start, t.park_ride_lot_end, t.park, t.park_type, t.park_pay,
 		t.toll, t.toll_pay, t.taxi_type, t.taxi_pay, t.bus_type, t.bus_pay, t.bus_cost_dk, t.ferry_type, t.ferry_pay, t.ferry_cost_dk, t.air_type, t.air_pay, t.airfare_cost_dk,
-		t.origin_geom, t.origin_lat, t.origin_lng, t.dest_geom, t.dest_county, t.dest_city, t.dest_zip, t.dest_is_home, t.dest_is_work, 1 AS psrc_inserted, CONCAT(t.revision_code, '9,') AS revision_code
+		t.origin_geog, t.origin_lat, t.origin_lng, t.dest_geog, t.dest_county, t.dest_city, t.dest_zip, t.dest_is_home, t.dest_is_work, 1 AS psrc_inserted, CONCAT(t.revision_code, '9,') AS revision_code
 	FROM HHSurvey.silent_passenger_trip AS spt -- insert only when the CTE trip doesn't overlap any trip by the same person; doesn't matter if an intersecting trip reports the other hhmembers or not.
         JOIN HHSurvey.trip as t ON spt.recid = t.recid
 		LEFT JOIN HHSurvey.trip as compare_t ON spt.passengerid = compare_t.personid
@@ -1686,15 +1686,15 @@ GO
 
 /*	-- holding off on this until greenlighted completely.  Speed etc will also need to be recalculated.
 	UPDATE t 
-		SET t.dest_geom = h.final_geom, t.dest_lat = p.work_lat, t.dest_lng = p.work_lng, t.revision_code = CONCAT(t.revision_code, '12,')
+		SET t.dest_geog = h.final_geog, t.dest_lat = p.work_lat, t.dest_lng = p.work_lng, t.revision_code = CONCAT(t.revision_code, '12,')
 		FROM HHSurvey.Trip AS t JOIN HHSurvey.Person AS p ON t.personid = p.personid
-		WHERE t.dest_is_work = 1 AND t.dest_geom <> p.work_geom;
+		WHERE t.dest_is_work = 1 AND t.dest_geog <> p.work_geog;
 
   	--we currently don't have a way to specify which of the two provided home locations is more legitimate
 	UPDATE t 
-		SET t.dest_geom = p.work_geom, t.dest_lat = p.work_lat, t.dest_lng = p.work_lng, t.revision_code = CONCAT(t.revision_code, '12,')
+		SET t.dest_geog = p.work_geog, t.dest_lat = p.work_lat, t.dest_lng = p.work_lng, t.revision_code = CONCAT(t.revision_code, '12,')
 		FROM HHSurvey.Trip AS t JOIN HHSurvey.Person AS p ON t.personid = p.personid
-		WHERE t.dest_is_work = 1 AND t.dest_geom <> p.work_geom;
+		WHERE t.dest_is_work = 1 AND t.dest_geog <> p.work_geog;
 */
 
 	/* Remove duplicated home trips generated by the app */
@@ -1715,7 +1715,7 @@ GO
 			FROM HHSurvey.trip AS t 
 			JOIN 		HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum AND t.daynum = prior_t.daynum
 			LEFT JOIN 	HHSurvey.trip AS next_t  ON t.personid = next_t.personid  AND t.tripnum + 1 = next_t.tripnum  AND t.daynum = next_t.daynum
-			WHERE t.o_purpose = 1 AND t.d_purpose = 1 AND next_t.recid IS NULL AND ABS(t.dest_geom.STDistance(t.origin_geom)) < .0009 ) -- points within 100m of one another
+			WHERE t.o_purpose = 1 AND t.d_purpose = 1 AND next_t.recid IS NULL AND ABS(t.dest_geog.STDistance(t.origin_geog)) < 100 ) -- points within 100m of one another
 		DELETE FROM HHSurvey.trip OUTPUT deleted.* INTO HHSurvey.removed_trip
 			WHERE EXISTS (SELECT 1 FROM cte WHERE trip.recid = cte.recid);
 
@@ -1807,11 +1807,11 @@ GO
  
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE ABS(trip.dest_geom.STDistance(next_trip.origin_geom)) >.0045  --roughly 500m difference or more, using degrees
+				WHERE ABS(trip.dest_geog.STDistance(next_trip.origin_geog)) > 500  --500m difference or more
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	              	 'missing prior trip link' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE ABS(trip.dest_geom.STDistance(next_trip.origin_geom)) >.0045	--roughly 500m difference or more, using degrees
+				WHERE ABS(trip.dest_geog.STDistance(next_trip.origin_geog)) > 500	--500m difference or more
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1859,7 +1859,7 @@ GO
 		INSERT INTO HHSurvey.trip_error_flags (recid, personid, tripnum, error_flag)
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
 			FROM error_flag_compilation AS efc
-			WHERE NOT EXISTS (SELECT 1 FROM HHSurvey.trip AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved =1)
+			WHERE NOT EXISTS (SELECT 1 FROM HHSurvey.trip AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved = 1)
 			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
 	/* Flag households with predominantly problematic records */
