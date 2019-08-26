@@ -157,9 +157,9 @@ USE HouseholdTravelSurvey2019
 GO
 
 --create separate views for FixieUI major record divisions
-DROP VIEW IF EXISTS HHSurvey.person_rm_seattle, HHSurvey.person_rm_else, HHSurvey.person_rs, HHSurvey.person_elev, 
-GO
 
+	DROP VIEW IF EXISTS HHSurvey.person_rm_seattle
+	GO
 	CREATE VIEW HHSurvey.person_rm_seattle AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
@@ -167,9 +167,11 @@ GO
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.cityofseattle = 1
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND t.psrc_comment IS NOT NULL);
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND (t.psrc_comment IS NOT NULL OR t.psrc_resolved IS NOT NULL));
 	GO
 
+	DROP VIEW IF EXISTS HHSurvey.person_rm_else
+	GO
 	CREATE VIEW HHSurvey.person_rm_else AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
@@ -177,9 +179,11 @@ GO
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=1 AND h.cityofseattle <> 1
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND t.psrc_comment IS NOT NULL);
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND (t.psrc_comment IS NOT NULL OR t.psrc_resolved IS NOT NULL));
 	GO
 
+	DROP VIEW IF EXISTS HHSurvey.person_rs
+	GO
 	CREATE VIEW HHSurvey.person_rs AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
@@ -187,9 +191,11 @@ GO
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid) AND p.hhgroup=2
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND t.psrc_comment IS NOT NULL);;
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND (t.psrc_comment IS NOT NULL OR t.psrc_resolved IS NOT NULL));
 	GO
 
+	DROP VIEW IF EXISTS HHSurvey.person_elev
+	GO
 	CREATE VIEW HHSurvey.person_elev AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
@@ -201,7 +207,7 @@ GO
 		AND Exists (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND t.psrc_comment IS NOT NULL);
 	GO
 
-	DROP VIEW IF EXISTS HHSurvey.person_by_error;
+/* 	DROP VIEW IF EXISTS HHSurvey.person_by_error;
 	GO
 	CREATE VIEW HHSurvey.person_by_error AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
@@ -212,6 +218,15 @@ GO
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('too slow','lone trip'))
 	    AND (Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geom.STIntersects(t.dest_geom)=1) 
    			 OR Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geom.STIntersects(t.origin_geom)=1));
-	GO
+	GO */
 
-	
+	DROP VIEW IF EXISTS HHSurvey.person_by_error;
+	GO
+	CREATE VIEW HHSurvey.person_by_error AS
+	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('too long at dest'));
+	GO	
