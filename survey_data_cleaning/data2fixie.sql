@@ -17,9 +17,9 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 		FORMAT(t1.arrival_time_timestamp,N'hh\:mm tt','en-US') AS arrive_dhm,
 		ROUND(t1.trip_path_distance,1) AS miles,
 		ROUND(t1.speed_mph,1) AS mph, 
-		ROUND(t1.dest_geog.STDistance(t1.origin_geog) / 1609.00, 1) AS linear_miles,
+		ROUND(t1.dest_geog.STDistance(t1.origin_geog) / 1609.344, 1) AS linear_miles,
 		CASE WHEN DATEDIFF(minute, t1.depart_time_timestamp, t1.arrival_time_timestamp) > 0 
-				THEN ROUND((t1.dest_geog.STDistance(t1.origin_geog) / 1609.00) / (CAST(DATEDIFF(second, t1.depart_time_timestamp, t1.arrival_time_timestamp) AS decimal) / 3600),1) 
+				THEN ROUND((t1.dest_geog.STDistance(t1.origin_geog) / 1609.344) / (CAST(DATEDIFF(second, t1.depart_time_timestamp, t1.arrival_time_timestamp) AS decimal) / 3600),1) 
 				ELSE -9999 END AS linear_mph,
 		STUFF(
 				(SELECT ',' + tef.error_flag
