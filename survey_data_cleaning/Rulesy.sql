@@ -94,11 +94,11 @@ GO
 			[arrival_time_hhmm] [nvarchar](20) NULL,
 			[arrival_time_timestamp] datetime2 NULL,
 			[origin_name] [nvarchar](255) NULL,
-			[origin_address] [nvarchar](255) NULL,
+		--	[origin_address] [nvarchar](255) NULL,
 			[origin_lat] [float] NULL,
 			[origin_lng] [float] NULL,
 			[dest_name] [nvarchar](255) NULL,
-			[dest_address] [nvarchar](255) NULL,
+		--	[dest_address] [nvarchar](255) NULL,
 			[dest_lat] [float] NULL,
 			[dest_lng] [float] NULL,
 			[trip_path_distance] [float] NULL,
@@ -434,32 +434,12 @@ GO
 
 	/* Determine legitimate home location: */ 
 	
-		UPDATE h	-- Default is reported home location; invalidate when not within 300m of any home-purpose trip
-			SET h.home_geog = NULL
-			FROM HHSurvey.Household AS h
-			WHERE NOT EXISTS 
-				(SELECT 1 FROM HHSurvey.Trip AS t
-				 WHERE t.hhid = h.hhid 
-				   AND t.d_purpose = 1 
-				   AND (t.dest_geog.STDistance(h.home_geog) < 300)
-				)
-				AND EXISTS
-				(SELECT 1 FROM HHSurvey.Trip AS tt
-				 WHERE tt.hhid = h.hhid 
-				   AND tt.d_purpose = 1);	
-
-		UPDATE h	-- When Reported home location is invalidated, fill with sample home location when within 500m of any home-purpose trip
-			SET h.home_geog = h.sample_geog
-			FROM HHSurvey.Household AS h 
-			WHERE h.home_geog IS NULL 
-				AND EXISTS 
-				(SELECT 1 FROM HHSurvey.Trip AS t
-				  WHERE t.hhid = h.hhid 
-					AND t.d_purpose = 1 
-					AND (t.dest_geog.STDistance(h.sample_geog) < 300));				
-
-		WITH cte AS 		-- When neither Reported or Sampled home location is valid, take the most central home-purpose trip destination
-		(SELECT t1.hhid, 	-- i.e. the home-purpose destination w/ shortest cumulative distance to all other household home-purpose destinations.
+		DROP TABLE IF EXISTS #central_home_tripend;
+		GO
+		
+		--determine central home-purpose trip end, i.e. the home-purpose destination w/ shortest cumulative distance to all other household home-purpose destinations.
+		WITH cte AS 		
+		(SELECT t1.hhid,
 				t1.recid, 
 				ROW_NUMBER() OVER (PARTITION BY t1.hhid ORDER BY sum(t1.dest_geog.STDistance(t2.dest_geog)) ASC) AS ranker
 		 FROM HHSurvey.Trip AS t1 JOIN HHSurvey.Trip AS t2 ON t1.hhid = t2.hhid AND t1.d_purpose = 1 AND t2.d_purpose = 1 
@@ -467,10 +447,25 @@ GO
 		 	AND EXISTS (SELECT 1 FROM HHSurvey.Household AS h WHERE h.hhid = t2.hhid AND h.home_geog IS NULL)
 		 GROUP BY t1.hhid, t1.recid
 		)
-		UPDATE h
+		SELECT cte.hhid, cte.recid INTO #central_home_tripend
+			FROM cte 			
+			WHERE cte.ranker = 1;
+		
+		UPDATE h					-- Default is reported home location; invalidate when not within 300m of most central home-purpose trip
+			SET h.home_geog = NULL
+			FROM HHSurvey.Household AS h JOIN #central_home_tripend AS te ON h.hhid = te.hhid JOIN HHSurvey.Trip AS t ON te.recid = t.recid
+			WHERE t.dest_geog.STDistance(h.home_geog) > 300;	
+
+		UPDATE h					-- When Reported home location is invalidated, fill with sample home location when within 300m of of most central home-purpose trip
+			SET h.home_geog = h.sample_geog
+			FROM HHSurvey.Household AS h JOIN #central_home_tripend AS te ON h.hhid = te.hhid JOIN HHSurvey.Trip AS t ON te.recid = t.recid
+			WHERE h.home_geog IS NULL 
+				AND t.dest_geog.STDistance(h.sample_geog) < 300;				
+
+		UPDATE h					-- When neither Reported or Sampled home location is valid, take the most central home-purpose trip destination
 			SET h.home_geog = t.dest_geog
-			FROM HHSurvey.Household AS h JOIN cte ON h.hhid = cte.hhid JOIN HHSurvey.Trip AS t ON t.recid = cte.recid
-			WHERE cte.ranker = 1 AND h.home_geog IS NULL;
+			FROM HHSurvey.Household AS h JOIN #central_home_tripend AS te ON h.hhid = te.hhid JOIN HHSurvey.Trip AS t ON t.recid = te.recid
+			WHERE h.home_geog IS NULL;
 
 		UPDATE 	h	-- Gives back latitude and longitude of the determined home location point
 			SET h.home_lat = h.home_geog.Lat,
@@ -1114,7 +1109,7 @@ GO
 				HAVING sum(CASE WHEN ti4.pool_start 		  = 1 									  THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN ti4.change_vehicles 	  = 1 									  THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN ti4.park_ride_area_start > 0 AND ti4.park_ride_area_start <> 995 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_area_end   > 0 AND ti4.park_ride_area_start <> 995 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_end   > 0 AND ti4.park_ride_area_end   <> 995 THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN ti4.park_ride_lot_start  > 0 AND ti4.park_ride_lot_start  <> 995 THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN ti4.park_ride_lot_end 	  > 0 AND ti4.park_ride_lot_end    <> 995 THEN 1 ELSE 0 END) > 1
 					OR sum(CASE WHEN ti4.park	 			  BETWEEN 1 AND 6 						  THEN 1 ELSE 0 END) > 1
@@ -1139,37 +1134,37 @@ GO
 		(SELECT ti_agg.personid,
 				ti_agg.trip_link,
 				MAX(ti_agg.arrival_time_timestamp) AS arrival_time_timestamp,	
-				MAX(CASE WHEN ti_agg.d_purpose 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.d_purpose 			 END) AS d_purpose,
-				SUM(CASE WHEN ti_agg.google_duration 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.google_duration 		 END) AS google_duration, 
-				SUM(CASE WHEN ti_agg.trip_path_distance 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.trip_path_distance 	 END) AS trip_path_distance, 	
-				MAX(CASE WHEN ti_agg.hhmember1 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember1 			 END) AS hhmember1, 		
-				MAX(CASE WHEN ti_agg.hhmember2 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember2 			 END) AS hhmember2,
-				MAX(CASE WHEN ti_agg.hhmember3 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember3 			 END) AS hhmember3, 
-				MAX(CASE WHEN ti_agg.hhmember4 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember4 			 END) AS hhmember4, 
-				MAX(CASE WHEN ti_agg.hhmember5 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember5 			 END) AS hhmember5, 
-				MAX(CASE WHEN ti_agg.hhmember6 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember6 			 END) AS hhmember6,
-				MAX(CASE WHEN ti_agg.hhmember7 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember7 			 END) AS hhmember7, 
-				MAX(CASE WHEN ti_agg.hhmember8 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember8 			 END) AS hhmember8, 
-				MAX(CASE WHEN ti_agg.hhmember9 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.hhmember9 			 END) AS hhmember9, 
-				MAX(CASE WHEN ti_agg.travelers_hh 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.travelers_hh 			 END) AS travelers_hh, 				
-				MAX(CASE WHEN ti_agg.travelers_nonhh 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.travelers_nonhh 		 END) AS travelers_nonhh,				
-				MAX(CASE WHEN ti_agg.travelers_total 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.travelers_total 		 END) AS travelers_total,				
-				MAX(CASE WHEN ti_agg.pool_start 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.pool_start 			 END) AS pool_start,					
-				MAX(CASE WHEN ti_agg.change_vehicles 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.change_vehicles 		 END) AS change_vehicles,	
-				MAX(CASE WHEN ti_agg.toll 					IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.toll 					 END) AS toll, 							
-				MAX(CASE WHEN ti_agg.park 					IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park 					 END) AS park,
-				MAX(CASE WHEN ti_agg.park_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_type  			 END) AS park_type,
-				MAX(CASE WHEN ti_agg.taxi_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.taxi_type 			 END) AS taxi_type, 				
-				MAX(CASE WHEN ti_agg.bus_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.bus_type 				 END) AS bus_type, 
-				MAX(CASE WHEN ti_agg.ferry_type 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.ferry_type 			 END) AS ferry_type,
-				MAX(CASE WHEN ti_agg.park_ride_area_start 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_area_start 	 END) AS park_ride_area_start, 		
-				MAX(CASE WHEN ti_agg.park_ride_area_end 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_area_end 	 END) AS park_ride_area_end, 			
-				MAX(CASE WHEN ti_agg.park_ride_lot_start 	IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_lot_start 	 END) AS park_ride_lot_start, 		
-				MAX(CASE WHEN ti_agg.park_ride_lot_end 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.park_ride_lot_end 	 END) AS park_ride_lot_end, 			
-				MAX(CASE WHEN ti_agg.bus_cost_dk 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.bus_cost_dk 			 END) AS bus_cost_dk, 				
- 				MAX(CASE WHEN ti_agg.ferry_cost_dk 			IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.ferry_cost_dk 		 END) AS ferry_cost_dk,				
-				MAX(CASE WHEN ti_agg.air_type 				IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.air_type 				 END) AS air_type,	
-				MAX(CASE WHEN ti_agg.airfare_cost_dk 		IN (-9999,-9998,995,0, 60) THEN 0 ELSE ti_agg.airfare_cost_dk 		 END) AS airfare_cost_dk
+				MAX(CASE WHEN ti_agg.d_purpose 				IN (-9999,-9998,995,0,60) THEN 0 ELSE ti_agg.d_purpose 			 END) AS d_purpose,
+				SUM(CASE WHEN ti_agg.google_duration 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.google_duration 		 END) AS google_duration, 
+				SUM(CASE WHEN ti_agg.trip_path_distance 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.trip_path_distance 	 END) AS trip_path_distance, 	
+				MAX(CASE WHEN ti_agg.hhmember1 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember1 			 END) AS hhmember1, 		
+				MAX(CASE WHEN ti_agg.hhmember2 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember2 			 END) AS hhmember2,
+				MAX(CASE WHEN ti_agg.hhmember3 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember3 			 END) AS hhmember3, 
+				MAX(CASE WHEN ti_agg.hhmember4 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember4 			 END) AS hhmember4, 
+				MAX(CASE WHEN ti_agg.hhmember5 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember5 			 END) AS hhmember5, 
+				MAX(CASE WHEN ti_agg.hhmember6 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember6 			 END) AS hhmember6,
+				MAX(CASE WHEN ti_agg.hhmember7 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember7 			 END) AS hhmember7, 
+				MAX(CASE WHEN ti_agg.hhmember8 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember8 			 END) AS hhmember8, 
+				MAX(CASE WHEN ti_agg.hhmember9 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember9 			 END) AS hhmember9, 
+				MAX(CASE WHEN ti_agg.travelers_hh 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.travelers_hh 			 END) AS travelers_hh, 				
+				MAX(CASE WHEN ti_agg.travelers_nonhh 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.travelers_nonhh 		 END) AS travelers_nonhh,				
+				MAX(CASE WHEN ti_agg.travelers_total 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.travelers_total 		 END) AS travelers_total,				
+				MAX(CASE WHEN ti_agg.pool_start 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.pool_start 			 END) AS pool_start,					
+				MAX(CASE WHEN ti_agg.change_vehicles 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.change_vehicles 		 END) AS change_vehicles,	
+				MAX(CASE WHEN ti_agg.toll 					IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.toll 					 END) AS toll, 							
+				MAX(CASE WHEN ti_agg.park 					IN (-9999,-9998,-9997,995,0) THEN 0 ELSE ti_agg.park 			 END) AS park,
+				MAX(CASE WHEN ti_agg.park_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_type  			 END) AS park_type,
+				MAX(CASE WHEN ti_agg.taxi_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.taxi_type 			 END) AS taxi_type, 				
+				MAX(CASE WHEN ti_agg.bus_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.bus_type 				 END) AS bus_type, 
+				MAX(CASE WHEN ti_agg.ferry_type 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.ferry_type 			 END) AS ferry_type,
+				MAX(CASE WHEN ti_agg.park_ride_area_start 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_area_start 	 END) AS park_ride_area_start, 		
+				MAX(CASE WHEN ti_agg.park_ride_area_end 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_area_end 	 END) AS park_ride_area_end, 			
+				MAX(CASE WHEN ti_agg.park_ride_lot_start 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_lot_start 	 END) AS park_ride_lot_start, 		
+				MAX(CASE WHEN ti_agg.park_ride_lot_end 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_lot_end 	 END) AS park_ride_lot_end, 			
+				MAX(CASE WHEN ti_agg.bus_cost_dk 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.bus_cost_dk 			 END) AS bus_cost_dk, 				
+ 				MAX(CASE WHEN ti_agg.ferry_cost_dk 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.ferry_cost_dk 		 END) AS ferry_cost_dk,				
+				MAX(CASE WHEN ti_agg.air_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.air_type 				 END) AS air_type,	
+				MAX(CASE WHEN ti_agg.airfare_cost_dk 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.airfare_cost_dk 		 END) AS airfare_cost_dk
 			/*		(ti_agg.bus_pay)				AS bus_pay, 
 					(ti_agg.ferry_pay)				AS ferry_pay, 
 					(ti_agg.air_pay)				AS air_pay, 
@@ -1391,7 +1386,7 @@ GO
     INSERT INTO HHSurvey.trip
 		(hhid, personid, pernum, hhgroup,
 		depart_time_timestamp, arrival_time_timestamp,
-		dest_name, dest_address, dest_lat, dest_lng,
+		dest_name, /*dest_address,*/ dest_lat, dest_lng,
 		trip_path_distance, google_duration, reported_duration,
 		hhmember1, hhmember2, hhmember3, hhmember4, hhmember5, hhmember6, hhmember7, hhmember8, hhmember9, travelers_hh, travelers_nonhh, travelers_total,
 		mode_acc, mode_egr, mode_1, mode_2, mode_3, mode_4, change_vehicles, transit_system_1, transit_system_2, transit_system_3,
@@ -1401,7 +1396,7 @@ GO
 	SELECT -- select fields necessary for new trip records	
 		t.hhid, spt.passengerid AS personid, CAST(RIGHT(spt.passengerid,2) AS int) AS pernum, t.hhgroup,
 		t.depart_time_timestamp, t.arrival_time_timestamp,
-		t.dest_name, t.dest_address, t.dest_lat, t.dest_lng,
+		t.dest_name, /*t.dest_address,*/ t.dest_lat, t.dest_lng,
 		t.trip_path_distance, t.google_duration, t.reported_duration,
 		t.hhmember1, t.hhmember2, t.hhmember3, t.hhmember4, t.hhmember5, t.hhmember6, t.hhmember7, t.hhmember8, t.hhmember9, t.travelers_hh, t.travelers_nonhh, t.travelers_total,
 		t.mode_acc, t.mode_egr, t.mode_1, t.mode_2, t.mode_3, t.mode_4, t.change_vehicles, t.transit_system_1, t.transit_system_2, t.transit_system_3,
@@ -1608,7 +1603,7 @@ GO
 						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
 								CASE WHEN next_trip.recid IS NULL 
 									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
-									 ELSE next_trip.depart_time_timestamp END) > 720)
+									 ELSE next_trip.depart_time_timestamp END) > 840)
     					OR  (trip.d_purpose IN(30)      			
 						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
 								CASE WHEN next_trip.recid IS NULL 
