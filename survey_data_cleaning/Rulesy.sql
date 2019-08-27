@@ -58,216 +58,15 @@ GO
 			('PUDO, no +/- travelers',0),
 			('time overlap',1);	
 		INSERT INTO HHSurvey.NullFlags (flag_value, label)
-		VALUES		(-9998, NULL), 
-					(-9999, NULL), 
+		VALUES		(-9999, NULL), 
+					(-9998, NULL),
+					(-9997, NULL),  
 					(995, NULL);
 
-/* STEP 1. 	Load data from fixed format .csv files.  */
-/*	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
+/* STEP 1. 	Load data and create geography fields and indexes  */
+	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
 	-- 	Bulk insert isn't working right now because locations and permissions won't allow it.  For now, manually import household, persons tables via microsoft.import extension (wizard)
 
-		DROP TABLE IF EXISTS HHSurvey.household, HHSurvey.person, HHSurvey.trip;
-		GO
-		CREATE TABLE HHSurvey.household (
-			hhid int NOT NULL,
-			sample_segment int NOT NULL,
-			sample_county nvarchar(50) NOT NULL,
-			cityofseattle int NOT NULL,
-			cityofredmond int NOT NULL,
-			psrc int NOT NULL,
-			sample_haddress nvarchar(100) NOT NULL,
-			sample_lat float NULL,
-			sample_lng float NULL,
-			reported_haddress nvarchar(100) NOT NULL,
-			reported_haddress_flag int NOT NULL,
-			reported_lat float NOT NULL,
-			reported_lng float NOT NULL,
-			final_haddress nvarchar(100) NOT NULL,
-			final_tract int NOT NULL,
-			final_bg float NOT NULL,
-			final_block float NOT NULL,
-			final_puma15 int NOT NULL,
-			final_rgcnum int NOT NULL,
-			final_uvnum int NOT NULL,
-			hhgroup int NOT NULL,
-			travelweek int NOT NULL,
-			traveldate datetime2(7) NOT NULL,
-			dayofweek int NOT NULL,
-			hhsize int NOT NULL,
-			vehicle_count int NOT NULL,
-			numadults int NOT NULL,
-			numchildren int NOT NULL,
-			numworkers int NOT NULL,
-			lifecycle int NOT NULL,
-			hhincome_detailed int NOT NULL,
-			hhincome_followup nvarchar(50) NULL,
-			hhincome_broad int NOT NULL,
-			car_share int NOT NULL,
-			rent_own int NOT NULL,
-			res_dur int NOT NULL,
-			res_type int NOT NULL,
-			res_months int NOT NULL,
-			offpark int NOT NULL,
-			offpark_cost int NULL,
-			streetpark int NOT NULL,
-			prev_home_wa int NULL,
-			prev_home_address nvarchar(100) NULL,
-			prev_home_lat float NULL,
-			prev_home_lng float NULL,
-			prev_home_notwa_notus nvarchar(50) NULL,
-			prev_home_notwa_city nvarchar(50) NULL,
-			prev_home_notwa_state nvarchar(50) NULL,
-			prev_home_notwa_zip nvarchar(50) NULL,
-			prev_rent_own int NULL,
-			prev_res_type int NULL,
-			res_factors_30min int NOT NULL,
-			res_factors_afford int NOT NULL,
-			res_factors_closefam int NOT NULL,
-			res_factors_hhchange int NOT NULL,
-			res_factors_hwy int NOT NULL,
-			res_factors_school int NOT NULL,
-			res_factors_space int NOT NULL,
-			res_factors_transit int NOT NULL,
-			res_factors_walk int NOT NULL,
-			rmove_optin nvarchar(50) NULL,
-			diary_incentive_type int NULL,
-			extra_incentive int NOT NULL,
-			call_center int NOT NULL,
-			mobile_device int NOT NULL,
-			contact_email int NULL,
-			contact_phone int NULL,
-			foreign_language int NOT NULL,
-			google_translate int NOT NULL,
-			recruit_start_pt nvarchar(50) NOT NULL,
-			recruit_end_pt nvarchar(50) NOT NULL,
-			recruit_duration_min int NOT NULL,
-			numdayscomplete int NOT NULL,
-			day1complete int NOT NULL,
-			day2complete nvarchar(50) NULL,
-			day3complete nvarchar(50) NULL,
-			day4complete nvarchar(50) NULL,
-			day5complete nvarchar(50) NULL,
-			day6complete nvarchar(50) NULL,
-			day7complete nvarchar(50) NULL,
-			num_trips int NOT NULL
-		)
-
-		CREATE TABLE HHSurvey.person (
-			hhid int NOT NULL,
-			personid int NOT NULL,
-			pernum int NOT NULL,
-			sample_segment int NOT NULL,
-			hhgroup int NOT NULL,
-			traveldate datetime2(7) NOT NULL,
-			relationship int NOT NULL,
-			proxy_parent nvarchar(50) NULL,
-			proxy int NOT NULL,
-			age int NOT NULL,
-			gender int NOT NULL,
-			employment int NULL,
-			jobs_count int NULL,
-			worker int NOT NULL,
-			student int NULL,
-			schooltype nvarchar(50) NULL,
-			education int NULL,
-			license int NULL,
-			vehicleused nvarchar(50) NULL,
-			smartphone_type int NULL,
-			smartphone_age int NULL,
-			smartphone_qualified int NOT NULL,
-			race_afam int NULL,
-			race_aiak int NULL,
-			race_asian int NULL,
-			race_hapi int NULL,
-			race_hisp int NULL,
-			race_white int NULL,
-			race_other int NULL,
-			race_noanswer int NULL,
-			workplace int NULL,
-			hours_work int NULL,
-			commute_freq int NULL,
-			commute_mode int NULL,
-			commute_dur int NULL,
-			telecommute_freq int NULL,
-			wpktyp int NULL,
-			workpass int NULL,
-			workpass_cost nvarchar(50) NULL,
-			workpass_cost_dk int NULL,
-			work_name nvarchar(100) NULL,
-			work_address nvarchar(100) NULL,
-			work_county nvarchar(50) NULL,
-			work_lat float NULL,
-			work_lng float NULL,
-			prev_work_wa int NULL,
-			prev_work_name nvarchar(100) NULL,
-			prev_work_address nvarchar(100) NULL,
-			prev_work_county nvarchar(50) NULL,
-			prev_work_lat nvarchar(50) NULL,
-			prev_work_lng nvarchar(50) NULL,
-			prev_work_notwa_city nvarchar(50) NULL,
-			prev_work_notwa_state nvarchar(50) NULL,
-			prev_work_notwa_zip nvarchar(50) NULL,
-			prev_work_notwa_notus nvarchar(50) NULL,
-			school_freq nvarchar(50) NULL,
-			school_loc_name nvarchar(100) NULL,
-			school_loc_address nvarchar(100) NULL,
-			school_loc_county nvarchar(50) NULL,
-			school_loc_lat nvarchar(50) NULL,
-			school_loc_lng nvarchar(50) NULL,
-			completed_pref_survey int NULL,
-			mode_freq_1 int NULL,
-			mode_freq_2 int NULL,
-			mode_freq_3 int NULL,
-			mode_freq_4 int NULL,
-			mode_freq_5 int NULL,
-			tran_pass_1 nvarchar(50) NULL,
-			tran_pass_2 nvarchar(50) NULL,
-			tran_pass_3 nvarchar(50) NULL,
-			tran_pass_4 nvarchar(50) NULL,
-			tran_pass_5 nvarchar(50) NULL,
-			tran_pass_6 nvarchar(50) NULL,
-			tran_pass_7 nvarchar(50) NULL,
-			tran_pass_8 nvarchar(50) NULL,
-			tran_pass_9 nvarchar(50) NULL,
-			tran_pass_10 nvarchar(50) NULL,
-			tran_pass_11 nvarchar(50) NULL,
-			tran_pass_12 nvarchar(50) NULL,
-			benefits_1 int NULL,
-			benefits_2 int NULL,
-			benefits_3 int NULL,
-			benefits_4 int NULL,
-			av_interest_1 int NULL,
-			av_interest_2 int NULL,
-			av_interest_3 int NULL,
-			av_interest_4 int NULL,
-			av_interest_5 int NULL,
-			av_interest_6 int NULL,
-			av_interest_7 int NULL,
-			av_concern_1 int NULL,
-			av_concern_2 int NULL,
-			av_concern_3 int NULL,
-			av_concern_4 int NULL,
-			av_concern_5 int NULL,
-			wbt_transitmore_1 int NULL,
-			wbt_transitmore_2 int NULL,
-			wbt_transitmore_3 int NULL,
-			wbt_bikemore_1 int NULL,
-			wbt_bikemore_2 int NULL,
-			wbt_bikemore_3 int NULL,
-			wbt_bikemore_4 int NULL,
-			wbt_bikemore_5 int NULL,
-			rmove_incentive nvarchar(50) NULL,
-			call_center int NULL,
-			mobile_device int NULL,
-			num_trips int NOT NULL
-		)
-
-
-
-	--Getting the file on the same location is problematic-- currently using flat file import wizard for these three tables instead.
-		BULK INSERT household	FROM '\\aws-prod-file01\SQL2016\DSADEV\1-Household.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
-		BULK INSERT person		FROM '\\aws-prod-file01\SQL2016\DSADEV\2-Person.csv'	WITH (FIELDTERMINATOR=',', FIRSTROW = 2);
-*/
 
 		DROP TABLE IF EXISTS HHSurvey.Trip;
 		GO
@@ -615,11 +414,9 @@ GO
 		GO
 						
 		UPDATE HHSurvey.Trip	SET 	dest_geog 	= geography::STGeomFromText('POINT(' + CAST(dest_lng 	  AS VARCHAR(20)) + ' ' + CAST(dest_lat 	AS VARCHAR(20)) + ')', 4326),
-							  		  origin_geog   = geography::STGeomFromText('POINT(' + CAST(origin_lng   AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
-
-		UPDATE HHSurvey.household 	SET home_geog 	= geography::STGeomFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat AS VARCHAR(20)) + ')', 4326),
-									  sample_geog   = geography::STGeomFromText('POINT(' + CAST(sample_lng   AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
-
+							  		  origin_geog   = geography::STGeomFromText('POINT(' + CAST(origin_lng    AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.household 	SET home_geog 	= geography::STGeomFromText('POINT(' + CAST(reported_lng  AS VARCHAR(20)) + ' ' + CAST(reported_lat AS VARCHAR(20)) + ')', 4326),
+									  sample_geog   = geography::STGeomFromText('POINT(' + CAST(sample_lng    AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
 		UPDATE HHSurvey.person 		SET work_geog	= geography::STGeomFromText('POINT(' + CAST(work_lng 	  AS VARCHAR(20)) + ' ' + CAST(work_lat 	AS VARCHAR(20)) + ')', 4326);
 
 		--ALTER TABLE HHSurvey.trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
@@ -629,20 +426,11 @@ GO
 		CREATE INDEX travelers_total_idx ON HHSurvey.trip(travelers_total);
 		GO 
 
-		CREATE SPATIAL INDEX dest_geog_idx ON HHSurvey.trip(dest_geog)
-			USING GEOGRAPHY_AUTO_GRID;
-
-		CREATE SPATIAL INDEX origin_geog_idx ON HHSurvey.trip(origin_geog)
-			USING GEOGRAPHY_AUTO_GRID;
-
-		CREATE SPATIAL INDEX home_geog_idx ON HHSurvey.household(home_geog)
-			USING GEOGRAPHY_GRID;
-
-		CREATE SPATIAL INDEX sample_geog_idx ON HHSurvey.household(sample_geog)
-			USING GEOGRAPHY_AUTO_GRID;
-
-		CREATE SPATIAL INDEX work_geog_idx ON HHSurvey.person(work_geog)
-			USING GEOGRAPHY_AUTO_GRID;		
+		CREATE SPATIAL INDEX dest_geog_idx   ON HHSurvey.trip(dest_geog) 		USING GEOGRAPHY_AUTO_GRID;
+		CREATE SPATIAL INDEX origin_geog_idx ON HHSurvey.trip(origin_geog) 		USING GEOGRAPHY_AUTO_GRID;
+		CREATE SPATIAL INDEX home_geog_idx 	 ON HHSurvey.household(home_geog) 	USING GEOGRAPHY_GRID;
+		CREATE SPATIAL INDEX sample_geog_idx ON HHSurvey.household(sample_geog) USING GEOGRAPHY_AUTO_GRID;
+		CREATE SPATIAL INDEX work_geog_idx 	 ON HHSurvey.person(work_geog) 		USING GEOGRAPHY_AUTO_GRID;		
 
 	/* Determine legitimate home location: */ 
 	
@@ -694,12 +482,14 @@ GO
 		UPDATE HHSurvey.trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
 	*/
 
+/* STEP 2.  Set up auto-logging and recalculate  */
+
 	--Remove any audit trail records that may already exist from previous runs of Rulesy.
 	delete
 	from HHSurvey.tblTripAudit
 	go
 
-	-- create an auto-loggint trigger for updates to the trip table
+	-- create an auto-logging trigger for updates to the trip table
 		DROP TRIGGER IF EXISTS HHSurvey.tr_trip;
 		GO
 		create  trigger tr_trip on HHSurvey.[trip] for insert, update, delete
@@ -821,6 +611,22 @@ GO
 	-- Enable the audit trail/logger
 		ALTER TABLE HHSurvey.trip ENABLE TRIGGER [tr_trip]
 
+	-- Tripnum must be sequential or later steps will fail. Create procedure and employ where required.
+		DROP PROCEDURE IF EXISTS HHSurvey.tripnum_update;
+		GO
+		CREATE PROCEDURE HHSurvey.tripnum_update AS
+		BEGIN
+		WITH tripnum_rev(recid, personid, tripnum) AS
+			(SELECT recid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM HHSurvey.trip)
+		UPDATE t
+			SET t.tripnum = tripnum_rev.tripnum
+			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid;
+		END
+		GO
+		EXECUTE HHSurvey.tripnum_update;
+
+/* STEP 3.  Rule-based individual field revisions */
+
 	-- Revise travelers count to reflect passengers (lazy response?)
 		with membercounts (tripid, membercount)
 		as (
@@ -866,48 +672,9 @@ GO
 			FROM HHSurvey.trip AS t
 			WHERE t.travelers_total < t.travelers_hh	
 				or t.travelers_total in (select flag_value from HHSurvey.NullFlags);
-
-	-- Tripnum must be sequential or later steps will fail. Create procedure and employ where required.
-		DROP PROCEDURE IF EXISTS HHSurvey.tripnum_update;
-		GO
-		CREATE PROCEDURE HHSurvey.tripnum_update AS
-		BEGIN
-		WITH tripnum_rev(recid, personid, tripnum) AS
-			(SELECT recid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM HHSurvey.trip)
-		UPDATE t
-			SET t.tripnum = tripnum_rev.tripnum
-			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid;
-		END
-		GO
-		EXECUTE HHSurvey.tripnum_update;
-
-/* STEP 2.  Parse/Fill missing address fields */
-/* Survey no longer contains typed address fields
-	--address parsing
-		update t set t.dest_zip = substring(hhsurvey.rgxextract(dest_address, 'wa (\d{5}), usa', 0),4,5) from hhsurvey.trip as t;
-		UPDATE t SET t.dest_city = HHSurvey.TRIM(SUBSTRING(HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0),0,PATINDEX('%,%',HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0)))) FROM HHSurvey.trip AS t;
-		UPDATE t SET t.dest_county = zipwgs.county FROM HHSurvey.trip AS t JOIN Sandbox.dbo.zipcode_wgs AS zipwgs ON t.dest_zip=zipwgs.zipcode;
-		GO
-
-	--fill missing zipcode
-		UPDATE t SET t.dest_zip = zipwgs.zipcode  
-			FROM HHSurvey.trip AS t 
-				join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geog.STIntersects(zipwgs.geog)=1
-			WHERE t.dest_zip IS NULL;
-
-		UPDATE trip --fill missing city --NOT YET AVAILABLE
-			SET trip.dest_city = [ENTER CITY GEOGRAPHY HERE].City
-			FROM trip join [ENTER CITY GEOGRAPHY HERE] ON trip.dest_geog.STIntersects([ENTER CITY GEOGRAPHY HERE].geog)=1
-			WHERE trip.dest_city IS NULL;
 	
-		UPDATE t --fill missing county
-			SET t.dest_county = zipwgs.county
-			FROM HHSurvey.trip AS t 
-				JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geog.STIntersects(zipwgs.geog)=1
-			WHERE t.dest_county IS NULL;
-*/	
-/* STEP 3.  Corrections to purpose, etc fields -- utilized in subsequent steps */
-	
+	-- Purpose corrections 
+
 		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates;
 		GO
 		CREATE PROCEDURE HHSurvey.d_purpose_updates AS 
@@ -1208,7 +975,7 @@ GO
 				JOIN HHSurvey.trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
 			WHERE t.d_purpose = -9998 AND t.mode_1 = -9998;
 
-		--update modes on the spectrum ends of speed + distance: 
+	--impute mode (if not specified) for cases on the spectrum ends of speed + distance: 
 		-- -- slow, short trips are walk; long, fast trips are airplane.  Other modes can't be easily assumed.
 		UPDATE t 
 		SET t.mode_1 = 31, t.revision_code = CONCAT(t.revision_code,'7,')	
@@ -1222,7 +989,9 @@ GO
 		FROM HHSurvey.trip AS t 
 		WHERE (t.mode_1 IS NULL or t.mode_1 in (select flag_value from HHSurvey.NullFlags)) 
 			AND t.trip_path_distance < 0.6 
-			AND t.speed_mph < 5;	
+			AND t.speed_mph < 5;
+
+	/* Add other field-specific corrections here as rules are discovered */
 		
 /* STEP 4.	Trip linking */
 
@@ -1309,6 +1078,14 @@ GO
 		CREATE PROCEDURE HHSurvey.link_trips AS
 		BEGIN
 
+		-- remove parking flag in cases where it is carried over among trip components, with no dwell time or mode change
+		UPDATE ti 
+		SET ti.park = -9997, ti.park_type = -9997
+		FROM #trip_ingredient AS ti JOIN #trip_ingredient AS ti_prior ON ti.personid = ti_prior.personid AND ti.tripnum - 1 = ti_prior.tripnum AND ti.trip_link = ti_prior.trip_link
+		WHERE ti.park BETWEEN 1 AND 6															
+			AND DATEDIFF(SECOND, ti_prior.arrival_time_timestamp, ti.depart_time_timestamp) < 60	
+			AND ti.modes = ti_prior.modes;
+
 		-- denote trips with too many components or other attributes suggesting multiple trips, for later examination.  
 		WITH cte_a AS										--non-adjacent repeated transit line, i.e. suggests a loop trip
 			(SELECT DISTINCT ti_wndw1.personid, ti_wndw1.trip_link, HHSurvey.TRIM(HHSurvey.RgxReplace(
@@ -1334,13 +1111,13 @@ GO
 				HAVING count(*) > 4
 			UNION ALL SELECT ti4.personid, ti4.trip_link	--sets with two items that each denote a separate trip
 				FROM #trip_ingredient as ti4 GROUP BY ti4.personid, ti4.trip_link
-				HAVING sum(CASE WHEN ti4.pool_start 			NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.change_vehicles 		NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_area_start 	NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_area_end 	NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_lot_start 	NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_lot_end 		NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_type 				NOT IN (-9999,-9998,995,0) THEN 1 ELSE 0 END) > 1
+				HAVING sum(CASE WHEN ti4.pool_start 		  = 1 									  THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.change_vehicles 	  = 1 									  THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_start > 0 AND ti4.park_ride_area_start <> 995 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_end   > 0 AND ti4.park_ride_area_start <> 995 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_lot_start  > 0 AND ti4.park_ride_lot_start  <> 995 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_lot_end 	  > 0 AND ti4.park_ride_lot_end    <> 995 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park	 			  BETWEEN 1 AND 6 						  THEN 1 ELSE 0 END) > 1
 			UNION ALL SELECT cte_a.personid, cte_a.trip_link 	--sets with nonadjacent repeating transit lines (i.e., return trip)
 				FROM cte_a
 				WHERE HHSurvey.RgxFind(cte_a.transit_lines,'(\b\d+\b),.+(?=\1)',1)=1	
