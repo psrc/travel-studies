@@ -17,9 +17,9 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 		FORMAT(t1.arrival_time_timestamp,N'hh\:mm tt','en-US') AS arrive_dhm,
 		ROUND(t1.trip_path_distance,1) AS miles,
 		ROUND(t1.speed_mph,1) AS mph, 
-		ROUND(t1.dest_geom.STDistance(t1.origin_geom) * 69.171, 1) AS linear_miles,
+		ROUND(t1.dest_geog.STDistance(t1.origin_geog) / 1609.00, 1) AS linear_miles,
 		CASE WHEN DATEDIFF(minute, t1.depart_time_timestamp, t1.arrival_time_timestamp) > 0 
-				THEN ROUND(t1.dest_geom.STDistance(t1.origin_geom) * 69.171 / (CAST(DATEDIFF(second, t1.depart_time_timestamp, t1.arrival_time_timestamp) AS decimal) / 3600),1) 
+				THEN ROUND((t1.dest_geog.STDistance(t1.origin_geog) / 1609.00) / (CAST(DATEDIFF(second, t1.depart_time_timestamp, t1.arrival_time_timestamp) AS decimal) / 3600),1) 
 				ELSE -9999 END AS linear_mph,
 		STUFF(
 				(SELECT ',' + tef.error_flag
@@ -82,11 +82,9 @@ SELECT [recid]
 			,[arrival_time_hhmm]
 			,[arrival_time_timestamp]
 			,[origin_name]
-			,[origin_address]
 			,[origin_lat]
 			,[origin_lng]
 			,[dest_name]
-			,[dest_address]
 			,[dest_lat]
 			,[dest_lng]
 			,[trip_path_distance]
@@ -216,8 +214,8 @@ GO
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('too slow','lone trip'))
-	    AND (Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geom.STIntersects(t.dest_geom)=1) 
-   			 OR Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geom.STIntersects(t.origin_geom)=1));
+	    AND (Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geog.STIntersects(t.dest_geog)=1) 
+   			 OR Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geog.STIntersects(t.origin_geog)=1));
 	GO */
 
 	DROP VIEW IF EXISTS HHSurvey.person_by_error;
