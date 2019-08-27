@@ -614,13 +614,13 @@ GO
 		ALTER TABLE HHSurvey.person 	ADD work_geog 	GEOGRAPHY	NULL;
 		GO
 						
-		UPDATE HHSurvey.Trip	SET 	dest_geog 	= geography::STPointFromText('POINT(' + CAST(dest_lng 	  AS VARCHAR(20)) + ' ' + CAST(dest_lat 	AS VARCHAR(20)) + ')', 4326),
-							  		  origin_geog   = geography::STPointFromText('POINT(' + CAST(origin_lng   AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.Trip	SET 	dest_geog 	= geography::STGeomFromText('POINT(' + CAST(dest_lng 	  AS VARCHAR(20)) + ' ' + CAST(dest_lat 	AS VARCHAR(20)) + ')', 4326),
+							  		  origin_geog   = geography::STGeomFromText('POINT(' + CAST(origin_lng   AS VARCHAR(20)) + ' ' + CAST(origin_lat 	AS VARCHAR(20)) + ')', 4326);
 
-		UPDATE HHSurvey.household 	SET home_geog 	= geography::STPointFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat AS VARCHAR(20)) + ')', 4326),
-									  sample_geog   = geography::STPointFromText('POINT(' + CAST(sample_lng   AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.household 	SET home_geog 	= geography::STGeomFromText('POINT(' + CAST(reported_lng AS VARCHAR(20)) + ' ' + CAST(reported_lat AS VARCHAR(20)) + ')', 4326),
+									  sample_geog   = geography::STGeomFromText('POINT(' + CAST(sample_lng   AS VARCHAR(20)) + ' ' + CAST(sample_lat 	AS VARCHAR(20)) + ')', 4326);
 
-		UPDATE HHSurvey.person 		SET work_geog	= geography::STPointFromText('POINT(' + CAST(work_lng 	  AS VARCHAR(20)) + ' ' + CAST(work_lat 	AS VARCHAR(20)) + ')', 4326);
+		UPDATE HHSurvey.person 		SET work_geog	= geography::STGeomFromText('POINT(' + CAST(work_lng 	  AS VARCHAR(20)) + ' ' + CAST(work_lat 	AS VARCHAR(20)) + ')', 4326);
 
 		--ALTER TABLE HHSurvey.trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
 		CREATE INDEX person_idx ON HHSurvey.trip (personid ASC);
@@ -630,28 +630,23 @@ GO
 		GO 
 
 		CREATE SPATIAL INDEX dest_geog_idx ON HHSurvey.trip(dest_geog)
-			USING GEOMETRY_AUTO_GRID
-			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+			USING GEOGRAPHY_AUTO_GRID;
 
 		CREATE SPATIAL INDEX origin_geog_idx ON HHSurvey.trip(origin_geog)
-			USING GEOMETRY_AUTO_GRID
-			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+			USING GEOGRAPHY_AUTO_GRID;
 
 		CREATE SPATIAL INDEX home_geog_idx ON HHSurvey.household(home_geog)
-			USING GEOMETRY_AUTO_GRID
-			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+			USING GEOGRAPHY_GRID;
 
 		CREATE SPATIAL INDEX sample_geog_idx ON HHSurvey.household(sample_geog)
-			USING GEOMETRY_AUTO_GRID
-			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));
+			USING GEOGRAPHY_AUTO_GRID;
 
 		CREATE SPATIAL INDEX work_geog_idx ON HHSurvey.person(work_geog)
-			USING GEOMETRY_AUTO_GRID
-			WITH (BOUNDING_BOX= (xmin=-157.858, ymin=-20, xmax=124.343, ymax=57.803));		
+			USING GEOGRAPHY_AUTO_GRID;		
 
 	/* Determine legitimate home location: */ 
 	
-		UPDATE h	-- Default is reported home location; invalidate when not within 500m of any home-purpose trip
+		UPDATE h	-- Default is reported home location; invalidate when not within 300m of any home-purpose trip
 			SET h.home_geog = NULL
 			FROM HHSurvey.Household AS h
 			WHERE NOT EXISTS 
@@ -690,8 +685,8 @@ GO
 			WHERE cte.ranker = 1 AND h.home_geog IS NULL;
 
 		UPDATE 	h	-- Gives back latitude and longitude of the determined home location point
-			SET h.home_lat = h.home_geog.STY,
-				h.home_lng = h.home_geog.STX 
+			SET h.home_lat = h.home_geog.Lat,
+				h.home_lng = h.home_geog.Long 
 			FROM HHSurvey.Household AS h;
 
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
@@ -705,6 +700,8 @@ GO
 	go
 
 	-- create an auto-loggint trigger for updates to the trip table
+		DROP TRIGGER IF EXISTS HHSurvey.tr_trip;
+		GO
 		create  trigger tr_trip on HHSurvey.[trip] for insert, update, delete
 		as
 
@@ -783,7 +780,7 @@ GO
 				where TABLE_NAME = @TableName 
 					and ORDINAL_POSITION > @field 
 					and TABLE_SCHEMA = @SchemaName
-					and data_type <> 'geogetry'
+					and data_type <> 'geography'
 
 		        select @bit = (@field - 1 )% 8 + 1
 
@@ -885,7 +882,7 @@ GO
 		EXECUTE HHSurvey.tripnum_update;
 
 /* STEP 2.  Parse/Fill missing address fields */
-
+/* Survey no longer contains typed address fields
 	--address parsing
 		update t set t.dest_zip = substring(hhsurvey.rgxextract(dest_address, 'wa (\d{5}), usa', 0),4,5) from hhsurvey.trip as t;
 		UPDATE t SET t.dest_city = HHSurvey.TRIM(SUBSTRING(HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0),0,PATINDEX('%,%',HHSurvey.RgxExtract(dest_address, '[A-Za-z ]+, WA ', 0)))) FROM HHSurvey.trip AS t;
@@ -898,19 +895,17 @@ GO
 				join Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geog.STIntersects(zipwgs.geog)=1
 			WHERE t.dest_zip IS NULL;
 
-	/*	UPDATE trip --fill missing city --NOT YET AVAILABLE
+		UPDATE trip --fill missing city --NOT YET AVAILABLE
 			SET trip.dest_city = [ENTER CITY GEOGRAPHY HERE].City
 			FROM trip join [ENTER CITY GEOGRAPHY HERE] ON trip.dest_geog.STIntersects([ENTER CITY GEOGRAPHY HERE].geog)=1
 			WHERE trip.dest_city IS NULL;
-	*/
+	
 		UPDATE t --fill missing county
 			SET t.dest_county = zipwgs.county
 			FROM HHSurvey.trip AS t 
 				JOIN Sandbox.dbo.zipcode_wgs as zipwgs ON t.dest_geog.STIntersects(zipwgs.geog)=1
 			WHERE t.dest_county IS NULL;
-
-	-- -- [Create geographic check where assigned zip/county doesn't match the x,y.]		
-
+*/	
 /* STEP 3.  Corrections to purpose, etc fields -- utilized in subsequent steps */
 	
 		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates;
@@ -1459,7 +1454,7 @@ GO
 				t.modes				= lt.modes,							t.dest_zip		= lt.dest_zip,
 				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
 				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
-				t.dest_geog			= geogetry::STPointFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326),
+				t.dest_geog			= geography::STGeomFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326),
 			
 				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
