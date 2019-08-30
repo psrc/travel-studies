@@ -1689,7 +1689,7 @@ EXECUTE HHSurvey.generate_error_flags;
 		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
 		GO
 		CREATE PROCEDURE HHSurvey.recalculate_after_edit 
-			@personid int NULL --limited just to the person who was just edited
+			@personid numeric NULL --limited just to the person who was just edited
 		AS BEGIN
 
 		UPDATE t SET
