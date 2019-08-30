@@ -243,23 +243,34 @@ GO
 
 	AS BEGIN
 	WITH cte_ref AS
-			(SELECT t0.hhid, t0.depart_time_timestamp, t0.arrival_time_timestamp, t0.pernum
+			(SELECT t0.hhid, t0.depart_time_timestamp, t0.arrival_time_timestamp, t0.pernum, t0.driver
 				FROM HHSurvey.Trip AS t0 
 				WHERE t0.recid = @target_recid),
 		 cte_hhmembers AS(
-			SELECT t1.pernum, CONCAT('at rest at ', CAST(t1.dest_lat AS NVARCHAR(20)),', ',CAST(t1.dest_lng AS NVARCHAR(20))) AS member_status 
+			SELECT 	t1.pernum, 
+					'at rest' AS member_status, 
+					CONCAT(CAST(t1.dest_lat AS NVARCHAR(20)),', ',CAST(t1.dest_lng AS NVARCHAR(20))) AS destination, 
+					'n/a' AS rider_status
 				FROM HHSurvey.Trip AS t1 
 				JOIN HHsurvey.Trip AS t2 ON t1.personid = t2.personid AND t1.tripnum + 1 = t2.tripnum
 				JOIN cte_ref ON t1.hhid = cte_ref.hhid AND cte_ref.pernum <> t1.pernum
 				WHERE cte_ref.depart_time_timestamp > t1.arrival_time_timestamp AND cte_ref.arrival_time_timestamp > t2.depart_time_timestamp
 			UNION
-			SELECT t3.pernum, CONCAT('enroute from ', CAST(t3.dest_lat AS NVARCHAR(20)),', ',CAST(t3.dest_lng AS NVARCHAR(20))) AS member_status 
+			SELECT 	t3.pernum, 
+					CONCAT('enroute from ', CAST(t3.origin_lat AS NVARCHAR(20)),', ',CAST(t3.origin_lng AS NVARCHAR(20))) AS member_status, 
+					CONCAT(CAST(t3.dest_lat AS NVARCHAR(20)),', ',CAST(t3.dest_lng AS NVARCHAR(20))) AS destination, 
+					CONCAT((CASE WHEN t3.pernum = cte_ref.pernum THEN 'reference person - ' ELSE '' END),
+					 	CASE WHEN t3.driver = 1 THEN 'driver' 	
+						 	 WHEN EXISTS (SELECT 1 FROM HHSurvey.AutoModes AS am WHERE t3.mode_1 = am.mode_id) THEN 'passenger' 
+						 	 WHEN EXISTS (SELECT 1 FROM HHSurvey.TransitModes AS tm WHERE t3.mode_1 = tm.mode_id) THEN 'transit rider'
+							 WHEN t3.mode_1 = 1 THEN 'pedestrian'
+							 ELSE 'other' END) AS rider_status
 				FROM HHSurvey.Trip AS t3
-				JOIN cte_ref ON t3.hhid = cte_ref.hhid AND cte_ref.pernum <> t3.pernum
+				JOIN cte_ref ON t3.hhid = cte_ref.hhid
 				WHERE ((cte_ref.depart_time_timestamp BETWEEN t3.depart_time_timestamp AND t3.arrival_time_timestamp) 
 						OR (cte_ref.arrival_time_timestamp BETWEEN t3.depart_time_timestamp AND t3.arrival_time_timestamp))
 		)
 	SELECT * FROM cte_hhmembers AS cteall
-	ORDER BY cteall.pernum DESC;
+	ORDER BY cteall.pernum;
 	END
 	GO
