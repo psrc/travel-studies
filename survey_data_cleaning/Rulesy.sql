@@ -615,7 +615,8 @@ GO
 			(SELECT recid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM HHSurvey.trip)
 		UPDATE t
 			SET t.tripnum = tripnum_rev.tripnum
-			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid;
+			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid
+			WHERE t.tripnum <> tripnum_rev.tripnum;
 		END
 		GO
 		EXECUTE HHSurvey.tripnum_update;
@@ -669,6 +670,35 @@ GO
 				or t.travelers_total in (select flag_value from HHSurvey.NullFlags);
 	
 	-- Purpose corrections 
+
+		--Origin purpose assignment	
+		 -- to 'home' (should be largest share of cases)
+		UPDATE t
+		SET 	t.o_purpose   = 1,
+				t.origin_geog = h.home_geog,
+				t.origin_lat  = h.home_lat,
+				t.origin_lng  = h.home_lng,
+				t.origin_name = 'HOME'
+		FROM HHSurvey.Trip AS t JOIN HHSurvey.Household AS h ON t.hhid = h.hhid
+			JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.o_purpose = vl.code
+			WHERE t.tripnum = 1 
+				AND (vl.label = 'Other purpose' OR vl.label like 'Missing%')
+				AND t.origin_geog.STDistance(h.home_geog) < 300;
+
+		 -- to 'work'
+		UPDATE t
+		SET 	t.o_purpose   = 10,
+				t.origin_geog = p.work_geog,
+				t.origin_lat  = p.work_lat,
+				t.origin_lng  = p.work_lng,
+				t.origin_name = 'WORK'
+		FROM HHSurvey.Trip AS t JOIN HHSurvey.Person AS p ON t.personid = p.personid
+			JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.o_purpose = vl.code
+			WHERE t.tripnum = 1 
+				AND (vl.label = 'Other purpose' OR vl.label like 'Missing%')
+				AND t.origin_geog.STDistance(p.work_geog) < 300;
+
+		--Destination purpose		
 
 		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates;
 		GO
@@ -1668,9 +1698,9 @@ EXECUTE HHSurvey.generate_error_flags;
 
 	--TRIP LINKING
 
-		DROP PROCEDURE IF EXISTS HHSurvey.link_trip_via_ui;
+		DROP PROCEDURE IF EXISTS HHSurvey.link_trip_via_d;
 		GO
-		CREATE PROCEDURE HHSurvey.link_trip_via_ui
+		CREATE PROCEDURE HHSurvey.link_trip_via_id
 			@recid_list nvarchar(max) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
 		AS BEGIN
 		SET NOCOUNT ON; 
