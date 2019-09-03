@@ -965,9 +965,20 @@ GO
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
 					AND HHSurvey.RgxFind(t.dest_name,'\b(bus|transit|ferry|airport|station)\b',1) = 1;  
+
+		UPDATE t  --update origin purpose for the next trip when the destination purpose has been changed
+			SET t.o_purpose = t_prev.d_purpose
+			FROM HHSurvey.Trip AS t 
+				JOIN HHSurvey.Trip AS t_prev ON t.personid = t_prev.personid AND t.tripnum -1 = t_prev.tripnum 
+			WHERE t.o_purpose <> t_prev.d_purpose 
+				AND t.tripnum > 1
+				AND t_prev.d_purpose > 0;
+
 		END
 		GO
 		EXECUTE HHSurvey.d_purpose_updates;
+
+
 
 	/* for rMoves records that don't report mode or purpose */
 
@@ -1209,6 +1220,8 @@ GO
 				ti_wndw.personid AS personid2,
 				ti_wndw.trip_link AS trip_link2,
 				FIRST_VALUE(ti_wndw.dest_name) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_name,
+				FIRST_VALUE(ti_wndw.d_purpose) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS d_purpose,
+				FIRST_VALUE(ti_wndw.o_purpose) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum ASC) AS o_purpose,
 			  --FIRST_VALUE(ti_wndw.dest_address) 	OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_address,
 			  --FIRST_VALUE(ti_wndw.dest_county) 	OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_county,
 			  --FIRST_VALUE(ti_wndw.dest_city) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_city,
@@ -1543,7 +1556,28 @@ GO
 
 		-- 																									  LOGICAL ERROR LABEL 		
 		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
-			(SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 									  'lone trip' AS error_flag
+			(
+			 SELECT trip.recid, trip.personid, trip.tripnum, 									  				'purpose missing' AS error_flag
+				FROM HHSurvey.trip 
+					LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
+					JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON trip.d_purpose = vl.code
+					JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON trip.o_purpose = v2.code
+					LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v3 ON next_trip.d_purpose = v3.code
+				WHERE vl.label LIKE 'Missing%'
+					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
+					AND v3.label NOT LIKE 'Missing%'	
+
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,  									   'initial trip purpose missing' AS error_flag
+				FROM HHSurvey.Trip AS t 
+				JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.o_purpose = vl.code
+				WHERE (vl.label = 'Other purpose' OR vl.label like 'Missing%') AND t.tripnum = 1
+
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 									  		 'mode_1 missing' AS error_flag
+				FROM HHSurvey.trip 
+				JOIN HHSurvey.fnVariableLookup('mode_1') as vl ON trip.mode_1 = vl.code
+				WHERE vl.label like 'Missing%'
+
+			UNION ALL SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 							  'lone trip' AS error_flag
 				FROM HHSurvey.trip 
 				GROUP BY trip.personid 
 				HAVING max(trip.tripnum)=1
