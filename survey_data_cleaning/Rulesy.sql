@@ -870,7 +870,7 @@ GO
 				FROM HHSurvey.trip AS t 
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label = 'Other purpose'
-					AND t.dest_is_work <> 1 
+					AND t.dest_is_work IS NULL
 					AND t.dest_name = 'WORK'
 
 			UPDATE t  
@@ -1643,24 +1643,25 @@ GO
 				WHERE (trip.d_purpose <> 1 and trip.dest_is_home = 1) OR (trip.d_purpose NOT IN(9,10,11,14,60) and trip.dest_is_work = 1)
  
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
+			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid  =next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 				WHERE ABS(trip.dest_geog.STDistance(next_trip.origin_geog)) > 500  --500m difference or more
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	              	 'missing prior trip link' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
+			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 				WHERE ABS(trip.dest_geog.STDistance(next_trip.origin_geog)) > 500	--500m difference or more
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
+			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --next_trip is first trip of the day
 					AND HHSurvey.TRIM(next_trip.origin_name)<>'HOME' 
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --last trip of the day
-					AND trip.dest_is_home <> 1
-					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
+			FROM HHSurvey.trip LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
+				WHERE trip.dest_is_home IS NULL AND NOT EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.recid = trip.recid)
+				AND (next_trip.recid IS NULL										-- either there is no 'next trip'
+					OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
+						AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am					
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag
 				FROM HHSurvey.trip
@@ -1668,7 +1669,7 @@ GO
 				WHERE trip.d_purpose = 9 AND (trip.travelers_total = next_t.travelers_total)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
-				FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
+				FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid  =next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 					WHERE   (trip.d_purpose IN(6,10,11,14)    		
 						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
 								CASE WHEN next_trip.recid IS NULL 
