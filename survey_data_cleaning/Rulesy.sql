@@ -1574,8 +1574,14 @@ GO
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 									  		 'mode_1 missing' AS error_flag
 				FROM HHSurvey.trip 
-				JOIN HHSurvey.fnVariableLookup('mode_1') as vl ON trip.mode_1 = vl.code
-				WHERE vl.label like 'Missing%'
+					LEFT JOIN HHSurvey.trip AS prev_trip ON trip.personid = prev_trip.personid AND trip.tripnum - 1 = prev_trip.tripnum
+					LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
+					JOIN HHSurvey.fnVariableLookup('mode_1') as vl ON trip.mode_1 = vl.code
+					LEFT JOIN HHSurvey.fnVariableLookup('mode_1') as v2 ON prev_trip.mode_1 = v2.code
+					LEFT JOIN HHSurvey.fnVariableLookup('mode_1') as v3 ON next_trip.mode_1 = v3.code
+				WHERE vl.label LIKE 'Missing%'
+					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
+					AND v3.label NOT LIKE 'Missing%'
 
 			UNION ALL SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 							  'lone trip' AS error_flag
 				FROM HHSurvey.trip 
