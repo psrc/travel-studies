@@ -1588,6 +1588,11 @@ GO
 					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
 					AND v3.label NOT LIKE 'Missing%'
 
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum AS tripnum, 		   		   'o purpose <> prior d purpose' AS error_flag
+				FROM HHSurvey.trip 
+					JOIN HHSurvey.trip AS prev_trip ON trip.personid = prev_trip.personid AND trip.tripnum - 1 = prev_trip.tripnum
+					WHERE trip.o_purpose <> prev_trip.d_purpose
+
 			UNION ALL SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 							  'lone trip' AS error_flag
 				FROM HHSurvey.trip 
 				GROUP BY trip.personid 
