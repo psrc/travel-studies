@@ -705,7 +705,7 @@ GO
 		CREATE PROCEDURE HHSurvey.d_purpose_updates AS 
 		BEGIN
 			
-			UPDATE t--Classify home destinations; criteria plus 100m proximity to household home location
+			UPDATE t--Classify home destinations; criteria plus 300m proximity to household home location
 				SET t.dest_is_home = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 				WHERE t.dest_is_home IS NULL AND
@@ -716,13 +716,13 @@ GO
 						and HHSurvey.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
 					OR(t.d_purpose = 1))
-					AND t.dest_geog.STIntersects(h.home_geog.STBuffer(100)) = 1;
+					AND t.dest_geog.STIntersects(h.home_geog.STBuffer(300)) = 1;
 
-			UPDATE t --Classify home destinations where destination code is absent; 30m proximity to home location on file
+			UPDATE t --Classify home destinations where destination code is absent; 50m proximity to home location on file
 				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
-				WHERE (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(30)) = 1
+				WHERE (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(50)) = 1
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
@@ -732,15 +732,15 @@ GO
 					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
 						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
 					OR(t.d_purpose = 10 AND t.dest_name IS NULL))
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(100))=1;
+					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(300))=1;
 
-			UPDATE t --Classify work destinations where destination code is absent; 30m proximity to work location on file
+			UPDATE t --Classify work destinations where destination code is absent; 50m proximity to work location on file
 				SET t.dest_is_work = 1, t.d_purpose = 10
 				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(30))=1		
+					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(50))=1		
 					
 			UPDATE t --revises purpose field for return portion of a single stop loop trip 
 				SET t.d_purpose = (CASE WHEN t.dest_is_home = 1 THEN 1 WHEN t.dest_is_work = 1 THEN 10 ELSE t.d_purpose END), t.revision_code = CONCAT(t.revision_code,'1,')
@@ -1532,18 +1532,12 @@ GO
 /* STEP 8. Flag inconsistencies */
 /*	as additional error patterns behind these flags are identified, rules to address them can be added to Step 3 or elsewhere in Rulesy as makes sense.*/
 
-	DROP PROCEDURE IF EXISTS HHSurvey.generate_error_flags;
-	GO
-	CREATE PROCEDURE HHSurvey.generate_error_flags AS 
-	BEGIN
-	SET NOCOUNT ON
-
-	DROP TABLE IF EXISTS HHSurvey.hh_error_flags;
-	CREATE TABLE HHSurvey.hh_error_flags (hhid decimal(19,0), error_flag NVARCHAR(100));
-	INSERT INTO HHSurvey.hh_error_flags (hhid, error_flag)
-	SELECT h.hhid, 'zero trips' FROM HHSurvey.household AS h LEFT JOIN HHSurvey.trip AS t ON h.hhid = t.hhid
-		WHERE t.hhid IS NULL
-		GROUP BY h.hhid;
+		DROP TABLE IF EXISTS HHSurvey.hh_error_flags;
+		CREATE TABLE HHSurvey.hh_error_flags (hhid decimal(19,0), error_flag NVARCHAR(100));
+		INSERT INTO HHSurvey.hh_error_flags (hhid, error_flag)
+		SELECT h.hhid, 'zero trips' FROM HHSurvey.household AS h LEFT JOIN HHSurvey.trip AS t ON h.hhid = t.hhid
+			WHERE t.hhid IS NULL
+			GROUP BY h.hhid;
 
 		DROP TABLE IF EXISTS HHSurvey.trip_error_flags;
 		CREATE TABLE HHSurvey.trip_error_flags(
@@ -1553,6 +1547,17 @@ GO
 			error_flag varchar(100)
 			PRIMARY KEY (personid, recid, error_flag)
 			);
+
+	DROP PROCEDURE IF EXISTS HHSurvey.generate_error_flags;
+	GO
+	CREATE PROCEDURE HHSurvey.generate_error_flags 
+		@personid decimal = NULL --If missing, generated for all records
+	AS BEGIN
+	SET NOCOUNT ON
+
+	DELETE tef 
+		FROM HHSurvey.trip_error_flags AS tef 
+		WHERE tef.personid = (CASE WHEN @personid IS NULL THEN tef.personid ELSE @personid END);
 
 		-- 																									  LOGICAL ERROR LABEL 		
 		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
@@ -1603,11 +1608,11 @@ GO
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum, 													'excessive speed' AS error_flag
 				FROM HHSurvey.trip AS t									
-				WHERE 	(EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
+				WHERE 	((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
 					OR 	(EXISTS (SELECT 1 FROM HHSurvey.bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
 					OR	(EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
 					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
-					OR 	(t.speed_mph > 600)	
+					OR 	(t.speed_mph > 600))	
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1698,10 +1703,14 @@ GO
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
 			FROM error_flag_compilation AS efc
 			WHERE NOT EXISTS (SELECT 1 FROM HHSurvey.trip AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved = 1)
+				AND efc.personid = (CASE WHEN @personid IS NULL THEN efc.personid ELSE @personid END)
 			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
 	/* Flag households with predominantly problematic records */
-	TRUNCATE TABLE HHSurvey.hh_error_flags;
+	DELETE hef 
+		FROM HHSurvey.hh_error_flags AS hef 
+		WHERE hef.hhid = (CASE WHEN @personid IS NULL THEN hef.hhid ELSE FLOOR(@personid/100) END);
+
 	WITH cte AS 
 		(SELECT t1.hhid FROM HHSurvey.trip AS t1 
 			LEFT JOIN HHSurvey.trip_error_flags AS tef ON t1.recid=tef.recid LEFT JOIN HHSurvey.error_types AS et ON tef.error_flag=et.error_flag
@@ -1719,10 +1728,12 @@ GO
 			HAVING avg(CASE WHEN t3.d_purpose IS NOT NULL AND t3.d_purpose = prior_trip.d_purpose AND t3.d_purpose = next_trip.d_purpose THEN 1.0 ELSE 0 END)>.19)
 	INSERT INTO HHSurvey.hh_error_flags (hhid, error_flag)
 	SELECT cte.hhid, 'high fraction of errors or missing data' FROM cte
+		WHERE cte.hhid = (CASE WHEN @personid IS NULL THEN cte.hhid ELSE FLOOR(@personid/100) END);
 
-END
-GO
-EXECUTE HHSurvey.generate_error_flags;
+	END
+	GO
+
+	EXECUTE HHSurvey.generate_error_flags;
 
 /* STEP 9. Steps to enable the following actions through the MS Access UI*/
 	--DELETIONS:
@@ -1739,10 +1750,10 @@ EXECUTE HHSurvey.generate_error_flags;
 
 	--TRIP LINKING
 
-		DROP PROCEDURE IF EXISTS HHSurvey.link_trip_via_d;
+		DROP PROCEDURE IF EXISTS HHSurvey.link_trip_via_id;
 		GO
 		CREATE PROCEDURE HHSurvey.link_trip_via_id
-			@recid_list nvarchar(max) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
+			@recid_list nvarchar(255) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
 		AS BEGIN
 		SET NOCOUNT ON; 
 		SELECT CAST(HHSurvey.TRIM(value) AS int) AS recid INTO #recid_list 
@@ -1751,7 +1762,10 @@ EXECUTE HHSurvey.generate_error_flags;
 	
 		SELECT t.*, 1 AS trip_link INTO #trip_ingredient
 			FROM HHSurvey.trip AS t
-			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid)
+			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid);
+
+		EXECUTE HHSurvey.link_trips;
+
 		END
 		GO
 
@@ -1759,9 +1773,10 @@ EXECUTE HHSurvey.generate_error_flags;
 
 		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
 		GO
-		CREATE PROCEDURE HHSurvey.recalculate_after_edit 
-			@personid numeric NULL --limited just to the person who was just edited
+		CREATE PROCEDURE HHSurvey.recalculate_after_edit
+			@recid numeric = NULL --optional to limit to the record just edited 
 		AS BEGIN
+		SET NOCOUNT ON
 
 		UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
@@ -1772,11 +1787,18 @@ EXECUTE HHSurvey.generate_error_flags;
 									   THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
 			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,				   	
-			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp))
+			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
+			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
+			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
 			FROM HHSurvey.trip AS t
-			WHERE t.personid = @personid;	
+			WHERE t.recid = (CASE WHEN @recid IS NULL THEN t.recid ELSE @recid END);
+
+		UPDATE next_t SET
+			next_t.o_purpose = t.d_purpose
+			FROM HHSurvey.trip AS t JOIN HHSurvey.trip AS next_t ON t.personid = next_t.personid AND t.tripnum + 1 = next_t.tripnum
+			WHERE t.recid = (CASE WHEN @recid IS NULL THEN t.recid ELSE @recid END);
+
 		END
 		GO	
-
 
 /* More yet to be determined . . .  */
