@@ -2,10 +2,10 @@ USE HouseholdTravelSurvey2019
 GO
 DROP VIEW IF EXISTS HHSurvey.data2fixie;
 GO
-CREATE VIEW HHSurvey.data2fixie
+CREATE VIEW HHSurvey.data2fixie WITH SCHEMABINDING
 AS
-SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 FROM trip WHERE trip.psrc_comment IS NOT NULL AND t1.personid = trip.personid) THEN 1 ELSE 0 END AS Elevated, 0 AS Seattle,
-		t1.tripnum, t1.recid, 
+SELECT t1.recid, t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 FROM HHSurvey.Trip WHERE Trip.psrc_comment IS NOT NULL AND t1.personid = Trip.personid) THEN 1 ELSE 0 END AS Elevated, 0 AS Seattle,
+		t1.tripnum, 
         STUFF(	COALESCE(',' + CAST(ma.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m1.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m2.mode_desc AS nvarchar), '') + 
@@ -23,9 +23,9 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 				ELSE -9999 END AS linear_mph,
 		STUFF(
 				(SELECT ',' + tef.error_flag
-					FROM trip_error_flags AS tef
+					FROM HHSurvey.trip_error_flags AS tef
 					WHERE tef.recid = t1.recid
-					ORDER BY error_flag DESC
+					ORDER BY tef.error_flag DESC
 					FOR XML PATH('')), 1, 1, NULL) AS Error,
 		CASE WHEN t1.travelers_total > 1 THEN CONCAT(CAST(t1.travelers_total - 1 AS nvarchar) ,' - ', 
 				STUFF(	
@@ -44,7 +44,7 @@ SELECT t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 F
 									 THEN DATETIME2FROMPARTS(DATEPART(year,t1.arrival_time_timestamp),DATEPART(month,t1.arrival_time_timestamp),DATEPART(day,t1.arrival_time_timestamp),3,0,0,0,0) 
 									 ELSE t2.depart_time_timestamp END) % 60)),2),'m') AS duration_at_dest,
 			CONCAT(CAST(t1.origin_lat AS VARCHAR(20)),', ',CAST(t1.origin_lng AS VARCHAR(20))) AS origin_coord,						 
-			CONCAT(CAST(t1.dest_lat AS VARCHAR(20)),', ',CAST(t1.dest_lat AS VARCHAR(20))) AS dest_coord,
+			CONCAT(CAST(t1.dest_lat AS VARCHAR(20)),', ',CAST(t1.dest_lng AS VARCHAR(20))) AS dest_coord,
 			t1.revision_code AS rc, t1.psrc_comment AS elevate_issue
 	FROM HHSurvey.trip AS t1 LEFT JOIN HHSurvey.trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
 		LEFT JOIN HHSurvey.trip_mode AS ma ON t1.mode_acc=ma.mode_id
@@ -60,7 +60,7 @@ GO
 
 DROP VIEW IF EXISTS HHSurvey.pass2trip;
 GO
-CREATE VIEW HHSurvey.pass2trip
+CREATE VIEW HHSurvey.pass2trip WITH SCHEMABINDING
 AS
 SELECT [recid]
 			,[hhid]
@@ -152,6 +152,7 @@ SELECT [recid]
 			,[psrc_resolved]
 FROM HHSurvey.Trip;
 GO
+CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 
 USE HouseholdTravelSurvey2019
 GO
@@ -218,9 +219,7 @@ GO
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('missing initial purpose'))
-	    AND (Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geog.STIntersects(t.dest_geog)=1) 
-   			 OR Not Exists (SELECT 1 FROM Sandbox.dbo.zipcode_wgs as zipwgs WHERE zipwgs.geog.STIntersects(t.origin_geog)=1));
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('ends day, not home'));
 	GO
 
 /* 	DROP VIEW IF EXISTS HHSurvey.person_by_error;
@@ -242,12 +241,13 @@ GO
 		@target_recid numeric NULL --provide recid of reference member
 
 	AS BEGIN
+	SET NOCOUNT OFF;
 	WITH cte_ref AS
 			(SELECT t0.hhid, t0.depart_time_timestamp, t0.arrival_time_timestamp, t0.pernum, t0.driver
 				FROM HHSurvey.Trip AS t0 
 				WHERE t0.recid = @target_recid),
 		 cte_mobile AS(
-			SELECT 	t3.hhid, t3.pernum, 
+			SELECT 	t3.hhid, t3.pernum, ac1.agedesc,
 					'enroute' AS member_status, 
 					CONCAT(CAST(t3.origin_lat AS NVARCHAR(20)),', ',CAST(t3.origin_lng AS NVARCHAR(20))) AS prior_location,
 					CONCAT(CAST(t3.dest_lat AS NVARCHAR(20)),', ',CAST(t3.dest_lng AS NVARCHAR(20))) AS next_destination, 
@@ -259,10 +259,11 @@ GO
 							 ELSE 'other' END) AS rider_status
 				FROM HHSurvey.Trip AS t3
 				JOIN cte_ref ON t3.hhid = cte_ref.hhid
+				JOIN HHSurvey.Person AS p1 ON t3.personid = p1.personid LEFT JOIN HHSurvey.AgeCategories AS ac1 ON ac1.AgeCode = p1.age
 				WHERE ((cte_ref.depart_time_timestamp BETWEEN t3.depart_time_timestamp AND t3.arrival_time_timestamp) 
 						OR (cte_ref.arrival_time_timestamp BETWEEN t3.depart_time_timestamp AND t3.arrival_time_timestamp))),
 		 cte_static AS
-			(SELECT t1.hhid, t1.pernum, 
+			(SELECT t1.hhid, t1.pernum, ac2.agedesc,
 					'at rest' AS member_status, 
 					CONCAT(CAST(t1.dest_lat AS NVARCHAR(20)),', ',CAST(t1.dest_lng AS NVARCHAR(20))) AS prior_location,
 					CONCAT(CAST(t2.dest_lat AS NVARCHAR(20)),', ',CAST(t2.dest_lng AS NVARCHAR(20))) AS next_destination,
@@ -270,6 +271,7 @@ GO
 				FROM HHSurvey.Trip AS t1
 				LEFT JOIN HHsurvey.Trip AS t2 ON t1.personid = t2.personid AND t1.tripnum + 1 = t2.tripnum
 				JOIN cte_ref ON t1.hhid = cte_ref.hhid AND NOT EXISTS (SELECT 1 FROM cte_mobile WHERE cte_mobile.pernum = t1.pernum)
+				JOIN HHSurvey.Person AS p2 ON t2.personid = p2.personid LEFT JOIN HHSurvey.AgeCategories AS ac2 ON ac2.AgeCode = p2.age
 				WHERE (cte_ref.depart_time_timestamp > t1.arrival_time_timestamp AND cte_ref.arrival_time_timestamp < t2.depart_time_timestamp)
 					OR (cte_ref.depart_time_timestamp > t1.arrival_time_timestamp AND t2.depart_time_timestamp IS NULL)
 		)

@@ -609,10 +609,14 @@ GO
 	-- Tripnum must be sequential or later steps will fail. Create procedure and employ where required.
 		DROP PROCEDURE IF EXISTS HHSurvey.tripnum_update;
 		GO
-		CREATE PROCEDURE HHSurvey.tripnum_update AS
+		CREATE PROCEDURE HHSurvey.tripnum_update 
+			@target_personid decimal = NULL --optional parameter
+		AS
 		BEGIN
 		WITH tripnum_rev(recid, personid, tripnum) AS
-			(SELECT recid, personid, ROW_NUMBER() OVER(PARTITION BY personid ORDER BY depart_time_timestamp ASC) AS tripnum FROM HHSurvey.trip)
+			(SELECT t0.recid, t0.personid, ROW_NUMBER() OVER(PARTITION BY t0.personid ORDER BY t0.depart_time_timestamp ASC) AS tripnum 
+			 	FROM HHSurvey.trip AS t0 
+				WHERE t0.personid = CASE WHEN @target_personid IS NULL THEN t0.recid ELSE @target_personid END)
 		UPDATE t
 			SET t.tripnum = tripnum_rev.tripnum
 			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid
@@ -722,7 +726,8 @@ GO
 				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
-				WHERE (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(50)) = 1
+				WHERE t.dest_is_home IS NULL 
+					AND (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(50)) = 1
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
@@ -739,8 +744,9 @@ GO
 				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
-				WHERE (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(50))=1		
+				WHERE t.dest_is_work IS NULL 
+					AND (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
+					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(50))=1;		
 					
 			UPDATE t --revises purpose field for return portion of a single stop loop trip 
 				SET t.d_purpose = (CASE WHEN t.dest_is_home = 1 THEN 1 WHEN t.dest_is_work = 1 THEN 10 ELSE t.d_purpose END), t.revision_code = CONCAT(t.revision_code,'1,')
@@ -1551,13 +1557,14 @@ GO
 	DROP PROCEDURE IF EXISTS HHSurvey.generate_error_flags;
 	GO
 	CREATE PROCEDURE HHSurvey.generate_error_flags 
-		@personid decimal = NULL --If missing, generated for all records
+		@target_personid decimal = NULL --If missing, generated for all records
 	AS BEGIN
 	SET NOCOUNT ON
 
+	EXECUTE HHSurvey.tripnum_update @target_personid;
 	DELETE tef 
 		FROM HHSurvey.trip_error_flags AS tef 
-		WHERE tef.personid = (CASE WHEN @personid IS NULL THEN tef.personid ELSE @personid END);
+		WHERE tef.personid = (CASE WHEN @target_personid IS NULL THEN tef.personid ELSE @target_personid END);
 
 		-- 																									  LOGICAL ERROR LABEL 		
 		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
@@ -1575,7 +1582,7 @@ GO
 			UNION ALL SELECT t.recid, t.personid, t.tripnum,  									   'initial trip purpose missing' AS error_flag
 				FROM HHSurvey.Trip AS t 
 				JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.o_purpose = vl.code
-				WHERE (vl.label = 'Other purpose' OR vl.label like 'Missing%') AND t.tripnum = 1
+				WHERE vl.label like 'Missing%' AND t.tripnum = 1
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 									  		 'mode_1 missing' AS error_flag
 				FROM HHSurvey.trip 
@@ -1588,7 +1595,7 @@ GO
 					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
 					AND v3.label NOT LIKE 'Missing%'
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum AS tripnum, 		   		   'o purpose <> prior d purpose' AS error_flag
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 					 'o purpose not equal to prior d purpose' AS error_flag
 				FROM HHSurvey.trip 
 					JOIN HHSurvey.trip AS prev_trip ON trip.personid = prev_trip.personid AND trip.tripnum - 1 = prev_trip.tripnum
 					WHERE trip.o_purpose <> prev_trip.d_purpose
@@ -1708,13 +1715,13 @@ GO
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
 			FROM error_flag_compilation AS efc
 			WHERE NOT EXISTS (SELECT 1 FROM HHSurvey.trip AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved = 1)
-				AND efc.personid = (CASE WHEN @personid IS NULL THEN efc.personid ELSE @personid END)
+				AND efc.personid = (CASE WHEN @target_personid IS NULL THEN efc.personid ELSE @target_personid END)
 			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
 	/* Flag households with predominantly problematic records */
 	DELETE hef 
 		FROM HHSurvey.hh_error_flags AS hef 
-		WHERE hef.hhid = (CASE WHEN @personid IS NULL THEN hef.hhid ELSE FLOOR(@personid/100) END);
+		WHERE hef.hhid = (CASE WHEN @target_personid IS NULL THEN hef.hhid ELSE FLOOR(@target_personid/100) END);
 
 	WITH cte AS 
 		(SELECT t1.hhid FROM HHSurvey.trip AS t1 
@@ -1733,7 +1740,7 @@ GO
 			HAVING avg(CASE WHEN t3.d_purpose IS NOT NULL AND t3.d_purpose = prior_trip.d_purpose AND t3.d_purpose = next_trip.d_purpose THEN 1.0 ELSE 0 END)>.19)
 	INSERT INTO HHSurvey.hh_error_flags (hhid, error_flag)
 	SELECT cte.hhid, 'high fraction of errors or missing data' FROM cte
-		WHERE cte.hhid = (CASE WHEN @personid IS NULL THEN cte.hhid ELSE FLOOR(@personid/100) END);
+		WHERE cte.hhid = (CASE WHEN @target_personid IS NULL THEN cte.hhid ELSE FLOOR(@target_personid/100) END);
 
 	END
 	GO
@@ -1779,10 +1786,13 @@ GO
 		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
 		GO
 		CREATE PROCEDURE HHSurvey.recalculate_after_edit
-			@recid numeric = NULL --optional to limit to the record just edited 
+			@target_personid decimal = NULL --optional to limit to the record just edited 
 		AS BEGIN
 		SET NOCOUNT ON
 
+
+
+		EXECUTE HHSurvey.tripnum_update @target_personid;
 		UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
 			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
@@ -1796,12 +1806,12 @@ GO
 			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
 			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
 			FROM HHSurvey.trip AS t
-			WHERE t.recid = (CASE WHEN @recid IS NULL THEN t.recid ELSE @recid END);
+			WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
 
 		UPDATE next_t SET
 			next_t.o_purpose = t.d_purpose
 			FROM HHSurvey.trip AS t JOIN HHSurvey.trip AS next_t ON t.personid = next_t.personid AND t.tripnum + 1 = next_t.tripnum
-			WHERE t.recid = (CASE WHEN @recid IS NULL THEN t.recid ELSE @recid END);
+			WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
 
 		END
 		GO	
