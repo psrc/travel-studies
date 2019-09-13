@@ -1517,17 +1517,70 @@ GO
 
 /* STEP 7. */
 	
-	/* Change departure times for records that would qualify for 'excessive speed' flag, using external Google Distance Matrix API */
-	/* Need to complete this section when API data call mechanism is automated
+	/* Change departure or arrival times for records that would qualify for 'excessive speed' flag, using external Google Distance Matrix API */
+	/* Need to update this section when API data call mechanism is automated, otherwise comparison data isn't automatically available
+		-- Revise drive trips
 		UPDATE t
 		SET t.depart_time_timestamp = DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp),
-			t.revision_code = CONCAT(t.revision_code, '12,')
+			t.revision_code = CONCAT(t.revision_code, '12,'),
+			t.trip_path_distance = gdu.miles
 		FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update AS gdu ON t.recid = gdu.recid
-		LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
-		WHERE (prev_t.arrival_time_timestamp IS NULL -- No prior trip, no problem
+			LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
+		WHERE EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85
+			AND (prev_t.arrival_time_timestamp IS NULL -- No prior trip, no problem
 				OR DATEDIFF(Second, prev_t.arrival_time_timestamp, DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp)) > 0)  -- Prior trip arrived before this revision would depart
 			AND gdu.drive_minutes < 420;
-	*/ 
+
+		-- Revise walk trips
+		WITH cte AS
+		( SELECT t.recid, gdu.drive_minutes, gdu.walk_minutes, gdu.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
+		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00 AS reported_duration,
+		  DATEDIFF(Second, prev_t.depart_time_timestamp, t.depart_time_timestamp)/60.00 AS prev_window,
+		  DATEDIFF(Second, t.arrival_time_timestamp, next_t.arrival_time_timestamp)/60.00 AS next_window,
+		  DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp) AS driveadjust_dtimestamp,
+		  DATEADD(Second, round(60 * gdu.drive_minutes, 0), t.depart_time_timestamp) AS driveadjust_atimestamp,
+		  DATEADD(Second, round(-60 * gdu.walk_minutes, 0), t.arrival_time_timestamp) AS walkadjust_dtimestamp,
+		  DATEADD(Second, round(60 * gdu.walk_minutes, 0), t.depart_time_timestamp) AS walkadjust_atimestamp		  
+		  FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update AS gdu ON t.recid = gdu.recid
+		  	LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
+			LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
+		WHERE (EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1)) AND t.speed_mph > 20 -- qualifies for 'excessive speed' flag		
+		), cte_choice AS (
+		SELECT cte.recid, 
+			CASE WHEN cte.drive_minutes < cte.prev_window  																				-- drive fits the travel window
+			AND (  (cte.walk_minutes > 300 AND ABS(cte.drive_minutes - cte.reported_duration) < 5)  									-- long trip and drive matches reported time
+				OR	cte.walk_minutes > (SELECT MAX(member) FROM (VALUES (cte.prev_window), (cte.next_window)) AS window_lengths(member))	-- walk doesn't fit either travel window
+				OR 	EXISTS (SELECT 1 FROM (VALUES (DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)), (DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp)))) AS timediff1(member) HAVING MIN(member) > 0) -- walkadjust crosses 3am boundary 
+			) THEN 'driveadjust_d'
+			WHEN cte.drive_minutes < cte.next_window  																					-- drive fits the travel window
+			AND (  (cte.walk_minutes > 300 AND ABS(cte.drive_minutes - cte.reported_duration) < 5)  									-- long trip and drive matches reported time
+				OR	cte.walk_minutes > (SELECT MAX(member) FROM (VALUES (cte.prev_window), (cte.next_window)) AS window_lengths(member)) 	-- walk doesn't fit either travel window
+				OR 	EXISTS (SELECT 1 FROM (VALUES (DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)), (DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp)))) AS timediff1(member) HAVING MIN(member) > 0) -- walkadjust crosses 3am boundary 
+			) THEN 'driveadjust_a'
+			WHEN cte.walk_minutes < cte.prev_window 																					-- walk fits the travel window
+				AND DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)  = 0										-- walk doesn't cross 3am boundary
+			THEN 'walkadjust_d'	
+			WHEN cte.walk_minutes < cte.next_window 																					-- walk fits the travel window
+				AND DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp))	= 0											-- walk doesn't cross 3am boundary
+			THEN 'walkadjust_a'
+			ELSE 'fail' END AS adjustcase
+			FROM cte)	
+		UPDATE t
+		SET t.mode_1 = CASE WHEN cte_choice.adjustcase LIKE 'drive%' THEN 16 ELSE t.mode_1 END,
+			t.trip_path_distance = cte.distance,
+			t.revision_code = CASE WHEN cte_choice.adjustcase LIKE 'drive%' THEN CONCAT(t.revision_code, '13,')
+								   WHEN cte_choice.adjustcase LIKE 'walk%'  THEN CONCAT(t.revision_code, '12,') 
+								   ELSE t.revision_code END,
+			t.depart_time_timestamp  = CASE WHEN cte_choice.adjustcase = 'driveadjust_d' THEN cte.driveadjust_dtimestamp 
+											WHEN cte_choice.adjustcase = 'walkadjust_d'  THEN cte.walkadjust_dtimestamp
+											ELSE t.depart_time_timestamp END,
+			t.arrival_time_timestamp = CASE WHEN cte_choice.adjustcase = 'driveadjust_a' THEN cte.driveadjust_atimestamp 
+											WHEN cte_choice.adjustcase = 'walkadjust_a'  THEN cte.walkadjust_atimestamp
+											ELSE t.arrival_time_timestamp END
+		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_choice ON t.recid = cte_choice.recid;
+		GO
+
+	*/
 
 	/* Remove duplicated home trips generated by the app */
 		USE HouseholdTravelSurvey2019
@@ -1536,8 +1589,9 @@ GO
 		GO
 		SELECT TOP 0 trip.* INTO HHSurvey.removed_trip
 			FROM HHSurvey.trip
-		union all -- union for the side effect of preventing recid from being an IDENTITY column.
-		select top 0 trip.* from HHSurvey.trip
+		UNION ALL -- union for the side effect of preventing recid from being an IDENTITY column.
+		SELECT top 0 Trip.* 
+			FROM HHSurvey.trip
 		GO
 		TRUNCATE TABLE HHSurvey.removed_trip;
 		GO
@@ -1642,6 +1696,11 @@ GO
 					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
 					OR 	(t.speed_mph > 600))	
 
+			UNION ALL SELECT t.recid, t.personid, t.tripnum, 														  'long walk' AS error_flag
+				FROM HHSurvey.trip AS t	
+				WHERE (EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) 
+					AND DATEDIFF(Minute, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00 > 5)		
+
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
 				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
@@ -1691,16 +1750,17 @@ GO
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
 			FROM HHSurvey.trip LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-				WHERE trip.dest_is_home IS NULL AND NOT EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.recid = trip.recid)
-				AND (next_trip.recid IS NULL										-- either there is no 'next trip'
-					OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
-						AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am					
-
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag
+				WHERE trip.dest_is_home IS NULL AND trip.d_purpose <>10
+					AND NOT EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.recid = trip.recid)
+					AND (next_trip.recid IS NULL										-- either there is no 'next trip'
+						OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
+							AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am					
+/*
+			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag	--This is an error but we're choosing not to focus on it right now.
 				FROM HHSurvey.trip
 				LEFT JOIN HHSurvey.trip AS next_t ON trip.personid=next_t.personid	AND trip.tripnum + 1 = next_t.tripnum						
 				WHERE trip.d_purpose = 9 AND (trip.travelers_total = next_t.travelers_total)
-
+*/
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
 				FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid  =next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 					WHERE   (trip.d_purpose IN(6,10,11,14)    		
@@ -1817,6 +1877,7 @@ GO
 									   ELSE 0 END,
 			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,				   	
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
+			t.daynum = DATEDIFF()
 			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
 			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
 			FROM HHSurvey.trip AS t
