@@ -1535,8 +1535,8 @@ GO
 		WITH cte AS
 		( SELECT t.recid, gdu.drive_minutes, gdu.walk_minutes, gdu.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
 		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00 AS reported_duration,
-		  DATEDIFF(Second, prev_t.depart_time_timestamp, t.depart_time_timestamp)/60.00 AS prev_window,
-		  DATEDIFF(Second, t.arrival_time_timestamp, next_t.arrival_time_timestamp)/60.00 AS next_window,
+		  DATEDIFF(Second, prev_t.arrival_time_timestamp, t.arrival_time_timestamp)/60.00 AS prev_window,
+		  DATEDIFF(Second, t.depart_time_timestamp, next_t.depart_time_timestamp)/60.00 AS next_window,
 		  DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp) AS driveadjust_dtimestamp,
 		  DATEADD(Second, round(60 * gdu.drive_minutes, 0), t.depart_time_timestamp) AS driveadjust_atimestamp,
 		  DATEADD(Second, round(-60 * gdu.walk_minutes, 0), t.arrival_time_timestamp) AS walkadjust_dtimestamp,
@@ -1745,12 +1745,12 @@ GO
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
 				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --next_trip is first trip of the day
-					AND HHSurvey.TRIM(next_trip.origin_name)<>'HOME' 
+					AND trip.dest_is_home IS NULL AND HHSurvey.TRIM(next_trip.origin_name)<>'HOME'
 					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
 			FROM HHSurvey.trip LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-				WHERE trip.dest_is_home IS NULL AND trip.d_purpose <>10
+				WHERE trip.dest_is_home IS NULL AND trip.d_purpose NOT IN(1,10)
 					AND NOT EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.recid = trip.recid)
 					AND (next_trip.recid IS NULL										-- either there is no 'next trip'
 						OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
@@ -1854,6 +1854,8 @@ GO
 
 		EXECUTE HHSurvey.link_trips;
 		EXECUTE HHSurvey.tripnum_update;
+		DROP TABLE IF EXISTS #recid_list;
+		DROP TABLE IF EXISTS #trip_ingredient;
 		END
 		GO
 
@@ -1867,7 +1869,7 @@ GO
 		SET NOCOUNT ON
 
 		EXECUTE HHSurvey.tripnum_update @target_personid;
-		UPDATE t SET
+			UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
 			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
@@ -1877,7 +1879,6 @@ GO
 									   ELSE 0 END,
 			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,				   	
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
-			t.daynum = DATEDIFF()
 			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
 			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
 			FROM HHSurvey.trip AS t
