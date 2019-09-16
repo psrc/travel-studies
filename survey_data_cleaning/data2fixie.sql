@@ -12,7 +12,7 @@ SELECT t1.recid, t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (
 				COALESCE(',' + CAST(m3.mode_desc AS nvarchar), '') + 
 				COALESCE(',' + CAST(m4.mode_desc AS nvarchar), '') +
 				COALESCE(',' + CAST(me.mode_desc AS nvarchar), ''), 1, 1, '') AS modes_desc,
-		CONCAT(CAST(t1.daynum AS nvarchar),' ',CASE WHEN DATEDIFF(hh, t1.depart_time_timestamp, t1.arrival_time_timestamp)/24 > .99 THEN CONCAT('+ ',DATEDIFF(hh, t1.depart_time_timestamp, t1.arrival_time_timestamp)/24) ELSE NULL END) AS daynum,	 
+		t1.daynum,	 
 		FORMAT(t1.depart_time_timestamp,N'hh\:mm tt','en-US') AS depart_dhm,
 		FORMAT(t1.arrival_time_timestamp,N'hh\:mm tt','en-US') AS arrive_dhm,
 		ROUND(t1.trip_path_distance,1) AS miles,
@@ -161,7 +161,7 @@ GO
 
 	DROP VIEW IF EXISTS HHSurvey.person_rm_seattle
 	GO
-	CREATE VIEW HHSurvey.person_rm_seattle AS
+	CREATE VIEW HHSurvey.person_rm_seattle WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
@@ -172,9 +172,10 @@ GO
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid);;
 	GO
 
+
 	DROP VIEW IF EXISTS HHSurvey.person_rm_else
 	GO
-	CREATE VIEW HHSurvey.person_rm_else AS
+	CREATE VIEW HHSurvey.person_rm_else WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
@@ -185,9 +186,10 @@ GO
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid);
 	GO
 
+
 	DROP VIEW IF EXISTS HHSurvey.person_rs
 	GO
-	CREATE VIEW HHSurvey.person_rs AS
+	CREATE VIEW HHSurvey.person_rs WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
@@ -198,9 +200,10 @@ GO
 			AND NOT EXISTS (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid);
 	GO
 
+
 	DROP VIEW IF EXISTS HHSurvey.person_elev
 	GO
-	CREATE VIEW HHSurvey.person_elev AS
+	CREATE VIEW HHSurvey.person_elev WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
@@ -211,16 +214,19 @@ GO
 		AND Exists (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND t.psrc_comment IS NOT NULL);
 	GO
 
+
 	DROP VIEW IF EXISTS HHSurvey.person_by_error;
 	GO
-	CREATE VIEW HHSurvey.person_by_error AS
+	CREATE VIEW HHSurvey.person_by_error WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('ends day, not home'));
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('purpose missing','mode_1 missing'))
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND (t.psrc_comment IS NOT NULL OR t.psrc_resolved IS NOT NULL));
 	GO
+
 
 /* 	DROP VIEW IF EXISTS HHSurvey.person_by_error;
 	GO
