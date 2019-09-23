@@ -720,33 +720,33 @@ GO
 						and HHSurvey.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
 					OR(t.d_purpose = 1))
-					AND t.dest_geog.STIntersects(h.home_geog.STBuffer(300)) = 1;
+					AND t.dest_geog.STDistance(h.home_geog) < 300;
 
 			UPDATE t --Classify home destinations where destination code is absent; 50m proximity to home location on file
 				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE t.dest_is_home IS NULL 
-					AND (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(50)) = 1
+					AND (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STDistance(h.home_geog) < 50
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
-				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid
+				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid AND p.worker > 1
 				WHERE t.dest_is_work IS NULL AND
 					(t.dest_name = 'WORK' 
 					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
 						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
 					OR(t.d_purpose = 10 AND t.dest_name IS NULL))
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(300))=1;
+					AND t.dest_geog.STDistance(p.work_geog) < 300;
 
 			UPDATE t --Classify work destinations where destination code is absent; 50m proximity to work location on file
 				SET t.dest_is_work = 1, t.d_purpose = 10
-				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid
+				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid AND p.worker > 1
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE t.dest_is_work IS NULL 
 					AND (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(50))=1;		
+					AND t.dest_geog.STDistance(p.work_geog) < 50;		
 					
 			UPDATE t --revises purpose field for return portion of a single stop loop trip 
 				SET t.d_purpose = (CASE WHEN t.dest_is_home = 1 THEN 1 WHEN t.dest_is_work = 1 THEN 10 ELSE t.d_purpose END), t.revision_code = CONCAT(t.revision_code,'1,')
@@ -1659,7 +1659,7 @@ GO
 				WHERE (next_trip.recid IS NULL											 -- either there is no 'next trip'
 							OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
 								AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am)
-				AND trip.dest_is_home IS NULL AND trip.d_purpose <>1 AND trip.dest_geog.STDistance(h.home_geog) > 300
+				AND trip.dest_is_home IS NULL AND trip.d_purpose NOT IN(1,52) AND trip.dest_geog.STDistance(h.home_geog) > 300
 					AND NOT EXISTS (SELECT 1 FROM #dayends AS de WHERE trip.personid = de.personid AND trip.dest_geog.STDistance(de.loc_geog) < 300)	
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
@@ -1704,6 +1704,7 @@ GO
 				GROUP BY trip.personid 
 				HAVING max(trip.tripnum)=1
 			*/ --Lone trips only for scrutiny when largely void of data; that's true of any trip. Handle in problematic HH review instead
+
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,											'underage driver' AS error_flag
 				FROM HHSurvey.person AS p
 				JOIN HHSurvey.trip ON p.personid = trip.personid
@@ -1759,8 +1760,9 @@ GO
 								WHERE member IS NOT NULL and member not in (select flag_value from HHSurvey.NullFlags) AND member <> 0 GROUP BY member HAVING count(*) > 1)
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	  		   			 		   	 'purpose at odds w/ dest' AS error_flag
-				FROM HHSurvey.trip
+				FROM HHSurvey.trip JOIN HHSurvey.Household AS h ON trip.hhid = h.hhid JOIN HHSurvey.Person AS p ON trip.personid = p.personid
 				WHERE (trip.d_purpose <> 1 and trip.dest_is_home = 1) OR (trip.d_purpose NOT IN(9,10,11,14,60) and trip.dest_is_work = 1)
+					AND h.home_geog.STDistance(p.work_geog) > 500
  
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
 			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid  =next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
@@ -1887,7 +1889,8 @@ GO
 			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
 									   THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
 									   ELSE 0 END,
-			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,				   	
+			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,
+			--t.travel_time 	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,  -- for edited records, this should be the accepted travel duration			   	
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
 			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
 			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
