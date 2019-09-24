@@ -1303,8 +1303,8 @@ GO
 				t.park_ride_lot_end		= lt.park_ride_lot_end, 		t.bus_type		= lt.bus_type, 	
 																		t.ferry_type	= lt.ferry_type, 
 																		t.air_type		= lt.air_type,
-				--t.hhmember_none 		= lt.hhmember_none, 	
-				t.revision_code 		= CONCAT(t.revision_code, '8,')
+				t.psrc_comment = NULL, 	
+				t.revision_code = CONCAT(t.revision_code, '8,')
 			FROM HHSurvey.trip AS t JOIN #linked_trips AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
 
 		--move the ingredients to another named table so this procedure can be re-run as sproc during manual cleaning
@@ -1541,7 +1541,7 @@ GO
 		  DATEADD(Second, round(60 * gdu.drive_minutes, 0), t.depart_time_timestamp) AS driveadjust_atimestamp,
 		  DATEADD(Second, round(-60 * gdu.walk_minutes, 0), t.arrival_time_timestamp) AS walkadjust_dtimestamp,
 		  DATEADD(Second, round(60 * gdu.walk_minutes, 0), t.depart_time_timestamp) AS walkadjust_atimestamp		  
-		  FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update AS gdu ON t.recid = gdu.recid
+		  FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update_w AS gdu ON t.recid = gdu.recid
 		  	LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
 			LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
 		WHERE (EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1)) AND t.speed_mph > 20 -- qualifies for 'excessive speed' flag		
@@ -1659,7 +1659,7 @@ GO
 				WHERE (next_trip.recid IS NULL											 -- either there is no 'next trip'
 							OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
 								AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am)
-				AND trip.dest_is_home IS NULL AND trip.d_purpose NOT IN(1,52) AND trip.dest_geog.STDistance(h.home_geog) > 300
+				AND trip.dest_is_home IS NULL AND trip.d_purpose NOT IN(1,34,52,55,97) AND trip.dest_geog.STDistance(h.home_geog) > 300
 					AND NOT EXISTS (SELECT 1 FROM #dayends AS de WHERE trip.personid = de.personid AND trip.dest_geog.STDistance(de.loc_geog) < 300)	
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
@@ -1732,11 +1732,15 @@ GO
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
+				LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v ON trip.d_purpose = v.code
+				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 
+					AND trip.d_purpose NOT IN(1,9,33,51,60,61,62,97) AND v.label <> 'Other purpose' AND v.label NOT LIKE 'Missing%'
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	   				'no activity time before' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
+					LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v ON trip.d_purpose = v.code
+				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60
+					AND trip.d_purpose NOT IN(1,9,33,51,60,61,62,97) AND v.label <> 'Other purpose' AND v.label NOT LIKE 'Missing%'			
 
 			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					        	 		   'same dest as next' AS error_flag
 				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
@@ -1789,7 +1793,7 @@ GO
 								CASE WHEN next_trip.recid IS NULL 
 									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
 									 ELSE next_trip.depart_time_timestamp END) > 240)
-   						OR  (trip.d_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	
+   						OR  (trip.d_purpose IN(32,33,34,50,51,53,54,56,60,61,62) 	
 						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
 						   		CASE WHEN next_trip.recid IS NULL 
 									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
@@ -1859,7 +1863,7 @@ GO
 		SELECT CAST(HHSurvey.TRIM(value) AS int) AS recid INTO #recid_list 
 			FROM STRING_SPLIT(@recid_list, ',')
 			WHERE RTRIM(value) <> ''
-	
+		
 		SELECT t.*, 1 AS trip_link INTO #trip_ingredient
 			FROM HHSurvey.trip AS t
 			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid);
