@@ -1659,7 +1659,7 @@ GO
 				WHERE (next_trip.recid IS NULL											 -- either there is no 'next trip'
 							OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
 								AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am)
-				AND trip.dest_is_home IS NULL AND trip.d_purpose NOT IN(1,34,52,55,97) AND trip.dest_geog.STDistance(h.home_geog) > 300
+				AND trip.dest_is_home IS NULL AND trip.d_purpose NOT IN(1,34,52,55,62,97) AND trip.dest_geog.STDistance(h.home_geog) > 300
 					AND NOT EXISTS (SELECT 1 FROM #dayends AS de WHERE trip.personid = de.personid AND trip.dest_geog.STDistance(de.loc_geog) < 300)	
 
 			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
@@ -1674,9 +1674,9 @@ GO
 					JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON trip.d_purpose = vl.code
 					JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON trip.o_purpose = v2.code
 					LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v3 ON next_trip.d_purpose = v3.code
-				WHERE vl.label LIKE 'Missing%'
-					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
-					AND v3.label NOT LIKE 'Missing%'	
+				WHERE (vl.label LIKE 'Missing%' OR trip.d_purpose IS NULL)
+					AND (v2.label NOT LIKE 'Missing%' AND trip.d_purpose IS NOT NULL) -- we don't want to focus on instances with large blocks of trips missing info
+					AND (v3.label NOT LIKE 'Missing%' AND trip.d_purpose IS NOT NULL)	
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum,  									   'initial trip purpose missing' AS error_flag
 				FROM HHSurvey.Trip AS t 
@@ -1793,7 +1793,7 @@ GO
 								CASE WHEN next_trip.recid IS NULL 
 									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
 									 ELSE next_trip.depart_time_timestamp END) > 240)
-   						OR  (trip.d_purpose IN(32,33,34,50,51,53,54,56,60,61,62) 	
+   						OR  (trip.d_purpose IN(32,33,50,51,53,54,56,60,61) 	
 						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
 						   		CASE WHEN next_trip.recid IS NULL 
 									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
@@ -1885,21 +1885,29 @@ GO
 		SET NOCOUNT ON
 
 		EXECUTE HHSurvey.tripnum_update @target_personid;
-			UPDATE t SET
+
+		WITH cte AS
+		(SELECT t0.personid, t0.depart_time_timestamp AS start_stamp
+				FROM HHSurvey.Trip AS t0 
+				WHERE t0.tripnum = 1 AND t0.depart_time_timestamp IS NOT NULL)
+		UPDATE t SET
 			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
 			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
 			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
+			t.daynum = 1 + DATEDIFF(day, cte.start_stamp, (CASE WHEN DATEPART(Hour, t.depart_time_timestamp) < 3 
+																THEN CAST(DATEADD(Hour, -3, t.depart_time_timestamp) AS DATE)
+																ELSE CAST(t.depart_time_timestamp AS DATE) END)),
 			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
-									   THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
-									   ELSE 0 END,
+										THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
+										ELSE 0 END,
 			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,
 			--t.travel_time 	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,  -- for edited records, this should be the accepted travel duration			   	
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
 			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
 			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
-			FROM HHSurvey.trip AS t
-			WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
+		FROM HHSurvey.trip AS t
+		WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
 
 		UPDATE next_t SET
 			next_t.o_purpose = t.d_purpose
