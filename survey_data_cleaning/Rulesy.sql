@@ -1864,8 +1864,9 @@ GO
 			FROM STRING_SPLIT(@recid_list, ',')
 			WHERE RTRIM(value) <> ''
 		
-		SELECT t.*, 1 AS trip_link INTO #trip_ingredient
-			FROM HHSurvey.trip AS t
+		WITH cte AS (SELECT TOP 1 tripnum AS trip_link FROM HHSurvey.trip AS t JOIN #recid_list AS rid ON rid.recid = t.recid ORDER BY t.depart_time_timestamp))
+		SELECT t.*, cte.trip_link INTO #trip_ingredient
+			FROM HHSurvey.trip AS t JOIN cte ON 1 = 1
 			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid);
 
 		EXECUTE HHSurvey.link_trips;
