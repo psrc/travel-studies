@@ -1066,7 +1066,7 @@ GO
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '');							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
-	/*	DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
+		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
 		GO
 		SELECT TOP 0 HHSurvey.trip.*, CAST(0 AS int) AS trip_link 
 			INTO HHSurvey.trip_ingredients_done 
@@ -1074,7 +1074,7 @@ GO
 		union all -- This union is done simply for the side effect of preventing the recid in the new table to be defined as an IDENTITY column.
 		SELECT TOP 0 HHSurvey.trip.*, CAST(0 AS int) AS trip_link 
 			FROM HHSurvey.trip
-		GO */
+		GO
 
 		--select the trip ingredients that will be linked; this selects all but the first component 
 		DROP TABLE IF EXISTS #trip_ingredient;
