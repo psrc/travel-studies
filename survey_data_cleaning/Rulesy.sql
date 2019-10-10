@@ -1066,7 +1066,7 @@ GO
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '');							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
-		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
+	/*	DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
 		GO
 		SELECT TOP 0 HHSurvey.trip.*, CAST(0 AS int) AS trip_link 
 			INTO HHSurvey.trip_ingredients_done 
@@ -1074,7 +1074,7 @@ GO
 		union all -- This union is done simply for the side effect of preventing the recid in the new table to be defined as an IDENTITY column.
 		SELECT TOP 0 HHSurvey.trip.*, CAST(0 AS int) AS trip_link 
 			FROM HHSurvey.trip
-		GO
+		GO */
 
 		--select the trip ingredients that will be linked; this selects all but the first component 
 		DROP TABLE IF EXISTS #trip_ingredient;
@@ -1674,8 +1674,8 @@ GO
 					JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON t.o_purpose = v2.code
 					LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v3 ON t_next.d_purpose = v3.code
 				WHERE (vl.label LIKE 'Missing%' OR t.d_purpose IS NULL)
-					AND (v2.label NOT LIKE 'Missing%' AND t.d_purpose IS NOT NULL) -- we don't want to focus on instances with large blocks of trips missing info
-					AND (v3.label NOT LIKE 'Missing%' AND t.d_purpose IS NOT NULL)	
+					--AND (v2.label NOT LIKE 'Missing%' AND t.d_purpose IS NOT NULL) -- we don't want to focus on instances with large blocks of trips missing info
+					--AND (v3.label NOT LIKE 'Missing%' AND t.d_purpose IS NOT NULL)	
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum,  								   'initial trip purpose missing' AS error_flag
 				FROM trip_ref AS t 
@@ -1862,12 +1862,14 @@ GO
 		SET NOCOUNT ON; 
 		SELECT CAST(HHSurvey.TRIM(value) AS int) AS recid INTO #recid_list 
 			FROM STRING_SPLIT(@recid_list, ',')
-			WHERE RTRIM(value) <> ''
+			WHERE RTRIM(value) <> '';
 		
-		WITH cte AS (SELECT TOP 1 tripnum AS trip_link FROM HHSurvey.trip AS t JOIN #recid_list AS rid ON rid.recid = t.recid ORDER BY t.depart_time_timestamp))
+		WITH cte AS (SELECT TOP 1 tripnum AS trip_link FROM HHSurvey.trip AS t JOIN #recid_list AS rid ON rid.recid = t.recid ORDER BY t.depart_time_timestamp)
 		SELECT t.*, cte.trip_link INTO #trip_ingredient
 			FROM HHSurvey.trip AS t JOIN cte ON 1 = 1
 			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid);
+
+		
 
 		EXECUTE HHSurvey.link_trips;
 		EXECUTE HHSurvey.tripnum_update;
