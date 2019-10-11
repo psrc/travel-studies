@@ -1517,65 +1517,63 @@ GO
 	
 	/* Change departure or arrival times for records that would qualify for 'excessive speed' flag, using external Google Distance Matrix API */
 	/* Need to update this section when API data call mechanism is automated, otherwise comparison data isn't automatically available
-		-- Revise drive trips
-		UPDATE t
-		SET t.depart_time_timestamp = DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp),
-			t.revision_code = CONCAT(t.revision_code, '12,'),
-			t.trip_path_distance = gdu.miles
-		FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update AS gdu ON t.recid = gdu.recid
-			LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
-		WHERE EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85
-			AND (prev_t.arrival_time_timestamp IS NULL -- No prior trip, no problem
-				OR DATEDIFF(Second, prev_t.arrival_time_timestamp, DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp)) > 0)  -- Prior trip arrived before this revision would depart
-			AND gdu.drive_minutes < 420;
 
-		-- Revise walk trips
+		-- Revise departure, and if necessary, arrival times and mode
+        -- Preference to reported mode if travel time matches the available window; if not, drive time is considered as an alternative for trips under 7hrs
 		WITH cte AS
-		( SELECT t.recid, gdu.drive_minutes, gdu.walk_minutes, gdu.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
-		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00 AS reported_duration,
-		  DATEDIFF(Second, prev_t.arrival_time_timestamp, t.arrival_time_timestamp)/60.00 AS prev_window,
-		  DATEDIFF(Second, t.depart_time_timestamp, next_t.depart_time_timestamp)/60.00 AS next_window,
-		  DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp) AS driveadjust_dtimestamp,
-		  DATEADD(Second, round(60 * gdu.drive_minutes, 0), t.depart_time_timestamp) AS driveadjust_atimestamp,
-		  DATEADD(Second, round(-60 * gdu.walk_minutes, 0), t.arrival_time_timestamp) AS walkadjust_dtimestamp,
-		  DATEADD(Second, round(60 * gdu.walk_minutes, 0), t.depart_time_timestamp) AS walkadjust_atimestamp		  
-		  FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update_w AS gdu ON t.recid = gdu.recid
+		( SELECT t.recid, att.auto_minutes, att.mode1_minutes, att.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
+		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00         AS reported_duration,
+		  DATEDIFF(Second, prev_t.arrival_time_timestamp, t.arrival_time_timestamp)/60.0 -1 AS half_window,
+		  DATEDIFF(Second, t.depart_time_timestamp, next_t.depart_time_timestamp)/60.0 -2   AS full_window,
+		  DATEADD(Second, round(-60 * att.mode1_minutes, 0), t.arrival_time_timestamp)          AS adj_depart_mode1_d,
+          DATEADD(Second, 60, prev_t.arrival_time_timestamp)                                    AS adj_both_mode1_d,
+          DATEADD(Second, round(60 * att.mode1_minutes, 0) + 1, prev_t.arrival_time_timestamp)  AS adj_both_mode1_a,          
+		  DATEADD(Second, round(-60 * att.auto_minutes, 0), t.arrival_time_timestamp)          AS adj_depart_auto_d,
+          DATEADD(Second, 60, prev_t.arrival_time_timestamp)                                    AS adj_both_auto_d,
+          DATEADD(Second, round(60 * att.auto_minutes, 0) + 1, prev_t.arrival_time_timestamp)  AS adj_both_auto_a	  
+		  FROM HHSurvey.Trip AS t JOIN HHSurvey.ApiTravelTime AS att ON t.recid = att.recid
 		  	LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
 			LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
-		WHERE (EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1)) AND t.speed_mph > 20 -- qualifies for 'excessive speed' flag		
+		WHERE ((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
+					OR 	(EXISTS (SELECT 1 FROM HHSurvey.bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
+					OR	(EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
+					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
+					OR 	(t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140)))          -- qualifies for 'excessive speed' flag		
 		), cte_choice AS (
 		SELECT cte.recid, 
-			CASE WHEN cte.drive_minutes < cte.prev_window  																				-- drive fits the travel window
-			AND (  (cte.walk_minutes > 300 AND ABS(cte.drive_minutes - cte.reported_duration) < 5)  									-- long trip and drive matches reported time
-				OR	cte.walk_minutes > (SELECT MAX(member) FROM (VALUES (cte.prev_window), (cte.next_window)) AS window_lengths(member))	-- walk doesn't fit either travel window
-				OR 	EXISTS (SELECT 1 FROM (VALUES (DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)), (DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp)))) AS timediff1(member) HAVING MIN(member) > 0) -- walkadjust crosses 3am boundary 
-			) THEN 'driveadjust_d'
-			WHEN cte.drive_minutes < cte.next_window  																					-- drive fits the travel window
-			AND (  (cte.walk_minutes > 300 AND ABS(cte.drive_minutes - cte.reported_duration) < 5)  									-- long trip and drive matches reported time
-				OR	cte.walk_minutes > (SELECT MAX(member) FROM (VALUES (cte.prev_window), (cte.next_window)) AS window_lengths(member)) 	-- walk doesn't fit either travel window
-				OR 	EXISTS (SELECT 1 FROM (VALUES (DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)), (DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp)))) AS timediff1(member) HAVING MIN(member) > 0) -- walkadjust crosses 3am boundary 
-			) THEN 'driveadjust_a'
-			WHEN cte.walk_minutes < cte.prev_window 																					-- walk fits the travel window
-				AND DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)  = 0										-- walk doesn't cross 3am boundary
-			THEN 'walkadjust_d'	
-			WHEN cte.walk_minutes < cte.next_window 																					-- walk fits the travel window
-				AND DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp))	= 0											-- walk doesn't cross 3am boundary
-			THEN 'walkadjust_a'
+			CASE 
+            WHEN cte.mode1_minutes < cte.half_window 														-- mode_1 fits the window for adjusting only departure time
+				AND DATEDIFF(Day, DATEADD(Hour, 3, cte.adj_depart_mode1_d), cte.arrival_time_timestamp) = 0	    -- walk doesn't cross 3am boundary
+			THEN 'adj_depart_mode1'	
+			WHEN cte.mode1_minutes < cte.full_window 															-- mode_1 fits the travel window between prior and next trips
+				AND DATEDIFF(Day, cte.adj_both_auto_d, DATEADD(Hour, 3, cte.adj_both_auto_a)) = 0				-- walk doesn't cross 3am boundary
+			THEN 'adj_both_mode1'	
+            WHEN cte.auto_minutes < cte.half_window AND cte.auto_minutes < 420							    -- drive fits the window for adjusting only departure time
+			    AND ABS(cte.mode1_minutes - cte.auto_minutes) > 20                                              -- difference is substantial
+                AND ABS(cte.auto_minutes - cte.reported_duration) < 5 				                            --  drive matches reported time
+		    THEN 'adj_depart_auto'
+			WHEN cte.auto_minutes < cte.full_window AND cte.auto_minutes < 420    							-- drive fits the travel window between prior and next trips
+			    AND ABS(cte.mode1_minutes - cte.auto_minutes) > 20                                              -- difference is substantial
+                AND ABS(cte.auto_minutes - cte.reported_duration) < 5 				                            -- drive matches reported time
+			THEN 'adj_both_auto'
 			ELSE 'fail' END AS adjustcase
 			FROM cte)	
 		UPDATE t
-		SET t.mode_1 = CASE WHEN cte_choice.adjustcase LIKE 'drive%' THEN 16 ELSE t.mode_1 END,
+		SET t.mode_1 = CASE WHEN cte_choice.adjustcase LIKE '%auto' THEN 16 ELSE t.mode_1 END,
 			t.trip_path_distance = cte.distance,
-			t.revision_code = CASE WHEN cte_choice.adjustcase LIKE 'drive%' THEN CONCAT(t.revision_code, '13,')
-								   WHEN cte_choice.adjustcase LIKE 'walk%'  THEN CONCAT(t.revision_code, '12,') 
+			t.revision_code = CASE WHEN cte_choice.adjustcase LIKE '%auto' THEN CONCAT(t.revision_code, '13,')
+								   WHEN cte_choice.adjustcase LIKE '%mode1'  THEN CONCAT(t.revision_code, '12,') 
 								   ELSE t.revision_code END,
-			t.depart_time_timestamp  = CASE WHEN cte_choice.adjustcase = 'driveadjust_d' THEN cte.driveadjust_dtimestamp 
-											WHEN cte_choice.adjustcase = 'walkadjust_d'  THEN cte.walkadjust_dtimestamp
+			t.depart_time_timestamp  = CASE WHEN cte_choice.adjustcase = 'adj_depart_mode1'  THEN cte.adj_depart_mode1_d
+                                            WHEN cte_choice.adjustcase = 'adj_both_mode1'    THEN cte.adj_both_mode1_d
+                                            WHEN cte_choice.adjustcase = 'adj_depart_auto'  THEN cte.adj_depart_auto_d
+                                            WHEN cte_choice.adjustcase = 'adj_both_auto'    THEN cte.adj_both_auto_d
 											ELSE t.depart_time_timestamp END,
-			t.arrival_time_timestamp = CASE WHEN cte_choice.adjustcase = 'driveadjust_a' THEN cte.driveadjust_atimestamp 
-											WHEN cte_choice.adjustcase = 'walkadjust_a'  THEN cte.walkadjust_atimestamp
+			t.arrival_time_timestamp = CASE WHEN cte_choice.adjustcase = 'adj_both_mode1'    THEN cte.adj_both_mode1_a
+                                            WHEN cte_choice.adjustcase = 'adj_both_auto'    THEN cte.adj_both_auto_a
 											ELSE t.arrival_time_timestamp END
-		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_choice ON t.recid = cte_choice.recid;
+		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_choice ON t.recid = cte_choice.recid
+        WHERE cte_choice.adjustcase <> 'fail';
 		GO
 
 	*/
