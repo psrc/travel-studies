@@ -223,7 +223,7 @@ GO
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef JOIN HHSurvey.Trip AS t ON tef.recid = t.recid WHERE tef.personid = p.personid AND tef.error_flag IN('mode_1 missing','purpose missing') AND t.psrc_comment IS NULL AND t.psrc_resolved IS NULL)
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef JOIN HHSurvey.Trip AS t ON tef.recid = t.recid WHERE tef.personid = p.personid AND tef.error_flag IN('mode_1 missing','too slow','purpose missing') AND t.psrc_comment IS NULL AND t.psrc_resolved IS NULL)
 	--		AND NOT EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag LIKE 'missing % trip link' );
 	GO
 
@@ -329,26 +329,4 @@ GO
 	END
 	GO
 
-	/* NOT YET READY -- automated split for trips where traces indicate a stop
 	
-	DROP PROCEDURE IF EXISTS HHSurvey.split_trip;
-	GO
-	CREATE PROCEDURE HHSurvey.split_trip
-		@target_recid int = NULL
-	AS BEGIN
-	SET NOCOUNT ON; 
-
-	WITH cte_ref AS
-	(SELECT t.recid, t.tripid, t.dest_geog, t.arrival_time_timestamp
-		FROM HHSurvey.Trip AS t WHERE t.recid = @target_recid),
-	cte_break AS
-	(SELECT TOP 1 c.traceid, c.tripid, c.collected_at, c.lat, c.lng, c.point_geog
-	FROM HHSurvey.Trace AS c 
-		JOIN cte_ref ON c.tripid = cte_ref.tripid 
-		LEFT JOIN HHSurvey.Trace AS cnxt ON c.traceid + 1 = cnxt.traceid AND c.tripid = cnxt.tripid
-		WHERE DATEDIFF(Minute, c.collected_at, cnxt.collected_at) > 15
-		ORDER BY DATEDIFF(Second, c.collected_at, cnxt.collected_at) DESC)
-	SELECT 
-	
-	
-	*/
