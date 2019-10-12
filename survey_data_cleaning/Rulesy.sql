@@ -1991,7 +1991,9 @@ GO
 
 		DECLARE @split_personid decimal (19,0) = (SELECT x.personid FROM #tmpSplit AS x)
 		DROP TABLE #tmpSplit;
-		EXECUTE HHSurvey.recalculate_after_edit
+		EXECUTE HHSurvey.recalculate_after_edit @split_personid;
+		EXECUTE HHSurvey.generate_error_flags @split_personid;
+
 
 		END
 	
