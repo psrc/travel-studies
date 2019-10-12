@@ -1939,14 +1939,15 @@ GO
 		FROM HHSurvey.Trace AS c 
 			JOIN cte ON c.tripid = cte.tripid AND (c.collected_at BETWEEN cte.depart_time_timestamp AND cte.arrival_time_timestamp)
 			LEFT JOIN HHSurvey.Trace AS cnxt ON c.traceid + 1 = cnxt.traceid AND c.tripid = cnxt.tripid
-			WHERE DATEDIFF(Minute, c.collected_at, cnxt.collected_at) > 30
+			WHERE DATEDIFF(Minute, c.collected_at, cnxt.collected_at) > 15
 			ORDER BY DATEDIFF(Second, c.collected_at, cnxt.collected_at) DESC;
 
 		IF (SELECT to_midpoint_distance_approx FROM #tmpSplit) < 0.1
 			BEGIN
 			UPDATE t 
 			SET t.depart_time_timestamp = x.midpoint_depart_timestamp,
-				t.revision_code = CONCAT(t.revision_code, '14,')
+				t.revision_code = CONCAT(t.revision_code, '14,'),
+				t.psrc_comment = NULL
 			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
 			END
 
@@ -1954,7 +1955,8 @@ GO
 			BEGIN
 			UPDATE t 
 			SET t.arrival_time_timestamp = x.midpoint_arrival_timestamp,
-				t.revision_code = CONCAT(t.revision_code, '14,')
+				t.revision_code = CONCAT(t.revision_code, '14,'),
+				t.psrc_comment = NULL
 			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
 			END
 
@@ -1985,7 +1987,8 @@ GO
 				t.dest_geog = x.point_geog,
 				t.trip_path_distance = x.to_midpoint_distance_approx,
 				t.d_purpose = 97,
-				t.revision_code = CONCAT(t.revision_code, '15,')
+				t.revision_code = CONCAT(t.revision_code, '15,'),
+				t.psrc_comment = NULL
 			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
 			END
 
