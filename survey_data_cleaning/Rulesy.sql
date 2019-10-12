@@ -1927,10 +1927,7 @@ GO
 			@target_recid int = NULL
 		AS BEGIN
 		SET NOCOUNT ON; 
-
 		DROP TABLE IF EXISTS #tmpSplit;
-		GO
-		DECLARE @target_recid int = 87;
 
 		WITH cte AS
 		(SELECT t.recid, t.tripid, t.personid, t.origin_geog, t.dest_geog, t.depart_time_timestamp, t.arrival_time_timestamp, t.trip_path_distance
@@ -1946,45 +1943,51 @@ GO
 			ORDER BY DATEDIFF(Second, c.collected_at, cnxt.collected_at) DESC;
 
 		IF (SELECT to_midpoint_distance_approx FROM #tmpSplit) < 0.1
-		UPDATE t 
-		SET t.depart_time_timestamp = x.midpoint_depart_timestamp,
-			t.revision_code = CONCAT(t.revision_code, '14,')
-		FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
+			BEGIN
+			UPDATE t 
+			SET t.depart_time_timestamp = x.midpoint_depart_timestamp,
+				t.revision_code = CONCAT(t.revision_code, '14,')
+			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
+			END
 
-		IF (SELECT from_midpoint_distance_approx FROM #tmpSplit) < 0.1
-		UPDATE t 
-		SET t.arrival_time_timestamp = x.midpoint_arrival_timestamp,
-			t.revision_code = CONCAT(t.revision_code, '14,')
-		FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
+		ELSE IF (SELECT from_midpoint_distance_approx FROM #tmpSplit) < 0.1
+			BEGIN
+			UPDATE t 
+			SET t.arrival_time_timestamp = x.midpoint_arrival_timestamp,
+				t.revision_code = CONCAT(t.revision_code, '14,')
+			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
+			END
 
-		IF ((SELECT to_midpoint_distance_approx FROM #tmpSplit) > 0.1 AND (SELECT from_midpoint_distance_approx FROM #tmpSplit) > 0.1)
-		INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, travelers_hh, travelers_nonhh, travelers_total, modes, mode_1, 
-			hhmember1, hhmember2, hhmember3, hhmember4, hhmember5, hhmember6, hhmember7, hhmember8, hhmember9, 
-			d_purpose,depart_time_timestamp, 
-			arrival_time_timestamp, 
-			trip_path_distance,
-			origin_lat, origin_lng, origin_geog, 
-			dest_lat, dest_lng, dest_geog, dest_is_home, dest_is_work,
-			revision_code, psrc_inserted)			
-		SELECT  t.hhid, t.personid, t.pernum, t.hhgroup, t.travelers_hh, t.travelers_nonhh, t.travelers_total, t.modes, t.mode_1,
-				t.hhmember1, t.hhmember2, t.hhmember3, t.hhmember4, t.hhmember5, t.hhmember6, t.hhmember7, t.hhmember8, t.hhmember9, 
-			t.d_purpose, x.midpoint_depart_timestamp AS depart_time_timestamp, 
-			t.arrival_time_timestamp, 
-			x.from_midpoint_distance_approx AS trip_path_distance,
-			x.lat AS origin_lat, x.lng AS origin_lng, x.point_geog AS origin_geog, 
-			t.dest_lat, t.dest_lng, t.dest_geog, t.dest_is_home, t.dest_is_work,
-			14 AS revision_code, 1 AS psrc_inserted
-			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid
-		
-		UPDATE t 
-		SET t.arrival_time_timestamp = x.midpoint_arrival_timestamp,
-			t.dest_lat = x.lat,
-			t.dest_lng = x.lng,
-			t.dest_geog = x.point_geog,
-			t.trip_path_distance = x.to_midpoint_distance_approx,
-			t.d_purpose = 97,
-			t.revision_code = CONCAT(t.revision_code, '15,')
-		FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
+		ELSE IF ((SELECT to_midpoint_distance_approx FROM #tmpSplit) > 0.1 AND (SELECT from_midpoint_distance_approx FROM #tmpSplit) > 0.1)
+			BEGIN
+			INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, travelers_hh, travelers_nonhh, travelers_total, modes, mode_1, 
+				hhmember1, hhmember2, hhmember3, hhmember4, hhmember5, hhmember6, hhmember7, hhmember8, hhmember9, 
+				d_purpose,depart_time_timestamp, 
+				arrival_time_timestamp, 
+				trip_path_distance,
+				origin_lat, origin_lng, origin_geog, 
+				dest_lat, dest_lng, dest_geog, dest_is_home, dest_is_work,
+				revision_code, psrc_inserted)			
+			SELECT  t.hhid, t.personid, t.pernum, t.hhgroup, t.travelers_hh, t.travelers_nonhh, t.travelers_total, t.modes, t.mode_1,
+					t.hhmember1, t.hhmember2, t.hhmember3, t.hhmember4, t.hhmember5, t.hhmember6, t.hhmember7, t.hhmember8, t.hhmember9, 
+				t.d_purpose, x.midpoint_depart_timestamp AS depart_time_timestamp, 
+				t.arrival_time_timestamp, 
+				x.from_midpoint_distance_approx AS trip_path_distance,
+				x.lat AS origin_lat, x.lng AS origin_lng, x.point_geog AS origin_geog, 
+				t.dest_lat, t.dest_lng, t.dest_geog, t.dest_is_home, t.dest_is_work,
+				14 AS revision_code, 1 AS psrc_inserted
+				FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid
+			
+			UPDATE t 
+			SET t.arrival_time_timestamp = x.midpoint_arrival_timestamp,
+				t.dest_lat = x.lat,
+				t.dest_lng = x.lng,
+				t.dest_geog = x.point_geog,
+				t.trip_path_distance = x.to_midpoint_distance_approx,
+				t.d_purpose = 97,
+				t.revision_code = CONCAT(t.revision_code, '15,')
+			FROM HHSurvey.Trip AS t JOIN #tmpSplit AS x ON t.recid = x.recid;
+			END
 
 		DECLARE @split_personid decimal (19,0) = (SELECT x.personid FROM #tmpSplit AS x)
 		DROP TABLE #tmpSplit;
