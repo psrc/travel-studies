@@ -335,7 +335,7 @@ CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 		@recid_list nvarchar(255) NULL
 		AS BEGIN
 	SET NOCOUNT OFF;
-	IF (SELECT HHSurvey.RgxFind(HHSurvey.TRIM(t.psrc_comment),'^(\d+,)+$',1) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid) = 1
+	IF (SELECT HHSurvey.RgxFind(HHSurvey.TRIM(t.psrc_comment),'^(\d+,?)+$',1) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid) = 1
 		BEGIN
 		SELECT @recid_list = (SELECT HHSurvey.TRIM(t.psrc_comment) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid)
 		EXECUTE HHSurvey.link_trip_via_id @recid_list;
