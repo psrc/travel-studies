@@ -154,8 +154,7 @@ FROM HHSurvey.Trip;
 GO
 CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 
-USE HouseholdTravelSurvey2019
-GO
+
 
 --create separate views for FixieUI major record divisions
 
@@ -169,7 +168,7 @@ GO
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode JOIN HHSurvey.household AS h ON h.hhid = p.hhid
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag NOT LIKE 'missing % trip link') AND p.hhgroup=1 AND h.cityofseattle = 1
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND (t.psrc_comment IS NOT NULL OR t.psrc_resolved IS NOT NULL))
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid);;
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid);
 	GO
 
 
@@ -329,4 +328,18 @@ GO
 	END
 	GO
 
-	
+	DROP PROCEDURE IF EXISTS HHSurvey.link_trip_click;
+	GO
+	CREATE PROCEDURE HHSurvey.link_trip_click
+		@ref_recid int = NULL,
+		@recid_list nvarchar(255) NULL
+		AS BEGIN
+	SET NOCOUNT OFF;
+	IF (SELECT HHSurvey.RgxFind(HHSurvey.TRIM(t.psrc_comment),'^(\d+,)+$',1) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid) = 1
+		BEGIN
+		SELECT @recid_list = (SELECT HHSurvey.TRIM(t.psrc_comment) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid)
+		EXECUTE HHSurvey.link_trip_via_id @recid_list;
+		SELECT @recid_list = NULL, @ref_recid = NULL
+		END
+	END
+	GO
