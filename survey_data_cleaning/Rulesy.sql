@@ -1876,6 +1876,274 @@ GO
 		END
 		GO
 
+	--UNLINKING (i.e. reverse the link procedure given above)
+
+		DROP PROCEDURE IF EXISTS HHSurvey.unlink_via_id;
+		GO
+		CREATE PROCEDURE HHSurvey.unlink_via_id
+			@ref_recid int = NULL
+		AS BEGIN
+		DECLARE @ref_personid decimal(19,0) = NULL,
+				@ref_triplink int = NULL
+		SET NOCOUNT OFF;
+
+		SET @ref_personid = (SELECT t.personid FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid)
+		SET @ref_triplink = (SELECT tid.trip_link FROM HHSurvey.trip_ingredients_done AS tid WHERE tid.personid = @ref_personid AND tid.recid = @ref_recid)
+
+		IF (SELECT count(*) FROM HHSurvey.trip_ingredients_done AS tid WHERE tid.personid = @ref_personid AND tid.trip_link = @ref_triplink
+			) > 1
+			BEGIN
+
+			DELETE FROM HHSurvey.Trip WHERE recid = @ref_recid;
+			ALTER TABLE HHSurvey.trip DISABLE TRIGGER tr_trip;
+
+			SET IDENTITY_INSERT HHSurvey.Trip ON;
+			INSERT INTO HHSurvey.Trip (
+				recid
+				,hhid
+				,personid
+				,pernum
+				,tripid
+				,tripnum
+				,traveldate
+				,daynum
+				,dayofweek
+				,hhgroup
+				,copied_trip
+				,completed_at
+				,revised_at
+				,revised_count
+				,svy_complete
+				,depart_time_mam
+				,depart_time_hhmm
+				,depart_time_timestamp
+				,arrival_time_mam
+				,arrival_time_hhmm
+				,arrival_time_timestamp
+				,origin_name
+				,origin_lat
+				,origin_lng
+				,dest_name
+				,dest_lat
+				,dest_lng
+				,trip_path_distance
+				,google_duration
+				,reported_duration
+				,travel_time
+				,hhmember1
+				,hhmember2
+				,hhmember3
+				,hhmember4
+				,hhmember5
+				,hhmember6
+				,hhmember7
+				,hhmember8
+				,hhmember9
+				,travelers_hh
+				,travelers_nonhh
+				,travelers_total
+				,o_purpose
+				,o_purpose_other
+				,o_purp_cat
+				,d_purpose
+				,d_purpose_other
+				,d_purp_cat
+				,mode_1
+				,mode_2
+				,mode_3
+				,mode_4
+				,mode_type
+				,driver
+				,pool_start
+				,change_vehicles
+				,park_ride_area_start
+				,park_ride_area_end
+				,park_ride_lot_start
+				,park_ride_lot_end
+				,toll
+				,toll_pay
+				,taxi_type
+				,taxi_pay
+				,bus_type
+				,bus_pay
+				,bus_cost_dk
+				,ferry_type
+				,ferry_pay
+				,ferry_cost_dk
+				,air_type
+				,air_pay
+				,airfare_cost_dk
+				,mode_acc
+				,mode_egr
+				,park
+				,park_type
+				,park_pay
+				,transit_system_1
+				,transit_system_2
+				,transit_system_3
+				,transit_system_4
+				,transit_system_5
+				,transit_system_6
+				,transit_line_1
+				,transit_line_2
+				,transit_line_3
+				,transit_line_4
+				,transit_line_5
+				,transit_line_6
+				,speed_mph
+				,user_added
+				,user_merged
+				,user_split
+				,analyst_merged
+				,analyst_split
+				,analyst_split_loop
+				,quality_flag
+				,nonproxy_derived_trip
+				,psrc_comment
+				,psrc_resolved
+				,origin_geog
+				,dest_geog
+				,dest_county
+				,dest_city
+				,dest_zip
+				,dest_is_home
+				,dest_is_work
+				,modes
+				,transit_systems
+				,transit_lines
+				,psrc_inserted
+				,revision_code)
+			SELECT recid
+				,hhid
+				,personid
+				,pernum
+				,tripid
+				,tripnum
+				,traveldate
+				,daynum
+				,dayofweek
+				,hhgroup
+				,copied_trip
+				,completed_at
+				,revised_at
+				,revised_count
+				,svy_complete
+				,depart_time_mam
+				,depart_time_hhmm
+				,depart_time_timestamp
+				,arrival_time_mam
+				,arrival_time_hhmm
+				,arrival_time_timestamp
+				,origin_name
+				,origin_lat
+				,origin_lng
+				,dest_name
+				,dest_lat
+				,dest_lng
+				,trip_path_distance
+				,google_duration
+				,reported_duration
+				,travel_time
+				,hhmember1
+				,hhmember2
+				,hhmember3
+				,hhmember4
+				,hhmember5
+				,hhmember6
+				,hhmember7
+				,hhmember8
+				,hhmember9
+				,travelers_hh
+				,travelers_nonhh
+				,travelers_total
+				,o_purpose
+				,o_purpose_other
+				,o_purp_cat
+				,d_purpose
+				,d_purpose_other
+				,d_purp_cat
+				,mode_1
+				,mode_2
+				,mode_3
+				,mode_4
+				,mode_type
+				,driver
+				,pool_start
+				,change_vehicles
+				,park_ride_area_start
+				,park_ride_area_end
+				,park_ride_lot_start
+				,park_ride_lot_end
+				,toll
+				,toll_pay
+				,taxi_type
+				,taxi_pay
+				,bus_type
+				,bus_pay
+				,bus_cost_dk
+				,ferry_type
+				,ferry_pay
+				,ferry_cost_dk
+				,air_type
+				,air_pay
+				,airfare_cost_dk
+				,mode_acc
+				,mode_egr
+				,park
+				,park_type
+				,park_pay
+				,transit_system_1
+				,transit_system_2
+				,transit_system_3
+				,transit_system_4
+				,transit_system_5
+				,transit_system_6
+				,transit_line_1
+				,transit_line_2
+				,transit_line_3
+				,transit_line_4
+				,transit_line_5
+				,transit_line_6
+				,speed_mph
+				,user_added
+				,user_merged
+				,user_split
+				,analyst_merged
+				,analyst_split
+				,analyst_split_loop
+				,quality_flag
+				,nonproxy_derived_trip
+				,psrc_comment
+				,psrc_resolved
+				,origin_geog
+				,dest_geog
+				,dest_county
+				,dest_city
+				,dest_zip
+				,dest_is_home
+				,dest_is_work
+				,modes
+				,transit_systems
+				,transit_lines
+				,psrc_inserted
+				,revision_code
+				FROM HHSurvey.trip_ingredients_done AS tid 
+				WHERE tid.personid = @ref_personid AND tid.trip_link = @ref_triplink;
+
+			DELETE tid
+			FROM HHSurvey.trip_ingredients_done AS tid 
+			WHERE tid.personid = @ref_personid AND tid.trip_link = @ref_triplink;
+
+			ALTER TABLE HHSurvey.trip ENABLE TRIGGER [tr_trip];
+			SET IDENTITY_INSERT HHSurvey.Trip OFF;
+
+			EXECUTE HHSurvey.recalculate_after_edit @ref_personid;
+			EXECUTE HHSurvey.generate_error_flags @ref_personid;
+			END
+		END
+		GO
+
+
 	--RECALCULATION
 
 		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
