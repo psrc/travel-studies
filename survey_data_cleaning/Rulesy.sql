@@ -1577,8 +1577,10 @@ GO
 
 		--Add trips in cases the origin of a trip is over 500m from the destination of the prior, with conditions
 
+		EXECUTE HHSurvey.tripnum_update;
+		
 		WITH cte AS (SELECT t.recid, 
-			 	DATEADD(Minute, ((DATEDIFF(Second, t.arrival_time_timestamp, nxt.depart_time_timestamp) / 60 + aml.mode1_minutes) / 2), t.arrival_time_timestamp) AS depart_time_timestamp,
+			 	DATEADD(Minute, ((DATEDIFF(Second, t.arrival_time_timestamp, nxt.depart_time_timestamp) / 60 - aml.mode1_minutes) / 2), t.arrival_time_timestamp) AS depart_time_timestamp,
 				aml.mode1_minutes AS travel_minutes, aml.distance,
 				CASE WHEN t.travelers_hh = nxt.travelers_hh THEN t.travelers_hh ELSE -9997 END AS travelers_hh, 
 	   			CASE WHEN t.travelers_nonhh = nxt.travelers_nonhh THEN t.travelers_nonhh ELSE -9997 END AS travelers_nonhh,
@@ -1590,15 +1592,18 @@ GO
 				AND DATEDIFF(Day, t.arrival_time_timestamp, nxt.depart_time_timestamp) = 0
 				AND (DATEDIFF(Second, t.arrival_time_timestamp,nxt.depart_time_timestamp) / 60) > aml.mode1_minutes
 				AND (t.dest_geog.STDistance(nxt.origin_geog) / DATEDIFF(Second, t.arrival_time_timestamp,nxt.depart_time_timestamp)) < 30)
-		INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, psrc_inserted, revision_code, d_purpose
+		INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, psrc_inserted, revision_code, d_purpose,
 								mode_1, modes, travelers_hh, travelers_nonhh, travelers_total,
 								origin_lat, origin_lng, origin_geog, dest_lat, dest_lng, dest_geog, 
-								trip_path_distance, depart_time_timestamp, arrival_time_timestamp)
-		SELECT t.hhid, t.personid, t.pernum, t.hhgroup, 1 AS psrc_inserted, '16,' AS revision_code, -9997 AS d_purpose
+								trip_path_distance, depart_time_timestamp, arrival_time_timestamp), travel_time 
+		SELECT t.hhid, t.personid, t.pernum, t.hhgroup, 1 AS psrc_inserted, '16,' AS revision_code, -9997 AS d_purpose,
 			t.mode_1, t.mode_1 AS modes, cte.travelers_hh, cte.travelers_nonhh, cte.travelers_total,
 			t.dest_lat AS origin_lat, t.dest_lng AS origin_lng, t.dest_geog AS origin_geog, nxt.origin_lat AS dest_lat, nxt.origin_lng AS dest_lng, nxt.origin_geog AS dest_geog,
-			cte.distance AS trip_path_distance, cte.depart_time_timestamp, DATEADD(Minute, cte.travel_minutes, cte.depart_time_timestamp) AS arrival_time_timestamp
+			cte.distance AS trip_path_distance, cte.depart_time_timestamp, DATEADD(Minute, cte.travel_minutes, cte.depart_time_timestamp) AS arrival_time_timestamp, cte.travel_minutes
 			FROM HHSurvey.Trip AS t JOIN HHSurvey.Trip AS nxt ON nxt.personid = t.personid AND nxt.tripnum = t.tripnum + 1 JOIN cte ON t.recid = cte.recid;
+
+		EXECUTE HHSurvey.tripnum_update;
+		EXECUTE HHSurvey.recalculate_after_edit;
 
 		*/
 
