@@ -230,22 +230,6 @@ CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 	--		AND NOT EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag LIKE 'missing % trip link' );
 	GO
 
-/*
-	DROP VIEW IF EXISTS HHSurvey.person_by_error;
-	GO
-	CREATE VIEW HHSurvey.person_by_error WITH SCHEMABINDING AS
-	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
-		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
-		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
-		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		JOIN HHSurvey.Trip AS t ON p.personid = t.personid
-		LEFT JOIN HHSurvey.trip_error_flags AS tef ON t.recid = tef.recid AND t.psrc_comment IS NULL
-		WHERE tef.error_flag IN('mode_1 missing','purpose missing')
-	 	AND NOT Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef2 WHERE tef2.recid = t.recid AND (tef2.error_flag LIKE 'missing % trip link' OR tef2.error_flag= 'time overlap'))
-		AND t.psrc_resolved IS NULL AND t.psrc_comment IS NULL;
-	GO
-*/
 	DROP VIEW IF EXISTS HHSurvey.person_all;
 	GO
 	CREATE VIEW HHSurvey.person_all WITH SCHEMABINDING AS
@@ -379,19 +363,43 @@ CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 	END
 	GO
 	
-	DROP VIEW IF EXISTS HHSurvey.Person_Mike
+
 	DROP VIEW IF EXISTS HHSurvey.Person_Neil
 	DROP VIEW IF EXISTS HHSurvey.person_Grant
+	DROP VIEW IF EXISTS HHSurvey.person_Ben
 	DROP VIEW IF EXISTS HHSurvey.person_Alex
+	DROP VIEW IF EXISTS HHSurvey.Person_Mike
 	GO
 
-	CREATE VIEW HHSurvey.person_Alex WITH SCHEMABINDING AS
+	--alternate view for Mike
+	CREATE VIEW HHSurvey.person_Mike WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('purpose missing'));
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx JOIN HHSurvey.Trip AS t ON tefx.recid = t.recid WHERE p.personid = t.personid AND t.psrc_comment LIKE '%ADD %')
+	GO  
+
+	CREATE VIEW HHSurvey.person_Alex WITH SCHEMABINDING AS
+	SELECT TOP 40 PERCENT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('purpose missing'))
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid);
+	GO
+
+	CREATE VIEW HHSurvey.person_Ben WITH SCHEMABINDING AS
+	SELECT TOP 70 PERCENT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('purpose missing'))
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid);
 	GO
 
 	CREATE VIEW HHSurvey.person_Grant WITH SCHEMABINDING AS
@@ -404,7 +412,9 @@ CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 			AND NOT EXISTS (SELECT 1 FROM HHSurvey.Trip AS t WHERE p.personid = t.personid AND (t.psrc_comment IS NOT NULL))
 			AND NOT EXISTS (SELECT 1 FROM HHSurvey.hh_error_flags AS hef WHERE hef.hhid = p.hhid)
 			AND EXISTS (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid)
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid);
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Ben AS pb WHERE pb.personid = p.personid);
 	GO
 
 	CREATE VIEW HHSurvey.person_Neil WITH SCHEMABINDING AS
@@ -415,22 +425,13 @@ CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 	WHERE NOT Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND (tef.error_flag LIKE 'missing % trip link'))
 		AND Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid)
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid) 
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Grant AS pg WHERE pg.personid = p.personid);
-	GO
-
-	/*CREATE VIEW HHSurvey.person_Mike WITH SCHEMABINDING AS
-	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
-		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
-		CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
-		CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-	FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx JOIN HHSurvey.Trip AS t ON tefx.recid = t.recid WHERE p.personid = tefx.personid AND tefx.error_flag IN('too slow') AND t.psrc_comment IS NULL)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid) 
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Grant AS pg WHERE pg.personid = p.personid)
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Neil AS pn WHERE pn.personid = p.personid);
-	GO  */
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Ben AS pb WHERE pb.personid = p.personid);
+	GO
 
+	/*
 	CREATE VIEW HHSurvey.person_Mike WITH SCHEMABINDING AS
 	SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 		CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
@@ -440,10 +441,15 @@ CREATE UNIQUE CLUSTERED INDEX PK_pass2trip ON HHSurvey.pass2trip(recid);
 	WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx JOIN HHSurvey.Trip AS t ON tefx.recid = t.recid WHERE p.personid = tefx.personid)
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid) 
 		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Grant AS pg WHERE pg.personid = p.personid)
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Neil AS pn WHERE pn.personid = p.personid);
-	GO
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Neil AS pn WHERE pn.personid = p.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Ben AS pb WHERE pb.personid = p.personid);
+	GO  */
+
+
+
 
 	      SELECT 'Alex: ', count(*) FROM HHSurvey.person_Alex
+	UNION SELECT 'Ben: ', count(*) FROM HHSurvey.person_Ben
 	UNION SELECT 'Grant: ', count(*) FROM HHSurvey.person_Grant
 	UNION SELECT 'Neil: ', count(*) FROM HHSurvey.person_Neil
 	UNION SELECT 'Mike: ', count(*) FROM HHSurvey.person_Mike
