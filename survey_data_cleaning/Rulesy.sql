@@ -726,8 +726,9 @@ GO
 				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
+						  JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE t.dest_is_home IS NULL 
-					AND (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STDistance(h.home_geog) < 50
+					AND (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STDistance(h.home_geog) < 50;
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
@@ -742,7 +743,7 @@ GO
 			UPDATE t --Classify work destinations where destination code is absent; 50m proximity to work location on file
 				SET t.dest_is_work = 1, t.d_purpose = 10
 				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid AND p.worker > 1
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
+					JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE t.dest_is_work IS NULL 
 					AND (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
@@ -763,7 +764,7 @@ GO
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label <> 'Went home'
 					AND t.dest_is_home = 1 
-					AND t.origin_name <> 'HOME'					
+					AND t.origin_name <> 'HOME';					
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
 					SET t.d_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
@@ -980,10 +981,20 @@ GO
 				AND t.tripnum > 1
 				AND t_prev.d_purpose > 0;
 
+	--if the same person has been to the purpose-missing location at other times and provided a consistent purpose for those trips, use it again
+		WITH cte AS (SELECT t1.personid, t1.recid, t2.d_purpose 
+						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t1.d_purpose = vl.code AND vl.label LIKE 'Missing%'
+						JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON t2.d_purpose = v2.code AND v2.label NOT LIKE 'Missing%' 
+						WHERE t1.dest_geog.STDistance(t2.dest_geog) < 50),
+			 cte_filter AS (SELECT cte.personid, cte.recid, count(*) AS instances FROM cte GROUP BY cte.personid, cte.recid HAVING count(*) = 1)
+		UPDATE t 
+			SET t.d_purpose = cte.d_purpose,
+				t.revision_code = CONCAT(t.revision_code,'5b,') 
+			FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_filter ON t.recid = cte_filter.recid;
+
 		END
 		GO
 		EXECUTE HHSurvey.d_purpose_updates;
-
 
 
 	/* for rMoves records that don't report mode or purpose */
