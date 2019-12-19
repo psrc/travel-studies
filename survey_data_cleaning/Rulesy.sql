@@ -472,6 +472,60 @@ GO
 				h.home_lng = h.home_geog.Long 
 			FROM HHSurvey.Household AS h;
 
+		DROP TABLE #central_home_tripend;
+
+		--similarly determine central primary work-purpose trip end, on a person- rather than household-basis
+		WITH cte AS 		
+		(SELECT t1.personid,
+				t1.recid, 
+				ROW_NUMBER() OVER (PARTITION BY t1.personid ORDER BY sum(t1.dest_geog.STDistance(t2.dest_geog)) ASC) AS ranker
+		 FROM HHSurvey.Trip AS t1 JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid AND t1.d_purpose = 10 AND t2.d_purpose = 10 
+		 WHERE  EXISTS (SELECT 1 FROM HHSurvey.Person AS p WHERE p.personid = t1.personid AND p.work_geog IS NULL)
+		 	AND EXISTS (SELECT 1 FROM HHSurvey.Person AS p WHERE p.personid = t2.personid AND p.work_geog IS NULL)
+		 GROUP BY t1.personid, t1.recid
+		)
+		SELECT cte.personid, cte.recid INTO #central_work_tripend
+			FROM cte 			
+			WHERE cte.ranker = 1;
+
+		UPDATE p					-- When neither Reported or Sampled work location is valid, take the most central work-purpose trip destination
+			SET p.work_geog = t.dest_geog
+			FROM HHSurvey.Person AS p JOIN #central_work_tripend AS te ON p.personid = te.personid JOIN HHSurvey.Trip AS t ON t.recid = te.recid JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code 
+			WHERE p.work_geog IS NULL AND (p.employment < 7 OR vl.label LIKE 'Missing%');
+
+		UPDATE p	-- Gives back latitude and longitude of the determined work location point
+			SET p.work_lat = p.work_geog.Lat,
+				p.work_lng = p.work_geog.Long 
+			FROM HHSurvey.Person AS p;
+		
+		DROP TABLE #central_work_tripend;
+
+		--similarly determine central school-purpose trip end, on a person- rather than household-basis
+		WITH cte AS 		
+		(SELECT t1.personid,
+				t1.recid, 
+				ROW_NUMBER() OVER (PARTITION BY t1.personid ORDER BY sum(t1.dest_geog.STDistance(t2.dest_geog)) ASC) AS ranker
+		 FROM HHSurvey.Trip AS t1 JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid AND t1.d_purpose = 6 AND t2.d_purpose = 6
+		 WHERE  EXISTS (SELECT 1 FROM HHSurvey.Person AS p WHERE p.personid = t1.personid AND p.school_geog IS NULL)
+		 	AND EXISTS (SELECT 1 FROM HHSurvey.Person AS p WHERE p.personid = t2.personid AND p.school_geog IS NULL)
+		 GROUP BY t1.personid, t1.recid
+		)
+		SELECT cte.personid, cte.recid INTO #central_school_tripend
+			FROM cte 			
+			WHERE cte.ranker = 1;	
+
+		UPDATE p					-- When reported school location is not valid, take the most central school-purpose trip destination
+			SET p.school_geog = t.dest_geog
+			FROM HHSurvey.Person AS p JOIN #central_school_tripend AS te ON p.personid = te.personid JOIN HHSurvey.Trip AS t ON t.recid = te.recid JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code 
+			WHERE p.school_geog IS NULL AND (p.student IN(2,3) OR (vl.label LIKE 'Missing%'));
+	
+		UPDATE 	p	-- Gives back latitude and longitude of the determined school location point
+			SET p.school_loc_lat = p.school_geog.Lat,
+				p.school_loc_lng = p.school_geog.Long 
+			FROM HHSurvey.Person AS p;
+
+		DROP TABLE #central_school_tripend;
+
 	-- Convert rMoves trip distances to miles; rSurvey records are already reported in miles
 	/* Not necessary for 2019, as rMove is reported in miles rather than meters
 		UPDATE HHSurvey.trip SET trip.trip_path_distance = trip.trip_path_distance / 1609.344 WHERE trip.hhgroup = 1
@@ -616,7 +670,7 @@ GO
 		WITH tripnum_rev(recid, personid, tripnum) AS
 			(SELECT t0.recid, t0.personid, ROW_NUMBER() OVER(PARTITION BY t0.personid ORDER BY t0.depart_time_timestamp ASC) AS tripnum 
 			 	FROM HHSurvey.trip AS t0 
-				WHERE t0.personid = CASE WHEN @target_personid IS NULL THEN t0.recid ELSE @target_personid END)
+				WHERE t0.personid = CASE WHEN @target_personid IS NULL THEN t0.personid ELSE @target_personid END)
 		UPDATE t
 			SET t.tripnum = tripnum_rev.tripnum
 			FROM HHSurvey.trip AS t JOIN tripnum_rev ON t.recid=tripnum_rev.recid AND t.personid = tripnum_rev.personid
@@ -624,6 +678,48 @@ GO
 		END
 		GO
 		EXECUTE HHSurvey.tripnum_update;
+
+	-- Recalculation of derived fields
+
+		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
+		GO
+		CREATE PROCEDURE HHSurvey.recalculate_after_edit
+			@target_personid decimal = NULL --optional to limit to the record just edited 
+		AS BEGIN
+		SET NOCOUNT ON
+
+		EXECUTE HHSurvey.tripnum_update @target_personid;
+
+		WITH cte AS
+		(SELECT t0.personid, t0.depart_time_timestamp AS start_stamp
+				FROM HHSurvey.Trip AS t0 
+				WHERE t0.tripnum = 1 AND t0.depart_time_timestamp IS NOT NULL)
+		UPDATE t SET
+			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
+			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
+			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
+			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
+			t.daynum = 1 + DATEDIFF(day, cte.start_stamp, (CASE WHEN DATEPART(Hour, t.depart_time_timestamp) < 3 
+																THEN CAST(DATEADD(Hour, -3, t.depart_time_timestamp) AS DATE)
+																ELSE CAST(t.depart_time_timestamp AS DATE) END)),
+			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
+										THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
+										ELSE 0 END,
+			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,
+			--t.travel_time 	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,  -- for edited records, this should be the accepted travel duration			   	
+			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
+			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
+			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
+		FROM HHSurvey.trip AS t JOIN cte ON t.personid = cte.personid
+		WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
+
+		UPDATE next_t SET
+			next_t.o_purpose = t.d_purpose
+			FROM HHSurvey.trip AS t JOIN HHSurvey.trip AS next_t ON t.personid = next_t.personid AND t.tripnum + 1 = next_t.tripnum
+			WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
+
+		END
+		GO	
 
 /* STEP 3.  Rule-based individual field revisions */
 
@@ -720,33 +816,34 @@ GO
 						and HHSurvey.RgxFind(t.dest_name,'(their|her|s|from|near|nursing|friend) home',1) = 0
 					)
 					OR(t.d_purpose = 1))
-					AND t.dest_geog.STIntersects(h.home_geog.STBuffer(300)) = 1;
+					AND t.dest_geog.STDistance(h.home_geog) < 300;
 
 			UPDATE t --Classify home destinations where destination code is absent; 50m proximity to home location on file
 				SET t.dest_is_home = 1, t.d_purpose = 1
 				FROM HHSurvey.trip AS t JOIN HHSurvey.household AS h ON t.hhid = h.hhid
 						  LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
+						  JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE t.dest_is_home IS NULL 
-					AND (t.d_purpose = -9998 OR t.d_purpose = prior_t.d_purpose) AND t.dest_geog.STIntersects(h.home_geog.STBuffer(50)) = 1
+					AND ((vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) OR t.d_purpose = 97) AND t.dest_geog.STDistance(h.home_geog) < 50;
 
 			UPDATE t --Classify primary work destinations
 				SET t.dest_is_work = 1
-				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid
+				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid = p.personid AND p.worker > 1
 				WHERE t.dest_is_work IS NULL AND
 					(t.dest_name = 'WORK' 
 					OR((HHSurvey.RgxFind(t.dest_name,' work',1) = 1 
 						OR HHSurvey.RgxFind(t.dest_name,'^w[or ]?$',1) = 1))
 					OR(t.d_purpose = 10 AND t.dest_name IS NULL))
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(300))=1;
+					AND t.dest_geog.STDistance(p.work_geog) < 300;
 
 			UPDATE t --Classify work destinations where destination code is absent; 50m proximity to work location on file
 				SET t.dest_is_work = 1, t.d_purpose = 10
-				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
+				FROM HHSurvey.trip AS t JOIN HHSurvey.person AS p ON t.personid  = p.personid AND p.worker > 1
+					JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 					 LEFT JOIN HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum
 				WHERE t.dest_is_work IS NULL 
-					AND (vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) 
-					AND t.dest_geog.STIntersects(p.work_geog.STBuffer(50))=1;		
+					AND ((vl.label like 'Missing%' OR t.d_purpose = prior_t.d_purpose) OR t.d_purpose = 97) 
+					AND t.dest_geog.STDistance(p.work_geog) < 50;		
 					
 			UPDATE t --revises purpose field for return portion of a single stop loop trip 
 				SET t.d_purpose = (CASE WHEN t.dest_is_home = 1 THEN 1 WHEN t.dest_is_work = 1 THEN 10 ELSE t.d_purpose END), t.revision_code = CONCAT(t.revision_code,'1,')
@@ -763,7 +860,7 @@ GO
 					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
 				WHERE vl.label <> 'Went home'
 					AND t.dest_is_home = 1 
-					AND t.origin_name <> 'HOME'					
+					AND t.origin_name <> 'HOME';					
 
 			UPDATE t --Change code to pickup/dropoff when passenger number changes and duration is under 30 minutes
 					SET t.d_purpose = 9, t.revision_code = CONCAT(t.revision_code,'2,')
@@ -980,15 +1077,7 @@ GO
 				AND t.tripnum > 1
 				AND t_prev.d_purpose > 0;
 
-		END
-		GO
-		EXECUTE HHSurvey.d_purpose_updates;
-
-
-
-	/* for rMoves records that don't report mode or purpose */
-
-		--if traveling with another hhmember, take this from the most adult member with whom they traveled
+		--if traveling with another hhmember, take missing purpose from the most adult member with whom they traveled
 		WITH cte AS
 			(SELECT myself.recid AS self_recid, family.personid AS referent, family.recid AS referent_recid
 			 FROM HHSurvey.trip AS myself 
@@ -1016,6 +1105,40 @@ GO
 				JOIN cte ON t.recid = cte.self_recid 
 				JOIN HHSurvey.trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
 			WHERE t.d_purpose = -9998 AND t.mode_1 = -9998;
+
+	--if the same person has been to the purpose-missing location at other times and provided a consistent purpose for those trips, use it again
+		WITH cte AS (SELECT t1.personid, t1.recid, t2.d_purpose 
+						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t1.d_purpose = vl.code AND vl.label LIKE 'Missing%'
+						JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON t2.d_purpose = v2.code AND v2.label NOT LIKE 'Missing%' 
+						WHERE t1.dest_geog.STDistance(t2.dest_geog) < 50
+						GROUP BY t1.personid, t1.recid, t2.d_purpose),
+			 cte_filter AS (SELECT cte.personid, cte.recid, count(*) AS instances FROM cte GROUP BY cte.personid, cte.recid HAVING count(*) = 1)
+		UPDATE t 
+			SET t.d_purpose = cte.d_purpose,
+				t.revision_code = CONCAT(t.revision_code,'5b,') 
+			FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_filter ON t.recid = cte_filter.recid;
+
+	--if anyone has been to the purpose-missing location at other times and all visitors provided a consistent purpose for those trips, use it again
+		WITH cte AS (SELECT t1.recid, t2.d_purpose 
+						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t1.d_purpose = vl.code AND vl.label LIKE 'Missing%'
+						JOIN HHSurvey.Trip AS t2 ON t1.dest_geog.STDistance(t2.dest_geog) < 50 JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON t2.d_purpose = v2.code AND v2.label NOT LIKE 'Missing%'
+						WHERE t2.d_purpose NOT IN (1,10) 
+						GROUP BY t1.recid, t2.d_purpose),
+			 cte_filter AS (SELECT cte.recid, count(*) AS instances FROM cte GROUP BY cte.recid HAVING count(*) = 1)
+		UPDATE t 
+			SET t.d_purpose = cte.d_purpose,
+				t.revision_code = CONCAT(t.revision_code,'5c,') 
+			FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_filter ON t.recid = cte_filter.recid
+			WHERE cte.d_purpose IN(30,32,33,34,50,51,52,53,54,61,62);
+
+		END
+		GO
+		EXECUTE HHSurvey.d_purpose_updates;
+
+
+	/* for rMoves records that don't report mode or purpose */
+
+
 
 	--impute mode (if not specified) for cases on the spectrum ends of speed + distance: 
 		-- -- slow, short trips are walk; long, fast trips are airplane.  Other modes can't be easily assumed.
@@ -1051,7 +1174,7 @@ GO
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_2)			  THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_3) 		  THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_4) 		  THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_1 			ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_egr		ELSE NULL END AS nvarchar), ''), 1, 1, ''),
 		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_1) THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_2) THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_3) THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
@@ -1093,6 +1216,15 @@ GO
 				  OR (trip.d_purpose = next_trip.d_purpose AND ntvl.label NOT LIKE 'Dropped off/picked up someone%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 15)  -- other non-PUDO purposes if identical, under 15min dwell
 				);
 
+		/* Less restricted linkages for 'mode change' only */
+		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient  
+			FROM HHSurvey.trip as trip  
+			JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum  
+		WHERE trip.dest_is_home IS NULL 
+			AND trip.dest_is_work IS NULL 
+			AND trip.d_purpose = 60
+			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 30;
+
 		-- set the trip_link value of the 2nd component to the tripnum of the 1st component.
 		UPDATE ti  
 			SET ti.trip_link = (ti.tripnum - 1)
@@ -1114,11 +1246,6 @@ GO
 			SELECT t.*, t.tripnum AS trip_link 
 			FROM HHSurvey.trip AS t 
 				JOIN #trip_ingredient AS ti ON t.personid = ti.personid AND t.tripnum = ti.trip_link AND t.tripnum = ti.tripnum - 1;
-
-		DROP PROCEDURE IF EXISTS HHSurvey.link_trips;
-		GO
-		CREATE PROCEDURE HHSurvey.link_trips AS
-		BEGIN
 
 		-- remove parking flag in cases where it is carried over among trip components, with no dwell time or mode change
 		UPDATE ti 
@@ -1151,67 +1278,69 @@ GO
 			(SELECT ti3.personid, ti3.trip_link 			--sets with more than 4 trip components
 				FROM #trip_ingredient as ti3 GROUP BY ti3.personid, ti3.trip_link
 				HAVING count(*) > 4
-			UNION ALL SELECT ti4.personid, ti4.trip_link	--sets with two items that each denote a separate trip
+			UNION ALL SELECT ti4.personid, ti4.trip_link --sets with two items that each denote a separate trip
 				FROM #trip_ingredient as ti4 GROUP BY ti4.personid, ti4.trip_link
-				HAVING sum(CASE WHEN ti4.pool_start 		  = 1 									  THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.change_vehicles 	  = 1 									  THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_area_start > 0 AND ti4.park_ride_area_start <> 995 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_area_end   > 0 AND ti4.park_ride_area_end   <> 995 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_lot_start  > 0 AND ti4.park_ride_lot_start  <> 995 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park_ride_lot_end 	  > 0 AND ti4.park_ride_lot_end    <> 995 THEN 1 ELSE 0 END) > 1
-					OR sum(CASE WHEN ti4.park	 			  BETWEEN 1 AND 6 						  THEN 1 ELSE 0 END) > 1
+				HAVING sum(CASE WHEN ti4.pool_start 		  = 1 				THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.change_vehicles 	  = 1 				THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_start BETWEEN 1 AND 899 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_area_end   BETWEEN 1 AND 899 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_lot_start  BETWEEN 1 AND 899 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park_ride_lot_end 	  BETWEEN 1 AND 899 THEN 1 ELSE 0 END) > 1
+					OR sum(CASE WHEN ti4.park	 			  BETWEEN 1 AND 6 	THEN 1 ELSE 0 END) > 1
 			UNION ALL SELECT cte_a.personid, cte_a.trip_link 	--sets with nonadjacent repeating transit lines (i.e., return trip)
 				FROM cte_a
 				WHERE HHSurvey.RgxFind(cte_a.transit_lines,'(\b\d+\b),.+(?=\1)',1)=1	
 			UNION ALL SELECT cte_b.personid, cte_b.trip_link 	--sets with a pair of modes repeating in reverse (i.e., return trip)
 				FROM cte_b
-				WHERE HHSurvey.RgxFind(cte_b.modes,'\b(\d+),(\d+)\b,.+(?=\2,\1)',1)=1)		
+				WHERE HHSurvey.RgxFind(cte_b.modes,'\b(\d+),(\d+)\b,.+(?=\2,\1)',1)=1)
 		UPDATE ti
 			SET ti.trip_link = -1 * ti.trip_link
 			FROM #trip_ingredient AS ti JOIN cte2 ON cte2.personid = ti.personid AND cte2.trip_link = ti.trip_link;
 
-		-- delete the components that will get replaced with linked trips
-		DELETE t
-		FROM HHSurvey.trip AS t JOIN #trip_ingredient AS ti ON t.recid=ti.recid
-		WHERE ti.trip_link > 0 AND t.tripnum <> ti.trip_link;	
+SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #trip_ingredient GROUP BY CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END
+
+
+		DROP PROCEDURE IF EXISTS HHSurvey.link_trips;
+		GO
+		CREATE PROCEDURE HHSurvey.link_trips AS
+		BEGIN
 
 		-- meld the trip ingredients to create the fields that will populate the linked trip, and saves those as a separate table, 'linked_trip'.
 
 		WITH cte_agg AS
 		(SELECT ti_agg.personid,
 				ti_agg.trip_link,
-				MAX(ti_agg.arrival_time_timestamp) AS arrival_time_timestamp,	
-				MAX(CASE WHEN ti_agg.d_purpose 				IN (-9999,-9998,995,0,60) THEN 0 ELSE ti_agg.d_purpose 			 END) AS d_purpose,
-				SUM(CASE WHEN ti_agg.google_duration 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.google_duration 		 END) AS google_duration, 
-				SUM(CASE WHEN ti_agg.trip_path_distance 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.trip_path_distance 	 END) AS trip_path_distance, 	
-				MAX(CASE WHEN ti_agg.hhmember1 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember1 			 END) AS hhmember1, 		
-				MAX(CASE WHEN ti_agg.hhmember2 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember2 			 END) AS hhmember2,
-				MAX(CASE WHEN ti_agg.hhmember3 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember3 			 END) AS hhmember3, 
-				MAX(CASE WHEN ti_agg.hhmember4 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember4 			 END) AS hhmember4, 
-				MAX(CASE WHEN ti_agg.hhmember5 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember5 			 END) AS hhmember5, 
-				MAX(CASE WHEN ti_agg.hhmember6 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember6 			 END) AS hhmember6,
-				MAX(CASE WHEN ti_agg.hhmember7 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember7 			 END) AS hhmember7, 
-				MAX(CASE WHEN ti_agg.hhmember8 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember8 			 END) AS hhmember8, 
-				MAX(CASE WHEN ti_agg.hhmember9 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.hhmember9 			 END) AS hhmember9, 
-				MAX(CASE WHEN ti_agg.travelers_hh 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.travelers_hh 			 END) AS travelers_hh, 				
-				MAX(CASE WHEN ti_agg.travelers_nonhh 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.travelers_nonhh 		 END) AS travelers_nonhh,				
-				MAX(CASE WHEN ti_agg.travelers_total 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.travelers_total 		 END) AS travelers_total,				
-				MAX(CASE WHEN ti_agg.pool_start 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.pool_start 			 END) AS pool_start,					
-				MAX(CASE WHEN ti_agg.change_vehicles 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.change_vehicles 		 END) AS change_vehicles,	
-				MAX(CASE WHEN ti_agg.toll 					IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.toll 					 END) AS toll, 							
-				MAX(CASE WHEN ti_agg.park 					IN (-9999,-9998,-9997,995,0) THEN 0 ELSE ti_agg.park 			 END) AS park,
-				MAX(CASE WHEN ti_agg.park_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_type  			 END) AS park_type,
-				MAX(CASE WHEN ti_agg.taxi_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.taxi_type 			 END) AS taxi_type, 				
-				MAX(CASE WHEN ti_agg.bus_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.bus_type 				 END) AS bus_type, 
-				MAX(CASE WHEN ti_agg.ferry_type 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.ferry_type 			 END) AS ferry_type,
-				MAX(CASE WHEN ti_agg.park_ride_area_start 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_area_start 	 END) AS park_ride_area_start, 		
-				MAX(CASE WHEN ti_agg.park_ride_area_end 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_area_end 	 END) AS park_ride_area_end, 			
-				MAX(CASE WHEN ti_agg.park_ride_lot_start 	IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_lot_start 	 END) AS park_ride_lot_start, 		
-				MAX(CASE WHEN ti_agg.park_ride_lot_end 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.park_ride_lot_end 	 END) AS park_ride_lot_end, 			
-				MAX(CASE WHEN ti_agg.bus_cost_dk 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.bus_cost_dk 			 END) AS bus_cost_dk, 				
- 				MAX(CASE WHEN ti_agg.ferry_cost_dk 			IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.ferry_cost_dk 		 END) AS ferry_cost_dk,				
-				MAX(CASE WHEN ti_agg.air_type 				IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.air_type 				 END) AS air_type,	
-				MAX(CASE WHEN ti_agg.airfare_cost_dk 		IN (-9999,-9998,995,0) THEN 0 ELSE ti_agg.airfare_cost_dk 		 END) AS airfare_cost_dk
+				CAST(MAX(ti_agg.arrival_time_timestamp) AS [datetime2]) AS arrival_time_timestamp,	
+				SUM((CASE WHEN ti_agg.google_duration 		IN (-9998,-9999,995) THEN 0 ELSE 1 END) * ti_agg.google_duration 		 ) AS google_duration, 
+				SUM((CASE WHEN ti_agg.trip_path_distance 	IN (-9998,-9999,995) THEN 0 ELSE 1 END) * ti_agg.trip_path_distance 	 ) AS trip_path_distance, 	
+				MAX((CASE WHEN ti_agg.hhmember1 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember1 			 ) AS hhmember1, 		
+				MAX((CASE WHEN ti_agg.hhmember2 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember2 			 ) AS hhmember2,
+				MAX((CASE WHEN ti_agg.hhmember3 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember3 			 ) AS hhmember3, 
+				MAX((CASE WHEN ti_agg.hhmember4 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember4 			 ) AS hhmember4, 
+				MAX((CASE WHEN ti_agg.hhmember5 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember5 			 ) AS hhmember5, 
+				MAX((CASE WHEN ti_agg.hhmember6 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember6 			 ) AS hhmember6,
+				MAX((CASE WHEN ti_agg.hhmember7 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember7 			 ) AS hhmember7, 
+				MAX((CASE WHEN ti_agg.hhmember8 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember8 			 ) AS hhmember8, 
+				MAX((CASE WHEN ti_agg.hhmember9 			IN (995) THEN -1 ELSE 1 END) * ti_agg.hhmember9 			 ) AS hhmember9, 
+				MAX((CASE WHEN ti_agg.travelers_hh 			IN (995) THEN -1 ELSE 1 END) * ti_agg.travelers_hh 			 ) AS travelers_hh, 				
+				MAX((CASE WHEN ti_agg.travelers_nonhh 		IN (995) THEN -1 ELSE 1 END) * ti_agg.travelers_nonhh 		 ) AS travelers_nonhh,				
+				MAX((CASE WHEN ti_agg.travelers_total 		IN (995) THEN -1 ELSE 1 END) * ti_agg.travelers_total 		 ) AS travelers_total,				
+				MAX((CASE WHEN ti_agg.pool_start 			IN (995) THEN -1 ELSE 1 END) * ti_agg.pool_start 			 ) AS pool_start,					
+				MAX((CASE WHEN ti_agg.change_vehicles 		IN (995) THEN -1 ELSE 1 END) * ti_agg.change_vehicles 		 ) AS change_vehicles,	
+				MAX((CASE WHEN ti_agg.toll 					IN (995) THEN -1 ELSE 1 END) * ti_agg.toll 					 ) AS toll, 							
+				MAX((CASE WHEN ti_agg.park 					IN (995) THEN -1 ELSE 1 END) * ti_agg.park 			 		 ) AS park,
+				MAX((CASE WHEN ti_agg.park_type 			IN (995) THEN -1 ELSE 1 END) * ti_agg.park_type  			 ) AS park_type,
+				MAX((CASE WHEN ti_agg.taxi_type 			IN (995) THEN -1 ELSE 1 END) * ti_agg.taxi_type 			 ) AS taxi_type, 				
+				MAX((CASE WHEN ti_agg.bus_type 				IN (995) THEN -1 ELSE 1 END) * ti_agg.bus_type 				 ) AS bus_type, 
+				MAX((CASE WHEN ti_agg.ferry_type 			IN (995) THEN -1 ELSE 1 END) * ti_agg.ferry_type 			 ) AS ferry_type,
+				MAX((CASE WHEN ti_agg.park_ride_area_start 	IN (995) THEN -1 ELSE 1 END) * ti_agg.park_ride_area_start 	 ) AS park_ride_area_start, 		
+				MAX((CASE WHEN ti_agg.park_ride_area_end 	IN (995) THEN -1 ELSE 1 END) * ti_agg.park_ride_area_end 	 ) AS park_ride_area_end, 			
+				MAX((CASE WHEN ti_agg.park_ride_lot_start 	IN (995) THEN -1 ELSE 1 END) * ti_agg.park_ride_lot_start 	 ) AS park_ride_lot_start, 		
+				MAX((CASE WHEN ti_agg.park_ride_lot_end 	IN (995) THEN -1 ELSE 1 END) * ti_agg.park_ride_lot_end 	 ) AS park_ride_lot_end, 			
+				MAX((CASE WHEN ti_agg.bus_cost_dk 			IN (995) THEN -1 ELSE 1 END) * ti_agg.bus_cost_dk 			 ) AS bus_cost_dk, 				
+ 				MAX((CASE WHEN ti_agg.ferry_cost_dk 		IN (995) THEN -1 ELSE 1 END) * ti_agg.ferry_cost_dk 		 ) AS ferry_cost_dk,				
+				MAX((CASE WHEN ti_agg.air_type 				IN (995) THEN -1 ELSE 1 END) * ti_agg.air_type 				 ) AS air_type,	
+				MAX((CASE WHEN ti_agg.airfare_cost_dk 		IN (995) THEN -1 ELSE 1 END) * ti_agg.airfare_cost_dk 		 ) AS airfare_cost_dk
 			/*		(ti_agg.bus_pay)				AS bus_pay, 
 					(ti_agg.ferry_pay)				AS ferry_pay, 
 					(ti_agg.air_pay)				AS air_pay, 
@@ -1228,10 +1357,6 @@ GO
 				FIRST_VALUE(ti_wndw.dest_name) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_name,
 				FIRST_VALUE(ti_wndw.d_purpose) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS d_purpose,
 				FIRST_VALUE(ti_wndw.o_purpose) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum ASC) AS o_purpose,
-			  --FIRST_VALUE(ti_wndw.dest_address) 	OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_address,
-			  --FIRST_VALUE(ti_wndw.dest_county) 	OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_county,
-			  --FIRST_VALUE(ti_wndw.dest_city) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_city,
-			  --FIRST_VALUE(ti_wndw.dest_zip) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_zip,
 				FIRST_VALUE(ti_wndw.dest_is_home) 	OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_is_home,
 				FIRST_VALUE(ti_wndw.dest_is_work) 	OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_is_work,
 				FIRST_VALUE(ti_wndw.dest_lat) 		OVER (PARTITION BY CONCAT(ti_wndw.personid,ti_wndw.trip_link) ORDER BY ti_wndw.tripnum DESC) AS dest_lat,
@@ -1266,16 +1391,27 @@ GO
 		SELECT cte_wndw.*, cte_agg.* INTO #linked_trips
 			FROM cte_wndw JOIN cte_agg ON cte_wndw.personid2 = cte_agg.personid AND cte_wndw.trip_link2 = cte_agg.trip_link;
 
+		-- discard potential linked trips that are actually loops, returning to the same location
+	
+		DELETE lt FROM #linked_trips AS lt JOIN HHSurvey.Trip AS t on t.personid = lt.personid AND t.tripnum = lt.trip_link
+			WHERE t.origin_geog.STDistance(geography::STGeomFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326)) < 50;
+
+		-- delete the components that will get replaced with linked trips
+		DELETE t
+		FROM HHSurvey.trip AS t JOIN #trip_ingredient AS ti ON t.recid=ti.recid
+		WHERE t.tripnum <> ti.trip_link AND EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE ti.personid = lt.personid AND ti.trip_link = lt.trip_link);	
+
 		-- this update achieves trip linking via revising elements of the 1st component (purposely left in the trip table).		
 		UPDATE 	t
-			SET t.d_purpose 		= lt.d_purpose,	
-				t.dest_name 		= lt.dest_name,					  --t.dest_address	= lt.dest_address,			
-				t.transit_systems	= lt.transit_systems,			  --t.dest_city		= lt.dest_city,
-				t.transit_lines		= lt.transit_lines,				  --t.dest_county	= lt.dest_county,
-				t.modes				= lt.modes,						  --t.dest_zip		= lt.dest_zip,
-				t.dest_is_home		= lt.dest_is_home,					t.dest_lat		= lt.dest_lat,
-				t.dest_is_work		= lt.dest_is_work,					t.dest_lng		= lt.dest_lng,
-				t.dest_geog			= geography::STGeomFromText('POINT(' + CAST(lt.dest_lng AS VARCHAR(20)) + ' ' + CAST(lt.dest_lat AS VARCHAR(20)) + ')', 4326),
+			SET t.d_purpose 		= lt.d_purpose * (CASE WHEN lt.d_purpose IN(-97,-60) THEN -1 ELSE 1 END),	
+				t.dest_name 		= lt.dest_name,		
+				t.transit_systems	= lt.transit_systems,
+				t.transit_lines		= lt.transit_lines,
+				t.modes				= lt.modes,
+				t.dest_is_home		= lt.dest_is_home,					
+				t.dest_is_work		= lt.dest_is_work,
+				t.dest_lat			= lt.dest_lat,
+				t.dest_lng			= lt.dest_lng,					
 			
 				t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
 				t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, lt.arrival_time_timestamp),
@@ -1303,27 +1439,17 @@ GO
 				t.park_ride_lot_end		= lt.park_ride_lot_end, 		t.bus_type		= lt.bus_type, 	
 																		t.ferry_type	= lt.ferry_type, 
 																		t.air_type		= lt.air_type,
-				--t.hhmember_none 		= lt.hhmember_none, 	
-				t.revision_code 		= CONCAT(t.revision_code, '8,')
+				t.psrc_comment = 'Re-standardize modes', 	
+				t.revision_code = CONCAT(t.revision_code, '8,')
 			FROM HHSurvey.trip AS t JOIN #linked_trips AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
 
 		--move the ingredients to another named table so this procedure can be re-run as sproc during manual cleaning
+
 		DELETE FROM #trip_ingredient
-		OUTPUT deleted.* INTO HHSurvey.trip_ingredients_done;
+		OUTPUT deleted.* INTO HHSurvey.trip_ingredients_done_2 --HHSurvey.trip_ingredients_done
+		WHERE #trip_ingredient.trip_link > 0;
 
-		--temp tables should disappear when the spoc ends, but to be tidy we explicitly delete them.	
-			IF(OBJECT_ID('#trip_ingredient') Is Not Null)
-			BEGIN
-				DROP TABLE #trip_ingredient
-			END
 
-			IF(OBJECT_ID('#linked_trips') Is Not Null)
-			BEGIN
-				DROP TABLE #linked_trips
-			END
-		END 
-		EXECUTE HHSurvey.link_trips;
-		GO	
 
 /* STEP 5.	Mode number standardization, including access and egress characterization */
 
@@ -1332,11 +1458,12 @@ GO
 			SET t.modes				= HHSurvey.TRIM(HHSurvey.RgxReplace(t.modes,'(-?\b\d+\b),(?=\b\1\b)','',1)),
 				t.transit_systems 	= HHSurvey.TRIM(HHSurvey.RgxReplace(t.transit_systems,'(\b\d+\b),(?=\b\1\b)','',1)), 
 				t.transit_lines 	= HHSurvey.TRIM(HHSurvey.RgxReplace(t.transit_lines,'(\b\d+\b),(?=\b\1\b)','',1))
-			FROM HHSurvey.trip AS t;
+			FROM HHSurvey.trip AS t WHERE EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =t.personid AND lt.trip_link = t.tripnum);
 
 		EXECUTE HHSurvey.tripnum_update; 
 				
-		UPDATE HHSurvey.trip SET mode_acc = NULL, mode_egr = NULL;	-- Clears what was stored as access or egress; those values are still part of the chain captured in the concatenated 'modes' field.
+		UPDATE HHSurvey.trip SET mode_acc = NULL, mode_egr = NULL   -- Clears what was stored as access or egress; those values are still part of the chain captured in the concatenated 'modes' field.
+			WHERE EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =trip.personid AND lt.trip_link = trip.tripnum);
 
 		-- Characterize access and egress trips, separately for 1) transit trips and 2) auto trips.  (Bike/Ped trips have no access/egress)
 		-- [Unions must be used here; otherwise the VALUE set from the dbo.Rgx table object gets reused across cte fields.]
@@ -1369,46 +1496,46 @@ GO
 		UPDATE t 
 			SET t.mode_acc = cte_acc_egr2.mode_acc,
 				t.mode_egr = cte_acc_egr2.mode_egr
-			FROM HHSurvey.trip AS t JOIN cte_acc_egr2 ON t.personid = cte_acc_egr2.personid AND t.tripnum = cte_acc_egr2.tripnum;
+			FROM HHSurvey.trip AS t JOIN cte_acc_egr2 ON t.personid = cte_acc_egr2.personid AND t.tripnum = cte_acc_egr2.tripnum WHERE EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =t.personid AND lt.trip_link = t.tripnum);
 
 		--handle the 'other' category left out of the operation above (it is the largest integer but secondary to listed modes)
 		UPDATE HHSurvey.trip SET trip.mode_acc = 97 WHERE trip.mode_acc IS NULL AND HHSurvey.RgxFind(trip.modes,'^97,\d+',1) = 1
-			AND EXISTS (SELECT 1 FROM STRING_SPLIT(trip.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes UNION select mode_id FROM HHSurvey.transitmodes));
+			AND EXISTS (SELECT 1 FROM STRING_SPLIT(trip.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes UNION select mode_id FROM HHSurvey.transitmodes)) AND EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =trip.personid AND lt.trip_link = trip.tripnum);
 		UPDATE HHSurvey.trip SET trip.mode_egr = 97 WHERE trip.mode_egr IS NULL AND HHSurvey.RgxFind(trip.modes,'\d+,97$',1) = 1
-			AND EXISTS (SELECT 1 FROM STRING_SPLIT(trip.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes UNION select mode_id FROM HHSurvey.transitmodes));	
+			AND EXISTS (SELECT 1 FROM STRING_SPLIT(trip.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes UNION select mode_id FROM HHSurvey.transitmodes)) AND EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =trip.personid AND lt.trip_link = trip.tripnum);	
 
 		-- Populate separate mode fields, removing access/egress from the beginning and end of 1) transit and 2) auto trip strings
 			WITH cte AS 
-		(SELECT t.recid, HHsurvey.RgxReplace(HHSurvey.RgxReplace(HHSurvey.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71),)+','',1) AS mode_reduced
-			FROM HHSurvey.trip as t
-			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
+		(SELECT t1.recid, HHsurvey.RgxReplace(HHSurvey.RgxReplace(HHSurvey.RgxReplace(t1.modes,'\b(1|2|72|73|74|75|97)\b','',1),'(,(?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71))+$','',1),'^((?:3|4|5|6|7|8|9|10|11|12|16|17|18|21|22|33|34|36|37|47|70|71),)+','',1) AS mode_reduced
+			FROM HHSurvey.trip AS t1
+			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t1.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes))
 		UNION ALL 	
-		SELECT t.recid, HHSurvey.RgxReplace(t.modes,'\b(1|2|72|73|74|75|97)\b','',1) AS mode_reduced
-			FROM HHSurvey.trip as t
-			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes))
-			AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)))
+		SELECT t2.recid, HHSurvey.RgxReplace(t2.modes,'\b(1|2|72|73|74|75|97)\b','',1) AS mode_reduced
+			FROM HHSurvey.trip AS t2
+			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t2.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes))
+			AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t2.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)))
 		UPDATE t
-			SET t.mode_1 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.mode_2 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.mode_3 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.mode_4 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)
-		FROM HHSurvey.trip AS t JOIN cte ON t.recid = cte.recid;
+			SET mode_1 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				mode_2 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				mode_3 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				mode_4 = (SELECT Match FROM HHSurvey.RgxMatches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)
+		FROM HHSurvey.trip AS t JOIN cte ON t.recid = cte.recid AND EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =t.personid AND lt.trip_link = t.tripnum);
 
 		-- Populate transit_system and transit_line fields with the revised concatenated data 		
-		UPDATE 	t
-			SET t.transit_system_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_6	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_6	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'-?\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY)
-			FROM HHSurvey.trip AS t;
+        UPDATE t
+        	SET t.transit_system_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_6	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_1	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_2	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_3	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_4	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_5	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_6	= (SELECT Match FROM HHSurvey.RgxMatches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY)
+			FROM HHSurvey.trip AS t WHERE EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =t.personid AND lt.trip_link = t.tripnum);
 
 		UPDATE HHSurvey.Trip SET mode_acc = 995 WHERE mode_acc IS NULL;
 		UPDATE HHSurvey.Trip SET mode_1   = 995 WHERE mode_1   IS NULL;
@@ -1428,9 +1555,19 @@ GO
 		UPDATE HHSurvey.Trip SET transit_line_4 = 995 WHERE transit_line_4 IS NULL;
 		UPDATE HHSurvey.Trip SET transit_line_5 = 995 WHERE transit_line_5 IS NULL;
 		UPDATE HHSurvey.Trip SET transit_line_6 = 995 WHERE transit_line_5 IS NULL;
+
+		--temp tables should disappear when the spoc ends, but to be tidy we explicitly delete them.
+		DROP TABLE IF EXISTS #trip_ingredient
+		DROP TABLE IF EXISTS #linked_trips
+
+		END
+
+		EXECUTE HHSurvey.link_trips;
 			 
-/* STEP 6. Insert trips for those who were reported as a passenger by another traveler but did not report the trip themselves */
-/* Currently, using a tight constraint for overlap, this generates no trips -- may deserve further scrutiny  */
+/* STEP 6. Harmonize trips where possible: add trips for non-reporting cotravelers, missing trips between destinations, and remove duplicates  */
+
+
+	--Insert trips for those who were reported as a passenger by another traveler but did not report the trip themselves (may deserve scrutiny--tight criteria result in few records being generated)
 
    DROP TABLE IF EXISTS HHSurvey.silent_passenger_trip;
    GO
@@ -1515,105 +1652,146 @@ GO
 		WHERE t.d_purpose IN(10,11,14) AND (p.age < 4 OR p.worker = 0)
 			AND EXISTS (SELECT 1 FROM (VALUES (t.hhmember1),(t.hhmember2),(t.hhmember3),(t.hhmember4),(t.hhmember5),(t.hhmember6),(t.hhmember7),(t.hhmember8),(t.hhmember9)) AS hhmem(member) JOIN HHSurvey.person as p2 ON hhmem.member = p2.personid WHERE p2.worker = 1 AND p2.age > 3);
 
-/* STEP 7. */
+	--Add trips in cases the origin of a trip is over 500m from the destination of the prior, with conditions
+
+	EXECUTE HHSurvey.tripnum_update;
+	GO
+	WITH cte_ref AS (SELECT t.recid, 
+					CASE WHEN t.mode_1 = nxt.mode_1 AND EXISTS (SELECT 1 FROM HHSurvey.AutoModes AS am WHERE am.mode_id = t.mode_1) THEN t.mode_1 ELSE 995 END AS mode,
+					CASE WHEN DATEDIFF(Day, t.arrival_time_timestamp, nxt.depart_time_timestamp) = 0 THEN '16,' ELSE '17,' END AS revision_code,
+					CASE WHEN DATEDIFF(Day, t.arrival_time_timestamp, nxt.depart_time_timestamp) = 0 THEN t.arrival_time_timestamp
+							WHEN (t.dest_geog.STDistance(h.home_geog) < 300 OR t.d_purpose IN(1,52,55,58,97)) THEN  DATETIME2FROMPARTS(DATEPART(year,nxt.depart_time_timestamp),DATEPART(month,nxt.depart_time_timestamp),DATEPART(day,nxt.depart_time_timestamp),3,0,0,0,0)
+							ELSE t.arrival_time_timestamp END AS travelwindow_start,
+					CASE WHEN DATEDIFF(Day, t.arrival_time_timestamp, nxt.depart_time_timestamp) = 0 THEN nxt.depart_time_timestamp
+							WHEN (t.dest_geog.STDistance(h.home_geog) > 300 AND t.d_purpose NOT IN(1,52,55,58,97)) THEN  DATETIME2FROMPARTS(DATEPART(year,nxt.depart_time_timestamp),DATEPART(month,nxt.depart_time_timestamp),DATEPART(day,nxt.depart_time_timestamp),0,0,0,0,0)
+							ELSE nxt.depart_time_timestamp END AS travelwindow_end,
+					CASE WHEN t.travelers_hh = nxt.travelers_hh THEN t.travelers_hh ELSE -9997 END AS travelers_hh, 
+					CASE WHEN t.travelers_nonhh = nxt.travelers_nonhh THEN t.travelers_nonhh ELSE -9997 END AS travelers_nonhh,
+					CASE WHEN t.travelers_total = nxt.travelers_total THEN t.travelers_total ELSE -9997 END AS travelers_total					 
+			FROM HHSurvey.Trip AS t 
+			JOIN HHSurvey.Trip AS nxt ON nxt.personid = t.personid AND nxt.tripnum = t.tripnum + 1
+			JOIN HHSurvey.Household AS h ON t.hhid = h.hhid
+			WHERE ABS(t.dest_geog.STDistance(nxt.origin_geog)) > 500),
+	cte AS (SELECT cte_ref.recid, cte_ref.travelers_hh, cte_ref.travelers_nonhh, cte_ref.travelers_total, cte_ref.revision_code,
+			DATEADD(Minute, ((DATEDIFF(Second, cte_ref.travelwindow_start, cte_ref.travelwindow_end) / 60 - aml.mode1_minutes) / 2), cte_ref.travelwindow_start) AS depart_time_timestamp,
+			aml.mode1_minutes AS travel_minutes, aml.distance
+			FROM cte_ref JOIN HHSurvey.ApiMissingLink AS aml ON cte_ref.recid = aml.recid
+			WHERE (DATEDIFF(Second, cte_ref.travelwindow_start, cte_ref.travelwindow_end) / 60) > aml.mode1_minutes
+			AND aml.distance > 0.3)
+	INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, tripnum, psrc_inserted, revision_code, d_purpose,
+							mode_1, modes, travelers_hh, travelers_nonhh, travelers_total,
+							origin_lat, origin_lng, origin_geog, dest_lat, dest_lng, dest_geog, 
+							trip_path_distance, depart_time_timestamp, arrival_time_timestamp, travel_time)
+	SELECT t.hhid, t.personid, t.pernum, t.hhgroup, 99 AS tripnum, 1 AS psrc_inserted, cte.revision_code, -9998 AS d_purpose,
+			t.mode_1, CAST(t.mode_1 AS NVARCHAR) AS modes, cte.travelers_hh, cte.travelers_nonhh, cte.travelers_total,
+			t.dest_lat AS origin_lat, t.dest_lng AS origin_lng, t.dest_geog AS origin_geog, nxt.origin_lat AS dest_lat, nxt.origin_lng AS dest_lng, nxt.origin_geog AS dest_geog,
+			cte.distance AS trip_path_distance, cte.depart_time_timestamp, DATEADD(Minute, cte.travel_minutes, cte.depart_time_timestamp) AS arrival_time_timestamp, cte.travel_minutes
+		FROM HHSurvey.Trip AS t JOIN HHSurvey.Trip AS nxt ON nxt.personid = t.personid AND nxt.tripnum = t.tripnum + 1 JOIN cte ON t.recid = cte.recid;
+	GO
+	EXECUTE HHSurvey.tripnum_update;
+	GO
+	EXECUTE HHSurvey.recalculate_after_edit;
+	GO
+
+
+	--Remove duplicated home trips generated by the app
+	USE HouseholdTravelSurvey2019
+	GO
+	DROP TABLE IF EXISTS HHSurvey.removed_trip;
+	GO
+	SELECT TOP 0 trip.* INTO HHSurvey.removed_trip
+		FROM HHSurvey.trip
+	UNION ALL -- union for the side effect of preventing recid from being an IDENTITY column.
+	SELECT top 0 Trip.* 
+		FROM HHSurvey.trip
+	GO
+	TRUNCATE TABLE HHSurvey.removed_trip;
+	GO
+	
+	WITH cte AS 
+	(SELECT t.recid 
+		FROM HHSurvey.trip AS t 
+		JOIN 		HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum AND t.daynum = prior_t.daynum
+		LEFT JOIN 	HHSurvey.trip AS next_t  ON t.personid = next_t.personid  AND t.tripnum + 1 = next_t.tripnum  AND t.daynum = next_t.daynum
+		WHERE t.o_purpose = 1 AND t.d_purpose = 1 AND next_t.recid IS NULL AND ABS(t.dest_geog.STDistance(t.origin_geog)) < 100 ) -- points within 100m of one another
+	DELETE FROM HHSurvey.trip OUTPUT deleted.* INTO HHSurvey.removed_trip
+		WHERE EXISTS (SELECT 1 FROM cte WHERE trip.recid = cte.recid);
+
+/* STEP 7. Revise travel times (and where necessary, mode) */  
 	
 	/* Change departure or arrival times for records that would qualify for 'excessive speed' flag, using external Google Distance Matrix API */
-	/* Need to update this section when API data call mechanism is automated, otherwise comparison data isn't automatically available
-		-- Revise drive trips
-		UPDATE t
-		SET t.depart_time_timestamp = DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp),
-			t.revision_code = CONCAT(t.revision_code, '12,'),
-			t.trip_path_distance = gdu.miles
-		FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update AS gdu ON t.recid = gdu.recid
-			LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
-		WHERE EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85
-			AND (prev_t.arrival_time_timestamp IS NULL -- No prior trip, no problem
-				OR DATEDIFF(Second, prev_t.arrival_time_timestamp, DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp)) > 0)  -- Prior trip arrived before this revision would depart
-			AND gdu.drive_minutes < 420;
+	/* Need to update this section when API data call mechanism is automated, otherwise API data must be saved in table HHSurvey.ApiTravelTime (recid, mode1_minutes, auto_minutes, distance)
 
-		-- Revise walk trips
-		WITH cte AS
-		( SELECT t.recid, gdu.drive_minutes, gdu.walk_minutes, gdu.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
-		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00 AS reported_duration,
-		  DATEDIFF(Second, prev_t.arrival_time_timestamp, t.arrival_time_timestamp)/60.00 AS prev_window,
-		  DATEDIFF(Second, t.depart_time_timestamp, next_t.depart_time_timestamp)/60.00 AS next_window,
-		  DATEADD(Second, round(-60 * gdu.drive_minutes, 0), t.arrival_time_timestamp) AS driveadjust_dtimestamp,
-		  DATEADD(Second, round(60 * gdu.drive_minutes, 0), t.depart_time_timestamp) AS driveadjust_atimestamp,
-		  DATEADD(Second, round(-60 * gdu.walk_minutes, 0), t.arrival_time_timestamp) AS walkadjust_dtimestamp,
-		  DATEADD(Second, round(60 * gdu.walk_minutes, 0), t.depart_time_timestamp) AS walkadjust_atimestamp		  
-		  FROM HHSurvey.Trip AS t JOIN HHSurvey.google_duration_update AS gdu ON t.recid = gdu.recid
+		-- Revise departure, and if necessary, arrival times and mode
+        -- Preference to reported mode if travel time matches the available window; if not, drive time is considered as an alternative for trips under 7hrs
+		WITH 		
+		cte AS
+		(SELECT t.recid, att.auto_minutes, att.mode1_minutes, att.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
+		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00         AS reported_duration,
+		  DATEDIFF(Second, prev_t.arrival_time_timestamp, t.arrival_time_timestamp)/60.0 -1 AS half_window,
+		  DATEDIFF(Second, t.depart_time_timestamp, next_t.depart_time_timestamp)/60.0 -2   AS full_window,
+		  DATEADD(Second, round(-60 * att.mode1_minutes, 0), t.arrival_time_timestamp)          AS adj_depart_mode1_d,
+          DATEADD(Second, 60, prev_t.arrival_time_timestamp)                                    AS adj_both_mode1_d,
+          DATEADD(Second, round(60 * att.mode1_minutes, 0) + 1, prev_t.arrival_time_timestamp)  AS adj_both_mode1_a,          
+		  DATEADD(Second, round(-60 * att.auto_minutes, 0), t.arrival_time_timestamp)          AS adj_depart_auto_d,
+          DATEADD(Second, 60, prev_t.arrival_time_timestamp)                                    AS adj_both_auto_d,
+          DATEADD(Second, round(60 * att.auto_minutes, 0) + 1, prev_t.arrival_time_timestamp)  AS adj_both_auto_a	  
+		  FROM HHSurvey.Trip AS t JOIN HHSurvey.ApiTravelTime AS att ON t.recid = att.recid
 		  	LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
 			LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
-		WHERE (EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1)) AND t.speed_mph > 20 -- qualifies for 'excessive speed' flag		
+		WHERE ((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
+					OR 	(EXISTS (SELECT 1 FROM HHSurvey.bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
+					OR	(EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
+					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
+					OR 	(t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140)))          -- qualifies for 'excessive speed' flag		
 		), cte_choice AS (
 		SELECT cte.recid, 
-			CASE WHEN cte.drive_minutes < cte.prev_window  																				-- drive fits the travel window
-			AND (  (cte.walk_minutes > 300 AND ABS(cte.drive_minutes - cte.reported_duration) < 5)  									-- long trip and drive matches reported time
-				OR	cte.walk_minutes > (SELECT MAX(member) FROM (VALUES (cte.prev_window), (cte.next_window)) AS window_lengths(member))	-- walk doesn't fit either travel window
-				OR 	EXISTS (SELECT 1 FROM (VALUES (DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)), (DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp)))) AS timediff1(member) HAVING MIN(member) > 0) -- walkadjust crosses 3am boundary 
-			) THEN 'driveadjust_d'
-			WHEN cte.drive_minutes < cte.next_window  																					-- drive fits the travel window
-			AND (  (cte.walk_minutes > 300 AND ABS(cte.drive_minutes - cte.reported_duration) < 5)  									-- long trip and drive matches reported time
-				OR	cte.walk_minutes > (SELECT MAX(member) FROM (VALUES (cte.prev_window), (cte.next_window)) AS window_lengths(member)) 	-- walk doesn't fit either travel window
-				OR 	EXISTS (SELECT 1 FROM (VALUES (DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)), (DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp)))) AS timediff1(member) HAVING MIN(member) > 0) -- walkadjust crosses 3am boundary 
-			) THEN 'driveadjust_a'
-			WHEN cte.walk_minutes < cte.prev_window 																					-- walk fits the travel window
-				AND DATEDIFF(Day, DATEADD(Hour, 3, cte.walkadjust_dtimestamp), cte.arrival_time_timestamp)  = 0										-- walk doesn't cross 3am boundary
-			THEN 'walkadjust_d'	
-			WHEN cte.walk_minutes < cte.next_window 																					-- walk fits the travel window
-				AND DATEDIFF(Day, cte.depart_time_timestamp, DATEADD(Hour, 3, cte.walkadjust_atimestamp))	= 0											-- walk doesn't cross 3am boundary
-			THEN 'walkadjust_a'
+			CASE 
+            WHEN cte.mode1_minutes < cte.half_window 														-- mode_1 fits the window for adjusting only departure time
+				AND DATEDIFF(Day, DATEADD(Hour, 3, cte.adj_depart_mode1_d), cte.arrival_time_timestamp) = 0	    -- walk doesn't cross 3am boundary
+			THEN 'adj_depart_mode1'	
+			WHEN cte.mode1_minutes < cte.full_window 															-- mode_1 fits the travel window between prior and next trips
+				AND DATEDIFF(Day, cte.adj_both_auto_d, DATEADD(Hour, 3, cte.adj_both_auto_a)) = 0				-- walk doesn't cross 3am boundary
+			THEN 'adj_both_mode1'	
+            WHEN cte.auto_minutes < cte.half_window AND cte.auto_minutes < 420							    -- drive fits the window for adjusting only departure time
+			    AND ABS(cte.mode1_minutes - cte.auto_minutes) > 20                                              -- difference is substantial
+                AND ABS(cte.auto_minutes - cte.reported_duration) < 5 				                            --  drive matches reported time
+		    THEN 'adj_depart_auto'
+			WHEN cte.auto_minutes < cte.full_window AND cte.auto_minutes < 420    							-- drive fits the travel window between prior and next trips
+			    AND ABS(cte.mode1_minutes - cte.auto_minutes) > 20                                              -- difference is substantial
+                AND ABS(cte.auto_minutes - cte.reported_duration) < 5 				                            -- drive matches reported time
+			THEN 'adj_both_auto'
 			ELSE 'fail' END AS adjustcase
 			FROM cte)	
 		UPDATE t
-		SET t.mode_1 = CASE WHEN cte_choice.adjustcase LIKE 'drive%' THEN 16 ELSE t.mode_1 END,
+		SET t.mode_1 = CASE WHEN cte_choice.adjustcase LIKE '%auto' THEN 16 ELSE t.mode_1 END,
 			t.trip_path_distance = cte.distance,
-			t.revision_code = CASE WHEN cte_choice.adjustcase LIKE 'drive%' THEN CONCAT(t.revision_code, '13,')
-								   WHEN cte_choice.adjustcase LIKE 'walk%'  THEN CONCAT(t.revision_code, '12,') 
+			t.revision_code = CASE WHEN cte_choice.adjustcase LIKE '%auto' THEN CONCAT(t.revision_code, '13,')
+								   WHEN cte_choice.adjustcase LIKE '%mode1'  THEN CONCAT(t.revision_code, '12,') 
 								   ELSE t.revision_code END,
-			t.depart_time_timestamp  = CASE WHEN cte_choice.adjustcase = 'driveadjust_d' THEN cte.driveadjust_dtimestamp 
-											WHEN cte_choice.adjustcase = 'walkadjust_d'  THEN cte.walkadjust_dtimestamp
+			t.depart_time_timestamp  = CASE WHEN cte_choice.adjustcase = 'adj_depart_mode1'  THEN cte.adj_depart_mode1_d
+                                            WHEN cte_choice.adjustcase = 'adj_both_mode1'    THEN cte.adj_both_mode1_d
+                                            WHEN cte_choice.adjustcase = 'adj_depart_auto'  THEN cte.adj_depart_auto_d
+                                            WHEN cte_choice.adjustcase = 'adj_both_auto'    THEN cte.adj_both_auto_d
 											ELSE t.depart_time_timestamp END,
-			t.arrival_time_timestamp = CASE WHEN cte_choice.adjustcase = 'driveadjust_a' THEN cte.driveadjust_atimestamp 
-											WHEN cte_choice.adjustcase = 'walkadjust_a'  THEN cte.walkadjust_atimestamp
+			t.arrival_time_timestamp = CASE WHEN cte_choice.adjustcase = 'adj_both_mode1'    THEN cte.adj_both_mode1_a
+                                            WHEN cte_choice.adjustcase = 'adj_both_auto'    THEN cte.adj_both_auto_a
 											ELSE t.arrival_time_timestamp END
-		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_choice ON t.recid = cte_choice.recid;
+		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_choice ON t.recid = cte_choice.recid
+        WHERE cte_choice.adjustcase <> 'fail';
 		GO
+		*/
 
-	*/
-
-	/* Remove duplicated home trips generated by the app */
-		USE HouseholdTravelSurvey2019
-		GO
-		DROP TABLE IF EXISTS HHSurvey.removed_trip;
-		GO
-		SELECT TOP 0 trip.* INTO HHSurvey.removed_trip
-			FROM HHSurvey.trip
-		UNION ALL -- union for the side effect of preventing recid from being an IDENTITY column.
-		SELECT top 0 Trip.* 
-			FROM HHSurvey.trip
-		GO
-		TRUNCATE TABLE HHSurvey.removed_trip;
-		GO
-		
-		WITH cte AS 
-		(SELECT t.recid 
-			FROM HHSurvey.trip AS t 
-			JOIN 		HHSurvey.trip AS prior_t ON t.personid = prior_t.personid AND t.tripnum - 1 = prior_t.tripnum AND t.daynum = prior_t.daynum
-			LEFT JOIN 	HHSurvey.trip AS next_t  ON t.personid = next_t.personid  AND t.tripnum + 1 = next_t.tripnum  AND t.daynum = next_t.daynum
-			WHERE t.o_purpose = 1 AND t.d_purpose = 1 AND next_t.recid IS NULL AND ABS(t.dest_geog.STDistance(t.origin_geog)) < 100 ) -- points within 100m of one another
-		DELETE FROM HHSurvey.trip OUTPUT deleted.* INTO HHSurvey.removed_trip
-			WHERE EXISTS (SELECT 1 FROM cte WHERE trip.recid = cte.recid);
 
 /* STEP 8. Flag inconsistencies */
 /*	as additional error patterns behind these flags are identified, rules to address them can be added to Step 3 or elsewhere in Rulesy as makes sense.*/
 
-		DROP TABLE IF EXISTS HHSurvey.hh_error_flags;
+		/*DROP TABLE IF EXISTS HHSurvey.hh_error_flags;
 		CREATE TABLE HHSurvey.hh_error_flags (hhid decimal(19,0), error_flag NVARCHAR(100));
 		INSERT INTO HHSurvey.hh_error_flags (hhid, error_flag)
 		SELECT h.hhid, 'zero trips' FROM HHSurvey.household AS h LEFT JOIN HHSurvey.trip AS t ON h.hhid = t.hhid
 			WHERE t.hhid IS NULL
-			GROUP BY h.hhid;
+			GROUP BY h.hhid;*/
 
 		DROP TABLE IF EXISTS HHSurvey.trip_error_flags;
 		CREATE TABLE HHSurvey.trip_error_flags(
@@ -1652,254 +1830,181 @@ GO
 		UPDATE #dayends 
 			SET loc_geog = geography::STGeomFromText('POINT(' + CAST(loc_lng AS VARCHAR(20)) + ' ' + CAST(loc_lat AS VARCHAR(20)) + ')', 4326);
 		
-		WITH error_flag_compilation(recid, personid, tripnum, error_flag) AS
-			(SELECT trip.recid, trip.personid, trip.tripnum,	           				   			  'ends day, not home' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.Household AS h ON trip.hhid = h.hhid
-			LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-				WHERE (next_trip.recid IS NULL											 -- either there is no 'next trip'
-							OR (DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 
-								AND DATEPART(Hour, next_trip.depart_time_timestamp) > 2 ))   -- or the next trip starts the next day after 3am)
-				AND trip.dest_is_home IS NULL AND trip.d_purpose <>1 AND trip.dest_geog.STDistance(h.home_geog) > 300
-					AND NOT EXISTS (SELECT 1 FROM #dayends AS de WHERE trip.personid = de.personid AND trip.dest_geog.STDistance(de.loc_geog) < 300)	
+		WITH trip_ref AS (SELECT * FROM HHSurvey.Trip AS t0
+						  WHERE (t0.dest_lat BETWEEN 46.725491 AND 48.392602) AND (t0.dest_lng BETWEEN -123.199429 AND -121.243746) 
+						  	AND  t0.personid = (CASE WHEN @target_personid IS NULL THEN t0.personid ELSE @target_personid END)),
+			cte_dwell AS 
+				(SELECT c.tripid, c.collected_at, cnxt.collected_at AS nxt_collected FROM HHSurvey.Trace AS c 
+				JOIN HHSurvey.Trace AS cnxt ON c.traceid + 1 = cnxt.traceid AND c.tripid = cnxt.tripid
+				WHERE DATEDIFF(Minute, c.collected_at, cnxt.collected_at) > 14),
 
-			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	           		   'starts, not from home' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-				WHERE DATEDIFF(Day, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) = 1 --next_trip is first trip of the day
-					AND trip.dest_is_home IS NULL AND HHSurvey.TRIM(next_trip.origin_name)<>'HOME'
-					AND DATEPART(Hour, next_trip.depart_time_timestamp) > 1  -- Night owls typically home before 2am
+			cte_tracecount AS (SELECT ctc.tripid, count(*) AS tracecount FROM HHSurvey.Trace AS ctc GROUP BY ctc.tripid HAVING count(*) > 2),
 
-			 UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 									  				'purpose missing' AS error_flag
-				FROM HHSurvey.trip 
-					LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-					JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON trip.d_purpose = vl.code
-					JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON trip.o_purpose = v2.code
-					LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v3 ON next_trip.d_purpose = v3.code
-				WHERE vl.label LIKE 'Missing%'
-					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
-					AND v3.label NOT LIKE 'Missing%'	
+			error_flag_compilation(recid, personid, tripnum, error_flag) AS
+			(SELECT t.recid, t.personid, t.tripnum,	           				   			                  'ends day, not home' AS error_flag
+			FROM trip_ref AS t JOIN HHSurvey.Household AS h ON t.hhid = h.hhid
+			LEFT JOIN trip_ref AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
+				WHERE DATEDIFF(Day,(CASE WHEN DATEPART(Hour, t.arrival_time_timestamp) < 3 THEN DATEADD(Hour, -3, t.arrival_time_timestamp) ELSE t.arrival_time_timestamp END),
+								   (CASE WHEN DATEPART(Hour, t_next.arrival_time_timestamp) < 3 THEN DATEADD(Hour, -3, t_next.depart_time_timestamp) WHEN t_next.arrival_time_timestamp IS NULL THEN DATEADD(Day, 1, t.arrival_time_timestamp) ELSE t_next.depart_time_timestamp END)) = 1  -- or the next trip starts the next day after 3am)
+				AND t.dest_is_home IS NULL 
+				AND t.d_purpose NOT IN(1,34,52,55,62,97) 
+				--AND HHSurvey.RgxFind(t.psrc_comment,'ADD RETURN HOME \d?\d:\d\d',1) = 0
+				AND t.dest_geog.STDistance(h.home_geog) > 300
+				AND NOT EXISTS (SELECT 1 FROM #dayends AS de WHERE t.personid = de.personid AND t.dest_geog.STDistance(de.loc_geog) < 300)
+				AND HHSurvey.RgxFind(t.modes,'31',1) = 0		
 
-			UNION ALL SELECT t.recid, t.personid, t.tripnum,  									   'initial trip purpose missing' AS error_flag
-				FROM HHSurvey.Trip AS t 
+			UNION ALL SELECT t_next.recid, t_next.personid, t_next.tripnum,	           		   		   'starts, not from home' AS error_flag
+			FROM trip_ref AS t JOIN trip_ref AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
+				WHERE DATEDIFF(Day, t.arrival_time_timestamp, t_next.depart_time_timestamp) = 1 -- t_next is first trip of the day
+					AND t.dest_is_home IS NULL AND HHSurvey.TRIM(t_next.origin_name)<>'HOME'
+					AND DATEPART(Hour, t_next.depart_time_timestamp) > 1  -- Night owls typically home before 2am
+
+			 UNION ALL SELECT t.recid, t.personid, t.tripnum, 									       		 'purpose missing' AS error_flag
+				FROM trip_ref AS t
+					LEFT JOIN trip_ref AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
+					JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
+				WHERE (vl.label LIKE 'Missing%' OR t.d_purpose IS NULL)
+
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,  								   'initial trip purpose missing' AS error_flag
+				FROM trip_ref AS t 
 				JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t.o_purpose = vl.code
 				WHERE vl.label like 'Missing%' AND t.tripnum = 1
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 									  		 'mode_1 missing' AS error_flag
-				FROM HHSurvey.trip 
-					LEFT JOIN HHSurvey.trip AS prev_trip ON trip.personid = prev_trip.personid AND trip.tripnum - 1 = prev_trip.tripnum
-					LEFT JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-					JOIN HHSurvey.fnVariableLookup('mode_1') as vl ON trip.mode_1 = vl.code
-					LEFT JOIN HHSurvey.fnVariableLookup('mode_1') as v2 ON prev_trip.mode_1 = v2.code
-					LEFT JOIN HHSurvey.fnVariableLookup('mode_1') as v3 ON next_trip.mode_1 = v3.code
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum, 											 'mode_1 missing' AS error_flag
+				FROM trip_ref AS t
+					LEFT JOIN trip_ref AS t_prev ON t.personid = t_prev.personid AND t.tripnum - 1 = t_prev.tripnum
+					LEFT JOIN trip_ref AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
+					JOIN HHSurvey.fnVariableLookup('mode_1') as vl ON t.mode_1 = vl.code
+					LEFT JOIN HHSurvey.fnVariableLookup('mode_1') as v2 ON t_prev.mode_1 = v2.code
+					LEFT JOIN HHSurvey.fnVariableLookup('mode_1') as v3 ON t_next.mode_1 = v3.code
 				WHERE vl.label LIKE 'Missing%'
 					AND v2.label NOT LIKE 'Missing%'  -- we don't want to focus on instances with large blocks of trips missing info
 					AND v3.label NOT LIKE 'Missing%'
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 					 'o purpose not equal to prior d purpose' AS error_flag
-				FROM HHSurvey.trip 
-					JOIN HHSurvey.trip AS prev_trip ON trip.personid = prev_trip.personid AND trip.tripnum - 1 = prev_trip.tripnum
-					WHERE trip.o_purpose <> prev_trip.d_purpose
+			UNION ALL SELECT t.recid, t.personid, t.tripnum, 					     'o purpose not equal to prior d purpose' AS error_flag
+				FROM trip_ref AS t
+					JOIN trip_ref AS t_prev ON t.personid = t_prev.personid AND t.tripnum - 1 = t_prev.tripnum
+					WHERE t.o_purpose <> t_prev.d_purpose AND DATEDIFF(Day, t_prev.arrival_time_timestamp, t.depart_time_timestamp) =0
 
-			/*UNION ALL SELECT max(trip.recid), trip.personid, max(trip.tripnum) AS tripnum, 							  'lone trip' AS error_flag
-				FROM HHSurvey.trip 
-				GROUP BY trip.personid 
-				HAVING max(trip.tripnum)=1
-			*/ --Lone trips only for scrutiny when largely void of data; that's true of any trip. Handle in problematic HH review instead
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,											'underage driver' AS error_flag
+			UNION ALL SELECT max( t.recid),  t.personid, max( t.tripnum) AS tripnum, 							  'lone trip' AS error_flag
+				FROM trip_ref 
+				GROUP BY  t.personid 
+				HAVING max( t.tripnum)=1
+
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,									        	'underage driver' AS error_flag
 				FROM HHSurvey.person AS p
-				JOIN HHSurvey.trip ON p.personid = trip.personid
-				WHERE trip.driver = 1 AND (p.age BETWEEN 1 AND 3)
+				JOIN trip_ref AS t ON p.personid = t.personid
+				WHERE t.driver = 1 AND (p.age BETWEEN 1 AND 3)
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 										  'unlicensed driver' AS error_flag
-				FROM HHSurvey.trip as trip JOIN HHSurvey.person AS p ON p.personid=trip.personid
-				WHERE p.license = 3 AND trip.driver=1
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum, 									      'unlicensed driver' AS error_flag
+				FROM trip_ref as t JOIN HHSurvey.person AS p ON p.personid = t.personid
+				WHERE p.license = 3 AND  t.driver = 1
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 							 		 'non-worker + work trip' AS error_flag
-				FROM HHSurvey.trip as trip JOIN HHSurvey.person AS p ON p.personid=trip.personid
-				WHERE p.worker = 0 AND trip.d_purpose in(10,11,14)
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum, 							 		 'non-worker + work trip' AS error_flag
+				FROM trip_ref AS t JOIN HHSurvey.person AS p ON p.personid= t.personid
+				WHERE p.employment > 4 AND  t.d_purpose in(10,11,14)*/
 
-			UNION ALL SELECT t.recid, t.personid, t.tripnum, 													'excessive speed' AS error_flag
-				FROM HHSurvey.trip AS t									
+			UNION ALL SELECT t.recid, t.personid, t.tripnum, 												'excessive speed' AS error_flag
+				FROM trip_ref AS t									
 				WHERE 	((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
 					OR 	(EXISTS (SELECT 1 FROM HHSurvey.bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
 					OR	(EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
 					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
 					OR 	(t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140)))	-- approximates Pacific Time Zone until vendor delivers UST offset
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  					   	 	    'too slow' AS error_flag
-				FROM HHSurvey.trip
-				WHERE DATEDIFF(Minute, trip.depart_time_timestamp, trip.arrival_time_timestamp) > 180 AND trip.speed_mph < 20		
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,					  					   				'too slow' AS error_flag
+				FROM trip_ref AS t
+				WHERE DATEDIFF(Minute,  t.depart_time_timestamp,  t.arrival_time_timestamp) > 180 AND  t.speed_mph < 20		
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,				   					 'no activity time after' AS error_flag
-				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,					  					   				'long dwell' AS error_flag
+				FROM trip_ref AS t JOIN cte_tracecount ON t.tripid = cte_tracecount.tripid
+				WHERE EXISTS (SELECT 1 FROM cte_dwell WHERE cte_dwell.tripid = t.tripid AND cte_dwell.collected_at > t.depart_time_timestamp AND cte_dwell.nxt_collected < t.arrival_time_timestamp)
+					AND HHSurvey.RgxFind(t.revision_code,'8,',1) = 0
 
-			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	   				'no activity time before' AS error_flag
-				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-				WHERE DATEDIFF(Second, trip.depart_time_timestamp, next_trip.depart_time_timestamp) < 60 AND trip.d_purpose NOT IN(9,33,51,60,61)
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,				   					  		'no activity time after' AS error_flag
+				FROM trip_ref as t JOIN HHSurvey.trip AS t_next ON t.personid=t_next.personid AND t.tripnum + 1 = t_next.tripnum
+				LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v ON  t.d_purpose = v.code
+				WHERE DATEDIFF(Second,  t.depart_time_timestamp, t_next.depart_time_timestamp) < 60 
+					AND  t.d_purpose NOT IN(1,9,33,51,60,61,62,97) AND v.label <> 'Other purpose' AND v.label NOT LIKE 'Missing%'
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					        	 		   'same dest as next' AS error_flag
-				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum
-					AND trip.dest_lat = next_trip.dest_lat AND trip.dest_lng = next_trip.dest_lng
+			/*UNION ALL SELECT t_next.recid, t_next.personid, t_next.tripnum,	   				           'no activity time before' AS error_flag
+				FROM trip_ref as t JOIN HHSurvey.trip AS  t_next ON  t.personid=t_next.personid AND  t.tripnum + 1 = t_next.tripnum
+					LEFT JOIN HHSurvey.fnVariableLookup('d_purpose') as v ON  t.d_purpose = v.code
+				WHERE DATEDIFF(Second,  t.depart_time_timestamp, t_next.depart_time_timestamp) < 60
+					AND  t.d_purpose NOT IN(1,9,33,51,60,61,62,97) AND v.label <> 'Other purpose' AND v.label NOT LIKE 'Missing%'		*/	
 
-			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	       				  'same dest as prior' AS error_flag
-				FROM HHSurvey.trip as trip JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 =next_trip.tripnum 
-					AND trip.dest_lat = next_trip.dest_lat AND trip.dest_lng = next_trip.dest_lng
+			UNION ALL SELECT t_next.recid, t_next.personid, t_next.tripnum,	       				            'same dest as prior' AS error_flag
+				FROM trip_ref as t JOIN HHSurvey.trip AS t_next ON  t.personid=t_next.personid AND t.tripnum + 1 =t_next.tripnum 
+					AND t.dest_lat = t_next.dest_lat AND t.dest_lng = t_next.dest_lng
 
-			UNION ALL (SELECT trip.recid, trip.personid, trip.tripnum,					         					'time overlap' AS error_flag
-				FROM HHSurvey.trip JOIN HHSurvey.trip AS compare_t ON trip.personid=compare_t.personid AND trip.recid <> compare_t.recid
-				WHERE 	(compare_t.depart_time_timestamp  BETWEEN DATEADD(Minute, 2, trip.depart_time_timestamp) AND DATEADD(Minute, -2, trip.arrival_time_timestamp))
-					OR	(compare_t.arrival_time_timestamp BETWEEN DATEADD(Minute, 2, trip.depart_time_timestamp) AND DATEADD(Minute, -2, trip.arrival_time_timestamp))
-					OR	(trip.depart_time_timestamp  BETWEEN DATEADD(Minute, 2, compare_t.depart_time_timestamp) AND DATEADD(Minute, -2, compare_t.arrival_time_timestamp))
-					OR	(trip.arrival_time_timestamp BETWEEN DATEADD(Minute, 2, compare_t.depart_time_timestamp) AND DATEADD(Minute, -2, compare_t.arrival_time_timestamp)))
+			UNION ALL (SELECT t.recid, t.personid, t.tripnum,					         				     	  'time overlap' AS error_flag
+				FROM trip_ref AS t JOIN HHSurvey.trip AS compare_t ON  t.personid=compare_t.personid AND  t.recid <> compare_t.recid
+				WHERE 	(compare_t.depart_time_timestamp  BETWEEN DATEADD(Minute, 2, t.depart_time_timestamp) AND DATEADD(Minute, -2, t.arrival_time_timestamp))
+					OR	(compare_t.arrival_time_timestamp BETWEEN DATEADD(Minute, 2,  t.depart_time_timestamp) AND DATEADD(Minute, -2,  t.arrival_time_timestamp))
+					OR	(t.depart_time_timestamp  BETWEEN DATEADD(Minute, 2, compare_t.depart_time_timestamp) AND DATEADD(Minute, -2, compare_t.arrival_time_timestamp))
+					OR	(t.arrival_time_timestamp BETWEEN DATEADD(Minute, 2, compare_t.depart_time_timestamp) AND DATEADD(Minute, -2, compare_t.arrival_time_timestamp)))
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,								'same transit line listed 2x+' AS error_flag
-				FROM HHSurvey.trip
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,								      'same transit line listed 2x+' AS error_flag
+				FROM trip_ref AS t
     			WHERE EXISTS(SELECT count(*) 
-								FROM (VALUES(trip.transit_line_1),(trip.transit_line_2),(trip.transit_line_3),(trip.transit_line_4),(trip.transit_line_5)) AS transitline(member) 
+								FROM (VALUES(t.transit_line_1),(t.transit_line_2),(t.transit_line_3),(t.transit_line_4),(t.transit_line_5)) AS transitline(member) 
 								WHERE member IS NOT NULL and member not in (select flag_value from HHSurvey.NullFlags) AND member <> 0 GROUP BY member HAVING count(*) > 1)
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,	  		   			 		   	 'purpose at odds w/ dest' AS error_flag
-				FROM HHSurvey.trip
-				WHERE (trip.d_purpose <> 1 and trip.dest_is_home = 1) OR (trip.d_purpose NOT IN(9,10,11,14,60) and trip.dest_is_work = 1)
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,	  		   			 		   	       'purpose at odds w/ dest' AS error_flag
+				FROM trip_ref AS t JOIN HHSurvey.Household AS h ON t.hhid = h.hhid JOIN HHSurvey.Person AS p ON t.personid = p.personid
+				WHERE (t.d_purpose <> 1 and t.dest_is_home = 1) OR (t.d_purpose NOT IN(9,10,11,14,60) and t.dest_is_work = 1)
+					AND h.home_geog.STDistance(p.work_geog) > 500
  
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					                  'missing next trip link' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid  =next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-				WHERE ABS(trip.dest_geog.STDistance(next_trip.origin_geog)) > 500  --500m difference or more
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,					                        'missing next trip link' AS error_flag
+			FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON  t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
+				WHERE ABS(t.dest_geog.STDistance(t_next.origin_geog)) > 500  --500m difference or more
 
-			UNION ALL SELECT next_trip.recid, next_trip.personid, next_trip.tripnum,	              	 'missing prior trip link' AS error_flag
-			FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid = next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-				WHERE ABS(trip.dest_geog.STDistance(next_trip.origin_geog)) > 500	--500m difference or more			
+			UNION ALL SELECT t_next.recid, t_next.personid, t_next.tripnum,	              	           'missing prior trip link' AS error_flag
+			FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND  t.tripnum + 1 = t_next.tripnum
+				WHERE ABS(t.dest_geog.STDistance(t_next.origin_geog)) > 500	--500m difference or more			
+
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,	              	 			 			 '"change mode" purpose' AS error_flag	
+				FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND  t.tripnum + 1 = t_next.tripnum
+					WHERE t.d_purpose = 60 AND HHSurvey.RgxFind(t_next.modes,'31|32',1) = 0 AND HHSurvey.RgxFind(t.modes,'(31|32)',1) = 0
+					AND t.travelers_total = t_next.travelers_total
 /*
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag	--This is an error but we're choosing not to focus on it right now.
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag	--This is an error but we're choosing not to focus on it right now.
 				FROM HHSurvey.trip
-				LEFT JOIN HHSurvey.trip AS next_t ON trip.personid=next_t.personid	AND trip.tripnum + 1 = next_t.tripnum						
-				WHERE trip.d_purpose = 9 AND (trip.travelers_total = next_t.travelers_total)
+				LEFT JOIN HHSurvey.trip AS next_t ON  t.personid=next_t.personid	AND  t.tripnum + 1 = next_t.tripnum						
+				WHERE  t.d_purpose = 9 AND ( t.travelers_total = next_t.travelers_total)
 */
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum,					  				 		'too long at dest' AS error_flag
-				FROM HHSurvey.trip JOIN HHSurvey.trip AS next_trip ON trip.personid  =next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum
-					WHERE   (trip.d_purpose IN(6,10,11,14)    		
-						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
-								CASE WHEN next_trip.recid IS NULL 
-									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
-									 ELSE next_trip.depart_time_timestamp END) > 840)
-    					OR  (trip.d_purpose IN(30)      			
-						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
-								CASE WHEN next_trip.recid IS NULL 
-									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
-									 ELSE next_trip.depart_time_timestamp END) > 240)
-   						OR  (trip.d_purpose IN(32,33,34,50,51,52,53,54,56,60,61,62) 	
-						AND DATEDIFF(Minute, trip.arrival_time_timestamp, 
-						   		CASE WHEN next_trip.recid IS NULL 
-									 THEN DATETIME2FROMPARTS(DATEPART(year,trip.arrival_time_timestamp),DATEPART(month,trip.arrival_time_timestamp),DATEPART(day,trip.arrival_time_timestamp),3,0,0,0,0) 
-									 ELSE next_trip.depart_time_timestamp END) > 480)  
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,					  				 	    	   'too long at dest' AS error_flag
+				FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
+					WHERE   (t.d_purpose IN(6,10,11,14)    		
+						AND DATEDIFF(Minute, t.arrival_time_timestamp, 
+								CASE WHEN t_next.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp),DATEPART(month, t.arrival_time_timestamp),DATEPART(day, t.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE t_next.depart_time_timestamp END) > 840)
+    					OR  (t.d_purpose IN(30)      			
+						AND DATEDIFF(Minute, t.arrival_time_timestamp, 
+								CASE WHEN t_next.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp),DATEPART(month, t.arrival_time_timestamp),DATEPART(day, t.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE t_next.depart_time_timestamp END) > 240)
+   						OR  (t.d_purpose IN(32,33,50,51,53,54,56,60,61) 	
+						AND DATEDIFF(Minute, t.arrival_time_timestamp, 
+						   		CASE WHEN t_next.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp),DATEPART(month, t.arrival_time_timestamp),DATEPART(day, t.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE t_next.depart_time_timestamp END) > 480)  
 
-			UNION ALL SELECT trip.recid, trip.personid, trip.tripnum, 		  				   		   'non-student + school trip' AS error_flag
-				FROM HHSurvey.trip JOIN HHSurvey.trip as next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum JOIN HHSurvey.person ON trip.personid=person.personid 					
-				WHERE trip.d_purpose = 6		
-					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)	
+			UNION ALL SELECT t.recid, t.personid, t.tripnum, 		  				   		          'non-student + school trip' AS error_flag
+				FROM trip_ref AS t JOIN HHSurvey.trip as t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum JOIN HHSurvey.person ON t.personid=person.personid 					
+				WHERE t.d_purpose = 6		
+					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)
+
 		INSERT INTO HHSurvey.trip_error_flags (recid, personid, tripnum, error_flag)
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
 			FROM error_flag_compilation AS efc
-			WHERE NOT EXISTS (SELECT 1 FROM HHSurvey.trip AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved = 1)
-				AND efc.personid = (CASE WHEN @target_personid IS NULL THEN efc.personid ELSE @target_personid END)
+			WHERE NOT EXISTS (SELECT 1 FROM trip_ref AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved = 1)
 			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
-	/* Flag households with predominantly problematic records */
-	DELETE hef 
-		FROM HHSurvey.hh_error_flags AS hef 
-		WHERE hef.hhid = (CASE WHEN @target_personid IS NULL THEN hef.hhid ELSE FLOOR(@target_personid/100) END);
-
-	WITH cte AS 
-		(SELECT t1.hhid FROM HHSurvey.trip AS t1 
-			LEFT JOIN HHSurvey.trip_error_flags AS tef ON t1.recid=tef.recid LEFT JOIN HHSurvey.error_types AS et ON tef.error_flag=et.error_flag
-			GROUP BY t1.hhid 
-			HAVING avg(CASE WHEN et.vital = 1 THEN 1 ELSE 0 END)>.29
-		UNION
-		SELECT t2.hhid FROM HHSurvey.trip AS t2 
-			GROUP BY t2.hhid 
-			HAVING avg(CASE WHEN t2.d_purpose IS NULL OR t2.d_purpose=-9998 OR t2.mode_1 IS NULL OR t2.mode_1=-9998 THEN 1.0 ELSE 0 END)>.29
-		UNION 
-		SELECT t3.hhid FROM HHSurvey.trip as t3
-			LEFT JOIN HHSurvey.trip AS next_trip ON t3.personid = next_trip.personid AND t3.tripnum +1 = next_trip.tripnum
-			LEFT JOIN HHSurvey.trip AS prior_trip ON t3.personid = prior_trip.personid AND t3.tripnum -1 = prior_trip.tripnum
-			GROUP BY t3.hhid
-			HAVING avg(CASE WHEN t3.d_purpose IS NOT NULL AND t3.d_purpose = prior_trip.d_purpose AND t3.d_purpose = next_trip.d_purpose THEN 1.0 ELSE 0 END)>.19)
-	INSERT INTO HHSurvey.hh_error_flags (hhid, error_flag)
-	SELECT cte.hhid, 'high fraction of errors or missing data' FROM cte
-		WHERE cte.hhid = (CASE WHEN @target_personid IS NULL THEN cte.hhid ELSE FLOOR(@target_personid/100) END);
-
+		DROP TABLE IF EXISTS #dayends;
 	END
 	GO
-	DROP TABLE IF EXISTS #dayends;
+
 	EXECUTE HHSurvey.generate_error_flags;
 
-/* STEP 9. Steps to enable the following actions through the MS Access UI*/
-	--DELETIONS:
-
-		DROP PROCEDURE IF EXISTS HHSurvey.remove_trip;
-		GO
-		CREATE PROCEDURE HHSurvey.remove_trip 
-			@target_recid int  NULL --Parameter necessary to have passed
-		AS BEGIN
-		DELETE FROM HHSurvey.trip OUTPUT deleted.* INTO HHSurvey.removed_trip
-			WHERE trip.recid = @target_recid;
-		END
-		GO
-
-	--TRIP LINKING
-
-		DROP PROCEDURE IF EXISTS HHSurvey.link_trip_via_id;
-		GO
-		CREATE PROCEDURE HHSurvey.link_trip_via_id
-			@recid_list nvarchar(255) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
-		AS BEGIN
-		SET NOCOUNT ON; 
-		SELECT CAST(HHSurvey.TRIM(value) AS int) AS recid INTO #recid_list 
-			FROM STRING_SPLIT(@recid_list, ',')
-			WHERE RTRIM(value) <> ''
-	
-		SELECT t.*, 1 AS trip_link INTO #trip_ingredient
-			FROM HHSurvey.trip AS t
-			WHERE EXISTS (SELECT 1 FROM #recid_list AS rid WHERE rid.recid = t.recid);
-
-		EXECUTE HHSurvey.link_trips;
-		EXECUTE HHSurvey.tripnum_update;
-		DROP TABLE IF EXISTS #recid_list;
-		DROP TABLE IF EXISTS #trip_ingredient;
-		END
-		GO
-
-	--RECALCULATION
-
-		DROP PROCEDURE IF EXISTS HHSurvey.recalculate_after_edit;
-		GO
-		CREATE PROCEDURE HHSurvey.recalculate_after_edit
-			@target_personid decimal = NULL --optional to limit to the record just edited 
-		AS BEGIN
-		SET NOCOUNT ON
-
-		EXECUTE HHSurvey.tripnum_update @target_personid;
-			UPDATE t SET
-			t.depart_time_hhmm  = FORMAT(t.depart_time_timestamp,N'hh\:mm tt','en-US'),
-			t.arrival_time_hhmm = FORMAT(t.arrival_time_timestamp,N'hh\:mm tt','en-US'), 
-			t.depart_time_mam   = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year,t.depart_time_timestamp),DATEPART(month,t.depart_time_timestamp),DATEPART(day,t.depart_time_timestamp),0,0,0,0,0),t.depart_time_timestamp),
-			t.arrival_time_mam  = DATEDIFF(minute, DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp), DATEPART(month,t.arrival_time_timestamp), DATEPART(day,t.arrival_time_timestamp),0,0,0,0,0),t.arrival_time_timestamp),
-			t.speed_mph			= CASE WHEN (t.trip_path_distance > 0 AND (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) > 0) 
-									   THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
-									   ELSE 0 END,
-			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,				   	
-			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
-			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
-			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
-			FROM HHSurvey.trip AS t
-			WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
-
-		UPDATE next_t SET
-			next_t.o_purpose = t.d_purpose
-			FROM HHSurvey.trip AS t JOIN HHSurvey.trip AS next_t ON t.personid = next_t.personid AND t.tripnum + 1 = next_t.tripnum
-			WHERE t.personid = (CASE WHEN @target_personid IS NULL THEN t.personid ELSE @target_personid END);
-
-		END
-		GO	
-
-/* More yet to be determined . . .  */
