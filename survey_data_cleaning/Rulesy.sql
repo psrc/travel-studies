@@ -1887,7 +1887,7 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 					WHERE t.o_purpose <> t_prev.d_purpose AND DATEDIFF(Day, t_prev.arrival_time_timestamp, t.depart_time_timestamp) =0
 
 			UNION ALL SELECT max( t.recid),  t.personid, max( t.tripnum) AS tripnum, 							  'lone trip' AS error_flag
-				FROM trip_ref 
+				FROM trip_ref AS t
 				GROUP BY  t.personid 
 				HAVING max( t.tripnum)=1
 
@@ -1902,7 +1902,7 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 
 			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum, 							 		 'non-worker + work trip' AS error_flag
 				FROM trip_ref AS t JOIN HHSurvey.person AS p ON p.personid= t.personid
-				WHERE p.employment > 4 AND  t.d_purpose in(10,11,14)*/
+				WHERE p.employment > 4 AND  t.d_purpose in(10,11,14)
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum, 												'excessive speed' AS error_flag
 				FROM trip_ref AS t									
@@ -1967,12 +1967,12 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 				FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND  t.tripnum + 1 = t_next.tripnum
 					WHERE t.d_purpose = 60 AND HHSurvey.RgxFind(t_next.modes,'31|32',1) = 0 AND HHSurvey.RgxFind(t.modes,'(31|32)',1) = 0
 					AND t.travelers_total = t_next.travelers_total
-/*
+
 			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag	--This is an error but we're choosing not to focus on it right now.
-				FROM HHSurvey.trip
+				FROM HHSurvey.trip AS t
 				LEFT JOIN HHSurvey.trip AS next_t ON  t.personid=next_t.personid	AND  t.tripnum + 1 = next_t.tripnum						
 				WHERE  t.d_purpose = 9 AND ( t.travelers_total = next_t.travelers_total)
-*/
+
 			UNION ALL SELECT t.recid, t.personid, t.tripnum,					  				 	    	   'too long at dest' AS error_flag
 				FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
 					WHERE   (t.d_purpose IN(6,10,11,14)    		
