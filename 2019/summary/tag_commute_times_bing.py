@@ -10,8 +10,6 @@ import numpy as np
 #before running add: commute_drive_time, commute_transit_time, commute_distance, school_drive_time, school_transit_time, school_distance
 
 # Globals
-missing_code = 995
-RECS_CHUNK = 2
 commute_time_day = '2019-03-26T09:00:00-08:00'
 time_unit = 'minute'
 distanceUnit = 'mile'
@@ -70,12 +68,12 @@ def get_times(hh_person, mode,purpose):
 
             count = count+1
 
-        file_name = 'times_'+ purpose
+        file_name = 'times_'+ purpose+'_'+mode
         time_results.to_csv('C:/Users/SChildress/Documents/GitHub/travel-studies/2019/summary/'+file_name+'.csv')
     except:
-        file_name = 'times_'+ purpose
+        file_name = 'times_'+ purpose+'_'+mode
         time_results.to_csv('C:/Users/SChildress/Documents/GitHub/travel-studies/2019/summary/'+file_name+'.csv')
-    return_time_results
+    return time_results
 
 api_key = open(key_file).read()
 
@@ -92,8 +90,8 @@ hh  = pd.read_sql('SELECT HHID, REPORTED_LAT, REPORTED_LNG FROM '+hh_table_name,
 hh_person_work = pd.merge(hh, person_work, on = 'HHID')
 hh_person_school = pd.merge(hh, person_school, on = 'HHID')
 
-#drive_times_work = get_times(hh_person_work, 'driving', 'WORK')
-#drive_times_school = get_times(hh_person_school, 'driving', 'SCHOOL_LOC')
+drive_times_school = get_times(hh_person_school, 'driving', 'SCHOOL_LOC')
+drive_times_work = get_times(hh_person_work, 'driving', 'WORK')
 transit_times_work = get_times(hh_person_work, 'transit', 'WORK')
 transit_times_school = get_times(hh_person_school, 'transit', 'SCHOOL_LOC')
 
