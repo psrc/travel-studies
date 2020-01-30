@@ -1216,14 +1216,14 @@ GO
 				  OR (trip.d_purpose = next_trip.d_purpose AND ntvl.label NOT LIKE 'Dropped off/picked up someone%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 15)  -- other non-PUDO purposes if identical, under 15min dwell
 				);
 
-		/* Less restricted linkages for 'mode change' only */
+		/* Less restricted linkages for 'mode change' only 
 		SELECT next_trip.*, CAST(0 AS int) AS trip_link INTO #trip_ingredient  
 			FROM HHSurvey.trip as trip  
 			JOIN HHSurvey.trip AS next_trip ON trip.personid=next_trip.personid AND trip.tripnum + 1 = next_trip.tripnum  
 		WHERE trip.dest_is_home IS NULL 
 			AND trip.dest_is_work IS NULL 
 			AND trip.d_purpose = 60
-			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 30;
+			AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 30;*/
 
 		-- set the trip_link value of the 2nd component to the tripnum of the 1st component.
 		UPDATE ti  
@@ -1965,13 +1965,20 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum,	              	 			 			 '"change mode" purpose' AS error_flag	
 				FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND  t.tripnum + 1 = t_next.tripnum
-					WHERE t.d_purpose = 60 AND HHSurvey.RgxFind(t_next.modes,'31|32',1) = 0 AND HHSurvey.RgxFind(t.modes,'(31|32)',1) = 0
+					WHERE t.d_purpose = 60 AND HHSurvey.RgxFind(t_next.modes,'(31|32)',1) = 0 AND HHSurvey.RgxFind(t.modes,'(31|32)',1) = 0
 					AND t.travelers_total = t_next.travelers_total
 
-			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum,					          		  'PUDO, no +/- travelers' AS error_flag	--This is an error but we're choosing not to focus on it right now.
-				FROM HHSurvey.trip AS t
-				LEFT JOIN HHSurvey.trip AS next_t ON  t.personid=next_t.personid	AND  t.tripnum + 1 = next_t.tripnum						
-				WHERE  t.d_purpose = 9 AND ( t.travelers_total = next_t.travelers_total)
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,					          		  		'PUDO, no +/- travelers' AS error_flag
+				FROM HHSurvey.trip AS t LEFT JOIN HHSurvey.trip AS t_next ON  t.personid = t_next.personid	AND  t.tripnum + 1 = t_next.tripnum						
+				WHERE  t.d_purpose = 9 AND ( t.travelers_total = t_next.travelers_total)
+					AND NOT (CASE WHEN t.hhmember1 <> t_next.hhmember1 THEN 1 ELSE 0 END +
+ 		 				  	 CASE WHEN t.hhmember2 <> t_next.hhmember2 THEN 1 ELSE 0 END +
+						  	 CASE WHEN t.hhmember3 <> t_next.hhmember3 THEN 1 ELSE 0 END +
+						   	 CASE WHEN t.hhmember4 <> t_next.hhmember4 THEN 1 ELSE 0 END +
+						   	 CASE WHEN t.hhmember5 <> t_next.hhmember5 THEN 1 ELSE 0 END +
+						  	 CASE WHEN t.hhmember6 <> t_next.hhmember6 THEN 1 ELSE 0 END +
+						  	 CASE WHEN t.hhmember7 <> t_next.hhmember7 THEN 1 ELSE 0 END +
+						  	 CASE WHEN t.hhmember8 <> t_next.hhmember8 THEN 1 ELSE 0 END) > 1
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum,					  				 	    	   'too long at dest' AS error_flag
 				FROM trip_ref AS t JOIN HHSurvey.trip AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
