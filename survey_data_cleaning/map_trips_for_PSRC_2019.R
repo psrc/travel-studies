@@ -89,18 +89,18 @@ map_trips <- function(df, basemap = "OpenStreetMap") {
   trip_line_colors <- length(tripids) + 1
   line_pal <- colorFactor(palette = "Dark2", domain = 1:trip_line_colors) # can also use "viridis", "Spectral", "Blues", etc
 
-  # loop through each tripid to add polyline to map. each trip must be added individually.
-  for (trip in tripids) {
-    map <- map %>%
-      addPolylines(lng = ~lng[tripid == trip],
-                   lat = ~lat[tripid == trip],
-                   color = ~line_pal(trip_line_colors),
-                   opacity = 1.0, fillOpacity = 0.5,
-                   weight = 5, smoothFactor = 0.5
-                   )
-
-    trip_line_colors <- trip_line_colors - 1
-  }
+  # # loop through each tripid to add polyline to map. each trip must be added individually.
+  # for (trip in tripids) {
+  #   map <- map %>%
+  #     addPolylines(lng = ~lng[tripid == trip],
+  #                  lat = ~lat[tripid == trip],
+  #                  color = ~line_pal(trip_line_colors),
+  #                  opacity = 1.0, fillOpacity = 0.5,
+  #                  weight = 5, smoothFactor = 0.5
+  #                  )
+  # 
+  #   trip_line_colors <- trip_line_colors - 1
+  # }
 
   # add waypoint markers
   marker_pal <- colorBin(palette = c("red", "yellow", "green", "purple"),
@@ -156,7 +156,8 @@ psrc_loc_name<- 'HHSurvey.Location'
 psrc_loc <- read.dt(psrc_loc_name)
 
 
-psrc_loc_filtered <- filter(psrc_loc, between(tripid, 19100000101001,19100000101005))
+psrc_loc_filtered <- filter(psrc_loc, between(personid, 19100000101,19100000101))
+psrc_loc_filtered<- filter(psrc_loc_filtered, between(tripnum, 1, 1))
 
 map_trips(df = psrc_loc_filtered)
 # map_trips(df = psrc_loc_filtered, basemap = "Esri.NatGeoWorldMap")
