@@ -11,11 +11,13 @@ from lookup import *
 
 # Set input paths
 person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2017\Data\Export\Version 2\Restricted\In-house\2017-internal-v2-R-2-person.xlsx'
-trip_file_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\trip_from_db.csv'
+trip_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2017\Data\Export\Version 3\Restricted\In-house\2017-internal-v3-R-5-trip.xlsx'
+#trip_file_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\trip_from_db.csv'
 purp_lookup_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\purp_lookup.csv'
 
 # Output directory
-output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
+#output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
+output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation'
 
 
 def process_person_file(person_file_dir):
@@ -94,15 +96,18 @@ def process_person_file(person_file_dir):
 def process_trip_file(trip_file_dir, purp_lookup_dir, person):
     """ Convert trip records to Daysim format."""
 
-    trip = pd.read_csv(trip_file_dir)
+    #trip = pd.read_csv(trip_file_dir)
+    trip = pd.read_excel(trip_file_dir, sheetname='5-Trip', skiprows=1)
     df_purp_lookup = pd.read_csv(purp_lookup_dir)
-    trip['hhno'] = trip['household_dim_id']
-    trip['pno'] = trip['person_dim_id']
+    trip['hhno'] = trip['hhid']
+    trip['pno'] = trip['pernum']
     trip['day'] = trip['daynum'].astype(int)
     trip['tsvid'] = trip['recid']
 
     # Select only weekday trips (Should we also include Friday?)
-    trip = trip[trip['dayofweek'].isin(['Monday','Tuesday','Wednesday','Thursday'])]
+    #trip = trip[trip['dayofweek'].isin([1,2,3,7])]    # This is messed up in the current version of survey
+    # use nwkdays > 0 instead
+    trip = trip[trip['nwkdays'] > 0]
 
     # FIXME
     # Filter out people that have some missing information, like trip purpose
@@ -115,16 +120,22 @@ def process_trip_file(trip_file_dir, purp_lookup_dir, person):
         text = df_purp_lookup.loc[df_purp_lookup['ValueOrder'] == val,'ValueText'].values[0]
         new_purp_map[text] = purpose_map[val]
 
-    trip['day'] = trip['dayofweek'].map(day_map)
+    # FIXME: this field is whack
+    trip['day'] = trip['dayofweek']
 
-    trip['opurp'] = trip['origin_purpose'].map(new_purp_map)
-    trip['dpurp'] = trip['dest_purpose'].map(new_purp_map)
+    trip['opurp'] = trip['origin_purpose'].map(purpose_map)
+    trip['dpurp'] = trip['dest_purpose'].map(purpose_map)
 
-    trip['dorp'] = trip['dest_purpose'].map(new_purp_map)
+    trip['dorp'] = trip['driver'].map(dorp_map)
+    # Dorp of N/A is e in daysim, fillna with this value
+    trip['dorp'] = trip['dorp'].fillna(3)
 
     # origin and destination TAZs
     trip['otaz'] = trip['o_taz2010']
     trip['dtaz'] = trip['d_taz2010']
+    trip['otaz'] = trip['otaz'].fillna(-1)
+    trip['dtaz'] = trip['dtaz'].fillna(-1)
+
 
     ##############################
     # Start and end time
@@ -155,12 +166,18 @@ def process_trip_file(trip_file_dir, purp_lookup_dir, person):
     ##############################
     # Mode
     ##############################
-    trip['mode'] = trip['main_mode'].copy()
-    # Get HOV2/HOV3 based on total number of travelers
-    trip.loc[trip['mode'] == 'HOV','mode'] = 'HOV2'
-    trip.loc[(trip['travelers_total'] > 2) & (trip['main_mode'] == 'HOV'),'mode'] = 'HOV3+'
+    trip['mode'] = 'Other'
 
-    trip.loc[trip['mode_1'] == 'Other hired service (e.g., Lyft, Uber)','mode'] = 'TNC'
+    # Get HOV2/HOV3 based on total number of travelers
+    auto_mode_list = [3,4,5,6,7,8,9,10,11,12,16,17,18,21,22,33,34]
+    trip.loc[(trip['travelers_total'] == 1) & (trip['mode_1'].isin(auto_mode_list)),'mode'] = 'SOV'
+    trip.loc[(trip['travelers_total'] == 2) & (trip['mode_1'].isin(auto_mode_list)),'mode'] = 'HOV2'
+    trip.loc[(trip['travelers_total'] > 2) & (trip['mode_1'].isin(auto_mode_list)),'mode'] = 'HOV3+'
+    # transit
+    trip.loc[trip['mode_1'].isin([23,32,41,42,52]),'mode'] = 'Transit'
+    trip.loc[trip['mode_1'].isin([1]),'mode'] = 'Walk'
+    trip.loc[trip['mode_1'].isin([2]),'mode'] = 'Bike'
+    trip.loc[trip['mode_1'].isin([37]),'mode'] = 'TNC' # Should this also include traditonal Taxi?
     trip['mode'] = trip['mode'].map(mode_dict)
     trip['trexpfac'] = trip['trip_weight_revised']
 
@@ -204,12 +221,15 @@ def process_trip_file(trip_file_dir, purp_lookup_dir, person):
     # Add submode
     trip['pathtype'] = 1
     for index, row in trip.iterrows():
-        if row['main_mode'] == 1:
-            if 'Ferry or water taxi' in row[['mode_1','mode_2','mode_3','mode_4']].values:
+        if [23 or 32 or 41 or 42 or 52] in list(row[['mode_1','mode_2','mode_3','mode_4']].values):
+            # ferry or water taxi
+            if 32 in row[['mode_1','mode_2','mode_3','mode_4']].values:
                 trip.loc[index,'pathtype'] = 7
-            elif 'Commuter rail (Sounder, Amtrak)' in row[['mode_1','mode_2','mode_3','mode_4']].values:
+            # commuter rail
+            elif 41 in row[['mode_1','mode_2','mode_3','mode_4']].values:
                 trip.loc[index,'pathtype'] = 6
-            elif 'Urban rail (e.g., Link light rail, monorail)' in row[['mode_1','mode_2','mode_3','mode_4']].values:
+            # 'Urban rail (e.g., Link light rail, monorail)'
+            elif [42 or 52] in row[['mode_1','mode_2','mode_3','mode_4']].values:
                 trip.loc[index,'pathtype'] = 4
             else:
                 trip.loc[index,'pathtype'] = 3
@@ -398,7 +418,7 @@ def build_tour_file(trip):
     #                 subtour_ends = len(_df[(_df['opurp'] == 1) & (_df['dpurp'] != 0)]) + len(_df[(_df['opurp'] != 0) & (_df['dpurp'] == 1)])
     #                 subtours = subtour_ends/2
 
-                    subtour_index_start_values = _df[(_df['opurp'] == 1) & (_df['dpurp'] != 0)].index.values   
+                    subtour_index_start_values = _df[(_df['opurp'] == 1) & (-_df['dpurp'].isin([0,1]))].index.values    
                     local_index = 0
                     subtours = 0
                     for i in subtour_index_start_values:
