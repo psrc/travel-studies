@@ -1540,8 +1540,8 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 		UPDATE HHSurvey.Trip SET mode_acc = 995 WHERE mode_acc IS NULL;
 		UPDATE HHSurvey.Trip SET mode_1   = 995 WHERE mode_1   IS NULL;
 		UPDATE HHSurvey.Trip SET mode_2   = 995 WHERE mode_2   IS NULL;
-		UPDATE HHSurvey.Trip SET mode_3   = 995 WHERE mode_4   IS NULL;
-		UPDATE HHSurvey.Trip SET mode_4   = 995 WHERE mode_1   IS NULL;
+		UPDATE HHSurvey.Trip SET mode_3   = 995 WHERE mode_3   IS NULL;
+		UPDATE HHSurvey.Trip SET mode_4   = 995 WHERE mode_4   IS NULL;
 		UPDATE HHSurvey.Trip SET mode_egr = 995 WHERE mode_egr IS NULL;
 		UPDATE HHSurvey.Trip SET transit_system_1 = 995 WHERE transit_system_1 IS NULL;
 		UPDATE HHSurvey.Trip SET transit_system_2 = 995 WHERE transit_system_2 IS NULL;
