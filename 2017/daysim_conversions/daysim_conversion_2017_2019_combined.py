@@ -11,8 +11,14 @@ import pandas as pd
 from lookup import *
 
 # Set input paths
-person_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2019\Data\Dataset_24_January_2020\PSRC_2019_HTS_Deliverable_012420\PSRC_2019_HTS_Deliverable_012420\Weighted_Dataset_012420\2_person.csv'
-trip_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2019\Data\Dataset_24_January_2020\PSRC_2019_HTS_Deliverable_012420\PSRC_2019_HTS_Deliverable_012420\Weighted_Dataset_012420\5_trip.csv'
+hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\1_household.csv'
+person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\2_person.csv'
+trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\5_trip.csv'
+
+# FIXME - which columns to use?:
+hh_wt_col = 'hh_wt_combined'
+
+
 #trip_file_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\trip_from_db.csv'
 #purp_lookup_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\purp_lookup.csv'
 
@@ -21,12 +27,23 @@ trip_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey201
 output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation'
 
 
+# Flexible column names, given that these may change in future surveys
+hhno = 'hhid'
+hownrent = 'rent_own'
+hrestype = 'res_type'
+hhincome = 'hhincome_detailed'
+hhtaz = 'final_home_taz2010'
+hhexpfac = 'hh_wt_revised'
+hhwkrs = 'numworkers'
+hhvehs = 'vehicle_count'
+pno = 'pernum'
+
 def process_person_file(person_file_dir):
     """ Create Daysim-formatted person file from Survey Excel file. """
 
     # FIXME: use final version from Elmer
 
-    person = pd.read_csv(person_file_dir)
+    person = pd.read_csv(person_file_dir, encoding='latin-1')
 
     # Full time worker
     person.loc[person['employment'] == 1, 'pptyp'] = 1
@@ -94,10 +111,92 @@ def process_person_file(person_file_dir):
 
     return person
 
+def total_persons_to_hh(hh, person, daysim_field, filter_field, 
+                        filter_field_list, hhid_col='hhno', wt_col='hhexpfac'):
+    
+    """Use person field to calculate total number of person in a household for a given field
+    e.g., total number of full-time workers"""
+    
+    df = person[person[filter_field].isin(filter_field_list)]
+    df = df.groupby(hhid_col).count().reset_index()[[wt_col,hhid_col]]
+    df.rename(columns={wt_col: daysim_field}, inplace=True)
+    
+    # Join to households
+    hh = pd.merge(hh, df, how='left', on=hhid_col)
+    hh[daysim_field].fillna(0, inplace=True)
+    
+    return hh
+
+def process_household_file(hh_file_dir, person):
+
+    hh = pd.read_csv(hh_file_dir, encoding='latin-1')
+    hh['hhno'] = hh['hhid']
+    hh['hhexpfac'] = hh[hh_wt_col]
+
+    # Workers hhwkrs
+    hh = total_persons_to_hh(hh, person, daysim_field='hhwkrs', 
+                            filter_field='pwtyp', filter_field_list=[1,2],
+                            hhid_col='hhno', wt_col='psexpfac')
+
+    # Full-time workers
+    hh = total_persons_to_hh(hh, person, daysim_field='hhftw', 
+                             filter_field='pwtyp', filter_field_list=[1],
+                             hhid_col='hhno', wt_col='psexpfac')
+
+    ## Part-time workers
+    hh = total_persons_to_hh(hh, person, daysim_field='hhptw', 
+                            filter_field='pwtyp', filter_field_list=[2],
+                            hhid_col='hhno', wt_col='psexpfac')
+
+    ## Retirees
+    hh = total_persons_to_hh(hh, person, daysim_field='hhret', 
+                        filter_field='pptyp', filter_field_list=[3],
+                        hhid_col='hhno', wt_col='psexpfac')
+    
+    ## Other Adults
+    hh = total_persons_to_hh(hh, person, daysim_field='hhoad', 
+                        filter_field='pptyp', filter_field_list=[4],
+                        hhid_col='hhno', wt_col='psexpfac')
+    
+    # University Students
+    hh = total_persons_to_hh(hh, person, daysim_field='hhuni', 
+                    filter_field='pptyp', filter_field_list=[5],
+                    hhid_col='hhno', wt_col='psexpfac')
+
+    # High school students
+    hh = total_persons_to_hh(hh, person, daysim_field='hhhsc', 
+                    filter_field='pptyp', filter_field_list=[6],
+                    hhid_col='hhno', wt_col='psexpfac')
+
+    # k12 age 5-15
+    hh = total_persons_to_hh(hh, person, daysim_field='hh515', 
+                    filter_field='pptyp', filter_field_list=[7],
+                    hhid_col='hhno', wt_col='psexpfac')
+
+        ## age under 5
+    hh = total_persons_to_hh(hh, person, daysim_field='hhcu5', 
+                filter_field='pptyp', filter_field_list=[8],
+                hhid_col='hhno', wt_col='psexpfac')
+
+    hh['hownrent'] = hh[hownrent].map(hownrent_map) 
+    hh['hrestype'] = hh[hrestype].map(hhrestype_map) 
+    hh['hhincome'] = hh[hhincome].map(income_map) 
+    hh['hhtaz'] = hh[hhtaz]
+    hh['hhwkrs'] = hh[hhwkrs]
+    hh['hhno'] = hh[hhno]
+    hh['hhvehs'] = hh[hhvehs]
+
+    daysim_fields = ['hhno','hhsize','hhvehs','hhwkrs','hhftw','hhptw','hhret','hhoad','hhuni','hhhsc','hh515',
+                 'hhcu5','hhincome','hownrent','hrestype','hhtaz','hhexpfac']
+
+    hh = hh[daysim_fields]
+
+    return hh
+
 def process_trip_file(trip_file_dir, person):
     """ Convert trip records to Daysim format."""
 
-    trip = pd.read_csv(trip_file_dir)
+    trip = pd.read_csv(trip_file_dir, encoding='latin-1')
     #trip = pd.read_excel(trip_file_dir, sheetname='5-Trip', skiprows=1)
 
     # FIXME
@@ -523,19 +622,112 @@ def build_tour_file(trip, person):
 
     return tour, trip
 
+def process_household_day(tour, hh):
+
+    household_day = pd.DataFrame()
+
+    household_day['hhno'] = tour['hhno'].unique()
+    
+    # There should be a single trip reported for each household
+    household_day['day'] = 1
+    
+    # Set number of joint tours to 0 for this version of Daysim
+    for col in ['jttours','phtours','fhtours']:
+        household_day[col] = 0
+
+    # 
+
+    return household_day
+
+def person_day(tour, person):
+    
+    pday = pd.DataFrame()
+    for person_rec in person['personid'].unique():
+    
+        # get this person's tours
+        _tour = tour[tour['personid'] == person_rec]
+    
+        # Loop through each day
+        for day in _tour['day'].unique():
+        
+            # from survey data
+        
+            #_pday_survey = pday_survey[(pday_survey['personid'] == person_rec) & (pday_survey['dayofweek'] == day)]
+        
+            day_tour = _tour[_tour['day'] == day]
+        
+            prec_id = str(person_rec) + str(day)
+            pday.loc[prec_id,'hhno'] = day_tour['hhno'].iloc[0]
+            pday.loc[prec_id,'pno'] = day_tour['pno'].iloc[0]
+            pday.loc[prec_id,'day'] = day
+        
+            # Begin/End at home-
+            # need to get from first and last trips of tour days 
+            pday.loc[prec_id,'beghom'] = 0
+            pday.loc[prec_id,'endhom'] = 0
+            _trip = trip[(trip['personid'] == person_rec) & (trip['day'] == day)]
+            if _trip.iloc[0]['opurp'] == 0:
+                pday.loc[prec_id,'beghom'] = 1
+            if _trip.iloc[-1]['dpurp'] == 0:
+                pday.loc[prec_id,'endhom'] = 1
+        
+            # Number of tours by purpose
+            purp_dict = {
+                'uw': 1,    # tours to usual workplace
+                'sc': 2,
+                'es': 3,
+                'pb': 4,
+                'sh': 5,
+                'ml': 6,
+                'so': 7,
+                're': 8,
+                'me': 9
+            }
+            for purp_name, purp_val in purp_dict.items():
+                # Number of tours
+                pday.loc[prec_id,purp_name+'tours'] = len(day_tour[day_tour['pdpurp'] == purp_val])
+        
+                # Number of stops
+                day_tour_purp = day_tour[day_tour['pdpurp'] == purp_val]
+                if len(day_tour_purp) > 0:
+                    nstops = day_tour_purp[['tripsh1','tripsh2']].sum().sum() - 2
+                else:
+                    nstops = 0
+                pday.loc[prec_id,purp_name+'stops'] = nstops
+        
+            # Minutes worked at home
+            #pday.loc[prec_id,'wkathome'] = _pday_survey['telework_time'].values[0]
+
+    return pday
+
 def main():
     # UPDATE THIS
     person = process_person_file(person_file_dir)
+    hh = process_household_file(hh_file_dir, person)
     trip = process_trip_file(trip_file_dir, person)
     #df_name = 'person'
     #person = read_csv = pd.read_csv(os.path.join(output_dir,df_name+'17.csv'))
     #df_name = 'trip'
     #trip = read_csv = pd.read_csv(os.path.join(output_dir,df_name+'17.csv'))
     
+    # household
+
+    # Create tour file and update the trip file with tour info
     tour, trip = build_tour_file(trip, person)
 
+    # person day and household day records
+
+    # household day
+        # all other values set to 0; hdexpfac looks like it is simply the household weights
+    # FIXME: CONFIRM THIS WITH MARK B
+    household_day = process_household_day(tour, hh)
+
+    # person day
+    person_day = person_day(tour, person)
+
     # Write files
-    for df_name, df in {'person': person, 'trip': trip, 'tour': tour}.items():
+    for df_name, df in {'person': person, 'trip': trip, 'tour': tour, 'household': hh,
+                        'hhday': household_day, 'pday': person_day}.items():
         df.to_csv(os.path.join(output_dir,df_name+'17.csv'), index=False)
 
 if __name__ == '__main__':
