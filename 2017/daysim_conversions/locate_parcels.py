@@ -1,3 +1,12 @@
+# This script assigns parcel IDs to survey fields, including current/past work and home location,
+# school location, and trip origin and destination. 
+# Locations are assigned by finding nearest parcel that meets criteria (e.g., work location must have workers at parcel) 
+# In some cases (school location), if parcels are over a threshold distance from original xy values, 
+# multiple filter tiers can be applied (e.g., first find parcel with students; for parcels with high distances, 
+# use a looser criteria like a parcel with service jobs, followed by parcels with household population.)
+
+# Requires Python 3 for geopandas
+
 import os, sys
 import pandas as pd
 import geopandas as gpd
@@ -16,23 +25,21 @@ os.chdir(working_dir)
 # Geographic files
 parcel_file_dir = r'R:\e2projects_two\SoundCast\Inputs\lodes\alpha_lodes\2014\landuse\parcels_urbansim.txt'
 taz_dir = r'W:\geodata\forecast\taz2010.shp'
-# FIXME:
-# ADD Census block, county, puma10, tract, bg, rgcnum, uvnum,
 
-#person_file_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions\person17.csv'
-person_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2019\Data\Dataset_24_January_2020\PSRC_2019_HTS_Deliverable_012420\PSRC_2019_HTS_Deliverable_012420\Weighted_Dataset_012420\2_person.csv'
-trip_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2019\Data\Dataset_24_January_2020\PSRC_2019_HTS_Deliverable_012420\PSRC_2019_HTS_Deliverable_012420\Weighted_Dataset_012420\5_trip.csv'
-hh_file_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2019\Data\Dataset_24_January_2020\PSRC_2019_HTS_Deliverable_012420\PSRC_2019_HTS_Deliverable_012420\Weighted_Dataset_012420\1_household.csv'
+person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\2_person.csv'
+trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\5_trip.csv'
+hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\1_household.csv'
 
 # daysim input paths
-hh_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\person17.csv'
-person_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\person17.csv'
-trip_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\trip17.csv'
+# These may need to be generated from the daysim_conversion script
+hh_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\person17.csv'
+person_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\person17.csv'
+trip_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\trip17.csv'
 
 
 # Original format output
-orig_format_output_dir = r'\\aws-prod-file01\datateam\Projects\Surveys\HHTravel\Survey2019\Data\Dataset_24_January_2020\PSRC_2019_HTS_Deliverable_012420\PSRC_2019_HTS_Deliverable_012420\Weighted_Dataset_012420\geocoded'
-daysim_format_output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\geocoded'
+orig_format_output_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded'
+daysim_format_output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\geocoded'
 
 # Spatial join trip lat/lng values to shapefile of parcels
 lat_lng_crs = 'epsg:4326'
@@ -96,7 +103,6 @@ def locate_person_parcels(person, parcel_df, df_taz):
         },
         ]
 
-    
     # Find nearest school and workplace
     for i in range(len(filter_dict_list)):
 
@@ -127,10 +133,52 @@ def locate_person_parcels(person, parcel_df, df_taz):
         gdf[varname+'_parcel'] = parcel_df[parcel_filter].iloc[_ix].parcelid.values
         gdf[varname+'_parcel_distance'] = _dist
         gdf[varname+'_taz'] = gdf['TAZ']
+        
+        gdf_cols = ['hhno','pno','hhid',varname+'_taz',varname+'_parcel',varname+'_parcel_distance',
+                                           varname+'_lat_fips_4601',
+                                   varname+'_lng_fips_4601',varname+'_lat_gps']
+
+        # Refine School Location in 2 tiers
+        # Tier 1: for locations that are over 1 mile (5280 feet) from lat/lng, 
+        # place them in parcel with >0 service employees (could be daycare or specialized school, etc. without students listed)
+
+        if varname == 'school_loc':
+ 
+            hh_max_dist = 5280
+            gdf_far = gdf[gdf[varname+'_parcel_distance'] > hh_max_dist]
+            _dist, _ix = locate_parcel(parcel_df[parcel_df['empsvc_p'] > 0], df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
+            gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
+            gdf_far[varname+'_parcel_distance'] = _dist
+            gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
+
+            # Add this new distance to the original gdf
+            gdf.loc[gdf_far.index,varname+'_parcel_original'] = gdf.loc[gdf_far.index,varname+'_parcel']
+            gdf.loc[gdf_far.index,varname+'_parcel_distance_original'] = gdf.loc[gdf_far.index,varname+'_parcel_distance']
+            gdf.loc[gdf_far.index,varname+'_parcel'] = gdf_far[varname+'_parcel']
+            gdf.loc[gdf_far.index,varname+'_parcel_distance'] = gdf_far[varname+'_parcel_distance']
+            gdf['distance_flag'] = 0
+            gdf.loc[gdf_far.index,varname+'distance_flag'] = 1
+
+            # Filter Tier 2: For households where this still does not have location, place at nearest houeshold hh >0 
+
+            gdf_far = gdf[gdf[varname+'_parcel_distance'] > hh_max_dist]
+            _dist, _ix = locate_parcel(parcel_df[parcel_df['hh_p'] > 0], df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
+            gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
+            gdf_far[varname+'_parcel_distance'] = _dist
+            gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
+
+            # Add this new distance to the original gdf
+            gdf.loc[gdf_far.index,varname+'_parcel_original'] = gdf.loc[gdf_far.index,varname+'_parcel']
+            gdf.loc[gdf_far.index,varname+'_parcel_distance_original'] = gdf.loc[gdf_far.index,varname+'_parcel_distance']
+            gdf.loc[gdf_far.index,varname+'_parcel'] = gdf_far[varname+'_parcel']
+            gdf.loc[gdf_far.index,varname+'_parcel_distance'] = gdf_far[varname+'_parcel_distance']
+            gdf['distance_flag'] = 0
+            gdf.loc[gdf_far.index,varname+'distance_flag'] = 1
+
+            gdf_cols += [varname+'_parcel_distance_original',varname+'_parcel_original']
 
         # Join the gdf dataframe to the person df
-        person_results = person_results.merge(gdf[['personid',varname+'_taz',varname+'_parcel',varname+'_parcel_distance',varname+'_lat_fips_4601',
-                                   varname+'_lng_fips_4601',varname+'_lat_gps']], how='left')
+        person_results = person_results.merge(gdf[gdf_cols], how='left', on=['hhno','pno'])
 
     # Export 2 different versions, one for Daysim, one an updated version of the original dataset
     person_daysim = person_results.copy()
@@ -217,8 +265,6 @@ def locate_hh_parcels(hh, parcel_df, df_taz):
         gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
         gdf_far[varname+'_parcel_distance'] = _dist
         gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
-
-
 
         # Add this new distance to the original gdf
         gdf.loc[gdf_far.index,varname+'_parcel_original'] = gdf.loc[gdf_far.index,varname+'_parcel']
@@ -395,56 +441,34 @@ def main():
     # Write to file
     person_orig_update.to_csv(os.path.join(orig_format_output_dir,'2_person.csv'), index=False)
 
-    # Export daysim versions
-    person_daysim.to_csv(os.path.join(daysim_format_output_dir,'person17.csv'), index=False)
-
     ##################################################
     # Process household records
     ##################################################
     
     # Add the household geography columns to look these up as well
     hh_original = pd.read_csv(hh_file_dir, encoding='latin1')
-    hh_daysim = pd.read_csv(hh_daysim_dir)
 
     hh_new = locate_hh_parcels(hh_original.copy(), parcel_df, df_taz)
-    
-    # Join with daysim version
-    hh_daysim = hh_daysim.merge(hh_new[['hhid','final_home_parcel','final_home_taz']] ,left_on='hhno', right_on='hhid', how='left')
-    hh_daysim.rename(columns={'final_home_parcel': 'hhparcel', 'final_home_taz': 'hhtaz'}, inplace=True)
 
     # add the original lat/lng fields back
     hh_new = hh_new.merge(hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
 
-    # write out updated versions
+    # write out updated version
     hh_new.to_csv(os.path.join(orig_format_output_dir,'1_household.csv'), index=False)
-    hh_daysim.to_csv(os.path.join(daysim_format_output_dir,'household17.csv'), index=False)
 
     ##################################################
     # Process trip records
     ##################################################
     
     trip_original = pd.read_csv(trip_file_dir, encoding='latin1')
-    trip_daysim = pd.read_csv(trip_daysim_dir)
-
-    #trip = trip_original.merge(trip_daysim, right_on='recid', left_on='tsvid')
 
     trip = locate_trip_parcels(trip_original.copy(), parcel_df, df_taz)
-
-    # Export daysim records
-    df = trip.merge(trip_daysim.drop(['otaz','dtaz','opcl','dpcl'], axis=1),left_on='recid', right_on='tsvid')
-    df[trip_daysim.columns.drop(['personid'])].to_csv(os.path.join(daysim_format_output_dir,'trip17.csv'),index=False)
 
     # Export original survey records
     # Merge with originals to make sure we didn't exclude records
     trip_original_updated = trip_original.merge(trip[['recid','otaz','dtaz','opcl','dpcl','opcl_distance','dpcl_distance']],on='recid',how='left')
     trip_original_updated['otaz'].fillna(-1,inplace=True)
     trip_original_updated.to_csv(os.path.join(orig_format_output_dir,'5_trip.csv'), index=False)
-
-    # temp output
-    trip_opcl = trip_original_updated.merge(parcel_df,left_on='opcl',right_on='parcelid',how='left')
-    trip_opcl.to_csv(os.path.join(orig_format_output_dir,'5_trip_opcl.csv'), index=False)
-    trip_dpcl = trip_original_updated.merge(parcel_df,left_on='dpcl',right_on='parcelid',how='left')
-    trip_dpcl.to_csv(os.path.join(orig_format_output_dir,'5_trip_dpcl.csv'), index=False)
 
 if __name__ =="__main__":
     main()
