@@ -1,4 +1,5 @@
 # https://
+
 # docs.microsoft.com/en-us/bingmaps/rest-services/routes/calculate-a-distance-matrix
 
 import pandas as pd
@@ -6,14 +7,19 @@ import urllib.request
 import json
 import pyodbc
 import numpy as np
+import time
+import random
 
-#before running add: commute_drive_time, commute_transit_time, commute_distance, school_drive_time, school_transit_time, school_distance
+
+
+#before running add: commute_drive_time, commute_transit_time, commute_distance
 
 # Globals
 commute_time_day = '2019-03-26T09:00:00-08:00'
 time_unit = 'minute'
 distanceUnit = 'mile'
 key_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\summary\bing_key.txt'
+output_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\summary\commute_times.csv'
 
 
 def construct_url(row, mode, commute_time_day, time_unit, api_key, lat_name, long_name):
@@ -47,33 +53,44 @@ def construct_url(row, mode, commute_time_day, time_unit, api_key, lat_name, lon
         the_url = first_part_url + next_part_url+od_part_url +mode_part_url+time_unit_part_url +key_part_url
     return the_url
 
+
+
+
 def get_times(hh_person, mode,purpose):
-    try:
+  
+        file_name = 'times_'+ purpose+'_'+mode
         count=0
+
         for index, row in hh_person.iterrows():
-            lat_name = purpose +"_"+ "LAT"
-            long_name = purpose+ "_"+"LNG"
-            time_url = construct_url(row, mode, commute_time_day, time_unit, api_key,lat_name, long_name)
-            print(time_url)
-            request = urllib.request.Request(time_url)
-            response = urllib.request.urlopen(request)
-            r = response.read().decode(encoding="utf-8")
-            result = json.loads(r)
-            result_df=pd.io.json.json_normalize(result['resourceSets'],record_path=['resources','results'])
-            results_w_ids = pd.concat([result_df.reset_index(drop=True), pd.DataFrame(row).transpose().reset_index(drop=True)], axis=1)
-            if count==0:
-                time_results= results_w_ids
-            else:
-                time_results = pd.concat([time_results, results_w_ids])
-
+            if count>=3152:
+                if count % 200 == 0:
+                    how_long =random.randint(1, 100)
+                    time.sleep(how_long)
+                elif count % 500 == 0:
+                    print('Waiting...'+str(how_long))
+                    time.sleep(how_long)
+                lat_name = purpose +"_"+ "LAT"
+                long_name = purpose+ "_"+"LNG"
+                time_url = construct_url(row, mode, commute_time_day, time_unit, api_key,lat_name, long_name)
+                print(time_url)
+                try:
+                    response = urllib.request.urlopen(time_url, timeout=100)
+                    r = response.read().decode(encoding="utf-8")
+                    result = json.loads(r)
+                    result_df=pd.io.json.json_normalize(result['resourceSets'],record_path=['resources','results'])
+                    results_w_ids = pd.concat([result_df.reset_index(drop=True), pd.DataFrame(row).transpose().reset_index(drop=True)], axis=1)
+                    if count==3152:
+                        time_results= results_w_ids
+                    else:
+                         time_results = pd.concat([time_results, results_w_ids])
+                    
+                    print(str(count))
+                except Exception as e:
+                    print(str(e))
+                    time_results.to_csv(output_file)
+                    break
             count = count+1
-
-        file_name = 'times_'+ purpose+'_'+mode
-        time_results.to_csv('C:/Users/SChildress/Documents/GitHub/travel-studies/2019/summary/'+file_name+'.csv')
-    except:
-        file_name = 'times_'+ purpose+'_'+mode
-        time_results.to_csv('C:/Users/SChildress/Documents/GitHub/travel-studies/2019/summary/'+file_name+'.csv')
-    return time_results
+        return time_results
 
 api_key = open(key_file).read()
 
@@ -87,13 +104,18 @@ hh_table_name = "HHSurvey.Household"
 hh  = pd.read_sql('SELECT HHID, REPORTED_LAT, REPORTED_LNG FROM '+hh_table_name, con = sql_conn)
 
 
+
 hh_person_work = pd.merge(hh, person_work, on = 'HHID')
 hh_person_school = pd.merge(hh, person_school, on = 'HHID')
 
-drive_times_school = get_times(hh_person_school, 'driving', 'SCHOOL_LOC')
+
 drive_times_work = get_times(hh_person_work, 'driving', 'WORK')
-transit_times_work = get_times(hh_person_work, 'transit', 'WORK')
-transit_times_school = get_times(hh_person_school, 'transit', 'SCHOOL_LOC')
+drive_times_work.to_csv(output_file)
+#transit_times_work = get_times(hh_person_work, 'transit', 'WORK')
+#time.sleep(waiting_time)
+#drive_times_school = get_times(hh_person_school, 'driving', 'SCHOOL_LOC')
+#time.sleep(waiting_time)
+#transit_times_school = get_times(hh_person_school, 'transit', 'SCHOOL_LOC')
 
 #update the dataset
 
