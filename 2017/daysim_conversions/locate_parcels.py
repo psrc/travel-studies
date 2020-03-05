@@ -82,11 +82,16 @@ def locate_person_parcels(person, parcel_df, df_taz):
 
     person_results  = person.copy() # Make local copy for storing resulting joins
 
+    parcel_df['total_students'] = parcel_df[['stugrd_p','stuhgh_p','stuuni_p']].sum(axis=1)
+
+    # For records 
+
     # Find parcels for person fields
     filter_dict_list = [{
         'var_name': 'work',
         'parcel_filter': parcel_df['emptot_p'] > 0,
-        'person_filter': -person['work_lng'].isnull()
+        'person_filter': (-person['work_lng'].isnull()) & 
+                         (person['workplace'] == 1)    # workplace is at a consistent location
         },
         {
         # Previous work location
@@ -96,10 +101,11 @@ def locate_person_parcels(person, parcel_df, df_taz):
         },
         {
         # Student
-        # FIXME: consider breaking out students by school type; for now assuming they are where their GPS coords indicate
         'var_name': 'school_loc',
-        'parcel_filter': (parcel_df[['stugrd_p','stuhgh_p','stuuni_p']].sum(axis=1) > 0),
-        'person_filter': -person['school_loc_lat'].isnull()
+        'parcel_filter': (parcel_df['total_students'] > 0),
+        'person_filter': (-person['school_loc_lat'].isnull()) & 
+                         (-(person['final_home_lat'] == person['school_loc_lat'])) &   # Exclude home-school students
+                         (-(person['final_home_lng'] == person['school_loc_lng']))
         },
         ]
 
@@ -139,30 +145,14 @@ def locate_person_parcels(person, parcel_df, df_taz):
                                    varname+'_lng_fips_4601',varname+'_lat_gps']
 
         # Refine School Location in 2 tiers
-        # Tier 1: for locations that are over 1 mile (5280 feet) from lat/lng, 
-        # place them in parcel with >0 service employees (could be daycare or specialized school, etc. without students listed)
+        # Tier 2: for locations that are over 1 mile (5280 feet) from lat/lng, 
+        # place them in parcel with >0 education or service employees (could be daycare or specialized school, etc. without students listed)
 
         if varname == 'school_loc':
- 
             hh_max_dist = 5280
             gdf_far = gdf[gdf[varname+'_parcel_distance'] > hh_max_dist]
-            _dist, _ix = locate_parcel(parcel_df[parcel_df['empsvc_p'] > 0], df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
-            gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
-            gdf_far[varname+'_parcel_distance'] = _dist
-            gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
-
-            # Add this new distance to the original gdf
-            gdf.loc[gdf_far.index,varname+'_parcel_original'] = gdf.loc[gdf_far.index,varname+'_parcel']
-            gdf.loc[gdf_far.index,varname+'_parcel_distance_original'] = gdf.loc[gdf_far.index,varname+'_parcel_distance']
-            gdf.loc[gdf_far.index,varname+'_parcel'] = gdf_far[varname+'_parcel']
-            gdf.loc[gdf_far.index,varname+'_parcel_distance'] = gdf_far[varname+'_parcel_distance']
-            gdf['distance_flag'] = 0
-            gdf.loc[gdf_far.index,varname+'distance_flag'] = 1
-
-            # Filter Tier 2: For households where this still does not have location, place at nearest houeshold hh >0 
-
-            gdf_far = gdf[gdf[varname+'_parcel_distance'] > hh_max_dist]
-            _dist, _ix = locate_parcel(parcel_df[parcel_df['hh_p'] > 0], df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
+            _dist, _ix = locate_parcel(parcel_df[parcel_df['total_students'] > 0], 
+                                       df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
             gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
             gdf_far[varname+'_parcel_distance'] = _dist
             gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
@@ -413,21 +403,26 @@ def main():
     df_taz = gpd.read_file(taz_dir)
     df_taz.crs = {'init' :' epsg:2285'}
 
+    # Load the survey files in original format
+    hh_original = pd.read_csv(hh_file_dir, encoding='latin1')
+    person_original_dir = person_file_dir
+    person_original = pd.read_csv(person_file_dir, encoding='latin1')  
+
     ##################################################
     # Process person records
     ##################################################
 
-    # Load original person file with GPS data attached 
-    person_original_dir = person_file_dir
-    person_original = pd.read_csv(person_file_dir, encoding='latin1')  
-    
+
     # Join original person records to daysim-formatted records to get xy coordinates
     person_daysim = pd.read_csv(person_daysim_dir)
     # drop the personid from person_daysim because it's calculated differently
     person_daysim.drop(['personid'], axis=1, inplace=True)
     _person = person_daysim.merge(person_original[['hhid','pernum','personid','school_loc_lat','school_loc_lng',
-                                                  'work_lat','work_lng','prev_work_lat','prev_work_lng']], 
+                                                  'work_lat','work_lng','prev_work_lat','prev_work_lng','workplace']], 
                                                    left_on=['hhno','pno'], right_on=['hhid','pernum'], how='left')
+
+    # Merge with household records to get school/work lat and long, to filter people who home school and work at home
+    _person = pd.merge(_person, hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
 
     # Add parcel location for current and previous school and workplace location
     person, person_daysim = locate_person_parcels(_person, parcel_df, df_taz)
@@ -445,9 +440,6 @@ def main():
     # Process household records
     ##################################################
     
-    # Add the household geography columns to look these up as well
-    hh_original = pd.read_csv(hh_file_dir, encoding='latin1')
-
     hh_new = locate_hh_parcels(hh_original.copy(), parcel_df, df_taz)
 
     # add the original lat/lng fields back
