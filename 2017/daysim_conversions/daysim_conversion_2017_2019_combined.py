@@ -872,9 +872,16 @@ def process_person_day(tour, person, trip, hh):
 
 def main():
     
-    person = process_person_file(person_file_dir)
-    hh = process_household_file(hh_file_dir, person)
-    trip = process_trip_file(trip_file_dir, person)
+        # person day and household day records
+    trip = pd.read_csv(os.path.join(output_dir,'tripP17.csv'))
+    tour = pd.read_csv(os.path.join(output_dir,'tourP17.csv'))
+    #hh = pd.read_csv(os.path.join(output_dir,'hrecP17.csv'))
+    person = pd.read_csv(os.path.join(output_dir,'precP17.csv'))
+    # household day
+
+    #person = process_person_file(person_file_dir)
+    #hh = process_household_file(hh_file_dir, person)
+    #trip = process_trip_file(trip_file_dir, person)
     
     trip['personid'] = trip['hhno'].astype('int').astype('str') + trip['pno'].astype('int').astype('str')
     person['personid'] = person['hhno'].astype('int').astype('str') + person['pno'].astype('int').astype('str')
@@ -887,12 +894,6 @@ def main():
     # Create tour file and update the trip file with tour info
     tour, trip = build_tour_file(trip, person)
 
-    # person day and household day records
-    #trip = pd.read_csv(os.path.join(output_dir,'tripP17.csv'))
-    #tour = pd.read_csv(os.path.join(output_dir,'tourP17.csv'))
-    #hh = pd.read_csv(os.path.join(output_dir,'hrecP17.csv'))
-    #person = pd.read_csv(os.path.join(output_dir,'precP17.csv'))
-    # household day
 
     household_day = process_household_day(tour, hh)
 
