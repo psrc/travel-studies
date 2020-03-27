@@ -1,6 +1,8 @@
 source('global.R')
 source('travel_crosstab.R')
 
+file_loc <- 'C:/Users/SChildress/Documents/HHSurvey'
+
 # read in data
 variables.lu <- read.dt(dbtable.variables, 'table_name')
 variables.lu <- na.omit(variables.lu)
@@ -21,8 +23,17 @@ c('prev_res_factors_housing_cost',
 'prev_res_factors_quality',
 'prev_res_factors_forced')
 
+first = 1
+
 for(res_factor in prev_res_vars){
-  print(stabTable(res_factor))
+  
+  region_tab<-stabTable(res_factor, 'Region')
+  seattle_tab<-stabTable(res_factor, 'Seattle')
+  tbl_output <-merge(region_tab, seattle_tab, by=res_factor, suffixes =c('Region', 'Seattle'))  
+  file_name<-paste(res_factor, '.csv')
+  file_ext<-file.path(file_loc, res_factor)
+  write.csv(tbl_output, file_ext)
+ 
 }
 
 
