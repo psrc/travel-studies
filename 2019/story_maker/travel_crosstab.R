@@ -29,7 +29,7 @@ xtabTableType <- function(var1, var2){
 
 # return list of tables subsetted by value types
 xtabTable <- function(var1, var2, sea_reg){
-  table.type<- xtabTableType()$Res
+  table.type<- xtabTableType(var1, var2)$Res
   wt_field<- table_names[[table.type]]$weight_name
   
   if(var1=='weighted_trip_count' || var2=='weighted_trip_count'){
@@ -40,7 +40,7 @@ xtabTable <- function(var1, var2, sea_reg){
   sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table.type]]$table_name)
   survey <- read.dt(sql.query, 'sqlquery')
   
-  type <- xtabTableType()$Type
+  type <- xtabTableType(var1, var2)$Type
   
   if (sea_reg== 'Seattle') survey <- survey[seattle_home == 'Home in Seattle',]
   
@@ -88,11 +88,10 @@ if(var1=='weighted_trip_count' ){
 
 sql.query <- paste("SELECT seattle_home, hhid,", var1,",", wt_field, "FROM" , table_names[[table.type]]$table_name)
 survey <- read.dt(sql.query, 'sqlquery')
-type <- stabTableType()$Type
+type <- stabTableType(var1)$Type
 
 if (sea_reg== 'Seattle') survey <- survey[seattle_home == 'Home in Seattle',]
 
-xa <- stab.varsXAlias()
 
 simtable <- simple_table(survey, var1, wt_field, type)
 return(simtable)

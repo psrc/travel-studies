@@ -26,14 +26,23 @@ c('prev_res_factors_housing_cost',
 first = 1
 
 for(res_factor in prev_res_vars){
-  
   region_tab<-stabTable(res_factor, 'Region')
   seattle_tab<-stabTable(res_factor, 'Seattle')
-  tbl_output <-merge(region_tab, seattle_tab, by=res_factor, suffixes =c('Region', 'Seattle'))  
-  file_name<-paste(res_factor, '.csv')
-  file_ext<-file.path(file_loc, res_factor)
+  tbl_output <-merge(region_tab, seattle_tab, by=res_factor, suffixes =c(' Region', ' Seattle'))  
+  vars <-variables.lu[variable==res_factor]
+  var_name <-unique(vars[,variable_name])
+  setnames(tbl_output, res_factor, var_name)
+  share_fields <-c(var_name, paste('share', 'Region'), paste('share', 'Seattle'))
+  tbl_output <- tbl_output[, ..share_fields]
+  setnames(tbl_output,'share Region', paste(var_name,'share Region') )
+  setnames(tbl_output,'share Seattle', paste(var_name,'share Seattle'))
+  file_name <- paste(var_name,'.csv')
+  file_ext<-file.path(file_loc, file_name)
   write.csv(tbl_output, file_ext)
- 
+
 }
+
+
+
 
 
