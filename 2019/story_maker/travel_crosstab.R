@@ -45,10 +45,8 @@ xtabTable <- function(var1, var2, sea_reg){
   if (sea_reg== 'Seattle') survey <- survey[seattle_home == 'Home in Seattle',]
   
   crosstab <-cross_tab(survey, var1, var2, wt_field, type)
-  xvals <- xtabXValues()[, .(value_order, value_text)]
-  
-  crosstab <- merge(crosstab, xvals, by.x='var1', by.y='value_text')
-  setorder(crosstab, value_order)
+
+  setnames(crosstab, 'var1', var1)
   return(crosstab)
 }
 
@@ -154,7 +152,7 @@ cross_tab <- function(table, var1, var2, wt_field, type) {
     expanded[, mean := weighted_total/get(eval(wt_field))]
     N_hh <- merge(raw, N_hh, by = var1)
     expanded <- merge(expanded, N_hh, by = var1)
-    setnames(expanded, var1, 'var1')
+    #setnames(expanded, var1, 'var1')
     setnames(expanded, 'hhid', 'N_HH')
     crosstab <- expanded
     print(crosstab)
@@ -230,6 +228,49 @@ simple_table <- function(table, var, wt_field, type) {
   
 return(s_table)  
 }
+
+summarize_simple_tables <-function(var_list){
+  first = 1
+  
+  for(var in var_list){
+    region_tab<-stabTable(var, 'Region')
+    seattle_tab<-stabTable(var, 'Seattle')
+    tbl_output <-merge(region_tab, seattle_tab, by=var, suffixes =c(' Region', ' Seattle'))  
+    vars <-variables.lu[variable==var]
+    var_name <-unique(vars[,variable_name])
+    setnames(tbl_output, var, var_name)
+    #share_fields <-c(var_name, paste('share', 'Region'), paste('share', 'Seattle'))
+    #tbl_output <- tbl_output[, ..share_fields]
+    #setnames(tbl_output,'share Region', paste(var_name,'share Region') )
+    #setnames(tbl_output,'share Seattle', paste(var_name,'share Seattle'))
+    file_name <- paste(var_name,'.csv')
+    file_ext<-file.path(file_loc, file_name)
+    write.csv(tbl_output, file_ext)
+    print(tbl_output)
+  }
+}
+
+summarize_cross_tables <-function(var_list1, var_list2){
+  first = 1
+  for(var1 in var_list1){
+    for(var2 in var_list2){
+      region_tab<-xtabTable(var1, var2, 'Region')
+      seattle_tab<-xtabTable(var1, var2, 'Seattle')
+      tbl_output <-merge(region_tab, seattle_tab, var1, suffixes =c(' Region', ' Seattle'))  
+      vars1 <-variables.lu[variable==var1]
+      var1_name <-unique(vars1[,variable_name])
+      setnames(tbl_output, var1, var1_name)
+      vars2 <-variables.lu[variable==var2]
+      var2_name <-unique(vars2[,variable_name])
+      file_name <- paste(var1_name,'_', var2_name,'.csv')
+      file_ext<-file.path(file_loc, file_name)
+      write.csv(tbl_output, file_ext)
+      print(tbl_output)
+    }
+  }
+}
+  
+  
 
 
 

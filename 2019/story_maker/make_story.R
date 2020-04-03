@@ -10,6 +10,8 @@ variables.lu <- variables.lu[order(category_order, variable_name)]
 values.lu <- read.dt(dbtable.values, 'table_name')
 values.lu<- values.lu[order(value_order)]
 
+
+### summarize previous
 prev_res_vars <-
 c('prev_res_factors_housing_cost',
 'prev_res_factors_income_change',
