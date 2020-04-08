@@ -1,15 +1,21 @@
-library(shiny)
-library(shinythemes)
 library(data.table)
 library(tidyverse)
 library(DT)
 library(openxlsx)
-library(plotly)
-library(shinyjs)
 library(data.table)
 library(odbc)
 library(DBI)
 
+
+#The codebook is checked in with these code files, named Combined_Codebook_022020.xlsx
+# You need the codebook to look up the variable names.
+
+# read in data
+variables.lu <- read.dt(dbtable.variables, 'table_name')
+variables.lu <- na.omit(variables.lu)
+variables.lu <- variables.lu[order(category_order, variable_name)]
+values.lu <- read.dt(dbtable.values, 'table_name')
+values.lu<- values.lu[order(value_order)]
 
 
 
@@ -58,9 +64,6 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
   setDT(dtelm)
 }
 
-
-
-readme.dt <- read.xlsx(file.path(wrkdir, 'readme.xlsx'), colNames = T, skipEmptyRows = F)
 
 
 # master list

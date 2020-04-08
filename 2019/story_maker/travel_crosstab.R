@@ -3,52 +3,7 @@
 library(data.table)
 library(tidyverse)
 
-xtabTableType <- function(var1, var2){
-  select.vars <- variables.lu[variable %in% c(var1, var2), ]
-  tables <- as.vector(unique(select.vars$table_name))
-  dtypes <- as.vector(unique(select.vars$dtype))
-  
-  if('Trip' %in% tables){
-    res<-'Trip'
-  } else if('Person' %in% tables){
-    res<-'Person'
-  }else{
-    res<-'Household'
-  }
-  
-  
-  if('fact' %in% dtypes){
-    type<- 'fact'
-  }
-  else{
-    type<-'dimension'
-  }
-  
-  return(list(Res=res, Type=type))
-} 
 
-# return list of tables subsetted by value types
-xtabTable <- function(var1, var2, sea_reg){
-  table.type<- xtabTableType(var1, var2)$Res
-  wt_field<- table_names[[table.type]]$weight_name
-  
-  if(var1=='weighted_trip_count' || var2=='weighted_trip_count'){
-    # use a special weight here because trip counts are a weird case
-    wt_field <-hh_day_weight_name
-  }
-  
-  sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table.type]]$table_name)
-  survey <- read.dt(sql.query, 'sqlquery')
-  
-  type <- xtabTableType(var1, var2)$Type
-  
-  if (sea_reg== 'Seattle') survey <- survey[seattle_home == 'Home in Seattle',]
-  
-  crosstab <-cross_tab(survey, var1, var2, wt_field, type)
-
-  setnames(crosstab, 'var1', var1)
-  return(crosstab)
-}
 
 
 stabTableType <- function(var1) {
@@ -95,14 +50,157 @@ simtable <- simple_table(survey, var1, wt_field, type)
 return(simtable)
 }
 
+simple_table <- function(table, var, wt_field, type) {
+  z <- 1.645
+  
+  
+  
+  if (type == "dimension") {
+    setkeyv(table, var)
+    table[table==""]<- NA
+    for(missing in missing_codes){
+      table<- subset(table, get(var) != missing)
+    }
+    table <- na.omit(table, cols = var)
+    raw <- table[, .(sample_count = .N), by = var]
+    N_hh <- table[, .(hhid = uniqueN(hhid)), by = var]
+    table<-table[!is.na(get(wt_field))]
+    expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = var]
+    expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field][[eval(wt_field)]]
+    print(expanded_tot)
+    setnames(expanded, wt_field, "estimate")
+    expanded[, share := estimate/eval(expanded_tot)]
+    expanded <- merge(expanded, N_hh, by = var)
+    expanded[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    expanded$total <- sum(expanded$estimate)
+    expanded$estMOE = expanded$MOE * expanded$total
+    s_table <- merge(raw, expanded, by = var)
+    
+  }
+  else if(type == "fact") {
+    # rework this because really the cuts are just acting as the variables
+    # I think this can have the same logic as the code above.
+    setkeyv(table, var)
+    table[table==""]<- NA
+    for(missing in missing_codes){
+      table<- subset(table, get(var) != missing)
+    }
+    cols<- c(var, wt_field)
+    table <- na.omit(table)
+    if(var == 'weighted_trip_count'){
+      breaks<- hist_breaks_num_trips
+      hist_labels <- hist_breaks_num_trips_labels
+    }
+    else{
+      table <- table[eval(parse(text=var))>min_float]
+      table <- table[eval(parse(text=var))<max_float]
+      breaks<- hist_breaks
+      hist_labels<- hist_breaks_labels
+    }
+    
+    var_breaks <- table[, cuts := cut(eval(parse(text=var)),breaks,labels=hist_labels, order_result=TRUE,)]
+    # to do: find a way to pull out this hard code
+    
+    
+    N_hh <-table[,.(hhid = uniqueN(hhid)), by = cuts]
+    raw <- table[, .(sample_count = .N), by = cuts]
+    var_cut <-var_breaks[, lapply(.SD, sum), .SDcols = wt_field, by = cuts]
+    setnames(var_cut, wt_field, "estimate")
+    var_cut$total <- sum(var_cut$estimate)
+    var_cut[, share := estimate/total]
+    var_cut<- merge(var_cut, N_hh, by = 'cuts')
+    var_cut[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    var_cut$estMOE = var_cut$MOE * var_cut$total
+    var_cut<- merge(raw, var_cut, by = 'cuts')
+    s_table<-setnames(var_cut, 'cuts',var)
+  }
+  
+  return(s_table)  
+}
+
+summarize_simple_tables <-function(var_list){
+  first = 1
+  
+  for(var in var_list){
+    region_tab<-stabTable(var, 'Region')
+    seattle_tab<-stabTable(var, 'Seattle')
+    tbl_output <-merge(region_tab, seattle_tab, by=var, suffixes =c(' Region', ' Seattle'))  
+    vars <-variables.lu[variable==var]
+    var_name <-unique(vars[,variable_name])
+    setnames(tbl_output, var, var_name)
+    #share_fields <-c(var_name, paste('share', 'Region'), paste('share', 'Seattle'))
+    #tbl_output <- tbl_output[, ..share_fields]
+    #setnames(tbl_output,'share Region', paste(var_name,'share Region') )
+    #setnames(tbl_output,'share Seattle', paste(var_name,'share Seattle'))
+    file_name <- paste(var_name,'.csv')
+    file_ext<-file.path(file_loc, file_name)
+    write.csv(tbl_output, file_ext)
+    print(tbl_output)
+  }
+}
+
+xtabTableType <- function(var1, var2){
+  select.vars <- variables.lu[variable %in% c(var1, var2), ]
+  tables <- as.vector(unique(select.vars$table_name))
+  dtypes <- as.vector(unique(select.vars$dtype))
+  
+  if('Trip' %in% tables){
+    res<-'Trip'
+  } else if('Person' %in% tables){
+    res<-'Person'
+  }else{
+    res<-'Household'
+  }
+  
+  
+  if('fact' %in% dtypes){
+    type<- 'fact'
+  }
+  else{
+    type<-'dimension'
+  }
+  
+  return(list(Res=res, Type=type))
+} 
+#
+# return list of tables subsetted by value types
+
+
+
+xtabTable <- function(var1, var2, sea_reg, var3 = FALSE, value3=FALSE){
+  table.type<- xtabTableType(var1, var2)$Res
+  wt_field<- table_names[[table.type]]$weight_name
+  
+  if(var1=='weighted_trip_count' || var2=='weighted_trip_count'){
+    # use a special weight here because trip counts are a weird case
+    wt_field <-hh_day_weight_name
+  }
+  if(var3==FALSE){
+    sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table.type]]$table_name)
+    survey <- read.dt(sql.query, 'sqlquery')
+    }
+  else{
+  sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table.type]]$table_name,
+                     "WHERE ", var3, "=")
+  sql.query<-paste(sql.query,'\'', value3,'\'', sep='')
+  }
+  survey <- read.dt(sql.query, 'sqlquery')
+
+  
+  type <- xtabTableType(var1, var2)$Type
+  
+  if (sea_reg== 'Seattle') survey <- survey[seattle_home == 'Home in Seattle',]
+  
+  crosstab <-cross_tab(survey, var1, var2, wt_field, type)
+  
+  setnames(crosstab, 'var1', var1)
+  return(crosstab)
+}
 
 
 # create_cross_tab_with_weights
 cross_tab <- function(table, var1, var2, wt_field, type) {
   # z <- 1.96 # 95% CI
- 
-
-  print("reading in data")
 
   cols <- c(var1, var2)
 
@@ -161,116 +259,33 @@ cross_tab <- function(table, var1, var2, wt_field, type) {
   return(crosstab)
 }
 
-simple_table <- function(table, var, wt_field, type) {
-  z <- 1.645
-  
 
 
-  if (type == "dimension") {
-    setkeyv(table, var)
-    table[table==""]<- NA
-    for(missing in missing_codes){
-      table<- subset(table, get(var) != missing)
-    }
-    table <- na.omit(table, cols = var)
-    raw <- table[, .(sample_count = .N), by = var]
-    N_hh <- table[, .(hhid = uniqueN(hhid)), by = var]
-    table<-table[!is.na(get(wt_field))]
-    expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = var]
-    expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field][[eval(wt_field)]]
-    print(expanded_tot)
-    setnames(expanded, wt_field, "estimate")
-    expanded[, share := estimate/eval(expanded_tot)]
-    expanded <- merge(expanded, N_hh, by = var)
-    expanded[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
-    expanded$total <- sum(expanded$estimate)
-    expanded$estMOE = expanded$MOE * expanded$total
-    s_table <- merge(raw, expanded, by = var)
-  
-  }
-  else if(type == "fact") {
-    # rework this because really the cuts are just acting as the variables
-    # I think this can have the same logic as the code above.
-    setkeyv(table, var)
-    table[table==""]<- NA
-    for(missing in missing_codes){
-      table<- subset(table, get(var) != missing)
-    }
-    cols<- c(var, wt_field)
-    table <- na.omit(table)
-    if(var == 'weighted_trip_count'){
-      breaks<- hist_breaks_num_trips
-      hist_labels <- hist_breaks_num_trips_labels
-    }
-    else{
-      table <- table[eval(parse(text=var))>min_float]
-      table <- table[eval(parse(text=var))<max_float]
-      breaks<- hist_breaks
-      hist_labels<- hist_breaks_labels
-    }
-    
-    var_breaks <- table[, cuts := cut(eval(parse(text=var)),breaks,labels=hist_labels, order_result=TRUE,)]
-    # to do: find a way to pull out this hard code
 
-    
-    N_hh <-table[,.(hhid = uniqueN(hhid)), by = cuts]
-    raw <- table[, .(sample_count = .N), by = cuts]
-    var_cut <-var_breaks[, lapply(.SD, sum), .SDcols = wt_field, by = cuts]
-    setnames(var_cut, wt_field, "estimate")
-    var_cut$total <- sum(var_cut$estimate)
-    var_cut[, share := estimate/total]
-    var_cut<- merge(var_cut, N_hh, by = 'cuts')
-    var_cut[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
-    var_cut$estMOE = var_cut$MOE * var_cut$total
-    var_cut<- merge(raw, var_cut, by = 'cuts')
-    s_table<-setnames(var_cut, 'cuts',var)
-  }
-  
-return(s_table)  
-}
 
-summarize_simple_tables <-function(var_list){
-  first = 1
-  
-  for(var in var_list){
-    region_tab<-stabTable(var, 'Region')
-    seattle_tab<-stabTable(var, 'Seattle')
-    tbl_output <-merge(region_tab, seattle_tab, by=var, suffixes =c(' Region', ' Seattle'))  
-    vars <-variables.lu[variable==var]
-    var_name <-unique(vars[,variable_name])
-    setnames(tbl_output, var, var_name)
-    #share_fields <-c(var_name, paste('share', 'Region'), paste('share', 'Seattle'))
-    #tbl_output <- tbl_output[, ..share_fields]
-    #setnames(tbl_output,'share Region', paste(var_name,'share Region') )
-    #setnames(tbl_output,'share Seattle', paste(var_name,'share Seattle'))
-    file_name <- paste(var_name,'.csv')
-    file_ext<-file.path(file_loc, file_name)
-    write.csv(tbl_output, file_ext)
-    print(tbl_output)
-  }
-}
-
-summarize_cross_tables <-function(var_list1, var_list2){
+summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE){
   first = 1
   for(var1 in var_list1){
     for(var2 in var_list2){
-      region_tab<-xtabTable(var1, var2, 'Region')
-      seattle_tab<-xtabTable(var1, var2, 'Seattle')
+      region_tab<-xtabTable(var1, var2, 'Region', var3, val3)
+      seattle_tab<-xtabTable(var1, var2, 'Seattle',var3, val3)
       tbl_output <-merge(region_tab, seattle_tab, var1, suffixes =c(' Region', ' Seattle'))  
       vars1 <-variables.lu[variable==var1]
       var1_name <-unique(vars1[,variable_name])
       setnames(tbl_output, var1, var1_name)
       vars2 <-variables.lu[variable==var2]
       var2_name <-unique(vars2[,variable_name])
+      if(val3==FALSE){
       file_name <- paste(var1_name,'_', var2_name,'.csv')
+      }
+      else{
+      val3<-gsub('/', '_',val3)
+      file_name <- paste(var1_name,'_', var2_name,'_', var3,'_', val3,'.csv')
+      }
+      
       file_ext<-file.path(file_loc, file_name)
       write.csv(tbl_output, file_ext)
       print(tbl_output)
     }
   }
 }
-  
-  
-
-
-
