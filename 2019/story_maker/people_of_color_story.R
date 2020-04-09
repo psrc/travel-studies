@@ -46,6 +46,7 @@ for(this_purpose in purposes){
   summarize_cross_tables(race_data,mode,d_purp_cat, this_purpose)
   }
 
+mode<-c('mode_simple')
 #Person Race by Trip Mode by Household Income, 
 inc<-c('hhincome_broad')
 incomes<-values.lu[variable=='hhincome_broad'][['value_text']]

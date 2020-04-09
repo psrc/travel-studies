@@ -1,12 +1,3 @@
-library(data.table)
-library(tidyverse)
-library(DT)
-library(openxlsx)
-library(data.table)
-library(odbc)
-library(DBI)
-
-
 #The codebook is checked in with these code files, named Combined_Codebook_022020.xlsx
 # You need the codebook to look up the variable names.
 
