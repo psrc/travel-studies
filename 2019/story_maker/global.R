@@ -6,12 +6,29 @@ library(openxlsx)
 library(odbc)
 library(DBI)
 
-# read in data
-variables.lu <- read.dt(dbtable.variables, 'table_name')
-variables.lu <- na.omit(variables.lu)
-variables.lu <- variables.lu[order(category_order, variable_name)]
-values.lu <- read.dt(dbtable.values, 'table_name')
-values.lu<- values.lu[order(value_order)]
+
+## Read from Elmer
+
+db.connect <- function() {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\COHO",
+                                database = "Elmer",
+                                trusted_connection = "yes"
+  )
+}
+
+read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
+  elmer_connection <- db.connect()
+  if (type == 'table_name') {
+    dtelm <- dbReadTable(elmer_connection, SQL(astring))
+  } else {
+    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
+  }
+  dbDisconnect(elmer_connection)
+  setDT(dtelm)
+}
+
 
 
 
@@ -37,28 +54,13 @@ table_names <- list("Household" = list("weight_name" = hh_weight_name, "table_na
 
 z <- 1.645 # 90% CI
 
+# read in data
+variables.lu <- read.dt(dbtable.variables, 'table_name')
+variables.lu <- na.omit(variables.lu)
+variables.lu <- variables.lu[order(category_order, variable_name)]
+values.lu <- read.dt(dbtable.values, 'table_name')
+values.lu<- values.lu[order(value_order)]
 
-## Read from Elmer
-
-db.connect <- function() {
-  elmer_connection <- dbConnect(odbc(),
-                                driver = "SQL Server",
-                                server = "AWS-PROD-SQL\\COHO",
-                                database = "Elmer",
-                                trusted_connection = "yes"
-  )
-}
-
-read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
-  elmer_connection <- db.connect()
-  if (type == 'table_name') {
-    dtelm <- dbReadTable(elmer_connection, SQL(astring))
-  } else {
-    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
-  }
-  dbDisconnect(elmer_connection)
-  setDT(dtelm)
-}
 
 
 
