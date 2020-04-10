@@ -1,6 +1,9 @@
 source('global.R')
 source('travel_crosstab.R')
 
+# You need the codebook to look up the variable names.
+# It is in the directory with the code here.
+
 
 # where you are running your R code
 wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel-studies/2019/story_maker"

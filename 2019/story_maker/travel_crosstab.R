@@ -1,7 +1,5 @@
 # The R version of travel_crosstab.py
 
-library(data.table)
-library(tidyverse)
 
 
 
@@ -132,9 +130,10 @@ summarize_simple_tables <-function(var_list){
     #tbl_output <- tbl_output[, ..share_fields]
     #setnames(tbl_output,'share Region', paste(var_name,'share Region') )
     #setnames(tbl_output,'share Seattle', paste(var_name,'share Seattle'))
-    file_name <- paste(var_name,'.csv')
+    file_name <- paste(var_name,'.xlsx')
     file_ext<-file.path(file_loc, file_name)
-    write.csv(tbl_output, file_ext)
+    write.xlsx(tbl_output, file_ext, sheetName ="data", 
+               col.names = TRUE, row.names = TRUE, append = FALSE)
     print(tbl_output)
   }
 }
@@ -276,15 +275,16 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE){
       vars2 <-variables.lu[variable==var2]
       var2_name <-unique(vars2[,variable_name])
       if(val3==FALSE){
-      file_name <- paste(var1_name,'_', var2_name,'.csv')
+      file_name <- paste(var1_name,'_', var2_name,'.xlsx')
       }
       else{
       val3<-gsub('/', '_',val3)
-      file_name <- paste(var1_name,'_', var2_name,'_', var3,'_', val3,'.csv')
+      file_name <- paste(var1_name,'_', var2_name,'_', var3,'_', val3,'.xlsx')
       }
       
       file_ext<-file.path(file_loc, file_name)
-      write.csv(tbl_output, file_ext)
+      write.xlsx(tbl_output, file_ext, sheetName ="data", 
+                 col.names = TRUE, row.names = TRUE, append = FALSE)
       print(tbl_output)
     }
   }

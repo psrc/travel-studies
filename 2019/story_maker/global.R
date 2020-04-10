@@ -1,5 +1,10 @@
 #The codebook is checked in with these code files, named Combined_Codebook_022020.xlsx
-# You need the codebook to look up the variable names.
+library(data.table)
+library(tidyverse)
+library(DT)
+library(openxlsx)
+library(odbc)
+library(DBI)
 
 # read in data
 variables.lu <- read.dt(dbtable.variables, 'table_name')
