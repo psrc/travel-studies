@@ -6,6 +6,7 @@ library(openxlsx)
 library(odbc)
 library(DBI)
 
+missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 'Missing: Skip logic', 'Children or missing')
 
 ## Read from Elmer
 
@@ -28,8 +29,6 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
   dbDisconnect(elmer_connection)
   setDT(dtelm)
 }
-
-
 
 
 missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 'Missing: Skip logic', 'Children or missing')
