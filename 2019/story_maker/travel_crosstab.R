@@ -1,8 +1,7 @@
 # This file has functions to help organize and summarize
 # one-way and two-way tables from a household travel survey.
 
-##########################################################################
-
+# One-Way tables####
 #Functions to summarize and compile simple one-way tables
 
 # This function identifies two things about a selected variable: the table it is on, and the type of data it is,
@@ -110,8 +109,7 @@ simple_table <- function(table, var, wt_field, type) {
 # This function queries out the necessary data from the database to do the summary, including
 # the correct weight, which subset of households (either Seattle or regional), and returns the data records
 # needed to summarize the weighted and unweighted data.
-# Then it calls the simple_table summary to do the number crunching to create weighted summaries, counts,
-# and margins of error.
+
 get_sTable <- function(var1, sea_reg, wt_field, table_type){
   sql.query <- paste("SELECT seattle_home, hhid,", var1,",", wt_field, "FROM" , table_names[[table_type]]$table_name)
   survey <- read.dt(sql.query, 'sqlquery')
@@ -135,7 +133,6 @@ summarize_simple_tables <-function(var_list){
     data_type <- stabTableType(var)$Type
     # find which weight to use
     wt_field<- table_names[[table_type]]$weight_name
-    print(wt_field)
     
     if(var=='weighted_trip_count' ){
       # use a special weight here because trip counts are a weird case
@@ -170,8 +167,15 @@ summarize_simple_tables <-function(var_list){
   }
 }
 
-#### Two-way Cross Tab Functions
 
+# Two-way Tables #####
+
+
+# This function identifies two things about two selected variables: 
+# the tables they are on, and which one takes precedence in determining weights.
+# Then it determines whether the data
+# is either a category (dimension) or numeric value(fact). It returns a list of the table which will be
+# used and the data type.
 xtabTableType <- function(var1, var2){
   select.vars <- variables.lu[variable %in% c(var1, var2), ]
   tables <- as.vector(unique(select.vars$table_name))
@@ -198,40 +202,40 @@ xtabTableType <- function(var1, var2){
 #
 # return list of tables subsetted by value types
 
+# This function queries out the necessary data from the database to do the summary, including
+# the correct weight, which subset of households (either Seattle or regional), and returns the data records
+# needed to summarize the weighted and unweighted data.
 
-
-xtabTable <- function(var1, var2, sea_reg, var3 = FALSE, value3=FALSE){
-  table.type<- xtabTableType(var1, var2)$Res
-  wt_field<- table_names[[table.type]]$weight_name
-  
-  if(var1=='weighted_trip_count' || var2=='weighted_trip_count'){
+get_xtabTable <- function(var1, var2, sea_reg, wt_field, table_type, var3 = FALSE, value3=FALSE){
+    if(var1=='weighted_trip_count' || var2=='weighted_trip_count'){
     # use a special weight here because trip counts are a weird case
     wt_field <-hh_day_weight_name
-  }
-  if(var3==FALSE){
-    sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table.type]]$table_name)
-    survey <- read.dt(sql.query, 'sqlquery')
     }
+  # when you are only summarizing two variables
+  if(var3==FALSE){
+    sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name)
+    survey <- read.dt(sql.query, 'sqlquery')
+  }
+  # to summarize three dimensions
   else{
-  sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table.type]]$table_name,
+  sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name,
                      "WHERE ", var3, "=")
   sql.query<-paste(sql.query,'\'', value3,'\'', sep='')
   }
+  
   survey <- read.dt(sql.query, 'sqlquery')
 
   
-  type <- xtabTableType(var1, var2)$Type
-  
-  if (sea_reg== 'Seattle') survey <- survey[seattle_home == 'Home in Seattle',]
-  
-  crosstab <-cross_tab(survey, var1, var2, wt_field, type)
-  
-  setnames(crosstab, 'var1', var1)
-  return(crosstab)
+  if (sea_reg== 'Seattle'){
+    survey <- survey[seattle_home == 'Home in Seattle',]
+  }
+  return(survey)
 }
 
 
-# create_cross_tab_with_weights
+#This function takes in the raw unweighted data for the summary and returns the final table with
+# weighted data, margins of error and the sample counts.  
+# This is the function that is doing all the heavy lifting for this code.
 cross_tab <- function(table, var1, var2, wt_field, type) {
   # z <- 1.96 # 95% CI
 
@@ -286,22 +290,38 @@ cross_tab <- function(table, var1, var2, wt_field, type) {
     #setnames(expanded, var1, 'var1')
     setnames(expanded, 'hhid', 'N_HH')
     crosstab <- expanded
-    print(crosstab)
+    
+
   }
- 
+  
+  setnames(crosstab, 'var1', var1)
   return(crosstab)
 }
 
 
-
-
+# This function reads a list of variables to summarize and returns the completed summarized tables.
+# It calls the functions to munge and filter the data. 
 
 summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE){
   first = 1
+  
   for(var1 in var_list1){
     for(var2 in var_list2){
-      region_tab<-xtabTable(var1, var2, 'Region', var3, val3)
-      seattle_tab<-xtabTable(var1, var2, 'Seattle',var3, val3)
+      
+      # find the table the variables are on
+      table_type <- xtabTableType(var1, var2)$Res
+      data_type <- xtabTableType(var1,var2)$Type
+      # find which weight to use
+      wt_field<- table_names[[table_type]]$weight_name
+      
+      
+      region_recs<-get_xtabTable(var1, var2, 'Region', wt_field, table_type, var3, val3)
+      seattle_recs<-get_xtabTable(var1, var2, 'Seattle', wt_field, table_type, var3, val3)
+      
+      region_tab<-cross_tab(region_recs, var1, var2, wt_field, data_type)
+      seattle_tab<-cross_tab(seattle_recs, var1, var2, wt_field, data_type)
+      
+
       tbl_output <-merge(region_tab, seattle_tab, var1, suffixes =c(' Region', ' Seattle'))  
       vars1 <-variables.lu[variable==var1]
       var1_name <-unique(vars1[,variable_name])
