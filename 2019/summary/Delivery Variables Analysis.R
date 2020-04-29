@@ -28,6 +28,8 @@ non_responce_2019 = function(variable,variable_freq) {
                                   variable == -9999 ~ -9999,
                                   variable == -9998 ~ -9998,
                                   variable == 995 ~ 995,
+                                  delivery_pkgs_freq_upd == -9999 ~ -9999,
+                                  delivery_pkgs_freq_upd == -9998 ~ -9998,
                                   delivery_pkgs_freq_upd == 995 ~ 995)) %>%
   filter(survey_year == 2019) %>% 
   mutate(skipped = case_when(delivery_all == -9998 ~ 1,
