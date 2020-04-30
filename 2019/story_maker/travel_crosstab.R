@@ -47,18 +47,18 @@ simple_table <- function(table, var, wt_field, type) {
     raw <- table[, .(sample_count = .N), by = var]
     N_hh <- table[, .(hhid = uniqueN(hhid)), by = var]
     table<-table[!is.na(get(wt_field))]
-    # Getting weighted totals
+    # Getting weighted Totals
     expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = var]
     expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field][[eval(wt_field)]]
     print(expanded_tot)
-    setnames(expanded, wt_field, "estimate")
-    #Calculating weighted shares
-    expanded[, share := estimate/eval(expanded_tot)]
+    setnames(expanded, wt_field, "Total")
+    #Calculating weighted Shares
+    expanded[, Share := Total/eval(expanded_tot)]
     expanded <- merge(expanded, N_hh, by = var)
     # Initial calculation for margin of error, z* in=MOE
-    expanded[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
-    expanded$total <- sum(expanded$estimate)
-    expanded$estMOE = expanded$MOE * expanded$total
+    expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    expanded$Total <- sum(expanded$Total)
+    expanded$estMOE = expanded$MOE * expanded$Total
     s_table <- merge(raw, expanded, by = var)
     return(s_table)
     
@@ -92,12 +92,12 @@ simple_table <- function(table, var, wt_field, type) {
     N_hh <-table[,.(hhid = uniqueN(hhid)), by = cuts]
     raw <- table[, .(sample_count = .N), by = cuts]
     var_cut <-var_breaks[, lapply(.SD, sum), .SDcols = wt_field, by = cuts]
-    setnames(var_cut, wt_field, "estimate")
-    var_cut$total <- sum(var_cut$estimate)
-    var_cut[, share := estimate/total]
+    setnames(var_cut, wt_field, "Total")
+    var_cut$Total <- sum(var_cut$Total)
+    var_cut[, Share := Total/Total]
     var_cut<- merge(var_cut, N_hh, by = 'cuts')
-    var_cut[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
-    var_cut$estMOE = var_cut$MOE * var_cut$total
+    var_cut[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    var_cut$estMOE = var_cut$MOE * var_cut$Total
     var_cut<- merge(raw, var_cut, by = 'cuts')
     s_table<-setnames(var_cut, 'cuts',var)
   }
@@ -153,17 +153,37 @@ summarize_simple_tables <-function(var_list){
     var_name <-unique(vars[,variable_name])
     # Clean up variable names
     setnames(tbl_output, var, var_name)
-    #share_fields <-c(var_name, paste('share', 'Region'), paste('share', 'Seattle'))
-    #tbl_output <- tbl_output[, ..share_fields]
-    #setnames(tbl_output,'share Region', paste(var_name,'share Region') )
-    #setnames(tbl_output,'share Seattle', paste(var_name,'share Seattle'))
-    #cols <- grep("^share\|^sample\|^MOE", names(tbl_output), value=T)
+    #Share_fields <-c(var_name, paste('Share', 'Region'), paste('Share', 'Seattle'))
+    #tbl_output <- tbl_output[, ..Share_fields]
+    #setnames(tbl_output,'Share Region', paste(var_name,'Share Region') )
+    #setnames(tbl_output,'Share Seattle', paste(var_name,'Share Seattle'))
+    #cols <- grep("^Share\|^sample\|^MOE", names(tbl_output), value=T)
     #tbl_output <-tbl_output[, .SD, .SDcols = cols]
+    
+    
+    
+    Share_cols <- grep("^Share", names(tbl_output), value=T)
+    est_cols <- grep("^Total", names(tbl_output), value=T)
+    sample_cols <- grep("^sample_count", names(tbl_output), value=T)
+    tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
+    
+
+    s_cols <-c(var_name,Share_cols, est_cols,sample_cols)
+    Share_tbl <- tbl_output[ , ..s_cols]
+    
+
     file_name <- paste(var_name,'.xlsx', sep='')
     file_ext<-file.path(file_loc, file_name)
+    
+    file_name_Share<- paste(var_name, ' Share', '.xlsx', sep='')
+    file_ext_Share<-file.path(file_loc, file_name_Share)
+
     write.xlsx(tbl_output, file_ext, sheetName ="data", 
                col.names = TRUE, row.names = FALSE, append = FALSE)
-    print(tbl_output)
+
+    write.xlsx(Share_tbl, file_ext_Share, sheetName ="data", 
+               col.names = TRUE, row.names = FALSE, append = FALSE)
+
   }
 }
 
@@ -254,16 +274,16 @@ cross_tab <- function(table, var1, var2, wt_field, type) {
     N_hh <- table[, .(hhid = uniqueN(hhid)), by = var1]
     expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = cols]
     expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field, by = var1]
-    setnames(expanded, wt_field, "estimate")
+    setnames(expanded, wt_field, "Total")
     expanded <- merge(expanded, expanded_tot, by = var1)
-    expanded[, share := estimate/get(eval(wt_field))]
+    expanded[, Share := Total/get(eval(wt_field))]
     expanded <- merge(expanded, N_hh, by = var1)
-    expanded[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
     expanded$estMOE= expanded$MOE*expanded[[wt_field]]
     crosstab <- merge(raw, expanded, by = cols)
     crosstab <- dcast.data.table(crosstab, 
                                  get(eval(var1)) ~ get(eval(var2)), 
-                                 value.var = c('sample_count', 'estimate', 'estMOE','share', 'MOE', 'N_HH'))
+                                 value.var = c('sample_count', 'Total', 'estMOE','Share', 'MOE', 'N_HH'))
     
   } else if (type == "fact") {
     cols = c(var1, var2, 'hhid', wt_field)
@@ -277,14 +297,14 @@ cross_tab <- function(table, var1, var2, wt_field, type) {
     N_hh <- var_weights[, .(hhid = uniqueN(hhid)), by = var1]
     var_weights<-var_weights[eval(parse(text=var2))>min_float]
     var_weights<-var_weights[eval(parse(text=var2))<max_float]
-    var_weights[, weighted_total := get(eval((wt_field)))*get(eval((var2)))]
-    expanded <- var_weights[, lapply(.SD, sum), .SDcols = "weighted_total", by = var1][order(get(eval(var1)))]
+    var_weights[, weighted_Total := get(eval((wt_field)))*get(eval((var2)))]
+    expanded <- var_weights[, lapply(.SD, sum), .SDcols = "weighted_Total", by = var1][order(get(eval(var1)))]
     expanded_tot <- var_weights[, lapply(.SD, sum), .SDcols = wt_field, by = var1]
     expanded_moe <- var_weights[, lapply(.SD, function(x) z*sd(x)/sqrt(length(x))), .SDcols = var2, by = var1][order(get(eval(var1)))]
     setnames(expanded_moe, var2, 'MOE')
     expanded <- merge(expanded, expanded_tot, by = var1)
     expanded <- merge(expanded, expanded_moe, by = var1)
-    expanded[, mean := weighted_total/get(eval(wt_field))]
+    expanded[, mean := weighted_Total/get(eval(wt_field))]
     N_hh <- merge(raw, N_hh, by = var1)
     expanded <- merge(expanded, N_hh, by = var1)
     #setnames(expanded, var1, 'var1')
@@ -299,6 +319,7 @@ cross_tab <- function(table, var1, var2, wt_field, type) {
 }
 
 
+colClean <- function(x){ colnames(x) <- gsub("_", " ", colnames(x)); x } 
 # This function reads a list of variables to summarize and returns the completed summarized tables.
 # It calls the functions to munge and filter the data. 
 
@@ -325,9 +346,10 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE){
       tbl_output <-merge(region_tab, seattle_tab, var1, suffixes =c(' Region', ' Seattle'))  
       vars1 <-variables.lu[variable==var1]
       var1_name <-unique(vars1[,variable_name])
-      setnames(tbl_output, var1, var1_name)
       vars2 <-variables.lu[variable==var2]
       var2_name <-unique(vars2[,variable_name])
+      
+     
       if(val3==FALSE){
       file_name <- paste(var1_name,'_', var2_name,'.xlsx')
       }
@@ -335,12 +357,39 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE){
       val3<-gsub('/', '_',val3)
       file_name <- paste(var1_name,'_', var2_name,'_', var3,'_', val3,'.xlsx')
       }
-      #cols <- grep("^share\|^sample\|MOE", names(tbl_output), value=T)
+      
+      
+
+      Share_cols <- grep("^Share", names(tbl_output), value=T)
+      est_cols <- grep("^Total", names(tbl_output), value=T)
+      sample_cols <- grep("^sample_count", names(tbl_output), value=T)
+      tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
+      
+      setnames(tbl_output, var1, var1_name)
+      
+      tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
+      
+     
+      s_cols <-c(var1_name, Share_cols, est_cols, sample_cols)
+      
+      Share_tbl <- tbl_output[ , ..s_cols]
+      Share_tbl <- colClean(Share_tbl) 
+      #cols <- grep("^Share\|^sample\|MOE", names(tbl_output), value=T)
       #tbl_output <-tbl_output[, .SD, .SDcols = cols]
       file_ext<-file.path(file_loc, file_name)
       write.xlsx(tbl_output, file_ext, sheetName ="data", 
                  col.names = TRUE, row.names = FALSE, append = FALSE)
-      print(tbl_output)
+      
+      file_name_Share<- paste('Share ', file_name, sep='')
+      file_ext_Share<-file.path(file_loc, file_name_Share)
+      
+      write.xlsx(tbl_output, file_ext, sheetName ="data", 
+                 col.names = TRUE, row.names = FALSE, append = FALSE)
+      
+      write.xlsx(Share_tbl, file_ext_Share, sheetName ="data", 
+                 col.names = TRUE, row.names = FALSE, append = FALSE)
+      
+      
     }
   }
 }
