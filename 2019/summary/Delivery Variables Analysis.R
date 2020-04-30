@@ -106,3 +106,50 @@ non_responce_2019("deliver_food", "delivery_food_freq")
 
 #checking a non-responce rate for services deliveries
 non_responce_2019("deliver_work", "delivery_work_freq")
+
+#online shopping time distribution
+shopping_distr = day %>% 
+  mutate(online_shop_time_upd = case_when( online_shop_time == 0 ~ "Din't shop online",
+                                           online_shop_time > 0 & online_shop_time <= 30 ~ "0 to 30 minutes",
+                                           online_shop_time > 30 & online_shop_time <= 60 ~"30 to 60 minutes",
+                                           online_shop_time > 60 ~ "more than 60 minutes")) %>% 
+  group_by(online_shop_time_upd) %>% 
+  filter(!is.na(online_shop_time_upd)) %>% 
+  summarize(hh_day_wt_combined = sum(hh_day_wt_combined), hh_day_wt_revised = sum(hh_day_wt_revised,na.rm = TRUE),hh_day_wt_2019 = sum(hh_day_wt_2019)) %>% 
+  mutate(share_comb = round(hh_day_wt_combined/sum(hh_day_wt_combined)*100,2),
+         share_2017 = round(hh_day_wt_revised/sum(hh_day_wt_revised)*100,2),
+         share_2019 = round(hh_day_wt_2019/sum(hh_day_wt_2019)*100,2)) 
+  
+  
+#share of people who shopped online
+yes_onlins_shop_2019 = day %>% mutate(online_shopping_yn = case_when(online_shop_time == 0 ~ 0,
+                                              online_shop_time > 0 ~ 1)) %>% 
+  filter(survey_year == 2019) %>% 
+  mutate(shopping_region_comb = online_shopping_yn*hh_day_wt_2019) %>% 
+  summarize(yes_sum = sum(shopping_region_comb, na.rm = TRUE))
+
+no_online_shop_2019 = day %>% mutate(online_shopping_yn = case_when(online_shop_time == 0 ~ 1,
+                                              online_shop_time > 0 ~ 0)) %>% 
+  filter(survey_year == 2019) %>% 
+  mutate(shopping_region_comb = online_shopping_yn*hh_day_wt_2019) %>% 
+  summarize(no_sum = sum(shopping_region_comb, na.rm = TRUE))
+  
+
+yes_onlins_shop_2019/(yes_onlins_shop_2019+no_online_shop_2019)*100
+
+yes_onlins_shop_2017 = day %>% mutate(online_shopping_yn = case_when(online_shop_time == 0 ~ 0,
+                                                                     online_shop_time > 0 ~ 1)) %>% 
+  filter(survey_year == 2017) %>% 
+  mutate(shopping_region_comb = online_shopping_yn*hh_day_wt_revised) %>% 
+  summarize(yes_sum = sum(shopping_region_comb, na.rm = TRUE))
+
+no_online_shop_2017 = day %>% mutate(online_shopping_yn = case_when(online_shop_time == 0 ~ 1,
+                                                                    online_shop_time > 0 ~ 0)) %>% 
+  filter(survey_year == 2017) %>% 
+  mutate(shopping_region_comb = online_shopping_yn*hh_day_wt_revised) %>% 
+  summarize(no_sum = sum(shopping_region_comb, na.rm = TRUE))
+
+
+yes_onlins_shop_2017/(yes_onlins_shop_2017+no_online_shop_2017)*100
+
+
