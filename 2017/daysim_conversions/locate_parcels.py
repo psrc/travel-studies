@@ -24,22 +24,17 @@ os.chdir(working_dir)
 
 # Geographic files
 parcel_file_dir = r'R:\e2projects_two\SoundCast\Inputs\lodes\alpha_lodes\2014\landuse\parcels_urbansim.txt'
-taz_dir = r'W:\geodata\forecast\taz2010.shp'
+taz_dir = r'W:\geodata\forecast\taz2010nowater.shp'
 
-person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\2_person.csv'
-trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\5_trip.csv'
-hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\1_household.csv'
+person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_RSG_Final_Deliverable\2_person.csv'
+trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_RSG_Final_Deliverable\5_trip.csv'
+hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_RSG_Final_Deliverable\1_household.csv'
 
-# daysim input paths
-# These may need to be generated from the daysim_conversion script
-hh_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\person17.csv'
 person_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\person17.csv'
-trip_daysim_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\trip17.csv'
 
 
 # Original format output
-orig_format_output_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded'
-daysim_format_output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\geocoded'
+orig_format_output_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels'
 
 # Spatial join trip lat/lng values to shapefile of parcels
 lat_lng_crs = 'epsg:4326'
@@ -409,9 +404,20 @@ def main():
     person_original = pd.read_csv(person_file_dir, encoding='latin1')  
 
     ##################################################
+    # Process household records
+    ##################################################
+    
+    hh_new = locate_hh_parcels(hh_original.copy(), parcel_df, df_taz)
+
+    # add the original lat/lng fields back
+    # hh_new = hh_new.merge(hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
+
+    # Write to file
+    hh_new.to_csv(os.path.join(orig_format_output_dir,'1_household.csv'), index=False)
+
+    ##################################################
     # Process person records
     ##################################################
-
 
     # Join original person records to daysim-formatted records to get xy coordinates
     person_daysim = pd.read_csv(person_daysim_dir)
@@ -422,32 +428,26 @@ def main():
                                                    left_on=['hhno','pno'], right_on=['hhid','pernum'], how='left')
 
     # Merge with household records to get school/work lat and long, to filter people who home school and work at home
-    _person = pd.merge(_person, hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
+    _person = pd.merge(_person, hh_new[['hhid','final_home_lat','final_home_lng', 'final_home_parcel']], on='hhid')
 
     # Add parcel location for current and previous school and workplace location
     person, person_daysim = locate_person_parcels(_person, parcel_df, df_taz)
+
+    # For people that work from home, assign work parcel as household parcel
+    # Join this person file back to original person file to get workplace
+    person.loc[person['workplace'] == 3, 'work_parcel'] = person['final_home_parcel']
+
     person_loc_fields = ['school_loc_parcel','school_loc_taz', 'work_parcel','work_taz','prev_work_parcel','prev_work_taz',
                          'school_loc_parcel_distance','work_parcel_distance','prev_work_parcel_distance']
 
-    # Join the new fields back to the original person file and write out
+    # Join selected fields back to the original person file
     person_orig_update = person_original.merge(person[person_loc_fields+['personid']], on='personid', how='left')
     person_orig_update[person_loc_fields] = person_orig_update[person_loc_fields].fillna(-1).astype('int')
 
+
     # Write to file
     person_orig_update.to_csv(os.path.join(orig_format_output_dir,'2_person.csv'), index=False)
-
-    ##################################################
-    # Process household records
-    ##################################################
     
-    hh_new = locate_hh_parcels(hh_original.copy(), parcel_df, df_taz)
-
-    # add the original lat/lng fields back
-    hh_new = hh_new.merge(hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
-
-    # write out updated version
-    hh_new.to_csv(os.path.join(orig_format_output_dir,'1_household.csv'), index=False)
-
     ##################################################
     # Process trip records
     ##################################################
@@ -460,6 +460,8 @@ def main():
     # Merge with originals to make sure we didn't exclude records
     trip_original_updated = trip_original.merge(trip[['recid','otaz','dtaz','opcl','dpcl','opcl_distance','dpcl_distance']],on='recid',how='left')
     trip_original_updated['otaz'].fillna(-1,inplace=True)
+
+    # Write to file
     trip_original_updated.to_csv(os.path.join(orig_format_output_dir,'5_trip.csv'), index=False)
 
 if __name__ =="__main__":
