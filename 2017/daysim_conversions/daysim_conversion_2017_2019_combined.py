@@ -1,6 +1,6 @@
 # NOTE: run with Python 3 for proper behavior in pandas lib
 
-import os, sys
+import os
 import numpy as np
 import pandas as pd
 
@@ -13,16 +13,18 @@ import pandas as pd
 from lookup import *
 
 # Set input paths
-hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded\1_household.csv'
-person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded\2_person.csv'
-trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded\5_trip.csv'
+
+trip_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\5_trip.csv'
+hh_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\1_household.csv'
+person_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2_person.csv'
 
 # FIXME - which columns to use?:
 hh_wt_col = 'hh_wt_combined'
 
 # Output directory
 #output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
-output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\geocoded'
+output_dir = r'R:\e2projects_two\2018_base_year\survey\daysim_format'
+#output_dir  = r'C:\Users\bnichols\Documents\estimation_2017\2014_estimation'
 
 # Flexible column names, given that these may change in future surveys
 hhno = 'hhid'
@@ -38,8 +40,9 @@ pno = 'pernum'
 
 # Heirarchy order for tour mode, per DaySim docs: https://www.psrc.org/sites/default/files/2015psrc-modechoiceautomodels.pdf
 # Drive to Transit > Walk to Transit > School Bus > HOV3+ > HOV2 > SOV > Bike > Walk > Other
-
-mode_heirarchy = [6,8,5,4,3,2,1,10]
+drive_transit_i = 0
+walk_transit_i = 0
+mode_heirarchy = [6,8,9,5,4,3,2,1,10]
 
 def assign_tour_mode(_df, tour_dict, tour_id, mode_heirarchy=mode_heirarchy):
     """ Get a list of transit modes and identify primary mode
@@ -50,23 +53,19 @@ def assign_tour_mode(_df, tour_dict, tour_id, mode_heirarchy=mode_heirarchy):
         if mode in mode_list:
             # If transit, check whether access mode is walk to transit or drive to transit
             if mode==6:
-
                 # Try to use the access mode field values to get access mode
                 try: 
-                    if  len([i for i in _df['mode_acc'].values if i in [1,2]]):
-                        tour_dict[tour_id]['tmodetp'] = 6    # walk (or bike) to transit
-                        #print('mode_acc walk')
+                    if len([i for i in _df['mode_acc'].values if i in [3,4,5,6,7]]):
+                        print('mode_acc drive')
+                        tour_mode = 7    # park and ride
                     else:
-                        #print('mode_acc drive')
-                        tour_dict[tour_id]['tmodetp'] = 7    # park and ride
-                    break
+                        tour_mode = 6
+                        print('mode_acc walk')
+                    return tour_mode
                 except:
-                    # otherwise, use a simpler check; if auto is used on any of the other trips, assume drive to transit, else assign walk to transit
-                    if len([i for i in mode_list if i in [3,4,5]]) > 0:
-                        tour_dict[tour_id]['tmodetp'] = 7   # park and ride
-                    else:
-                        tour_dict[tour_id]['tmodetp'] = 6   # walk (or bike) to transit
-                    break 
+                    # otherwise, assume walk to transit                    if len([i for i in mode_list if i in [3,4,5]]) > 0:
+                    tour_mode = 6   # walk
+                    return tour_mode 
 
             # For non-transit modes, add first mode from the heirarchical list
             #tour_dict[tour_id]['tmodetp'] = mode
@@ -117,7 +116,9 @@ def process_person_file(person_file_dir):
     person.loc[(person['tran_pass_12'].isin([1,2])) | (person['benefits_3'].isin([2,3])),'ptpass'] = 1
 
     # Paid parking at work (any level of subsidy counts as 'paid')
-    person['ppaidprk'] = 0
+    person['ppaidprk'] = -1
+    person.loc[person['workpass'].isin([995]), 'ppaidprk'] = -1
+    person.loc[person['workpass'].isin([1,2,5,6]), 'ppaidprk'] = 0
     person.loc[person['workpass'].isin([3,4]), 'ppaidprk'] = 1
 
     ### FIXME:
@@ -251,6 +252,7 @@ def process_trip_file(trip_file_dir, person):
 
     trip = pd.read_csv(trip_file_dir, encoding='latin-1')
 
+
     trip['trexpfac'] = trip['trip_wt_combined']
     # Filter out trips that have weight of zero or null
     trip = trip[-trip['trexpfac'].isnull()]
@@ -278,7 +280,7 @@ def process_trip_file(trip_file_dir, person):
     # Dorp of N/A is e in daysim, fillna with this value
     trip['dorp'] = trip['dorp'].fillna(3)
 
-    # Assuming trip otaz, dtaz, opcl, dpcl are added from locate_parcels.py
+    
 
     ##############################
     # Start and end time
@@ -331,18 +333,21 @@ def process_trip_file(trip_file_dir, person):
     trip.loc[trip['opurp'] == 0,'oadtyp'] = 1
     trip.loc[trip['dpurp'] == 0,'dadtyp'] = 1
 
-    # Trips to/from work are considered "usual workplace" only if dpcl == workplace parcel
+    # Trips to/from work are considered "usual workplace" only if dtaz == workplace TAZ
     #### FIX ME: do not have PARCELS, only using TAZ
     # must join person records to get usual work and school location
-    trip = trip.merge(person[['hhno','pno','pwtaz','pstaz']], on=['hhno','pno'], how='left')
-
-    # If trip is to/from TAZ of usual workplace and trip purpose is work
-    trip.loc[(trip['opurp'] == 0) & (trip['otaz'] == trip['pwtaz']),'oadtyp'] = 2
-    trip.loc[(trip['dpurp'] == 0) & (trip['dtaz'] == trip['pwtaz']),'dadtyp'] = 2
+    trip = trip.merge(person[['hhno','pno','pwpcl','pspcl','pwtaz','pstaz']], how='left', on=['hhno','pno'])
 
     # usual school
-    trip.loc[(trip['opurp'] == 0) & (trip['otaz'] == trip['pstaz']),'oadtyp'] = 3
-    trip.loc[(trip['dpurp'] == 0) & (trip['dtaz'] == trip['pstaz']),'dadtyp'] = 3
+    trip.loc[(trip['opurp'] == 2) & (trip['opcl'] == trip['pspcl']),'oadtyp'] = 3
+    trip.loc[(trip['dpurp'] == 2) & (trip['dpcl'] == trip['pspcl']),'dadtyp'] = 3
+
+    # If trip is to/from TAZ of usual workplace and trip purpose is work
+    # NOTE: Could use parcel here if geocoding was re-evaluated
+    trip.loc[(trip['opurp'] == 1) & (trip['otaz'] == trip['pwtaz']),'oadtyp'] = 2
+    trip.loc[(trip['dpurp'] == 1) & (trip['dtaz'] == trip['pwtaz']),'dadtyp'] = 2
+    #trip.loc[(trip['opurp'] == 1) & (trip['opcl'] == trip['pwpcl']),'oadtyp'] = 2
+    #trip.loc[(trip['dpurp'] == 1) & (trip['dpcl'] == trip['pwpcl']),'dadtyp'] = 2
 
     # Change mode
     trip.loc[trip['opurp'] == 10,'oadtyp'] = 6
@@ -381,13 +386,16 @@ def process_trip_file(trip_file_dir, person):
     trip_cols = ['hhno','pno','tsvid','day','mode','opurp','dpurp','deptm',
             'otaz','opcl','dtaz','dpcl','oadtyp','dadtyp',
             'arrtm','trexpfac','travcost','travtime','travdist',
-        'pathtype','mode_acc','mode_egr','dorp','endacttm','unique']    # only include access mode temporarily
+        'pathtype','mode_acc','dorp','endacttm','unique']    # only include access mode temporarily
 
     trip = trip[-trip['mode'].isnull()]
     trip = trip[-trip['opurp'].isnull()]
     trip = trip[-trip['dpurp'].isnull()]
     trip = trip[-trip['otaz'].isnull()]
     trip = trip[-trip['dtaz'].isnull()]
+
+    trip['mode_acc'] = trip['mode_acc'].fillna(-1)
+    trip['mode_acc'] = trip['mode_acc'].astype('int')
 
     # Write to file
     trip = trip[trip_cols]
@@ -402,23 +410,21 @@ def build_tour_file(trip, person):
     trip = trip[(trip['dpurp'] >= 0)]
     trip = trip[(trip['opurp'] >= 0)]
 
-    # For now, filter out trips that go from work to work
-    # FIXME: we actually want to keep these work-related trips; change logic so we can keep them
-    trip = trip[-((trip['opurp'] == trip['dpurp']) & (trip['opurp'] == 1))]
-
     trip['dpurp'] = trip['dpurp'].astype('int')
 
     # Reset the index
     trip = trip.reset_index()
+
+    # Add usual workplace parcel from person file
+    #trip = trip.merge(person[['hhno','pno','pwpcl']], on=['hhno','pno'])
 
     tour_dict = {}
     bad_trips = []
     tour_id = 0
 
     for personid in trip['personid'].value_counts().index.values:
-    #for personid in ['171244111']:    # complicated trip sequence
-    #for personid in ['1920043421']:
-        #print('xxxxxxxxxxxxxxxxxxx')
+    #for personid in ['1910284462']:
+        ##print('xxxxxxxxxxxxxxxxxxx')
         print(personid)
         person_df = trip.loc[trip['personid'] == personid]
 
@@ -426,14 +432,34 @@ def build_tour_file(trip, person):
         for day in person_df['day'].unique():
         # FIXME::::::
         #########
-        #for day in [4]:
+        #for day in [3]:
+
             df = person_df.loc[person_df['day'] == day]
             #print('ddddddddddd')
             #print(day)
             # First o and last d of person's travel day should be home; if not, skip this trip set
+            # FIXME : just remove all trips after the last home return trip
+            # !!!!!!!!!!!
             if (df.groupby('personid').first()['opurp'].values[0] != 0) or df.groupby('personid').last()['dpurp'].values[0] != 0:
-                bad_trips += df['unique'].to_list()
+                bad_trips += df['unique'].tolist()
+                print('ayyyyyyyyyyyyyyyyyyyy')
                 continue
+
+            # Some people do not report sequential trips. 
+            # If the dpurp of the previous trip does not match the opurp of the next trip, skip
+            # similarly for activity type
+            df['next_opurp'] = df.shift(-1)[['opurp']]
+            df['prev_opurp'] = df.shift(1)[['opurp']]
+            df['next_oadtyp'] = df.shift(-1)[['oadtyp']]
+            if len(df.iloc[:-1][(df.iloc[:-1]['next_opurp'] != df.iloc[:-1]['dpurp'])]) > 0:
+                bad_trips += df['unique'].tolist()
+                continue
+            if len(df.iloc[:-1][(df.iloc[:-1]['next_oadtyp'] != df.iloc[:-1]['dadtyp'])]) > 0:
+                bad_trips += df['unique'].tolist()
+                continue
+
+            # Simil
+
 
             # identify home-based tours 
             home_tours_start = df[df['opurp'] == 0]
@@ -441,7 +467,7 @@ def build_tour_file(trip, person):
 
             # skip person if they have a different number of tour starts/ends at home
             if len(home_tours_start) != len(home_tours_end):
-                bad_trips += df['unique'].to_list()
+                bad_trips += df['unique'].tolist()
                 continue
 
             local_tour_id = 1
@@ -465,9 +491,25 @@ def build_tour_file(trip, person):
                 #################################
 
                 if len(_df) == 0:
-                    bad_trips += _df['unique'].to_list()
+                    bad_trips += _df['unique'].tolist()
                     continue
                
+                # calculate duration at location, as difference between arrival at a place and start of next tripi
+                _df['duration'] = _df.shift(-1).iloc[:-1]['deptm']-_df.iloc[:-1]['arrtm']
+
+                # If there are multiple work trips, check if any are to other work locations
+                # Set usual workplace dest to 0 initially, -1 for nonwork dpurp
+                #_df['usual_workplace_dest'] = -1
+                #_df['usual_workplace_orig'] = -1
+                #_df.loc[df['dpurp'] == 1, 'usual_workplace_dest'] = 0
+                #_df.loc[df['opurp'] == 1, 'usual_workplace_orig'] = 0
+                #_df.loc[(_df['dpurp'] == 1) & (df['pwpcl'] == df['dpcl']),'usual_workplace_dest'] = 1
+                #_df.loc[(_df['opurp'] == 1) & (df['pwpcl'] == df['opcl']),'usual_workplace_orig'] = 1
+
+                ## Exclude work trips that are between usual workplace at same parcel
+                #_df = _df[-((_df['usual_workplace_dest'] == _df['usual_workplace_orig']) & (_df['usual_workplace_orig'] == 1))]
+
+
                 # First row contains origin information for the primary tour
                 tour_dict[tour_id]['tlvorig'] = _df.iloc[0]['deptm']                
                 tour_dict[tour_id]['totaz'] = _df.iloc[0]['otaz']
@@ -483,14 +525,24 @@ def build_tour_file(trip, person):
                 tour_dict[tour_id]['day'] = day
                 tour_dict[tour_id]['tour'] = local_tour_id
 
-                # calculate duration at location, as difference between arrival at a place and start of next trip
-                _df['duration'] = _df.shift(-1).iloc[:-1]['deptm']-_df.iloc[:-1]['arrtm']
+
+
+                #if len(_df[_df['dpurp'].isin([1])]) > 0:
+                #    # Identify a primary workplace trip and parcel
+                #    # df work trips
+                #    _df_work = _df[_df['dpurp'].isin([1])]
+                #    primary_work_index = _df_work['duration'].idxmax()
+
+                    # Check if work trip is to usual workplace
+                    #primary_work_pcl = _df.loc[primary_work_index]['dpcl']
+                    #_df.loc[(_df['dpcl'] == primary_work_pcl) & (_df['dpurp'] == 1),'usual_workplace_dest'] = 1
+                    #_df.loc[(_df['opcl'] == primary_work_pcl) & (_df['opurp'] == 1),'usual_workplace_orig'] = 1
 
                 # For sets with only 2 trips, the halves are simply the first and second trips
                 if len(_df) == 2:
-                    if _df.iloc[0]['dpurp'] in [0,10]:   # ignore tours that have purposes to home or changemode
-                        bad_trips += _df['unique'].to_list()
-                        continue
+                    #if _df.iloc[0]['dpurp'] in [0,10]:   # ignore tours that have purposes to home or changemode
+                    #    bad_trips += _df['unique'].to_list()
+                    #    continue
                     tour_dict[tour_id]['pdpurp'] = _df.iloc[0]['dpurp']
                     tour_dict[tour_id]['tripsh1'] = 1
                     tour_dict[tour_id]['tripsh2'] = 1
@@ -520,12 +572,17 @@ def build_tour_file(trip, person):
 
                     # Could be dealing with work-based subtours
 
-                    # subtours exist if dpurp==1 more than 2 times
+                    # subtours exist if usual_workplace_dest==1 more than 2 times
 
-                    # FIXME: maybe calculat whether or not this is overall a work tour based on longer duration? 
-                    if (len(_df) >= 4) & (len(_df[_df['dpurp'] == 1]) > 2):
-                        subtour_index_start_values = _df[(_df['opurp'] == 1) & (-_df['dpurp'].isin([0,1]))].index.values  
+                    # FIXME: maybe calculate whether or not this is overall a work tour based on longer duration? 
+                    #if (len(_df) >= 4) & (len(_df[_df['oadtyp'] == 2]) >= 2) & (len(_df[_df['opurp'] == 1]) >= 2) & (len(_df[(_df['oadtyp'] == 2) & (_df['dadtyp'] > 2)]) >= 2):
+                    if (len(_df) >= 4) & (len(_df[_df['oadtyp'] == 2]) >= 2) & (len(_df[_df['opurp'] == 1]) >= 2) & (len(_df[(_df['oadtyp'] == 2) & (_df['dadtyp'] > 2)]) >= 1):
 
+
+                        #subtour_index_start_values = _df[(_df['oadtyp'] == 2) & (_df['dadtyp'] > 2)].index.values
+                        subtour_index_start_values = _df[(((_df['oadtyp'] == 2) & (_df['dadtyp'] > 2)) | 
+                                                          ((_df['opurp'] == 1) & (_df['dpurp'] > 1)))].index.values
+                        print('subtour --------------- :)')
                         subtours_df = pd.DataFrame()
 
                         # Loop through each potential subtour
@@ -533,14 +590,18 @@ def build_tour_file(trip, person):
                         subtour_id = tour_id + 1
                         
                         local_tour_id_placeholder = local_tour_id
+                        subtour_count = 0
 
                         for subtour_start_value in subtour_index_start_values:
                             #print(subtour_start_value)
                             # Potential subtour
-                            for i in range(1,_df.index.max()-subtour_start_value):
-                                next_row = _df.loc[subtour_start_value+i]
-                                if next_row['dpurp'] == 1:
-                                    subtour_df = _df.loc[subtour_start_value:subtour_start_value+i]
+                            # Loop through the index from subtour start 
+                            next_row_index_start = np.where(_df.index.values == subtour_start_value)[0][0]+1
+                            for i in _df.index.values[next_row_index_start:]:
+                            #for i in _df.loc[subtour_start_value:].index.values:
+                                next_row = _df.loc[i]
+                                if next_row['dadtyp'] == 2:
+                                    subtour_df = _df.loc[subtour_start_value:i]
 
                                     local_tour_id +=1
 
@@ -560,13 +621,15 @@ def build_tour_file(trip, person):
                                     tour_dict[subtour_id]['totaz'] = subtour_df.iloc[0]['otaz']
                                     tour_dict[subtour_id]['topcl'] = subtour_df.iloc[0]['opcl']
                                     tour_dict[subtour_id]['toadtyp'] = subtour_df.iloc[0]['oadtyp']
+                                    tour_dict[subtour_id]['parent'] = local_tour_id_placeholder    # Parent is the main tour ID
+                                    tour_dict[subtour_id]['subtrs'] = 0    # No subtours for subtours
 
                                     trip.loc[trip['unique'].isin(subtour_df['unique'].values),'tour'] = local_tour_id
 
                                     if len(subtour_df) == 2:
-                                        if subtour_df.iloc[0]['dpurp'] in [0,10]:   # ignore tours that have purposes to home or changemode
-                                            bad_trips += _df['unique'].to_list()
-                                            continue
+                                        #if subtour_df.iloc[0]['dpurp'] in [0,10]:   # ignore tours that have purposes to home or changemode
+                                        #    bad_trips += _df['unique'].to_list()
+                                        #    continue
                                         tour_dict[subtour_id]['pdpurp'] = subtour_df.iloc[0]['dpurp']
                                         tour_dict[subtour_id]['tripsh1'] = 1
                                         tour_dict[subtour_id]['tripsh2'] = 1
@@ -577,8 +640,6 @@ def build_tour_file(trip, person):
                                         tour_dict[subtour_id]['tdpcl'] = subtour_df.iloc[0]['dpcl']
                                         tour_dict[subtour_id]['tlvdest'] = subtour_df.iloc[-1]['deptm']
                                         tour_dict[subtour_id]['tardest'] = subtour_df.iloc[0]['arrtm']
-                                        tour_dict[subtour_id]['parent'] = tour_id    # Parent is the main tour ID
-                                        tour_dict[subtour_id]['subtrs'] = 0    # No subtours for subtours
 
                                         tour_dict[subtour_id]['tmodetp'] = assign_tour_mode(subtour_df, tour_dict, subtour_id)
 
@@ -594,8 +655,7 @@ def build_tour_file(trip, person):
                                         primary_subtour_purp_index = subtour_df[subtour_df['dpurp']!=10]['duration'].idxmax()
 
                                         tour_dict[subtour_id]['pdpurp'] = subtour_df.loc[primary_subtour_purp_index]['dpurp']
-                                        tour_dict[subtour_id]['parent'] = tour_id    # Parent is the main tour ID
-                                        tour_dict[subtour_id]['subtrs'] = 0    # No subtours for subtours
+
                 
                                         # Get the data based on the primary destination trip
                                         # We know the tour destination parcel/TAZ field from that primary trip, as well as destination type
@@ -627,55 +687,97 @@ def build_tour_file(trip, person):
                                         tour_dict[subtour_id]['tmodetp'] = assign_tour_mode(subtour_df, tour_dict, subtour_id)
 
                                     # Done with this subtour 
+                                    subtour_count += 1
                                     subtour_id += 1
                                     break
                                 else:
                                     continue
-                                    
-                        # The main tour destination arrival will be the trip before subtours
-                        # the main tour destination departure will be the trip after subtours
-                        main_tour_start_index = subtours_df.index[0]-1   # trip when they arrive to work
-                        main_tour_end_index = subtours_df.index[-1]+1    # trip when leave work
-
-                        # If there were subtours, this is a work tour
-                        tour_dict[tour_id]['pdpurp'] = 1
-                        tour_dict[tour_id]['tdtaz'] = _df.loc[main_tour_start_index]['dtaz']
-                        tour_dict[tour_id]['tdpcl'] = _df.loc[main_tour_start_index]['dpcl']
-                        tour_dict[tour_id]['tdadtyp'] = _df.loc[main_tour_start_index]['dadtyp']
-
-                        # Pathtype is defined by a heirarchy, where highest number is chosen first
-                        # Ferry > Commuter rail > Light Rail > Bus > Auto Network
-                        # Note that tour pathtype is different from trip path type (?)
-                        subtours_excluded_df = pd.concat([df.loc[start_row_id:main_tour_start_index], df.loc[main_tour_end_index:end_row_id]])
-                        tour_dict[tour_id]['tpathtp'] = subtours_excluded_df.loc[subtours_excluded_df['mode'].idxmax()]['pathtype']
-
-                        # Calculate tour halves, etc
-                        tour_dict[tour_id]['tripsh1'] = len(_df.loc[0:main_tour_start_index])
-                        tour_dict[tour_id]['tripsh2'] = len(_df.loc[main_tour_end_index:])
-
-                        # Set tour halves on trip records
-                        trip.loc[trip['unique'].isin(_df.loc[0:main_tour_start_index].unique),'half'] = 1
-                        trip.loc[trip['unique'].isin(_df.loc[main_tour_end_index:].unique),'half'] = 2
-
-                        # set trip segment within half tours
-                        trip.loc[trip['unique'].isin(_df.loc[0:main_tour_start_index].unique),'tseg'] = range(1,len(_df.loc[0:main_tour_start_index])+1)
-                        trip.loc[trip['unique'].isin(_df.loc[main_tour_end_index:].unique),'tseg'] = range(1,len(_df.loc[main_tour_end_index:])+1)
-
-                        # Departure/arrival times
-                        tour_dict[tour_id]['tlvdest'] = _df.loc[main_tour_end_index]['deptm']
-                        tour_dict[tour_id]['tardest'] = _df.loc[main_tour_start_index]['arrtm']
-
-                        # Number of subtours 
-                        tour_dict[tour_id]['subtrs'] = len(subtour_index_start_values)
-                        tour_dict[tour_id]['parent'] = 0
-
-                        # Mode
-                        tour_dict[tour_id]['tmodetp'] = assign_tour_mode(_df, tour_dict, tour_id)
                         
-                         # add tour ID to the trip records (for trips not in the subtour_df)
-                        df_unique_no_subtours = [i for i in _df['unique'].values if i not in subtours_df['unique'].values]
-                        df_unique_no_subtours = _df[_df['unique'].isin(df_unique_no_subtours)]
-                        trip.loc[trip['unique'].isin(df_unique_no_subtours['unique'].values),'tour'] = local_tour_id_placeholder
+                        if len(subtours_df) < 1:
+                            # No subtours actually found
+                            # FIXME: make this a function, because it's called multiple times
+                            tour_dict[tour_id]['subtrs'] = 0
+                            tour_dict[tour_id]['parent'] = 0
+
+                            # Identify the primary purpose
+                            primary_purp_index = _df[-_df['dpurp'].isin([0,10])]['duration'].idxmax()
+
+                            tour_dict[tour_id]['pdpurp'] = _df.loc[primary_purp_index]['dpurp']
+                            tour_dict[tour_id]['tlvdest'] = _df.loc[primary_purp_index]['deptm']
+                            tour_dict[tour_id]['tdtaz'] = _df.loc[primary_purp_index]['dtaz']
+                            tour_dict[tour_id]['tdpcl'] = _df.loc[primary_purp_index]['dpcl']
+                            tour_dict[tour_id]['tdadtyp'] = _df.loc[primary_purp_index]['dadtyp']
+
+                            tour_dict[tour_id]['tardest'] = _df.iloc[-1]['arrtm']
+                   
+                            tour_dict[tour_id]['tripsh1'] = len(_df.loc[0:primary_purp_index])
+                            tour_dict[tour_id]['tripsh2'] = len(_df.loc[primary_purp_index+1:])
+                        
+                            # path type
+                            # Pathtype is defined by a heirarchy, where highest number is chosen first
+                            # Ferry > Commuter rail > Light Rail > Bus > Auto Network
+                            # Note that tour pathtype is different from trip path type (?)
+                            tour_dict[tour_id]['tpathtp'] = _df.loc[_df['mode'].idxmax()]['pathtype']
+
+                            # Set tour halves on trip records
+                            trip.loc[trip['unique'].isin(_df.loc[0:primary_purp_index].unique),'half'] = 1
+                            trip.loc[trip['unique'].isin(_df.loc[primary_purp_index+1:].unique),'half'] = 2
+
+                            # set trip segment within half tours
+                            trip.loc[trip['unique'].isin(_df.loc[0:primary_purp_index].unique),'tseg'] = range(1,len(_df.loc[0:primary_purp_index])+1)
+                            trip.loc[trip['unique'].isin(_df.loc[primary_purp_index+1:].unique),'tseg'] = range(1,len(_df.loc[primary_purp_index+1:])+1)
+
+                            trip.loc[trip['unique'].isin(_df['unique'].values),'tour'] = local_tour_id
+
+                            # Extract main mode 
+                            tour_dict[tour_id]['tmodetp'] = assign_tour_mode(_df, tour_dict, tour_id)    
+                        
+                        else:
+                            # The main tour destination arrival will be the trip before subtours
+                            # the main tour destination departure will be the trip after subtours
+                            # trip when they arrive to work -> always the previous trip before subtours_df index begins
+                            main_tour_start_index = _df.index.values[np.where(_df.index.values == subtours_df.index[0])[0][0]-1]   
+                            # trip when leave work -> always the next trip after the end of the subtours_df
+                            main_tour_end_index = _df.index.values[np.where(_df.index.values == subtours_df.index[-1])[0][0]+1]    
+                            # If there were subtours, this is a work tour
+                            tour_dict[tour_id]['pdpurp'] = 1
+                            tour_dict[tour_id]['tdtaz'] = _df.loc[main_tour_start_index]['dtaz']
+                            tour_dict[tour_id]['tdpcl'] = _df.loc[main_tour_start_index]['dpcl']
+                            tour_dict[tour_id]['tdadtyp'] = _df.loc[main_tour_start_index]['dadtyp']
+
+                            # Pathtype is defined by a heirarchy, where highest number is chosen first
+                            # Ferry > Commuter rail > Light Rail > Bus > Auto Network
+                            # Note that tour pathtype is different from trip path type (?)
+                            subtours_excluded_df = pd.concat([df.loc[start_row_id:main_tour_start_index], df.loc[main_tour_end_index:end_row_id]])
+                            tour_dict[tour_id]['tpathtp'] = subtours_excluded_df.loc[subtours_excluded_df['mode'].idxmax()]['pathtype']
+
+                            # Calculate tour halves, etc
+                            tour_dict[tour_id]['tripsh1'] = len(_df.loc[0:main_tour_start_index])
+                            tour_dict[tour_id]['tripsh2'] = len(_df.loc[main_tour_end_index:])
+
+                            # Set tour halves on trip records
+                            trip.loc[trip['unique'].isin(_df.loc[0:main_tour_start_index].unique),'half'] = 1
+                            trip.loc[trip['unique'].isin(_df.loc[main_tour_end_index:].unique),'half'] = 2
+
+                            # set trip segment within half tours
+                            trip.loc[trip['unique'].isin(_df.loc[0:main_tour_start_index].unique),'tseg'] = range(1,len(_df.loc[0:main_tour_start_index])+1)
+                            trip.loc[trip['unique'].isin(_df.loc[main_tour_end_index:].unique),'tseg'] = range(1,len(_df.loc[main_tour_end_index:])+1)
+
+                            # Departure/arrival times
+                            tour_dict[tour_id]['tlvdest'] = _df.loc[main_tour_end_index]['deptm']
+                            tour_dict[tour_id]['tardest'] = _df.loc[main_tour_start_index]['arrtm']
+
+                            # Number of subtours 
+                            tour_dict[tour_id]['subtrs'] = subtour_count
+                            tour_dict[tour_id]['parent'] = 0
+
+                            # Mode
+                            tour_dict[tour_id]['tmodetp'] = assign_tour_mode(_df, tour_dict, tour_id)
+                        
+                             # add tour ID to the trip records (for trips not in the subtour_df)
+                            df_unique_no_subtours = [i for i in _df['unique'].values if i not in subtours_df['unique'].values]
+                            df_unique_no_subtours = _df[_df['unique'].isin(df_unique_no_subtours)]
+                            trip.loc[trip['unique'].isin(df_unique_no_subtours['unique'].values),'tour'] = local_tour_id_placeholder
 
                     else:
                         # No subtours
@@ -710,16 +812,24 @@ def build_tour_file(trip, person):
                         trip.loc[trip['unique'].isin(_df.loc[0:primary_purp_index].unique),'tseg'] = range(1,len(_df.loc[0:primary_purp_index])+1)
                         trip.loc[trip['unique'].isin(_df.loc[primary_purp_index+1:].unique),'tseg'] = range(1,len(_df.loc[primary_purp_index+1:])+1)
 
+                        trip.loc[trip['unique'].isin(_df['unique'].values),'tour'] = local_tour_id
+
                         # Extract main mode 
                         tour_dict[tour_id]['tmodetp'] = assign_tour_mode(_df, tour_dict, tour_id)                
 
+                        # Add tour ID
                             
                 # Increment the tour ID
-                if (len(_df) >= 4) & (len(_df[_df['dpurp'] == 1]) > 2):
+                #if (len(_df) >= 4) & (len(_df[_df['usual_workplace_dest'] == 1]) > 2):
+                #if (len(_df) >= 4) & (len(_df[_df['oadtyp'] == 2]) >= 2) & (len(_df[_df['opurp'] == 1]) >= 2):
+                if (len(_df) >= 4) & (len(_df[_df['oadtyp'] == 2]) >= 2) & (len(_df[_df['opurp'] == 1]) >= 2) & (len(_df[(_df['oadtyp'] == 2) & (_df['dadtyp'] > 2)]) >= 1):
+                #if (len(_df) >= 4) & (len(_df[_df['oadtyp'] == 2]) >= 2) & (len(_df[_df['opurp'] == 1]) >= 2) & (len(_df[(_df['oadtyp'] == 2) & (_df['dadtyp'] > 2)]) >= 2):
                     tour_id = subtour_id + tour_id
                 else:
-                    tour_id += 1      
-                    local_tour_id += 1
+                    tour_id += 1     
+                    
+                local_tour_id += 1
+
     tour = pd.DataFrame.from_dict(tour_dict, orient='index')
 
 
@@ -847,19 +957,24 @@ def process_person_day(tour, person, trip, hh):
 
 def main():
     
+    print('starting')
         # person day and household day records
     #trip = pd.read_csv(os.path.join(output_dir,'tripP17.csv'))
     #tour = pd.read_csv(os.path.join(output_dir,'tourP17.csv'))
     #hh = pd.read_csv(os.path.join(output_dir,'hrecP17.csv'))
     #person = pd.read_csv(os.path.join(output_dir,'precP17.csv'))
-    # TEMP REMOVE LATER!!!
+    #trip = pd.read_csv(r'R:\e2projects_two\SoundCastDocuments\2014Estimation\New_06_20_16\inputs\tripP14.dat', delim_whitespace=True)
+    #person = pd.read_csv(r'R:\e2projects_two\SoundCastDocuments\2014Estimation\New_06_20_16\inputs\precP14.dat', delim_whitespace=True)
+    #hh = pd.read_csv(r'R:\e2projects_two\SoundCastDocuments\2014Estimation\New_06_20_16\inputs\hrecP14.dat', delim_whitespace=True)
+    # #TEMP REMOVE LATER!!!
     #trip['unique'] = range(len(trip))
-    # household day
+     #household day
 
     person = process_person_file(person_file_dir)
     hh = process_household_file(hh_file_dir, person)
     trip = process_trip_file(trip_file_dir, person)
-    
+
+    #tour['personid'] = tour['hhno'].astype('int').astype('str') + tour['pno'].astype('int').astype('str')
     trip['personid'] = trip['hhno'].astype('int').astype('str') + trip['pno'].astype('int').astype('str')
     person['personid'] = person['hhno'].astype('int').astype('str') + person['pno'].astype('int').astype('str')
 
@@ -887,7 +1002,7 @@ def main():
     person.drop('personid', axis=1, inplace=True)
     trip[['travdist','travcost','travtime']] = "-1.00"
 
-    tour.loc[tour['tmodetp'] == -1, 'tmodetp'] = 10
+    #tour.loc[tour['tmodetp'] == -1, 'tmodetp'] = 10
 
     for df_name, df in {'prec': person, 'trip': trip, 'tour': tour, 'hrec': hh,
                         'hday': household_day, 'pday': person_day}.items():

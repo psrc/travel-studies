@@ -14,21 +14,16 @@ from lookup import *
 
 # Set input paths
 
-trip_file_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\original_geocoded\trip_17_19_031120_wt.csv'
-hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded\1_household.csv'
-person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded\2_person.csv'
-#trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_022020\Weighted_Data_022020\geocoded\5_trip.csv'
-
-#hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_031120\PSRC_2019_HTS_Deliverable_031120\Weighted_Data_031120\1_Household.csv'
-#person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_031120\PSRC_2019_HTS_Deliverable_031120\Weighted_Data_031120\2_Person.csv'
-#trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_Deliverable_031120\PSRC_2019_HTS_Deliverable_031120\Weighted_Data_031120\5_Trip.csv'
+trip_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\5_trip.csv'
+hh_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\1_household.csv'
+person_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2_person.csv'
 
 # FIXME - which columns to use?:
 hh_wt_col = 'hh_wt_combined'
 
 # Output directory
 #output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
-output_dir = r'R:\e2projects_two\SoundCastDocuments\2017Estimation\survey\daysim_format'
+output_dir = r'R:\e2projects_two\2018_base_year\survey\daysim_format'
 #output_dir  = r'C:\Users\bnichols\Documents\estimation_2017\2014_estimation'
 
 # Flexible column names, given that these may change in future surveys
@@ -122,6 +117,7 @@ def process_person_file(person_file_dir):
 
     # Paid parking at work (any level of subsidy counts as 'paid')
     person['ppaidprk'] = -1
+    person.loc[person['workpass'].isin([995]), 'ppaidprk'] = -1
     person.loc[person['workpass'].isin([1,2,5,6]), 'ppaidprk'] = 0
     person.loc[person['workpass'].isin([3,4]), 'ppaidprk'] = 1
 
@@ -445,7 +441,7 @@ def build_tour_file(trip, person):
             # FIXME : just remove all trips after the last home return trip
             # !!!!!!!!!!!
             if (df.groupby('personid').first()['opurp'].values[0] != 0) or df.groupby('personid').last()['dpurp'].values[0] != 0:
-                bad_trips += df['unique'].to_list()
+                bad_trips += df['unique'].tolist()
                 print('ayyyyyyyyyyyyyyyyyyyy')
                 continue
 
@@ -456,10 +452,10 @@ def build_tour_file(trip, person):
             df['prev_opurp'] = df.shift(1)[['opurp']]
             df['next_oadtyp'] = df.shift(-1)[['oadtyp']]
             if len(df.iloc[:-1][(df.iloc[:-1]['next_opurp'] != df.iloc[:-1]['dpurp'])]) > 0:
-                bad_trips += df['unique'].to_list()
+                bad_trips += df['unique'].tolist()
                 continue
             if len(df.iloc[:-1][(df.iloc[:-1]['next_oadtyp'] != df.iloc[:-1]['dadtyp'])]) > 0:
-                bad_trips += df['unique'].to_list()
+                bad_trips += df['unique'].tolist()
                 continue
 
             # Simil
@@ -471,7 +467,7 @@ def build_tour_file(trip, person):
 
             # skip person if they have a different number of tour starts/ends at home
             if len(home_tours_start) != len(home_tours_end):
-                bad_trips += df['unique'].to_list()
+                bad_trips += df['unique'].tolist()
                 continue
 
             local_tour_id = 1
@@ -495,7 +491,7 @@ def build_tour_file(trip, person):
                 #################################
 
                 if len(_df) == 0:
-                    bad_trips += _df['unique'].to_list()
+                    bad_trips += _df['unique'].tolist()
                     continue
                
                 # calculate duration at location, as difference between arrival at a place and start of next tripi
