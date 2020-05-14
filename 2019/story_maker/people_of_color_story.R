@@ -2,16 +2,20 @@ source('global.R')
 source('travel_crosstab.R')
 
 # where you are running your R code
-wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel-studies/2019/story_maker"
+wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel_studies_may/2019/story_maker"
 
 #where you want to output tables
 file_loc <- 'C:/Users/SChildress/Documents/HHSurvey/race_story'
+
+race_data <-c('race_category')
 
 
 # How many people of different races took the survey? What are the weighted totals of people by
 # race groups
 race_data <-c('race_category')
 summarize_simple_tables(race_data)
+
+
 
 #Are people of color experiencing more residential displacement than other groups?
 #Displacement factors by race
@@ -35,6 +39,7 @@ for (res_factor in prev_res_vars){
   
 #Q1. How does vehicle ownership vary by race?
 summarize_cross_tables(race_data, c('vehicle_count'))
+#summarize_cross_tables(race_data, c('vehicle_count'), group1=TRUE)
 
 #Q2. How do mode shares differ by race?
 summarize_cross_tables(race_data,c('mode_simple'))
