@@ -34,7 +34,7 @@ prev_res_vars <-
     'prev_res_factors_forced')
 
 for (res_factor in prev_res_vars){
-  summarize_cross_tables(race_data, res_factor)
+  summarize_cross_tables(race_data, res_factor, group1=TRUE)
 }
   
 #Q1. How does vehicle ownership vary by race?
