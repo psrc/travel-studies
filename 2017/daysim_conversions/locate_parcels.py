@@ -436,6 +436,7 @@ def main():
     # For people that work from home, assign work parcel as household parcel
     # Join this person file back to original person file to get workplace
     person.loc[person['workplace'] == 3, 'work_parcel'] = person['final_home_parcel']
+    person.loc[person['workplace'] == 3, 'work_taz'] = person['final_home_taz']
 
     person_loc_fields = ['school_loc_parcel','school_loc_taz', 'work_parcel','work_taz','prev_work_parcel','prev_work_taz',
                          'school_loc_parcel_distance','work_parcel_distance','prev_work_parcel_distance']
