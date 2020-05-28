@@ -74,6 +74,7 @@ person_df$displa <- as.character(person_df$census_2010_tract)
 person_df_dis <- merge(person_df,displ_risk_df, by.x='census_2010_tract', by.y='GEOID', all.x=TRUE)
 
 
+
 vars_to_consider <- c('displaced', "white","poor_english","no_bachelors","rent","cost_burdened", 
                       "severe_cost_burdened","poverty_200"	,
                       "ln_jobs_auto_30", "ln_jobs_transit_45", "transit_qt_mile","transit_2025_half",
@@ -90,23 +91,24 @@ dummy_col_names<-c("hhincome_broad", 'race_category', 'education',
                    'prev_res_type','hhincome_detailed','res_dur', 'hhsize',
                    'vehicle_count', 'student', 'license')
 person_df_dum <- dummy_cols(person_df_dis_sm, select_columns=dummy_col_names)
-
+person_df_dum["hhincome_detailed_2550K"]<- rowSums(person_df_dum[,c("hhincome_detailed_$25,000-$34,999",    
+                                                                    "hhincome_detailed_$35,000-$49,999")], na.rm=TRUE)
 
 
 less_vars<-c("`hhincome_detailed_Under $10,000`",
              "`hhincome_detailed_$10,000-$24,999`",
-             "`hhincome_detailed_$25,000-$34,999`",                              
-            "`hhincome_detailed_$35,000-$49,999`",                              
+             "`hhincome_detailed_2550K`",                             
              "`hhincome_detailed_$50,000-$74,999`",                               
             "`hhincome_detailed_$75,000-$99,999`" ,                              
             "`hhincome_detailed_Prefer not to answer`",
-             "transit_qt_mile" ,                                                
-             "transit_2025_half",                                             
-             "dist_super",                                                     
-            "dist_pharm",                                                     
-            "dist_rest",                                                       
-            "dist_park",                                                      
-             "dist_school")
+            "`education_Bachelor degree`", 
+            "`education_Graduate/post-graduate degree`",               
+            "dist_super")                                                    
+            # "dist_pharm",                                                     
+            # "dist_rest",                                                       
+            # "dist_park",                                                      
+            #  "dist_school"
+            #"transit_2025_half")
             
             
             
@@ -115,8 +117,8 @@ less_vars<-c("`hhincome_detailed_Under $10,000`",
 #             "`ln_jobs_auto_30`",
 #             "`ln_jobs_transit_45`"           
 # )
- 
- person_df_dum_ls<-person_df_dum[less_vars]
+   
+   person_df_dum_ls<-person_df_dum[less_vars]
  
  displ_logit<-glm(reformulate(less_vars,'displaced'), data=person_df_dum,
                            family = 'binomial')
