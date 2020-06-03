@@ -9,6 +9,9 @@ library(fastDummies)
 library(aod)
 library(BMA)
 library(MASS)
+library(jtools)
+library(ggstance)
+library(sjPlot)
 
 # loading data
 displ_index_data<- 'C:/Users/SChildress/Documents/HHSurvey/displace_estimate/displacement_risk_estimation.csv'
@@ -169,6 +172,16 @@ displ_logit<-glm(reformulate(x_sm,'displaced'), data=person_df_ls,
                  family = 'binomial')
 summary(displ_logit, correlation= TRUE)
 
+#https://cran.r-project.org/web/packages/jtools/vignettes/summ.html#effect_plot
+
+plot_summs(displ_logit, scale = TRUE)
+
+#https://towardsdatascience.com/visualizing-models-101-using-r-c7c937fc5f04
+plot_model(displ_logit, transform = NULL, show.values = TRUE, axis.labels = "", value.offset = .4)
+#effect_plot(displ_logit, pred = poor_english, interval = TRUE, plot.points = TRUE)
+#looks nonlinear a bit
+
+#effect_plot(displ_logit, pred = white, interval = TRUE, plot.points = TRUE)
 
 # Trying the bma library
 # x<-person_df_ls[, !names(person_df_ls) %in% c('displaced')]
