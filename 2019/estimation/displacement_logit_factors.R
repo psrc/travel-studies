@@ -12,6 +12,7 @@ library(MASS)
 library(jtools)
 library(ggstance)
 library(sjPlot)
+library(effects)
 
 # loading data
 displ_index_data<- 'C:/Users/SChildress/Documents/HHSurvey/displace_estimate/displacement_risk_estimation.csv'
@@ -52,8 +53,24 @@ res_factors<-c("prev_res_factors_forced", "prev_res_factors_housing_cost","prev_
 
 missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
                    'Missing: Skip logic', 'Children or missing')
+#first calculate age and race variables across household members
+
+# so group people by household
+
+# calculate if they have any people of color, people over 65
+
+person_dt<-data.table(person_dt)
+person_dt[,('hh_all_people_of_color'):= lapply(.SD, function(x) ifelse(all(.SD!='White Only'), 'hh_all_people_of_color', 'hh_not_all_people_of_color')), .SDcols='race_category', by=hhid]
+person_dt[,('hh_any_older'):= lapply(.SD, function(x) ifelse(any(.SD!='65 years+'), 'hh_any_65p', 'hh_not_all_65p')), .SDcols='age_category', by=hhid]
+person_dt[,('hh_has_children'):= lapply(.SD, function(x) ifelse(any(.SD=='Under 18 years'), 'hh_has_children', 'hh_no_children')), .SDcols='age_category', by=hhid]
 
 person_dt<-drop_na(person_dt, res_factors)
+#expanded[, ("in") := (share*(1-share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+#table[, lapply(.SD, sum), .SDcols = wt_field, by = cols]
+
+#dt[, lapply(.SD, function(x) x[nzchar(x)][1]), by = VisitID, .SDcols = 3:5]
+
+
 # remove missing data
 for(factor in res_factors){
   for(missing in missing_codes){
@@ -62,6 +79,7 @@ for(factor in res_factors){
 }
 
 person_df <- setDF(person_dt)
+
 person_df$displaced = 0
 for (factor in res_factors){
   dummy_name<- paste(factor, ' dummy')
@@ -93,7 +111,7 @@ person_df_dis_parcel[parcel_based_vars] <- lapply(person_df_dis_parcel[parcel_ba
 
 
 # There are over a hundred variables on the dataframe- just limit it to potential variables
-vars_to_consider <- c('displaced', "white","poor_english","no_bachelors","rent","cost_burdened", 
+vars_to_consider <- c('displaced', 'hh_all_people_of_color', 'hh_any_older', 'hh_has_children',"nonwhite","poor_english","no_bachelors","rent","cost_burdened", 
                       "severe_cost_burdened","poverty_200"	,
                       "ln_jobs_auto_30", "ln_jobs_transit_45", "transit_qt_mile","transit_2025_half",
                        "dist_super", "dist_pharm", "dist_rest","dist_park.x",	"dist_school",
@@ -154,21 +172,23 @@ person_df_dis_sm$dist_prem_bus<-pmin(person_df_dis_sm$dist_ebus, person_df_dis_s
 person_df_dis_sm$dist_bus<-pmin(person_df_dis_sm$dist_lbus,person_df_dis_sm$dist_ebus, person_df_dis_sm$dist_fry, person_df_dis_sm$dist_lrt)
 
 person_df_dis_sm[sapply(person_df_dis_sm, is.character)] <- lapply(person_df_dis_sm[sapply(person_df_dis_sm, is.character)], 
-                                       as.factor)
-less_vars<-c('displaced', "hhincome_mrbroad", 
+
+                                                                      
+                                                                                                       as.factor)
+less_vars<-c('displaced', "hhincome_mrbroad", 'hh_all_people_of_color', 
             'rent_or_not',
-             'vehicle_group', 'age_group', 'size_group',
-            "white","poor_english",
+             'vehicle_group', 'size_group',
             'seattle',
-            'dist_lrt')
+            'dist_lrt', 'race_category', 'lifecycle', 'hh_has_children')
  
 x_sm<-less_vars[!less_vars %in% "displaced"]
 person_df_ls<-person_df_dis_sm[less_vars]
-
+x_sm<-c(x_sm)
 
 # Estimate the model
 
-displ_logit<-glm(reformulate(x_sm,'displaced'), data=person_df_ls,
+displ_logit<-glm(displaced ~ hh_all_people_of_color+hhincome_mrbroad+rent_or_not+vehicle_group+seattle+
+                 dist_lrt ,data=person_df_ls,
                  family = 'binomial')
 summary(displ_logit, correlation= TRUE)
 
@@ -177,11 +197,14 @@ summary(displ_logit, correlation= TRUE)
 plot_summs(displ_logit, scale = TRUE)
 
 #https://towardsdatascience.com/visualizing-models-101-using-r-c7c937fc5f04
-plot_model(displ_logit, transform = NULL, show.values = TRUE, axis.labels = "", value.offset = .4)
-#effect_plot(displ_logit, pred = poor_english, interval = TRUE, plot.points = TRUE)
+
+plot_model(displ_logit, transform = NULL, show.values = TRUE, axis.labels = '', value.offset = .4)
+#effect_plot(plot(allEffects(displ_logit))displ_logit, pred = poor_english, interval = TRUE, plot.points = TRUE)
 #looks nonlinear a bit
 
 #effect_plot(displ_logit, pred = white, interval = TRUE, plot.points = TRUE)
+
+plot(predictorEffects(displ_logit))
 
 # Trying the bma library
 # x<-person_df_ls[, !names(person_df_ls) %in% c('displaced')]
