@@ -10,30 +10,30 @@ import pandas as pd
 #os.chdir(working_dir)
 
 # Import local module variables
-from lookup import *
+from lookup_2014 import *
 
 # Set input paths
 
-trip_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\5_trip.csv'
-hh_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\1_household.csv'
-person_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2_person.csv'
+trip_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2014\Data\Final database\Release 4\Adjusted\trips_2014_adjusted_wt.csv'
+hh_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2014\Data\Final database\Release 4\2014-pr3-M-hhsurvey-households.csv'
+person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2014\Data\Final database\Release 4\2014-pr3-M-hhsurvey-persons.csv'
 
 # FIXME - which columns to use?:
-hh_wt_col = 'hh_wt_combined'
+hh_wt_col = 'expwt_2'
 
 # Output directory
 #output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
-output_dir = r'R:\e2projects_two\2018_base_year\survey\daysim_format'
+output_dir = r'R:\e2projects_two\2018_base_year\survey\2014\daysim_format'
 #output_dir  = r'C:\Users\bnichols\Documents\estimation_2017\2014_estimation'
 
 # Flexible column names, given that these may change in future surveys
 hhno = 'hhid'
 hownrent = 'rent_own'
 hrestype = 'res_type'
-hhincome = 'hhincome_detailed'
-hhtaz = 'final_home_taz'
-hhparcel = 'final_home_parcel'
-hhexpfac = 'hh_wt_revised'
+hhincome = 'hh_income_detailed'
+hhtaz = 'h_taz2010'
+hhparcel = 'h_parcelID_0'
+hhexpfac = 'expwt_2'
 hhwkrs = 'numworkers'
 hhvehs = 'vehicle_count'
 pno = 'pernum'
@@ -75,7 +75,7 @@ def assign_tour_mode(_df, tour_dict, tour_id, mode_heirarchy=mode_heirarchy):
 def process_person_file(person_file_dir):
     """ Create Daysim-formatted person file from Survey Excel file. """
 
-    person = pd.read_csv(person_file_dir, encoding='latin-1')
+    person = pd.read_csv(person_file_dir)
 
     # Full time worker
     person.loc[person['employment'] == 1, 'pptyp'] = 1
@@ -90,10 +90,10 @@ def process_person_file(person_file_dir):
     person.loc[(person['worker'] == 0) &  (person['age'].isin([10,11,12])), 'pptyp'] = 4
 
     # university student (full-time)
-    person.loc[(person['schooltype'].isin([6,7])) & (person['student'] == 3), 'pptyp'] = 5
+    person.loc[(person['school'].isin([5,6])) & (person['student'] == 3), 'pptyp'] = 5
 
     # High school student age 16+
-    person.loc[(person['age'] >= 4) & (person['schooltype'].isin([3,4,5])), 'pptyp'] = 6
+    person.loc[(person['age'] >= 4) & (person['school'].isin([3,4])), 'pptyp'] = 6
 
     # Child age 5-15
     person.loc[person['age'].isin([2,3]), 'pptyp'] = 7
@@ -113,13 +113,13 @@ def process_person_file(person_file_dir):
 
     # Transit pass availability
     person['ptpass'] = 0
-    person.loc[(person['tran_pass_12'].isin([1,2])) | (person['benefits_3'].isin([2,3])),'ptpass'] = 1
+    person.loc[person['benefits_transit'].isin([2,3]),'ptpass'] = 1
 
     # Paid parking at work (any level of subsidy counts as 'paid')
     person['ppaidprk'] = -1
-    person.loc[person['workpass'].isin([995]), 'ppaidprk'] = -1
-    person.loc[person['workpass'].isin([1,2,5,6]), 'ppaidprk'] = 0
-    person.loc[person['workpass'].isin([3,4]), 'ppaidprk'] = 1
+    person.loc[person['benefits_parking'].isin([995]), 'ppaidprk'] = -1
+    person.loc[person['benefits_parking'].isin([1,4]), 'ppaidprk'] = 0
+    person.loc[person['benefits_parking'].isin([2,3]), 'ppaidprk'] = 1
 
     ### FIXME:
     # usual arrival/departure time to/from work
@@ -129,7 +129,8 @@ def process_person_file(person_file_dir):
 
 
     # Map other variables from lookup tables
-    person['puwmode'] = person['commute_mode'].map(commute_mode_dict)   # Note that all HOV trips are lumped into HOV2 besides vanpool, should use occupancy to sort this out
+    person['puwmode'] = -1
+    #person['puwmode'] = person['commute_mode'].map(commute_mode_dict)   # Note that all HOV trips are lumped into HOV2 besides vanpool, should use occupancy to sort this out
     person['age'] = person['age'].astype('int')
     person['pagey'] = person['age'].map(age_map)
     person['pgend'] = person['gender'].map(gender_map)
@@ -137,13 +138,13 @@ def process_person_file(person_file_dir):
     person['pstyp'].fillna(0,inplace=True)
     person['hhno'] = person['hhid']
     person['pno'] = person['pernum']
-    person['psexpfac'] = person['hh_wt_combined']
+    person['psexpfac'] = person['expwt_final']
 
     # Get the TAZ and parcel data from the survey (must be added from the locate_parcels.py script first!)
-    person['pwtaz'] = person['work_taz']
-    person['pstaz'] = person['school_loc_taz']
-    person['pwpcl'] = person['work_parcel']
-    person['pspcl'] = person['school_loc_parcel']
+    person['pwtaz'] = person['work_TAZ10']
+    person['pstaz'] = person['school_TAZ10']
+    person['pwpcl'] = person['work_parcelID_0']
+    person['pspcl'] = person['sch_parcelID_0']
 
     daysim_cols = ['hhno', 'pno', 'pptyp', 'pagey', 'pgend', 'pwtyp', 'pwpcl', 'pwtaz', 'pwautime',
                'pwaudist', 'pstyp', 'pspcl', 'pstaz', 'psautime', 'psaudist', 'puwmode', 'puwarrp', 
@@ -253,25 +254,26 @@ def process_trip_file(trip_file_dir, person):
     trip = pd.read_csv(trip_file_dir, encoding='latin-1')
 
 
-    trip['trexpfac'] = trip['trip_wt_combined']
+    trip['trexpfac'] = trip['trip_wt_final']
     # Filter out trips that have weight of zero or null
     trip = trip[-trip['trexpfac'].isnull()]
     trip = trip[trip['trexpfac'] > 0]
 
     # Filter out trips that started before 0 mam
-    trip = trip[trip['depart_time_mam'] >= 0] 
+    trip = trip[trip['time_start_mam'] >= 0] 
 
     trip['hhno'] = trip['hhid']
     trip['pno'] = trip['pernum']
-    trip['day'] = trip['daynum'].astype('int')
+    #trip['day'] = trip['daynum'].astype('int')
     trip['tsvid'] = trip['tripnum']
-    trip['unique'] = trip['recid']
+    trip['unique'] = trip['recordID']
 
     # Select only weekday trips (M-Th)
     # 1 is Monday, 2 T, 3 W, 4 Th
-    trip = trip[trip['dayofweek'].isin([1,2,3,4])] 
+    #trip = trip[trip['dayofweek'].isin([1,2,3,4])] 
 
-    trip['day'] = trip['dayofweek']
+    #trip['day'] = trip['dayofweek']
+    trip['day'] = 2
 
     trip['opurp'] = trip['o_purpose'].map(purpose_map)
     trip['dpurp'] = trip['d_purpose'].map(purpose_map)
@@ -280,16 +282,19 @@ def process_trip_file(trip_file_dir, person):
     # Dorp of N/A is e in daysim, fillna with this value
     trip['dorp'] = trip['dorp'].fillna(3)
 
-    
+    trip['opcl'] = trip['o_parcelID_0'].copy()
+    trip['dpcl'] = trip['d_parcelID_0'].copy()
+    trip['otaz'] = trip['o_taz10'].copy()
+    trip['dtaz'] = trip['d_taz10'].copy()
 
     ##############################
     # Start and end time
     ##############################
     # Filter out rows with None
-    trip = trip[-trip['depart_time_mam'].isnull()]
-    trip = trip[-trip['arrival_time_mam'].isnull()]
-    trip['arrtm'] = trip['arrival_time_mam']
-    trip['deptm'] = trip['depart_time_mam']
+    trip = trip[-trip['time_start_mam'].isnull()]
+    trip = trip[-trip['time_end_mam'].isnull()]
+    trip['arrtm'] = trip['time_start_mam']
+    trip['deptm'] = trip['time_end_mam']
     # if arrtm/deptm > 24*60, subtract that value to normalize to a single day
     # for some reason values can extend to a full day later
     for colname in ['arrtm','deptm']:
@@ -299,25 +304,28 @@ def process_trip_file(trip_file_dir, person):
     
     # Calculate start of next trip (ENDACTTM: trip destination activity end time)
     # FIXME: there are negative values in the activity_duration field
-    trip['endacttm'] = trip['activity_duration'].abs() + trip['arrtm']
+    trip['endacttm'] = trip['a_dur'].abs() + trip['arrtm']
 
 
     ##############################
     # Mode
     ##############################
+
+    trip['mode_1'] = trip['mode'].copy()
+
     trip['mode'] = 'Other'
 
     # Get HOV2/HOV3 based on total number of travelers
-    auto_mode_list = [3,4,5,6,7,8,9,10,11,12,16,17,18,21,22,33,34]
+    auto_mode_list = [1,2,3,4,5]
     trip.loc[(trip['travelers_total'] == 1) & (trip['mode_1'].isin(auto_mode_list)),'mode'] = 'SOV'
     trip.loc[(trip['travelers_total'] == 2) & (trip['mode_1'].isin(auto_mode_list)),'mode'] = 'HOV2'
     trip.loc[(trip['travelers_total'] > 2) & (trip['mode_1'].isin(auto_mode_list)),'mode'] = 'HOV3+'
     # transit etc
-    trip.loc[trip['mode_1'].isin([23,32,41,42,52]),'mode'] = 'Transit'
-    trip.loc[trip['mode_1'].isin([1]),'mode'] = 'Walk'
-    trip.loc[trip['mode_1'].isin([2]),'mode'] = 'Bike'
-    trip.loc[trip['mode_1'].isin([24]),'mode'] = 'School_Bus'
-    trip.loc[trip['mode_1'].isin([37]),'mode'] = 'TNC' # Should this also include traditonal Taxi?
+    trip.loc[trip['mode_1'].isin([8,9,10,11]),'mode'] = 'Transit'
+    trip.loc[trip['mode_1'].isin([7]),'mode'] = 'Walk'
+    trip.loc[trip['mode_1'].isin([6]),'mode'] = 'Bike'
+    trip.loc[trip['mode_1'].isin([12]),'mode'] = 'School_Bus'
+    trip.loc[trip['mode_1'].isin([13]),'mode'] = 'TNC' # Should this also include traditonal Taxi?
     trip['mode'] = trip['mode'].map(mode_dict)
     
 
@@ -365,17 +373,15 @@ def process_trip_file(trip_file_dir, person):
     # FIXME: Note that this field doesn't exist for some trips, should really be analyzed by grouping on the trip day or tour
     trip['pathtype'] = 1
     for index, row in trip.iterrows():
-        if len([i for i in list(row[['mode_1','mode_2','mode_3','mode_4']].values) if i in [23, 32, 41, 42, 52]]):
+        if len([i for i in list(row[['mode_1','mode2','mode3']].values) if i in [23, 32, 41, 42, 52]]):
 
             # ferry or water taxi
-            if 32 in row[['mode_1','mode_2','mode_3','mode_4']].values:
+            if 10 in row[['mode_1','mode2','mode3']].values:
                 trip.loc[index,'pathtype'] = 7
             # commuter rail
-            elif 41 in row[['mode_1','mode_2','mode_3','mode_4']].values:
-                trip.loc[index,'pathtype'] = 6
-            # 'Urban rail (e.g., Link light rail, monorail)'
-            elif [42 or 52] in row[['mode_1','mode_2','mode_3','mode_4']].values:
+            elif 9 in row[['mode_1','mode2','mode3']].values:
                 trip.loc[index,'pathtype'] = 4
+  
             else:
                 trip.loc[index,'pathtype'] = 3
 
@@ -423,7 +429,7 @@ def build_tour_file(trip, person):
     tour_id = 0
 
     for personid in trip['personid'].value_counts().index.values:
-    #for personid in ['1910284462']:
+    #for personid in ['1410409701']:
         ##print('xxxxxxxxxxxxxxxxxxx')
         print(personid)
         person_df = trip.loc[trip['personid'] == personid]
@@ -442,7 +448,6 @@ def build_tour_file(trip, person):
             # !!!!!!!!!!!
             if (df.groupby('personid').first()['opurp'].values[0] != 0) or df.groupby('personid').last()['dpurp'].values[0] != 0:
                 bad_trips += df['unique'].tolist()
-                print('ayyyyyyyyyyyyyyyyyyyy')
                 continue
 
             # Some people do not report sequential trips. 

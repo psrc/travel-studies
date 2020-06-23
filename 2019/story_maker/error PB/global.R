@@ -60,7 +60,7 @@ variables.lu <- variables.lu[order(category_order, variable_name)]
 values.lu <- read.dt(dbtable.values, 'table_name')
 values.lu<- values.lu[order(value_order)]
 
-# hack to group some of the data
+
 
 
 # master list

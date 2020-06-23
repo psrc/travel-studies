@@ -33,7 +33,7 @@ stabTableType <- function(var1) {
 # weighted data, margins of error and the sample counts.  
 # This is the function that is doing all the heavy lifting for this code.
 simple_table <- function(table, var, wt_field, type) {
-  print(var)
+  
   # removing all NAs, and data with a missing code.
   # We may want to make this be an optional argument of whether to remove NAs
   # First take care of making tables for dimensional/categorical data.
@@ -45,16 +45,16 @@ simple_table <- function(table, var, wt_field, type) {
     }
     table <- na.omit(table, cols = var)
     raw <- table[, .(sample_count = .N), by = var]
-    N_hh <- table[, .(hhid = uniqueN(hhid))]
+    N_hh <- table[, .(hhid = uniqueN(hhid)), by = var]
     table<-table[!is.na(get(wt_field))]
     # Getting weighted Totals
     expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = var]
     expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field][[eval(wt_field)]]
+    print(expanded_tot)
     setnames(expanded, wt_field, "Total")
-    expanded[,'hhid':=N_hh[['hhid']][1]]
     #Calculating weighted Shares
     expanded[, Share := Total/eval(expanded_tot)]
-    #expanded <- merge(expanded, N_hh, by = var)
+    expanded <- merge(expanded, N_hh, by = var)
     # Initial calculation for margin of error, z* in=MOE
     expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
     expanded$Total <- sum(expanded$Total)

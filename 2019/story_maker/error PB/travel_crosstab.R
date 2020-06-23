@@ -32,29 +32,31 @@ stabTableType <- function(var1) {
 #This function takes in the raw unweighted data for the summary and returns the final table with
 # weighted data, margins of error and the sample counts.  
 # This is the function that is doing all the heavy lifting for this code.
-simple_table <- function(table, var, wt_field, type) {
-  print(var)
+simple_table <- function(table, var, wt_field, type,table_map) {
+  
   # removing all NAs, and data with a missing code.
   # We may want to make this be an optional argument of whether to remove NAs
   # First take care of making tables for dimensional/categorical data.
   if (type == "dimension") {
+    browser()
     setkeyv(table, var)
     table[table==""]<- NA
     for(missing in missing_codes){
       table<- subset(table, get(var) != missing)
     }
     table <- na.omit(table, cols = var)
+    table[[var]] <- table_map$changed_var[match(table[[var]],table_map$variable)]
     raw <- table[, .(sample_count = .N), by = var]
-    N_hh <- table[, .(hhid = uniqueN(hhid))]
+    N_hh <- table[, .(hhid = uniqueN(hhid)), by = var]
     table<-table[!is.na(get(wt_field))]
     # Getting weighted Totals
     expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = var]
     expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field][[eval(wt_field)]]
+    print(expanded_tot)
     setnames(expanded, wt_field, "Total")
-    expanded[,'hhid':=N_hh[['hhid']][1]]
     #Calculating weighted Shares
     expanded[, Share := Total/eval(expanded_tot)]
-    #expanded <- merge(expanded, N_hh, by = var)
+    expanded <- merge(expanded, N_hh, by = var)
     # Initial calculation for margin of error, z* in=MOE
     expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
     expanded$Total <- sum(expanded$Total)
@@ -72,6 +74,7 @@ simple_table <- function(table, var, wt_field, type) {
     for(missing in missing_codes){
       table<- subset(table, get(var) != missing)
     }
+    table[[var]] <- table_map$changed_var[match(table[[var]],table_map$variable)]
     cols<- c(var, wt_field)
     table <- na.omit(table)
     if(var == 'weighted_trip_count'){
@@ -124,9 +127,8 @@ get_sTable <- function(var1, sea_reg, wt_field, table_type){
 
 # This function reads a list of variables to summarize and returns the completed summarized tables.
 # It calls the functions to munge and filter the data. 
-summarize_simple_tables <-function(var_list){
+summarize_simple_tables <-function(var_list,table_map){
   first = 1
-  
   for(var in var_list){
     # find the table the variable is on
     table_type <- stabTableType(var)$Res
@@ -144,8 +146,8 @@ summarize_simple_tables <-function(var_list){
     seattle_recs<-get_sTable(var, 'Seattle', wt_field, table_type)
 
     #do the number crunching to get the weighted data, counts, and MOEs
-    region_tab<- simple_table(region_recs, var, wt_field, data_type)
-    seattle_tab<- simple_table(seattle_recs, var, wt_field, data_type)
+    region_tab<- simple_table(region_recs, var, wt_field, data_type,table_map)
+    seattle_tab<- simple_table(seattle_recs, var, wt_field, data_type,table_map)
     
     #merge the seattle data and regional data to get a single table
     tbl_output <-merge(region_tab, seattle_tab, by=var, suffixes =c(' Region', ' Seattle'))  
@@ -183,6 +185,7 @@ summarize_simple_tables <-function(var_list){
 
     write.xlsx(Share_tbl, file_ext_Share, sheetName ="data", 
                col.names = TRUE, row.names = FALSE, append = FALSE)
+    return(tbl_output,Share_tbl)
 
   }
 }
@@ -226,7 +229,7 @@ xtabTableType <- function(var1, var2){
 # the correct weight, which subset of households (either Seattle or regional), and returns the data records
 # needed to summarize the weighted and unweighted data.
 
-get_xtabTable <- function(var1, var2, sea_reg, wt_field, table_type, var3 = FALSE, value3=FALSE, group1 = FALSE){
+get_xtabTable <- function(var1, var2, sea_reg, wt_field, table_type, var3 = FALSE, value3=FALSE){
     if(var1=='weighted_trip_count' || var2=='weighted_trip_count'){
     # use a special weight here because trip counts are a weird case
     wt_field <-hh_day_weight_name
@@ -249,8 +252,6 @@ get_xtabTable <- function(var1, var2, sea_reg, wt_field, table_type, var3 = FALS
   if (sea_reg== 'Seattle'){
     survey <- survey[seattle_home == 'Home in Seattle',]
   }
-  
-
   return(survey)
 }
 
@@ -258,12 +259,10 @@ get_xtabTable <- function(var1, var2, sea_reg, wt_field, table_type, var3 = FALS
 #This function takes in the raw unweighted data for the summary and returns the final table with
 # weighted data, margins of error and the sample counts.  
 # This is the function that is doing all the heavy lifting for this code.
-cross_tab <- function(table, var1, var2, wt_field, type, group1, group2) {
+cross_tab <- function(table, var1, var2, wt_field, type) {
   # z <- 1.96 # 95% CI
 
   cols <- c(var1, var2)
-  
-  
 
   if (type == "dimension") {
     setkeyv(table, cols)
@@ -273,31 +272,15 @@ cross_tab <- function(table, var1, var2, wt_field, type, group1, group2) {
        table<- subset(table, get(var2) != missing)
      }    
     table <- na.omit(table, cols = cols)
-    
-    if(group1 == TRUE){
-      table = merge(table,values.lu, by.x = var1, by.y = 'value_text')
-      grouped_name <-  paste(var1, 'group', sep='_')
-      setnames(table, 'value_group_1', grouped_name)
-      var1= grouped_name
-      
-    }
-    if(group2 == TRUE){
-      table = merge(table,values.lu, by.x = var2, by.y = 'value_text')
-      table[, var2 := 'value_group_1']
-      grouped_name <-  paste(var2,'group',sep='_')
-      setnames(table, 'value_group_1', grouped_name)
-      var2= grouped_name
-    }
-    cols <- c(var1, var2)
     table<-table[!is.na(get(wt_field))]
     raw <- table[, .(sample_count = .N), by = cols] 
-    N_hh <- table[, .(hhid = uniqueN(hhid))]
+    N_hh <- table[, .(hhid = uniqueN(hhid)), by = var1]
     expanded <- table[, lapply(.SD, sum), .SDcols = wt_field, by = cols]
     expanded_tot <- expanded[, lapply(.SD, sum), .SDcols = wt_field, by = var1]
     setnames(expanded, wt_field, "Total")
     expanded <- merge(expanded, expanded_tot, by = var1)
     expanded[, Share := Total/get(eval(wt_field))]
-    expanded <- expanded[, 'hhid':=N_hh]
+    expanded <- merge(expanded, N_hh, by = var1)
     expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
     expanded$estMOE= expanded$MOE*expanded[[wt_field]]
     crosstab <- merge(raw, expanded, by = cols)
@@ -334,7 +317,7 @@ cross_tab <- function(table, var1, var2, wt_field, type, group1, group2) {
 
   }
   
-  #setnames(crosstab, 'var1', var1)
+  setnames(crosstab, 'var1', var1)
   return(crosstab)
 }
 
@@ -343,9 +326,8 @@ colClean <- function(x){ colnames(x) <- gsub("_", " ", colnames(x)); x }
 # This function reads a list of variables to summarize and returns the completed summarized tables.
 # It calls the functions to munge and filter the data. 
 
-summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE, group1=FALSE, group2=FALSE){
+summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE){
   first = 1
-  
   
   for(var1 in var_list1){
     for(var2 in var_list2){
@@ -357,32 +339,19 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE, 
       wt_field<- table_names[[table_type]]$weight_name
       
       
-      region_recs<-get_xtabTable(var1, var2, 'Region', wt_field, table_type, var3, val3, group1)
-      seattle_recs<-get_xtabTable(var1, var2, 'Seattle', wt_field, table_type, var3, val3, group1)
+      region_recs<-get_xtabTable(var1, var2, 'Region', wt_field, table_type, var3, val3)
+      seattle_recs<-get_xtabTable(var1, var2, 'Seattle', wt_field, table_type, var3, val3)
       
-      region_tab<-cross_tab(region_recs, var1, var2, wt_field, data_type, group1, group2)
-      seattle_tab<-cross_tab(seattle_recs, var1, var2, wt_field, data_type, group1, group2)
+      region_tab<-cross_tab(region_recs, var1, var2, wt_field, data_type)
+      seattle_tab<-cross_tab(seattle_recs, var1, var2, wt_field, data_type)
       
-      tbl_output <-merge(region_tab, seattle_tab, 'var1', suffixes =c(' Region', ' Seattle'))  
-      
-      if(group1 == FALSE){
+
+      tbl_output <-merge(region_tab, seattle_tab, var1, suffixes =c(' Region', ' Seattle'))  
       vars1 <-variables.lu[variable==var1]
       var1_name <-unique(vars1[,variable_name])
-      }
-      else{
-        vars1 <-variables.lu[variable==var1]
-        var1_name <-paste(unique(vars1[,variable_name]), ' Group')
-        setnames(tbl_output, 'var1', var1_name)
-      }
-      if(group2== FALSE){
       vars2 <-variables.lu[variable==var2]
       var2_name <-unique(vars2[,variable_name])
-      }
-      else{
-        vars1 <-variables.lu[variable==var1]
-        var1_name <-paste(unique(vars1[,variable_name]), ' Group')
-        setnames(tbl_output, 'var2', var1_name)
-      }
+      
      
       if(val3==FALSE){
       file_name <- paste(var1_name,'_', var2_name,'.xlsx')
@@ -397,6 +366,10 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE, 
       Share_cols <- grep("^Share", names(tbl_output), value=T)
       est_cols <- grep("^Total", names(tbl_output), value=T)
       sample_cols <- grep("^sample_count", names(tbl_output), value=T)
+      tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
+      
+      setnames(tbl_output, var1, var1_name)
+      
       tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
       
      
@@ -422,4 +395,11 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE, 
       
     }
   }
+}
+
+#mapping funciton
+
+map_data = function(){
+  
+  
 }

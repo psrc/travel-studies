@@ -81,23 +81,19 @@ purpose_map = {
     1: 0, # home
     6: 2, # school
     9: 3, # escort
-    10: 1, # work
-    11: 1, # work-related
-    14: 1, # work-related
-    30: 5, # grocery -> shop
-    32: 5, # other shopping -> shop
-    33: 4, # personal business
-    34: 4, # medical is combined with personal business (4)
-    50: 6, # restaurant -> meal
-    51: 7, # recreational is combined with social (7)
-    52: 7, # socail
-    53: 7, # recreational is combined with social (7)
-    54: 7, # religious/community/volunteer -> social
-    56: 7, # family activity -> social
-    60: 10, # change mode
-    61: 4, # personal business
-    62: 7, # other social
-    97: 4 # other, setting as personal business for now (4) ?
+    2: 1, # work
+    3: 1, # work-related
+    4: 5, # grocery -> shop
+    5: 5, # other shopping -> shop
+    8: 4, # personal business
+    7: 4, # medical is combined with personal business (4)
+    10: 7,
+    11: 6, # restaurant -> meal
+    13: 7, # recreational is combined with social (7)
+    12: 7, # socail
+    14: 7, # religious/community/volunteer -> social
+    15: 10, # change mode
+    16: 4 # other, setting as personal business for now (4) ?
 }
 
 dorp_map = {
