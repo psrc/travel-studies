@@ -56,7 +56,8 @@ simple_table <- function(table, var, wt_field, type) {
     expanded[, Share := Total/eval(expanded_tot)]
     #expanded <- merge(expanded, N_hh, by = var)
     # Initial calculation for margin of error, z* in=MOE
-    expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    expanded[,p_col :=p_MOE]   
+    expanded[, ("in") := (p_col*(1-p_col))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]#expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
     expanded$Total <- sum(expanded$Total)
     expanded$estMOE = expanded$MOE * expanded$Total
     s_table <- merge(raw, expanded, by = var)
@@ -298,7 +299,9 @@ cross_tab <- function(table, var1, var2, wt_field, type, group1, group2) {
     expanded <- merge(expanded, expanded_tot, by = var1)
     expanded[, Share := Total/get(eval(wt_field))]
     expanded <- expanded[, 'hhid':=N_hh]
-    expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    expanded[,p_col :=p_MOE] 
+    expanded[, ("in") := (p_col*(1-p_col))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
+    #expanded[, ("in") := (Share*(1-Share))/hhid][, MOE := z*sqrt(get("in"))][, N_HH := hhid]
     expanded$estMOE= expanded$MOE*expanded[[wt_field]]
     crosstab <- merge(raw, expanded, by = cols)
     crosstab <- dcast.data.table(crosstab, 
@@ -400,7 +403,7 @@ summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE, 
       tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
       
      
-      s_cols <-c(var1_name, Share_cols, est_cols, sample_cols)
+      s_cols <-c(Share_cols, est_cols, sample_cols)
       
       Share_tbl <- tbl_output[ , ..s_cols]
       Share_tbl <- colClean(Share_tbl) 
