@@ -37,8 +37,19 @@ for (res_factor in prev_res_vars){
   summarize_cross_tables(race_data, res_factor, group1=TRUE)
 }
   
+
 #Q1. How does vehicle ownership vary by race?
+
 summarize_cross_tables(race_data, c('vehicle_count'))
+
+#size<-c('hhsize')
+# sizes<-values.lu[variable=='hhsize'][['value_text']]
+# for(this_size in sizes){
+#   print(this_size)
+#   summarize_cross_tables(race_data,c('vehicle_count'),size, this_size)
+# }
+
+
 #summarize_cross_tables(race_data, c('vehicle_count'), group1=TRUE)
 
 #Q2. How do mode shares differ by race?
