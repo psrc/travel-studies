@@ -83,6 +83,8 @@ col.headers <- c("sample_count", "estimate", "estMOE", "share", "MOE", "N_HH")
 dtype.choice.xtab.facts <- dtype.choice[c(9, 10, 8)]
 col.headers.facts <-  c("mean", "MOE", "sample_count", "N_HH")
 
+#assuming a conservative estimate for p for MOE
+p_MOE <- 0.5
 # stab sublist
 dtype.choice.stab <- dtype.choice[c(1:2, 7, 3, 8)]
 dtype.choice.stab.vis <- dtype.choice[c(1:2, 6, 4, 8)]

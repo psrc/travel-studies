@@ -112,8 +112,34 @@ simple_table <- function(table, var, wt_field, type) {
 # needed to summarize the weighted and unweighted data.
 
 get_sTable <- function(var1, sea_reg, wt_field, table_type){
-  sql.query <- paste("SELECT seattle_home, hhid,", var1,",", wt_field, "FROM" , table_names[[table_type]]$table_name)
+  if(var1!='race_group_detail'){
+  sql.query <- paste("SELECT seattle_home, hhid,race_aiak, race_asian, race_hapi, race_white, race_other, race_hisp, race_afam,", var1,",", wt_field, "FROM" , table_names[[table_type]]$table_name)}
+  else{sql.query <- paste("SELECT seattle_home, hhid,race_aiak, race_asian, race_hapi, race_white, race_other, race_hisp, race_afam,", wt_field, "FROM" , table_names[[table_type]]$table_name)}
   survey <- read.dt(sql.query, 'sqlquery')
+  
+  if(table_names[[table_type]]$table_name != dbtable.household){
+    # define a new race variable
+    race_list<-c('Other', 'Asian', 'Other',  'White', 'Other', 'Hispanic','African-American')
+    names(race_list)<- c('race_aiak', 'race_asian', 'race_hapi', 'race_white', 'race_other', 'race_hisp', 'race_afam')
+    
+    survey$another_race_selected<-0
+    survey$race_group_detail<- 'Children or missing'
+    # identify multiracial, non-Hispanic people
+    for(race in names(race_list)){
+      print(race)
+      if(race!='race_hisp'){
+        survey[((another_race_selected==1) & (get(eval(race))=='Selected')), race_group_detail:= 'multiracial']
+        print(head(survey[race_group_detail=='multiracial', ]))
+        survey[get(eval(race))=='Selected', another_race_selected:=1]
+      }
+      
+    }
+    
+    for(race in names(race_list)){
+      print(race)
+      survey[race_group_detail!='multiracial' & get(eval(race))=='Selected','race_group_detail':=race_list[race]]
+    }
+  }
   
   if (sea_reg== 'Seattle'){
     survey <- survey[seattle_home == 'Home in Seattle',]}
@@ -234,18 +260,50 @@ get_xtabTable <- function(var1, var2, sea_reg, wt_field, table_type, var3 = FALS
     }
   # when you are only summarizing two variables
   if(var3==FALSE){
-    sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name)
+    if(var1!='race_group_detail'){
+    sql.query <- paste("SELECT seattle_home, hhid, race_aiak, race_asian, race_hapi, race_white, race_other, race_hisp, race_afam,", var1,",",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name)}
+    else{
+      sql.query <- paste("SELECT seattle_home, hhid, race_aiak, race_asian, race_hapi, race_white, race_other, race_hisp, race_afam," ,var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name)}
+  
     survey <- read.dt(sql.query, 'sqlquery')
   }
   # to summarize three dimensions
   else{
-  sql.query <- paste("SELECT seattle_home, hhid,", var1,",",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name,
+    if(var1!='race_category_detail'){
+      sql.query <- paste("SELECT seattle_home, hhid, race_aiak, race_asian, race_hapi, race_white, race_other, race_hisp, race_afam,", var1,",",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name,
                      "WHERE ", var3, "=")
+    }
+    else{sql.query <- paste("SELECT seattle_home, hhid, race_aiak, race_asian, race_hapi, race_white, race_other, race_hisp, race_afam,",var2, ",", wt_field, "FROM", table_names[[table_type]]$table_name,
+                            "WHERE ", var3, "=")
+    }
   sql.query<-paste(sql.query,'\'', value3,'\'', sep='')
   }
-  
-  survey <- read.dt(sql.query, 'sqlquery')
 
+  survey <- read.dt(sql.query, 'sqlquery')
+  
+  if(table_names[[table_type]]$table_name != dbtable.household){
+    # define a new race variable
+    race_list<-c('Other', 'Asian', 'Other',  'White', 'Other', 'Hispanic','African-American')
+    names(race_list)<- c('race_aiak', 'race_asian', 'race_hapi', 'race_white', 'race_other', 'race_hisp', 'race_afam')
+    
+    survey$another_race_selected<-0
+    survey$race_group_detail<- 'Children or missing'
+    # identify multiracial, non-Hispanic people
+    for(race in names(race_list)){
+      print(race)
+      if(race!='race_hisp'){
+        survey[((another_race_selected==1) & (get(eval(race))=='Selected')), race_group_detail:= 'multiracial']
+        print(head(survey[race_group_detail=='multiracial', ]))
+        survey[get(eval(race))=='Selected', another_race_selected:=1]
+        }
+      
+    }
+  
+  for(race in names(race_list)){
+    print(race)
+    survey[race_group_detail!='multiracial' & get(eval(race))=='Selected','race_group_detail':=race_list[race]]
+    }
+  }
   
   if (sea_reg== 'Seattle'){
     survey <- survey[seattle_home == 'Home in Seattle',]
