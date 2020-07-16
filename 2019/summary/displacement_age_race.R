@@ -38,6 +38,30 @@ hh_recent_move$displaced <- case_when(
   TRUE ~ 0
 )
 
+# Tests using fields hhincome_detailed and hhincome_broad showed that neither classification
+# was best suited for this analysis of displacement.
+# Create a new field between detailed and broad
+hh_recent_move$hhincome_intermediate <- case_when(
+  hh_recent_move$hhincome_detailed %in% c("Under $10,000",
+                                          "$10,000-$24,999")
+  ~ "Under $25,000",
+  hh_recent_move$hhincome_detailed %in% c("$25,000-$34,999",
+                                          "$35,000-$49,999")
+  ~ "$25,000-$49,999",
+  hh_recent_move$hhincome_detailed == "$50,000-$74,999"
+  ~ "$50,000-$74,999",
+  hh_recent_move$hhincome_detailed == "$75,000-$99,999"
+  ~ "$75,000-$99,999",
+  hh_recent_move$hhincome_detailed == "$100,000-$149,999"
+  ~ "$100,000-$149,999",
+  hh_recent_move$hhincome_detailed %in% c("$150,000-$199,999",
+                                          "$200,000-$249,999",
+                                          "$250,000 or more")
+  ~ "$150,000 or more",
+  hh_recent_move$hhincome_detailed == "Prefer not to answer"
+  ~ "Prefer not to answer"
+)
+
 # Create a person table narrowed to age and race fields
 person_lt <- person_2019 %>% 
   select(household_id,
@@ -122,6 +146,28 @@ hh_race_cat <- person_lt %>%
 hh_movers_race <- left_join(hh_recent_move, hh_race_cat,
                             by = c("household_id" = "household_id"))
 
+# Order levels in the new fields before beginning analysis
+hh_movers_race$hhincome_intermediate <- ordered(hh_movers_race$hhincome_intermediate,
+                                                levels = c("Under $25,000",
+                                                           "$25,000-$49,999",
+                                                           "$50,000-$74,999",
+                                                           "$75,000-$99,999",
+                                                           "$100,000-$149,999",
+                                                           "$150,000 or more",
+                                                           "Prefer not to answer"))
+
+hh_movers_race$hh_age <- ordered(hh_movers_race$hh_age,
+                                 levels = c("Household with children",
+                                            "Household excl. age 18-34",
+                                            "Household age 35-64",
+                                            "Household age 65+"))
+
+hh_movers_race$hh_race <- ordered(hh_movers_race$hh_race,
+                                  levels = c("Asian",
+                                             "Non-Asian POC",
+                                             "White",
+                                             "Other"))
+
 # Analysis of data (examples of summaries using the new household variables)
 
 # Region
@@ -163,6 +209,15 @@ hh_movers_race %>%
 # Household race (combined)
 hh_movers_race %>% 
   group_by(hh_race, displaced) %>% 
+  summarize(n = n(),
+            households = sum(hh_wt_2019)) %>% 
+  mutate(hh_pct = households / sum(households), 
+         moe = 1.645 * sqrt(0.25 / sum(n))) %>% 
+  ungroup()
+
+# Household income
+hh_movers_race %>% 
+  group_by(hhincome_intermediate, displaced) %>% 
   summarize(n = n(),
             households = sum(hh_wt_2019)) %>% 
   mutate(hh_pct = households / sum(households), 
