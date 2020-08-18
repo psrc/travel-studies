@@ -101,7 +101,8 @@ person_lt <- person_2019 %>%
     ~ "Household age 35-64",
     TRUE ~ "Household excl. age 18-34"
   ),
-  hh_race_sep = case_when(
+  # used to determine how to construct hh_race below; not for analysis
+  hh_race_sep = case_when( 
     all(race_cat_broad == "POC") | all(race_cat_broad %in% c("POC", "Children"))
     ~ "POC Only",
     all(race_cat_broad == "Asian") | all(race_cat_broad %in% c("Asian", "Children"))
@@ -117,7 +118,8 @@ person_lt <- person_2019 %>%
     any(race_cat_broad == "Missing")
     ~ "Missing" 
   ),
-  hh_race = case_when(
+  # use for analysis
+  hh_race = case_when( # use for analysis
     all(race_cat_broad == "POC") | all(race_cat_broad %in% c("POC", "Children"))
     ~ "Non-Asian POC",
     all(race_cat_broad == "Asian") | all(race_cat_broad %in% c("Asian", "Children"))
@@ -139,7 +141,7 @@ person_lt <- person_2019 %>%
 # and join to the table of recently moved households
 hh_race_cat <- person_lt %>% 
   group_by(household_id) %>% 
-  summarize(hh_age = first(hh_age_18),
+  summarize(hh_age = first(hh_age),
             hh_race_sep = first(hh_race_sep),
             hh_race = first(hh_race))
 
