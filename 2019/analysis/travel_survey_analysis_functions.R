@@ -1,9 +1,10 @@
 ## Read from Elmer
-#assuming a conservative estimate for p for MOE
+
+# Statistical assumptions for margins of error
 p_MOE <- 0.5
 z<-1.645
 
-
+# connecting to Elmer
 db.connect <- function() {
   elmer_connection <- dbConnect(odbc(),
                                 driver = "SQL Server",
@@ -13,6 +14,7 @@ db.connect <- function() {
   )
 }
 
+# a function to read tables and queries from Elmer
 read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
   elmer_connection <- db.connect()
   if (type == 'table_name') {
@@ -24,8 +26,8 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
   dtelm
 }
 
-#
-
+#Create a crosstab from two variables, calculate counts, totals, and shares,
+# for categorical data
 cross_tab_categorical <- function(table, var1, var2, wt_field) {
     expanded <- table %>% 
     group_by(.data[[var1]],.data[[var2]]) %>%
@@ -40,7 +42,7 @@ cross_tab_categorical <- function(table, var1, var2, wt_field) {
     
   } 
     
-# to do: convert to dplyr
+# Create margins of error for dataset
 categorical_moe <- function(sample_size_group){
   sample_w_MOE<-sample_size_group %>%
     mutate(p_col=p_MOE) %>%
@@ -51,7 +53,7 @@ categorical_moe <- function(sample_size_group){
   }   
  
 
-
+#write out crosstabs
 write_cross_tab<-function(out_table, var1, var2, file_loc){
  
   file_name <- paste(var1,'_', var2,'.xlsx')
