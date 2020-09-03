@@ -47,7 +47,7 @@ categorical_moe <- function(sample_size_group){
   sample_w_MOE<-sample_size_group %>%
     mutate(p_col=p_MOE) %>%
     mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
-    mutate(MOE_Percent=sqrt(MOE_calc1))
+    mutate(MOE_Percent=z*sqrt(MOE_calc1))
 
   return(sample_w_MOE)
   }   

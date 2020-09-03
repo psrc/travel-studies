@@ -54,13 +54,18 @@ sample_size_group<- persons_no_na %>%
                     group_by(afr_am_race_category) %>%
                     summarize(sample_size = n_distinct((person_dim_id)))
   
-
+sample_size_MOE<- categorical_moe(sample_size_group)
 
 # Auto Ownership ####################################################
 
-var2<-'vehicle_count'
-auto_own_cross <- cross_tab_categorical(persons_no_na,group_cat, var2, person_wt_field)
-auto_own_MOE <- categorical_moe(sample_size_group)
-auto_own<-merge(auto_own_cross, auto_own_MOE, by=group_cat)
-write_cross_tab(auto_own, group_cat, var2, file_loc)
+vars_to_summarize<-c('vehicle_count', 'mode_freq_1',  'mode_freq_2',  'mode_freq_3', 'mode_freq_4', 'mode_freq_5',
+                    'wbt_transitmore_1', 'wbt_transitmore_2', 'wbt_transitmore_3', 
+                    'wbt_bikemore_1', 'wbt_bikemore_2', 'wbt_bikemore_3')
+
+for(var in vars_to_summarize){
+  cross_table<-cross_tab_categorical(persons_no_na,group_cat, var, person_wt_field)
+  cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+  write_cross_tab(cross_table_w_MOE,group_cat,var,file_loc)
+}
+
 
