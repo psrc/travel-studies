@@ -1,7 +1,5 @@
-source('analysis_functions.R')
-library(data.table)
+source('travel_survey_analysis_functions.R')
 library(tidyverse)
-library(DT)
 library(openxlsx)
 library(odbc)
 library(DBI)
@@ -9,44 +7,7 @@ library(dplyr)
 
 
 
-# Check list for the HHTS analysis.
-# 
-# 1.	Choose the variable/variables for analysis from HHTS.
-# a.	Check the questions that might be relevant to the variable (read the questionnaire from the codebook)
-# b.	Formulate the questions you would like to explore
-# c.	Identify the tables that you need to work with
-# 2.	Exploratory data analysis
-# a.	Read in your data
-# i.	Choose the variables that you are interested in exploring
-# ii.	Read in the table with the variables that you are interested in
-# b.	Check quality of the data
-# i.	Check the data type of the analysis variable (numeric, categorical, etc)
-# ii.	Create summary of the variables to see n() and variable's categories (in case it is string/categorical  variable) or basic statistics line min,max, median, mean (in case it is a numerical variable)
-# iii.	Are there any NAs, NaNs, "Missed question", 0, or empty values in the variable of interest? How should we handle it?
-#   iv.	Cross-check if the sum of the weights matches the total population/households in the region.
-# v.	Do you need to recategorize the variables?
-#   c.	Create a summary
-# i.	Calculate a sample size, shares, etc.
-# ii.	Calculate MOE
-# iii.	Create plot if needed
-# d.	Check if the results make sense/if the research questions were answered. If not, adjust the categories or use different variable or set of variables.
-
-
-# In this analysis, I would like to redo everything that I had done for the
-# travel-studies\2019\analysis\outputs\race_summaries_no_afr_am.xlsx, but
-# with details for African American People especially
-
-# I would like to recategorize the race groups into these buckets:
-# African-American, Non-African-American Person of Color, Non-Hispanic White
-# The variables I'm interested in are:
-# 'vehicle_count'
-#'mode_simple'
-#'('commute_auto_time'), c('commute_auto_distance'))
-#'mode_freq_1', 'mode_freq_'..'mode_freq_5'
-#''wbt_transitmore_1'..3, 'wbt_bikemore_1'
-
-
-# where you are running your R code
+#where you are running your R code
 wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel_studies/2019/analysis"
 
 #where you want to output tables
@@ -61,13 +22,14 @@ wbt_transitmore_1, wbt_transitmore_2, wbt_transitmore_3, wbt_bikemore_1, wbt_bik
 hh_wt_combined FROM HHSurvey.v_persons_2017_2019")
 
 
-
 persons<-read.dt(sql.person.query, 'sqlquery')
 
 # First explore a new category for race.
 
 persons %>% group_by(race_category) %>% count()
 persons$afr_am_race_category<-persons$race_category
+
+# Defining an African-American group
 
 persons<-persons %>%
   mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Asian', 'Hispanic'), 
@@ -80,8 +42,25 @@ persons<-persons %>%
 
 persons %>% group_by(afr_am_race_category) %>% count()
 
-# Auto Ownership
-#cross_tab <- function(table, var1, var2, wt_field, type, n_type_name)
-persons<-as.data.table(persons)
+# Find the count of people in each category
+person_wt_field<- 'hh_wt_combined'
+person_count_field<-'person_dim_id'
+group_cat <- 'afr_am_race_category'
 
-auto_own<-cross_tab(persons, 'afr_am_race_category', 'vehicle_count','hh_wt_combined','dimension', 'person_dim_id')
+persons_no_na<-persons %>% drop_na(all_of(person_wt_field))
+
+
+sample_size_group<- persons_no_na %>%
+                    group_by(afr_am_race_category) %>%
+                    summarize(sample_size = n_distinct((person_dim_id)))
+  
+
+
+# Auto Ownership ####################################################
+
+var2<-'vehicle_count'
+auto_own_cross <- cross_tab_categorical(persons_no_na,group_cat, var2, person_wt_field)
+auto_own_MOE <- categorical_moe(sample_size_group)
+auto_own<-merge(auto_own_cross, auto_own_MOE, by=group_cat)
+write_cross_tab(auto_own, group_cat, var2, file_loc)
+

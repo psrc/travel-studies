@@ -21,7 +21,7 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
     dtelm <- dbGetQuery(elmer_connection, SQL(astring))
   }
   dbDisconnect(elmer_connection)
-  setDT(dtelm)
+
 }
 
 # Make a crosstab
@@ -35,7 +35,7 @@ cross_tab <- function(table, var1, var2, wt_field, type, n_type_name) {
  
   
   if (type == "dimension") {
-    setkeyv(table, cols)
+    #setkeyv(table, cols)
     table[table==""]<- NA
 
     cols <- c(var1, var2)
@@ -88,87 +88,13 @@ cross_tab <- function(table, var1, var2, wt_field, type, n_type_name) {
 }
 
 
-colClean <- function(x){ colnames(x) <- gsub("_", " ", colnames(x)); x } 
-# This function reads a list of variables to summarize and returns the completed summarized tables.
-# It calls the functions to munge and filter the data. 
-
-summarize_cross_tables <-function(var_list1, var_list2, var3=FALSE, val3=FALSE, group1=FALSE, group2=FALSE){
-  first = 1
+write_cross_tab<- function(table, var1, var2, wt_field, type, n_type_name, file_loc){
+  out_cross<-cross_tab(table, var1, var2, wt_field, type, n_type_name)
   
+  file_name <- paste(var1,'_', var2,'.xlsx')
+  file_ext<-file.path(file_loc, file_name)
   
-  for(var1 in var_list1){
-    for(var2 in var_list2){
-      
-      # find the table the variables are on
-      table_type <- xtabTableType(var1, var2)$Res
-      data_type <- xtabTableType(var1,var2)$Type
-      # find which weight to use
-      wt_field<- table_names[[table_type]]$weight_name
-      
-      
-      region_recs<-get_xtabTable(var1, var2, 'Region', wt_field, table_type, var3, val3, group1)
-      seattle_recs<-get_xtabTable(var1, var2, 'Seattle', wt_field, table_type, var3, val3, group1)
-      
-      region_tab<-cross_tab(region_recs, var1, var2, wt_field, data_type, group1, group2)
-      seattle_tab<-cross_tab(seattle_recs, var1, var2, wt_field, data_type, group1, group2)
-      
-      tbl_output <-merge(region_tab, seattle_tab, 'var1', suffixes =c(' Region', ' Seattle'))  
-      
-      if(group1 == FALSE){
-        vars1 <-variables.lu[variable==var1]
-        var1_name <-unique(vars1[,variable_name])
-      }
-      else{
-        vars1 <-variables.lu[variable==var1]
-        var1_name <-paste(unique(vars1[,variable_name]), ' Group')
-        setnames(tbl_output, 'var1', var1_name)
-      }
-      if(group2== FALSE){
-        vars2 <-variables.lu[variable==var2]
-        var2_name <-unique(vars2[,variable_name])
-      }
-      else{
-        vars1 <-variables.lu[variable==var1]
-        var1_name <-paste(unique(vars1[,variable_name]), ' Group')
-        setnames(tbl_output, 'var2', var1_name)
-      }
-      
-      if(val3==FALSE){
-        file_name <- paste(var1_name,'_', var2_name,'.xlsx')
-      }
-      else{
-        val3<-gsub('/', '_',val3)
-        file_name <- paste(var1_name,'_', var2_name,'_', var3,'_', val3,'.xlsx')
-      }
-      
-      
-      
-      Share_cols <- grep("^Share", names(tbl_output), value=T)
-      est_cols <- grep("^Total", names(tbl_output), value=T)
-      sample_cols <- grep("^sample_count", names(tbl_output), value=T)
-      tbl_output[,(est_cols) := round(.SD,0), .SDcols=est_cols]
-      
-      
-      s_cols <-c(Share_cols, est_cols, sample_cols)
-      
-      Share_tbl <- tbl_output[ , ..s_cols]
-      Share_tbl <- colClean(Share_tbl) 
-      #cols <- grep("^Share\|^sample\|MOE", names(tbl_output), value=T)
-      #tbl_output <-tbl_output[, .SD, .SDcols = cols]
-      file_ext<-file.path(file_loc, file_name)
-      write.xlsx(tbl_output, file_ext, sheetName ="data", 
-                 col.names = TRUE, row.names = FALSE, append = FALSE)
-      
-      file_name_Share<- paste('Share ', file_name, sep='')
-      file_ext_Share<-file.path(file_loc, file_name_Share)
-      
-      write.xlsx(tbl_output, file_ext, sheetName ="data", 
-                 col.names = TRUE, row.names = FALSE, append = FALSE)
-      
-      write.xlsx(Share_tbl, file_ext_Share, sheetName ="data", 
-                 col.names = TRUE, row.names = FALSE, append = FALSE)
-      
-      
-    }
-  }
+  write.xlsx(out_cross, file_ext, sheetName ="data", 
+             col.names = TRUE, row.names = FALSE, append = FALSE)
+  
 }
