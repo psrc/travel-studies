@@ -1,3 +1,17 @@
+
+# Load Libraries ----------------------------------------------------------
+
+library(data.table)
+library(tidyverse)
+library(DT)
+library(openxlsx)
+library(odbc)
+library(DBI)
+
+
+# Functions ----------------------------------------------------------------
+
+
 ## Read from Elmer
 
 # Statistical assumptions for margins of error
@@ -62,3 +76,17 @@ write_cross_tab<-function(out_table, var1, var2, file_loc){
              col.names = TRUE, row.names = FALSE, append = FALSE)
   
 }
+
+
+
+# Code Examples -----------------------------------------------------------
+#Read the data from Elmer
+
+#You can do this by using read.dt function. The function has two arguments: 
+# first argument passes a sql query or a table name (as shown in Elmer)
+# in the second argument user should specify if the first argument is 'table_name' or 'sqlquery'
+
+#Here is an example using sql query - first, you need to create a variable with the sql query
+# and then pass this variable to the read.dt function
+sql.query = paste("SELECT * FROM HHSurvey.v_persons_2017_2019_in_house")
+person = read.dt(sql.query, 'sqlquery')
