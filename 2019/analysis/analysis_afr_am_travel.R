@@ -11,7 +11,7 @@ library(dplyr)
 wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel_studies/2019/analysis"
 
 #where you want to output tables
-file_loc <- 'C:/Users/SChildress/Documents/HHSurvey/race_story/afr_am'
+file_loc <- 'C:/Users/SChildress/Documents/HHSurvey/race_story/afr_am/new'
 
 sql.trip.query <- paste("SELECT race_category, person_dim_id, mode_simple, trip_wt_combined FROM HHSurvey.v_trips_2017_2019")
 trips <- read.dt(sql.trip.query, 'sqlquery')
@@ -24,23 +24,30 @@ hh_wt_combined FROM HHSurvey.v_persons_2017_2019")
 
 persons<-read.dt(sql.person.query, 'sqlquery')
 
-# First explore a new category for race.
 
-persons %>% group_by(race_category) %>% count()
 persons$afr_am_race_category<-persons$race_category
 
-# Defining an African-American group
 
 persons<-persons %>%
-  mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Asian', 'Hispanic'), 
-                                     'Asian or Hispanic', afr_am_race_category))
+  mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Hispanic', 'Other'), 
+                                     'Hispanic, or Other Race', afr_am_race_category))
 
 persons<-persons %>%
-  mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Child','Missing', 'Other', 'Child, Missing, Other'), 
-                                     'Child, Missing, Other', afr_am_race_category))
+  mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Child','Missing'), 
+                                     'Child, Missing', afr_am_race_category))
 
 
-persons %>% group_by(afr_am_race_category) %>% count()
+
+trips$afr_am_race_category<-trips$race_category
+
+
+trips<-trips %>%
+  mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Hispanic', 'Other'), 
+                                     'Hispanic, or Other Race', afr_am_race_category))
+
+trips<-trips %>%
+  mutate(afr_am_race_category=ifelse(afr_am_race_category %in% c('Child','Missing'), 
+                                     'Child, Missing', afr_am_race_category))
 
 # Find the count of people in each category
 person_wt_field<- 'hh_wt_combined'
@@ -68,4 +75,9 @@ for(var in vars_to_summarize){
   write_cross_tab(cross_table_w_MOE,group_cat,var,file_loc)
 }
 
+trips_no_na<-trips %>% drop_na(all_of('trip_wt_combined'))
+
+cross_table<-cross_tab_categorical(trips_no_na,group_cat, 'mode_simple', 'trip_wt_combined')
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+write_cross_tab(cross_table_w_MOE,group_cat,'mode_simple',file_loc)
 
