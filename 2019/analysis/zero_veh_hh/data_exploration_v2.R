@@ -1,9 +1,9 @@
 #INSTALL PACKAGES##########################
 # List of packages required
-packages <- c("data.table","odbc","DBI","summarytools","ggthemes","hrbrthemes",
-              "dplyr", "DT", "tidyverse", "psych",
+packages <- c("data.table","odbc","DBI","summarytools",
+              "dplyr", "tidyverse", "psych", "openxlsx",
               "ggplot2","tidyr")
-# removed: "table1","knitr","kableExtra","reshape2"
+# removed: "table1","knitr","kableExtra","reshape2", "DT","ggthemes","hrbrthemes"
 
 # Install packages
 lapply(packages, install.packages, character.only = TRUE)
@@ -44,6 +44,22 @@ p_MOE <- 0.5
 z <- 1.645
 missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
                    'Missing: Skip logic', 'Children or missing', ' Prefer not to answer')
+
+# Create a crosstab from two variables, calculate counts, totals, and shares,
+# for categorical data
+cross_tab_categorical <- function(table, var1, var2, wt_field) {
+  expanded <- table %>% 
+    group_by(.data[[var1]],.data[[var2]]) %>%
+    summarize(Count= n(),Total=sum(.data[[wt_field]])) %>%
+    group_by(.data[[var1]])%>%
+    mutate(Percentage=Total/sum(Total)*100)
+  
+  expanded_pivot <-expanded%>%
+    pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
+  
+  return (expanded_pivot)
+} 
+
 
 # Number of vehicles##########################
 
@@ -158,6 +174,14 @@ hhwt_vehcount_tenure <- household%>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_vehcount_tenure
 
+# using cross_tab_categorical function
+hhwt_vehcount_tenure1 <- cross_tab_categorical(household,
+                                               'vehcount_reordered',
+                                               'rent_own',
+                                               'hh_wt_combined')
+hhwt_vehcount_tenure1
+
+# plot 
 a4 <- ggplot(hhwt_vehcount_tenure, 
              aes(x=vehcount_reordered, y=HouseholdWeight, fill=rent_own)) +
   geom_bar(stat="identity", position = 'dodge') + 
@@ -176,13 +200,20 @@ household[, rent_v_own := fcase(
   default = "other"), by = "household_id"]
 
 unique(household$rent_v_own)
+
 # plot household weights by number of vehicles (reordered) and housing tenure
-a5 <- ggplot(data, aes(fill=(household$rent_v_own), y=household$hh_wt_combined, x=vehcount_reordered)) + 
+a5 <- ggplot(household, aes(x=vehcount_reordered, y=hh_wt_combined, fill=rent_v_own)) + 
   geom_bar(position="dodge", stat="identity") + 
   labs(x= "Number of Vehicles", y = "Number of Households", fill= "Housing Tenure",  
        title="Households by Vehicle Ownership and Housing Tenure")
 a5
 
+# using cross_tab_categorical function
+hhwt_vehcount_tenure2 <- cross_tab_categorical(household,
+                                               'vehcount_reordered',
+                                               'rent_v_own',
+                                               'hh_wt_combined')
+hhwt_vehcount_tenure2
 
 # Vehicle access: number of workers compared to vehicle count##########################
 unique(household$numworkers)
@@ -228,20 +259,21 @@ unique(vehicle_count_num)
 class(vehicle_count_num)
 
 # vehicle access categories 
-# data.table option - categorical veh count data
-household[, hh_veh_access := fcase(
-  all(vehicle_count < numworkers), "Limited Access",
-  all(vehicle_count = numworkers), "Equal",
-  all(vehicle_count > numworkers), "Good Access",
-  default = "other"), by = "household_id"]
-unique(household$hh_veh_access)
-
-
-# dplyr option - categorical veh count data
-household <- household%>%
-  mutate(hh_veh_access1 = case_when(vehicle_count < numworkers ~ "Limited Access",
-                                    vehicle_count == numworkers ~ "Equal",
-                                    vehicle_count > numworkers ~ "Good Access"))
+# # data.table option - categorical veh count data
+# # produces result, but doesn't seem correct....
+# household[, hh_veh_access := fcase(
+#   all(vehicle_count < numworkers), "Limited Access",
+#   all(vehicle_count = numworkers), "Equal",
+#   all(vehicle_count > numworkers), "Good Access",
+#   default = "other"), by = "household_id"]
+# unique(household$hh_veh_access)
+# 
+# 
+# # dplyr option - categorical veh count data
+# household <- household%>%
+#   mutate(hh_veh_access1 = case_when(vehicle_count < numworkers ~ "Limited Access",
+#                                     vehicle_count == numworkers ~ "Equal",
+#                                     vehicle_count > numworkers ~ "Good Access"))
 
 # data.table option - numerical veh count data
 household[, hh_veh_access_num := fcase(
@@ -258,10 +290,10 @@ household <- household%>%
                                     vehicle_count_num > numworkers ~ "Good Access"))
 
 # comparing the results from the code above - using both categorical and numerical
-# how can categorical data be compared to the integer data
-# why are these two different sets of recoding producing different results?
-xtabs(~hh_veh_access+numworkers, data=household)
-xtabs(~hh_veh_access1+numworkers, data=household) #this and previous produce same results
+# # how can categorical data be compared to the integer data
+# # why are these two different sets of recoding producing different results?
+# xtabs(~hh_veh_access+numworkers, data=household)
+# xtabs(~hh_veh_access1+numworkers, data=household) #this and previous produce same results
 xtabs(~hh_veh_access_num+numworkers, data=household)
 xtabs(~hh_veh_access1_num+numworkers, data=household) #produce same results, different than first 2...
 
@@ -269,7 +301,7 @@ xtabs(~vehicle_count_num+ household$numworkers)
 
 
 hhwt_veh_access <- household %>% 
-  group_by(hh_veh_access) %>%
+  group_by(hh_veh_access_num) %>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
@@ -278,7 +310,7 @@ hhwt_veh_access
 
 # plot household weight by vehicle access categories
 a7 <-ggplot(hhwt_veh_access, 
-            aes(x=hh_veh_access, y=HouseholdWeight)) +
+            aes(x=hh_veh_access_num, y=HouseholdWeight)) +
   geom_bar(stat="identity") + 
   geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Number of Vehicles to Number of Workers", 
@@ -290,7 +322,7 @@ a7
 # plot household weights by household race category and veh access categories
 # all hh race categories
 hhwt_race_cat <- household %>% 
-  group_by(hh_race_category, hh_veh_access) %>%
+  group_by(hh_race_category, hh_veh_access_num) %>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
@@ -299,7 +331,7 @@ hhwt_race_cat
 
 # plot - frequency
 a8 <-ggplot(hhwt_race_cat, 
-            aes(x=hh_race_category, y=HouseholdWeight, fill=hh_veh_access)) +
+            aes(x=hh_race_category, y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity") + 
   #geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Household Race", 
@@ -309,7 +341,7 @@ a8 <-ggplot(hhwt_race_cat,
 a8
 # plot - proportion
 a9 <-ggplot(hhwt_race_cat, 
-            aes(x=hh_race_category, y=HouseholdWeight, fill=hh_veh_access)) +
+            aes(x=hh_race_category, y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity", position= "fill") + 
   labs(x = "Household Race", 
        y = "Estimated Number of Households in Region", 
@@ -331,7 +363,7 @@ unique(household$hh_race_condcat1)
 
 # generate tibble showing race by access
 hhwt_race_cat1 <- household%>% 
-  group_by(hh_race_condcat1, hh_veh_access)%>%
+  group_by(hh_race_condcat1, hh_veh_access_num)%>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100)%>%
   ungroup() %>%
@@ -341,7 +373,7 @@ hhwt_race_cat1
 
 # plot - frequency
 a10 <-ggplot(hhwt_race_cat1, 
-            aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access)) +
+            aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity") + 
   geom_text(aes(label=round(HouseholdWeight,0))) +
   labs(x = "Household Race", 
@@ -352,7 +384,7 @@ a10
 
 # plot - proportion
 a11 <- ggplot(hhwt_race_cat1, 
-              aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access)) +
+              aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity", position="fill") + 
   #geom_text(aes(label=round(HouseholdWeight,0))) +
   labs(x = "Household Race", 
@@ -373,11 +405,11 @@ hhwt_bincome_access <- household%>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_bincome_access
 
-xtabs(~hh_veh_access + hhincome_broad, data=household)
+xtabs(~hh_veh_access_num + hhincome_broad, data=household)
 
 a12 <- ggplot(hhwt_bincome_access, 
               aes(x=hhincome_broad, 
-                  y=HouseholdWeight, fill=hh_veh_access)) +
+                  y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity", position = "dodge") + 
   #geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Household Income (Broad)", 
@@ -388,7 +420,7 @@ a12
 
 # broad income, vehicle access, and race
 hhwt_bincome_veh_race <- household%>% 
-  group_by(hhincome_broad, hh_veh_access, hh_race_condcat1)%>%
+  group_by(hhincome_broad, hh_veh_access_num, hh_race_condcat1)%>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
@@ -396,7 +428,7 @@ hhwt_bincome_veh_race <- household%>%
 hhwt_bincome_veh_race
 
 a13 <- ggplot(hhwt_bincome_veh_race, 
-              aes(x=hh_veh_access,
+              aes(x=hh_veh_access_num,
                   y=HouseholdWeight, fill=hhincome_broad)) +
   geom_bar(stat="identity") + facet_grid(.~hh_race_condcat1) +
   geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
@@ -419,7 +451,7 @@ hhincomebroad_filtered_df
 
 # plot
 hhwt_broad_no_noanswer <- hhincomebroad_filtered_df %>% 
-  group_by(hhincome_broad, hh_veh_access, hh_race_condcat1) %>% 
+  group_by(hhincome_broad, hh_veh_access_num, hh_race_condcat1) %>% 
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
@@ -427,7 +459,7 @@ hhwt_broad_no_noanswer <- hhincomebroad_filtered_df %>%
 hhwt_broad_no_noanswer
 
 a14 <- ggplot(hhwt_broad_no_noanswer, 
-              aes(x=hh_veh_access,
+              aes(x=hh_veh_access_num,
                   y=HouseholdWeight, fill=hhincome_broad)) +
   geom_bar(stat="identity") + facet_grid(.~hh_race_condcat1) +
   geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
@@ -437,15 +469,13 @@ a14 <- ggplot(hhwt_broad_no_noanswer,
        fill = "Household Income (Broad)")
 a14
 
-person_no_na %>% group_by(mode_freq_5) %>% summarise(n=n())
-person_no_na = person_no_na %>% filter(!mode_freq_5 %in% missing_codes)
 
 #Residential type##########################
-xtabs(~hh_veh_access+res_type, data = household)
+xtabs(~hh_veh_access_num+res_type, data = household)
 
 # residential type, vehicle access, and race
 hhwt_access_res_race <- household%>% 
-  group_by(res_type, hh_veh_access, hh_race_condcat1)%>%
+  group_by(res_type, hh_veh_access_num, hh_race_condcat1)%>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
@@ -456,7 +486,7 @@ hhwt_access_res_race
 a15 <- ggplot(hhwt_access_res_race, 
               aes(x=hh_race_condcat1,
                   y=HouseholdWeight, fill=res_type)) +
-  geom_bar(stat="identity") + facet_grid(.~hh_veh_access) +
+  geom_bar(stat="identity") + facet_grid(.~hh_veh_access_num) +
   #geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Race", 
        y = "Estimated Number of Households in Region", 
@@ -464,6 +494,8 @@ a15 <- ggplot(hhwt_access_res_race,
        fill = "Residential Type")
 a15
 
+
+# JOIN to PERSON table
 
 
 # Example code from Polina -----------------------------------------------------------
