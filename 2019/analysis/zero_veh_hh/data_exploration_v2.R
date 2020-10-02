@@ -3,15 +3,15 @@
 packages <- c("data.table","odbc","DBI","summarytools","ggthemes","hrbrthemes",
               "dplyr", "DT", "tidyverse", "psych",
               "ggplot2","tidyr")
-
 # removed: "table1","knitr","kableExtra","reshape2"
-#Install packages
+
+# Install packages
 lapply(packages, install.packages, character.only = TRUE)
 
-#Load libraries
+# Load libraries
 lapply(packages, library, character.only = TRUE)
 
-#CONNECT TO DATABASE, SET UP WORKSPACE##########################
+# CONNECT TO DATABASE, SET UP WORKSPACE##########################
 elmer_conn <- dbConnect(odbc::odbc(),
                         driver = "SQL Server",
                         server = "AWS-PROD-SQL\\Sockeye",
@@ -32,18 +32,18 @@ person <- data.table(p)
 glimpse(household)
 
 # Investigate the household weights 
-# head(household$hh_wt_combined)
+head(household$hh_wt_combined)
+# verify number of samples for household dataset (6,319), weighted total (1,656,755)
+nrow(household)
 sum(household$hh_wt_combined)
+
+# freq(household$hh_wt_combined) #also returns number of samples as total at bottom
 
 # establish MOE (margin of error) variables
 p_MOE <- 0.5
 z <- 1.645
-
-# verify number of samples for household dataset (6,319), weighted total (1,656,755)
-sum(household$hh_wt_combined)
-sample_size <-nrow(household)
-sample_size
-# freq(household$hh_wt_combined) #also returns number of samples as total at bottom
+missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
+                   'Missing: Skip logic', 'Children or missing', ' Prefer not to answer')
 
 # Number of vehicles##########################
 
@@ -92,8 +92,8 @@ hhwt_vehiclecount_reordered
 # colnames(hhwt_vehiclecount)[colnames(hhwt_vehiclecount) == "x"] <- "HouseholdWeight"
 # hhwt_vehcount_reordered
 
-a2 <- ggplot(data = hhwt_vehcount_reordered, 
-             aes(x=vehcount_reordered, y=HouseholdWeight)) +
+a2 <- ggplot(data = hhwt_vehiclecount_reordered, 
+             aes(x=VehicleCount, y=HouseholdWeight)) +
   geom_bar(stat="identity", position = 'dodge') + 
   geom_text(aes(label=round(HouseholdWeight,0)), 
             hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
@@ -111,7 +111,7 @@ summary(housingtenure)
 housingtenure.veh <- xtabs(~housingtenure + vehcount_reordered, data = household)
 summary(housingtenure.veh)
 head(housingtenure.veh)
-# housing tenure 
+# housing tenure with household weights
 hhwt_housingtenure <- household%>% 
   group_by(rent_own)%>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
@@ -132,6 +132,22 @@ a3 <-ggplot(hhwt_housingtenure_df,
        y = "Estimated Number of Households in Region", 
        title = "Housing Tenure")
 a3
+
+unique(household$rent_own)
+
+# filter out missing values
+tenure_no_na <- hhwt_housingtenure_df %>% 
+  filter(!rent_own == "Prefer not to answer" & !rent_own == "Other")
+unique(tenure_no_na)
+
+a3.5 <-ggplot(tenure_no_na, 
+            aes(x=rent_own, y=HouseholdWeight)) +
+  geom_bar(stat="identity") + 
+  geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
+  labs(x = "Number of Vehicles per Household", 
+       y = "Estimated Number of Households in Region", 
+       title = "Simplified Housing Tenure")
+a3.5
 
 # Housing tenure and vehicle ownership##########################
 hhwt_vehcount_tenure <- household%>% 
@@ -392,26 +408,27 @@ a13
 
 # broad income (filter out "prefer not to answer"), vehicle access, and race
 unique(household$hhincome_broad)
-# trying to filter out but NOT WORKING?
+# trying to filter out 
 hhincomebroad_filtered <- household %>% 
-  filter(!hhincome_broad %in% "Prefer not to answer")
-unique(hhincomebroad_filtered)
+  filter(hhincome_broad != "Prefer not to answer")
+head(hhincomebroad_filtered)
+glimpse(hhincomebroad_filtered)
 
-hhbroad_no_noanswer <- household %>% 
-  group_by(household$hhbroad_no_noanswer) %>% summarise(n=n())
-unique(hhbroad_no_noanswer)
+hhincomebroad_filtered_df <- as.data.frame(hhincomebroad_filtered)
+hhincomebroad_filtered_df
 
-hhwt_bincome_filtered_veh_race <- household%>% 
-  group_by(hhbroad_no_noanswer, hh_veh_access, hh_race_condcat1)%>%
+# plot
+hhwt_broad_no_noanswer <- hhincomebroad_filtered_df %>% 
+  group_by(hhincome_broad, hh_veh_access, hh_race_condcat1) %>% 
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
-hhwt_bincome_filtered_veh_race
+hhwt_broad_no_noanswer
 
-a14 <- ggplot(hhwt_bincome_filtered_veh_race, 
+a14 <- ggplot(hhwt_broad_no_noanswer, 
               aes(x=hh_veh_access,
-                  y=HouseholdWeight, fill=hhbroad_no_noanswer)) +
+                  y=HouseholdWeight, fill=hhincome_broad)) +
   geom_bar(stat="identity") + facet_grid(.~hh_race_condcat1) +
   geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Vehicle Access (Workers)", 
@@ -419,6 +436,9 @@ a14 <- ggplot(hhwt_bincome_filtered_veh_race,
        title = "Vehicle Access by Household Income and Race",
        fill = "Household Income (Broad)")
 a14
+
+person_no_na %>% group_by(mode_freq_5) %>% summarise(n=n())
+person_no_na = person_no_na %>% filter(!mode_freq_5 %in% missing_codes)
 
 #Residential type##########################
 xtabs(~hh_veh_access+res_type, data = household)
