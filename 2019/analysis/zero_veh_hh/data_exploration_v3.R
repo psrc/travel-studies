@@ -677,25 +677,105 @@ b5 <- ggplot(binary_license,
        fill = "Age")
 b5
 
-
 # join to household table for income data
 glimpse(person)
 glimpse(household)
 
 person_and_household <- left_join(person, household,
                                   by=c("household_id"="household_id"))
+
 # check number of rows to make sure no data lost
 nrow(person_and_household) #same as the person table 
-
 # any NAs in person_id or household_id?
 glimpse(person_and_household)
+sum(person_and_household$hh_wt_combined.x) #4051580
+sum(person_and_household$hh_wt_combined.y) #4051580
+
 freq(person_and_household$person_id) #no NA
 freq(person_and_household$household_id) #no NA
 
+# commute mode (person) by household income (broad)
+xtabs(~commute_mode + race_category, data = person_and_household)
+
+person_and_household %>%
+  mutate(p_and_h_weights = )
+
+b6 <- ggplot((person_and_household),
+             aes(x=hh_race_condcat1, y=sum(hh_wt_combined.x), fill=simp_commute)) +
+  geom_bar(stat="identity") + #facet_grid(.~commute_type) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Race ",
+       fill = "Commute Mode")
+b6
+
+# filter out missing, other
+unique(person_and_household$simp_commute)
+person_and_household %>% group_by(simp_commute) %>% summarise(n=n())
+simp_commute_no_na <- person_and_household %>%
+  filter(!simp_commute == "other" &
+           !simp_commute == "missing")
+simp_commute_no_na %>% group_by(simp_commute) %>% summarise(n=n())
+# plot race (simp), commute mode (simp)
+b7 <- ggplot(simp_commute_no_na,
+             aes(x=hh_race_condcat1, y=sum(hh_wt_combined.x), 
+                 fill=simp_commute)) +
+  geom_bar(stat="identity") +
+  labs(x = "Household Race", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Race ",
+       fill = "Commute Mode")
+b7
+
+# plot race (simp), commute mode (simp) - proportion
+b8 <- ggplot(simp_commute_no_na,
+             aes(x=hh_race_condcat1, y=sum(hh_wt_combined.x), 
+                 fill=simp_commute)) +
+  geom_bar(stat="identity", position= "fill") +
+  labs(x = "Household Race", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Race ",
+       fill = "Commute Mode")
+b8
 
 
+# plot race (simp), commute mode (simp), income (broad)
+b9 <- ggplot(simp_commute_no_na,
+             aes(x=hh_race_condcat1, y=sum(hh_wt_combined.x), 
+                 fill=simp_commute)) +
+  geom_bar(stat="identity", position= "fill") +
+  facet_grid(.~hhincome_broad) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Race and Income",
+       fill = "Commute Mode")
+b9
+
+# filter income
+unique(person_and_household$hhincome_broad)
+person_and_household %>% group_by(hhincome_broad) %>% summarise(n=n())
+broad_income_no_na <- person_and_household %>%
+  filter(!hhincome_broad == "Prefer not to answer" &
+           !simp_commute == "other" &
+           !simp_commute == "missing")
+broad_income_no_na %>% group_by(hhincome_broad, simp_commute) %>% summarise(n=n())
+
+# plot race (simp), commute mode (simp), income (broad, no na)
+b10 <- ggplot(broad_income_no_na,
+             aes(x=hh_race_condcat1, y=sum(hh_wt_combined.x), 
+                 fill=(simp_commute))) +
+  geom_bar(stat="identity", position= "fill") +
+  facet_grid(.~hhincome_broad) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Race and Income",
+       fill = "Commute Mode")
+b10
 
 
+# filter ages
+unique(person_and_household$age_category)
 
 # Example code from Polina -----------------------------------------------------------
 
