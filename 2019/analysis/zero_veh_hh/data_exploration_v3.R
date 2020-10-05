@@ -10,6 +10,7 @@ lapply(packages, install.packages, character.only = TRUE)
 
 # Load libraries
 lapply(packages, library, character.only = TRUE)
+lapply(packages, require, character.only = TRUE)
 
 # CONNECT TO DATABASE, SET UP WORKSPACE----------------------------------
 elmer_conn <- dbConnect(odbc::odbc(),
@@ -36,8 +37,6 @@ head(household$hh_wt_combined)
 # verify number of samples for household dataset (6,319), weighted total (1,656,755)
 nrow(household)
 sum(household$hh_wt_combined)
-
-# freq(household$hh_wt_combined) #also returns number of samples as total at bottom
 
 # establish MOE (margin of error) variables
 p_MOE <- 0.5
@@ -119,9 +118,10 @@ a2
 
 
 # Housing tenure (rent_own)----------------------------------
-freq(household$rent_own)
+freq(household$rent_own) #requires summarytools
 housingtenure <-as.factor(household$rent_own)
 summary(housingtenure)
+
 
 # housing tenure by number of household vehicles
 housingtenure.veh <- xtabs(~housingtenure + vehcount_reordered, data = household)
@@ -151,9 +151,11 @@ a3
 
 unique(household$rent_own)
 
-# filter out missing values
+# filter out missing values - isolate to just rent or own
 tenure_no_na <- hhwt_housingtenure_df %>% 
-  filter(!rent_own == "Prefer not to answer" & !rent_own == "Other")
+  filter(!rent_own == "Prefer not to answer" & 
+           !rent_own == "Other" & 
+           !rent_own == "Provided by job or military")
 unique(tenure_no_na)
 
 a3.5 <-ggplot(tenure_no_na, 
@@ -165,7 +167,7 @@ a3.5 <-ggplot(tenure_no_na,
        title = "Simplified Housing Tenure")
 a3.5
 
-# Housing tenure and vehicle ownership----------------------------------
+# Housing tenure (all categories) and vehicle ownership----------------------------------
 hhwt_vehcount_tenure <- household%>% 
   group_by(vehcount_reordered, rent_own)%>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
@@ -174,15 +176,27 @@ hhwt_vehcount_tenure <- household%>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_vehcount_tenure
 
-# using cross_tab_categorical function
+# using cross_tab_categorical function (all tenure categories)
 hhwt_vehcount_tenure1 <- cross_tab_categorical(household,
                                                'vehcount_reordered',
                                                'rent_own',
                                                'hh_wt_combined')
 hhwt_vehcount_tenure1
 
+# focus on just rent or own, disregard other housing tenure categories
+hhwt_vehcount_tenure2 <- household %>% 
+  filter(!rent_own == "Prefer not to answer" & 
+           !rent_own == "Other" & 
+           !rent_own == "Provided by job or military") %>%
+  group_by(vehcount_reordered, rent_own)%>%
+  summarise(n=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
+  mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
+  ungroup() %>%
+  mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
+hhwt_vehcount_tenure2
+
 # plot 
-a4 <- ggplot(hhwt_vehcount_tenure, 
+a4 <- ggplot(hhwt_vehcount_tenure2, 
              aes(x=vehcount_reordered, y=HouseholdWeight, fill=rent_own)) +
   geom_bar(stat="identity", position = 'dodge') + 
   geom_text(aes(label=round(HouseholdWeight,0)), 
@@ -192,13 +206,12 @@ a4 <- ggplot(hhwt_vehcount_tenure,
        title = "Vehicle Ownership", fill = "Housing Tenure")
 a4
 
-# Look at own vs. rent (consolidate tenure categories)
+# Look at own vs. rent (consolidate tenure categories) - data.table
 unique(household$rent_own)
 household[, rent_v_own := fcase(
   all(rent_own == "Own/paying mortgage"), "Own",
   all(rent_own == "Rent"), "Rent",
   default = "other"), by = "household_id"]
-
 unique(household$rent_v_own)
 
 # plot household weights by number of vehicles (reordered) and housing tenure
@@ -209,11 +222,11 @@ a5 <- ggplot(household, aes(x=vehcount_reordered, y=hh_wt_combined, fill=rent_v_
 a5
 
 # using cross_tab_categorical function
-hhwt_vehcount_tenure2 <- cross_tab_categorical(household,
+hhwt_vehcount_tenure3 <- cross_tab_categorical(household,
                                                'vehcount_reordered',
                                                'rent_v_own',
                                                'hh_wt_combined')
-hhwt_vehcount_tenure2
+hhwt_vehcount_tenure3
 
 # Vehicle access: number of workers compared to vehicle count----------------------------------
 unique(household$numworkers)
@@ -236,8 +249,9 @@ hhwt_workers_vehown1 <- household%>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_workers_vehown1
 
+# make numworkers factor, instead of continuous
 a6 <-ggplot(hhwt_workers_vehown1, 
-            aes(x=vehcount_reordered, y=HouseholdWeight, fill=numworkers)) +
+            aes(x=vehcount_reordered, y=HouseholdWeight, fill=factor(numworkers))) +
   geom_bar(stat="identity") + 
   #geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Number of Vehicles to Number of Workers", 
@@ -398,7 +412,7 @@ a11
 # broad income, vehicle access
 unique(household$hhincome_broad)
 hhwt_bincome_access <- household%>% 
-  group_by(hhincome_broad, hh_veh_access)%>%
+  group_by(hhincome_broad, hh_veh_access_num)%>%
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
@@ -431,7 +445,7 @@ a13 <- ggplot(hhwt_bincome_veh_race,
               aes(x=hh_veh_access_num,
                   y=HouseholdWeight, fill=hhincome_broad)) +
   geom_bar(stat="identity") + facet_grid(.~hh_race_condcat1) +
-  geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
+  # geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Vehicle Access (Workers)", 
        y = "Estimated Number of Households in Region", 
        title = "Vehicle Access by Household Income and Race",
@@ -531,11 +545,9 @@ cross_tab_categorical2 <- function(table, var1, var2, wt_field) {
 pwt_gender_age2 <- cross_tab_categorical2(person, 'age', 'gender', 'hh_wt_combined')
 pwt_gender_age2
 
-
-
 # plot
 b1 <- ggplot(person,
-             aes(x=age, y=PersonWeight, fill=gender)) +
+             aes(x=age, y=sum(hh_wt_combined), fill=gender)) +
   geom_bar(stat="identity")+
   labs(x = "Age", 
        y = "Estimated Number of Households in Region", 
@@ -557,7 +569,7 @@ person %>% group_by(gender_simp) %>% summarise(n=n())
 
 # plot simplified gender
 b2 <- ggplot(person,
-             aes(x=age, y=PersonWeight, fill=gender_simp)) +
+             aes(x=age, y=sum(hh_wt_combined), fill=gender_simp)) +
   geom_bar(stat="identity")+
   labs(x = "Age", 
        y = "Estimated Number of Households in Region", 
@@ -567,7 +579,9 @@ b2
 
 # commute mode----------------------------------
 unique(person$commute_mode)
-person %>% group_by(commute_mode) %>% summarise(n=n())
+person %>% 
+  group_by(commute_mode) %>% 
+  summarise(n=n())
 
 # creating a person-level flag to indicate if commute mode used is non-motorized or motorized
 person[, commute_type := fcase(
@@ -579,9 +593,6 @@ person[, commute_type := fcase(
 person %>%group_by(commute_type)%>%summarise(n=n())
 
 # creating a person-level flag to simplify commuting modes
-install.packages("data.table")
-require(data.table)
-require(dplyr)
 person[, simp_commute := fcase(
   any(commute_mode == "Walk, jog, or wheelchair" | 
         commute_mode == "Bicycle or e-bike" | 
@@ -618,16 +629,17 @@ nonmotorized <- person %>% filter(commute_type== "non-motorized")
 xtabs(~age+gender_simp, data = nonmotorized)
 
 b3 <- ggplot(nonmotorized,
-             aes(x=age, y=PersonWeight, fill=gender_simp)) +
+             aes(x=age, y=sum(hh_wt_combined), fill=gender_simp)) +
   geom_bar(stat="identity")+
   labs(x = "Age", 
-       y = "Estimated Number of Households in Region", 
-       title = "Population Distribution",
+       y = "Estimated Number of People in Region", 
+       title = "Non-motorized Commuting by Age and Gender",
        fill = "Gender")
 b3
 
 # license status 
 unique(person$license)
+freq(person$license)
 # focus on yes/no
 binary_license <- person %>% filter(license== "Yes, has an intermediate or unrestricted license"| 
                                       license== "No, does not have a license or permit")
@@ -639,13 +651,32 @@ travel_license
 
 # plot license, age, commute simplified
 b4 <- ggplot(binary_license,
-             aes(x=license, y=PersonWeight, fill=age)) +
+             aes(x=license, y=sum(hh_wt_combined), fill=age)) +
   geom_bar(stat="identity") + facet_grid(.~commute_type) +
-  labs(x = "Commute Type", 
-       y = "Estimated Number of Households in Region", 
-       title = "Population Distribution",
-       fill = "License")
-b4
+  labs(x = "License", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by License Status and Age",
+       fill = "Age")
+b4 #overlapping X-axis text
+
+# recode to simplify license category names
+binary_license %>% 
+  mutate(binary_license_recode = case_when(
+    license == "Yes, has an intermediate or unrestricted license" ~ "Yes",
+    license == "No, does not have a license or permit" ~ "No"))
+
+xtabs(~ binary_license_recode + commute_type, data=binary_license)
+
+# plot recoded license, age, commute simplified
+b5 <- ggplot(binary_license,
+             aes(x=binary_license_recode, y=sum(hh_wt_combined), fill=age)) +
+  geom_bar(stat="identity") + facet_grid(.~commute_type) +
+  labs(x = "License", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by License Status and Age",
+       fill = "Age")
+b5
+
 
 # join to household table for income data
 glimpse(person)
@@ -655,9 +686,11 @@ person_and_household <- left_join(person, household,
                                   by=c("household_id"="household_id"))
 # check number of rows to make sure no data lost
 nrow(person_and_household) #same as the person table 
-# any NAs in person_id or household_id?
-unique(person_and_household$person_id)
 
+# any NAs in person_id or household_id?
+glimpse(person_and_household)
+freq(person_and_household$person_id) #no NA
+freq(person_and_household$household_id) #no NA
 
 
 
