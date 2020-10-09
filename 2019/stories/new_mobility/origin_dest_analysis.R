@@ -10,7 +10,7 @@ library(tigris)
 db.connect <- function() {
   elmer_connection <- dbConnect(odbc(),
                                 driver = "SQL Server",
-                                server = "AWS-PROD-SQL\\COHO",
+                                server = "AWS-PROD-SQL\\Sockeye",
                                 database = "Elmer",
                                 trusted_connection = "yes"
   )
@@ -62,10 +62,10 @@ trip_in_tract_dest <- st_join(locations_sf_d, psrc_tracts)
 
 #sum trip weights by tract
 temp_d = trip_in_tract_dest %>% group_by(TRACTCE)
-tnc_counts_d = temp_d %>%  summarise(sum_wt_comb = sum(trip_wt_combined))
+tnc_counts_d = temp_d %>%  summarise(sum_wt_comb = sum(trip_wt_combined),n = n(),)
 
 temp_o = trip_in_tract_orig %>% group_by(TRACTCE)
-tnc_counts_o = temp_o %>%  summarise(sum_wt_comb = sum(trip_wt_combined))
+tnc_counts_o = temp_o %>%  summarise(sum_wt_comb = sum(trip_wt_combined),n = n())
 
 # Drop the geometry column
 tnc_counts_d_no_geometry <- st_set_geometry(tnc_counts_d, NULL)
@@ -79,7 +79,7 @@ tnc_counts_tract_o <- inner_join(psrc_tracts,tnc_counts_o_no_geometry, by = c("T
 bins <- c(0,10, 100, 500, 1000, 3000, 5000, max(tnc_counts_tract_d$sum_wt_comb))
 pal <- colorBin("YlOrRd", domain = tnc_counts_tract_d$sum_wt_comb, bins = bins)
 
-m <- leaflet(tnc_counts_tract_d)%>%
+tracts_dest <- leaflet(tnc_counts_tract_d)%>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addPolygons(data=tnc_counts_tract_d,
               stroke = T,
@@ -87,16 +87,17 @@ m <- leaflet(tnc_counts_tract_d)%>%
               weight = 1,
               fillColor = ~pal(tnc_counts_tract_d$sum_wt_comb),
               fillOpacity = 0.7,
-              popup = paste("Number of destinations: ", tnc_counts_tract_d$sum_wt_comb, sep="")) %>% 
+              popup = paste("Number of destinations: ", tnc_counts_tract_d$sum_wt_comb, "<br>",
+                            "Sample size: ", tnc_counts_tract_d$n )) %>% 
   addLegend(pal = pal, values = tnc_counts_tract_d$sum_wt_comb, opacity = 0.7, title = NULL,
             position = "bottomright")
-print(m)
+print(tracts_dest)
 
 # map check - origin
 bins <- c(0,10, 100, 500, 1000, 3000, 5000, max(tnc_counts_tract_o$sum_wt_comb))
 pal <- colorBin("YlOrRd", domain = tnc_counts_tract_o$sum_wt_comb, bins = bins)
 
-m <- leaflet(tnc_counts_tract_o)%>%
+tracts_orig <- leaflet(tnc_counts_tract_o)%>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addPolygons(data=tnc_counts_tract_o,
               stroke = T,
@@ -104,7 +105,78 @@ m <- leaflet(tnc_counts_tract_o)%>%
               weight = 1,
               fillColor = ~pal(tnc_counts_tract_o$sum_wt_comb),
               fillOpacity = 0.7,
-              popup = paste("Number of destinations: ", tnc_counts_tract_o$sum_wt_comb, sep="")) %>% 
+              popup = paste("Number of origins: ", tnc_counts_tract_o$sum_wt_comb, "<br>",
+                            "Sample size: ", tnc_counts_tract_o$n )) %>% 
   addLegend(pal = pal, values = tnc_counts_tract_o$sum_wt_comb, opacity = 0.7, title = NULL,
             position = "bottomright")
-print(m)
+print(tracts_orig)
+
+
+#zipcodes
+
+zipcode_shp <- zctas(cb = TRUE, starts_with = c("98"))%>%
+  st_transform(crs=4326)
+plot(zipcode_shp)
+
+zipcode_cropped <- st_join(zipcode_shp,psrc_tracts )
+zipcode_cropped_upd = zipcode_cropped %>% group_by(ZCTA5CE10)
+
+# spatial join origin and destination points with PSRC region
+trip_in_zip_orig <- st_join(locations_sf_o, zipcode_shp)
+trip_in_zip_dest <- st_join(locations_sf_d, zipcode_shp)
+
+#count number of origins and destinations in each of the tracts - not correct since we need to use weights
+#tnc_counts_d <- count(trip_in_tract_dest, TRACTCE, sort = TRUE)
+#tnc_counts_o <- count(trip_in_tract_orig, TRACTCE, sort = TRUE)
+
+#sum trip weights by tract
+temp_d = trip_in_zip_dest %>% group_by(ZCTA5CE10)
+tnc_counts_d = temp_d %>%  summarise(sum_wt_comb = sum(trip_wt_combined),n = n(),)
+
+temp_o = trip_in_zip_orig %>% group_by(ZCTA5CE10)
+tnc_counts_o = temp_o %>%  summarise(sum_wt_comb = sum(trip_wt_combined),n = n())
+
+# Drop the geometry column
+tnc_counts_d_no_geometry <- st_set_geometry(tnc_counts_d, NULL)
+tnc_counts_o_no_geometry <- st_set_geometry(tnc_counts_o, NULL)
+
+#join counts and psrc geography
+tnc_counts_tract_d <- inner_join(zipcode_shp,tnc_counts_d_no_geometry, by = c("ZCTA5CE10" = "ZCTA5CE10"))
+tnc_counts_tract_o <- inner_join(zipcode_shp,tnc_counts_o_no_geometry, by = c("ZCTA5CE10" = "ZCTA5CE10"))
+
+# map check - destinations
+bins <- c(0,10, 100, 500, 1000, 3000, 5000, max(tnc_counts_tract_d$sum_wt_comb))
+pal <- colorBin("YlOrRd", domain = tnc_counts_tract_d$sum_wt_comb, bins = bins)
+
+zip_dest <- leaflet(tnc_counts_tract_d)%>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data=tnc_counts_tract_d,
+              stroke = T,
+              opacity = 1,
+              weight = 1,
+              fillColor = ~pal(tnc_counts_tract_d$sum_wt_comb),
+              fillOpacity = 0.7,
+              popup = paste("Number of destinations: ", tnc_counts_tract_d$sum_wt_comb, "<br>",
+                            "Sample size: ", tnc_counts_tract_d$n )) %>% 
+  addLegend(pal = pal, values = tnc_counts_tract_d$sum_wt_comb, opacity = 0.7, title = NULL,
+            position = "bottomright")
+print(zip_dest)
+
+# map check - origin
+bins <- c(0,10, 100, 500, 1000, 3000, 5000, max(tnc_counts_tract_o$sum_wt_comb))
+pal <- colorBin("YlOrRd", domain = tnc_counts_tract_o$sum_wt_comb, bins = bins)
+
+zip_orig <- leaflet(tnc_counts_tract_o)%>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data=tnc_counts_tract_o,
+              stroke = T,
+              opacity = 1,
+              weight = 1,
+              fillColor = ~pal(tnc_counts_tract_o$sum_wt_comb),
+              fillOpacity = 0.7,
+              popup = paste("Number of origins: ", tnc_counts_tract_o$sum_wt_comb, "<br>",
+                            "Sample size: ", tnc_counts_tract_o$n )) %>% 
+  addLegend(pal = pal, values = tnc_counts_tract_o$sum_wt_comb, opacity = 0.7, title = NULL,
+            position = "bottomright")
+print(zip_orig)
+

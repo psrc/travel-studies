@@ -16,7 +16,7 @@ file_loc <- 'C:/Users/SChildress/Documents/HHSurvey/race_story/afr_am/new'
 sql.trip.query <- paste("SELECT race_category, person_dim_id, mode_simple, trip_wt_combined FROM HHSurvey.v_trips_2017_2019")
 trips <- read.dt(sql.trip.query, 'sqlquery')
 
-sql.person.query<-paste("SELECT race_category,person_dim_id, vehicle_count,commute_auto_time,
+sql.person.query<-paste("SELECT race_category,survey_year, cityofseattle,person_dim_id, vehicle_count,commute_auto_time,
 commute_auto_Distance, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5,
 wbt_transitmore_1, wbt_transitmore_2, wbt_transitmore_3, wbt_bikemore_1, wbt_bikemore_2, wbt_bikemore_3,
 hh_wt_combined FROM HHSurvey.v_persons_2017_2019")
