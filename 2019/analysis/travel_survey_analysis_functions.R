@@ -19,7 +19,7 @@ library(psych)
 p_MOE <- 0.5
 z<-1.645
 missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
-                   'Missing: Skip logic', 'Children or missing', 'Prefer not to answer')
+                   'Missing: Skip logic', 'Children or missing', ' Prefer not to answer')
 
 # connecting to Elmer
 db.connect <- function() {
@@ -76,7 +76,6 @@ cross_tab_categorical <- function(table, var1, var2, wt_field) {
     summarize(Count= n(),Total=sum(.data[[wt_field]])) %>%
     group_by(.data[[var1]])%>%
     mutate(Percentage=Total/sum(Total)*100)
-    
                 
     expanded_pivot <-expanded%>%
     pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
@@ -90,9 +89,7 @@ categorical_moe <- function(sample_size_group){
   sample_w_MOE<-sample_size_group %>%
     mutate(p_col=p_MOE) %>%
     mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
-    mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
-  
-  sample_w_MOE<- select(sample_w_MOE, -c(p_col, MOE_calc1))
+    mutate(MOE_Percent=z*sqrt(MOE_calc1))
 
   return(sample_w_MOE)
   }   
@@ -168,58 +165,3 @@ person_no_na = person_no_na %>% filter(!mode_freq_5 %in% missing_codes)
 #here is an example for mode_freq_5 variable
 
 create_table_one_var("mode_freq_5", person_no_na,"person" )
-
-
-
-# Two-way table -----------------------------------------------------------
-
-
-# This is an example of how to create a two-way table, including counts, weighted totals, shares, and margins of error.
-# The analysis is for race of a person by whether they have a driver's license or permit.
-
-# First before you start calculating
-# you will need to determine the names of the data fields you are using, 
-# the weight to use, and an id for counting.
-
-# User defined variables on each analysis:
-
-# this is the weight for summing in your analysis
-person_wt_field<- 'hh_wt_combined'
-# this is a field to count the number of records
-person_count_field<-'person_dim_id'
-# this is how you want to group the data in the first dimension,
-# this is how you will get the n for your sub group
-group_cat <- 'race_category'
-# this is the second variable you want to summarize by
-var <- 'license'
-
-# filter data missing weights 
-persons_no_na<-person %>% drop_na(all_of(person_wt_field))
-
-#filter data missing values
-#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
-#if you think you need to filter out NAs and missing categories, please use the code below
-persons_no_na = persons_no_na %>% filter(!race_category %in% missing_codes, !license %in% missing_codes, !is.na(license), !is.na(race_category)  )
-
-# now find the sample size of your subgroup
-sample_size_group<- persons_no_na %>%
-  group_by(race_category) %>%
-  summarize(sample_size = n())
-
-# get the margins of error for your groups
-sample_size_MOE<- categorical_moe(sample_size_group)
-
-# calculate totals and shares
-cross_table<-cross_tab_categorical(persons_no_na,group_cat,var, person_wt_field)
-
-# merge the cross tab with the margin of error
-cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
-
-# it looks like People of Color are more likely to not have a driver's license.
-# There is not enough data to summarize some of the categories such as learner's permit.
-# The children mostly do not answer this question (only for driver's age children.)
-cross_table_w_MOE
-# optional step:  write it out to a file
-#file_loc <- 'C:/Users/SChildress/Documents/GitHub/travel-studies/2019/analysis'
-
-#write_cross_tab(cross_table_w_MOE,group_cat,var,file_loc)
