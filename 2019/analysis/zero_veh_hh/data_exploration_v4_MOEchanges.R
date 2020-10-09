@@ -741,7 +741,6 @@ person <- person%>%
            commute_mode == "Taxi (e.g., Yellow Cab)"~ "hired",
                                   TRUE ~ "missing"))
 
-
 unique(person$simp_commute)
 person %>% group_by(simp_commute) %>% summarise(n=n())
 
@@ -984,6 +983,7 @@ b12
 
 
 
+
 # Example code from Polina -----------------------------------------------------------
 
 # Load Libraries
@@ -1090,7 +1090,6 @@ write_cross_tab<-function(out_table, var1, var2, file_loc){
              col.names = TRUE, row.names = FALSE, append = FALSE)
   
 }
-
 
 
 # Polina's Code Examples -----------------------------------------------------------
