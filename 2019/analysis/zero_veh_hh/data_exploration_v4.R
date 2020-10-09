@@ -91,8 +91,8 @@ a1
 unique(household$vehicle_count)
 # factor(household$vehicle_count)
 household$vehcount_reordered <- factor(household$vehicle_count, 
-                                  levels=c("0 (no vehicles)","1","2","3","4","5",
-                                           "6","7","8","9","10 or more vehicles"))
+                                       levels=c("0 (no vehicles)","1","2","3","4","5",
+                                                "6","7","8","9","10 or more vehicles"))
 levels(vehcount_reordered)
 
 # plot household weights by number of vehicles (reordered)
@@ -177,7 +177,7 @@ tenure_no_na <- hhwt_housingtenure_df %>%
 unique(tenure_no_na)
 
 a3.5 <-ggplot(tenure_no_na, 
-            aes(x=rent_own, y=HouseholdWeight)) +
+              aes(x=rent_own, y=HouseholdWeight)) +
   geom_bar(stat="identity") + 
   geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Number of Vehicles per Household", 
@@ -255,8 +255,8 @@ unique(household$vehcount_reordered)
 # number of households: number of workers by vehicles owned
 hhwt_workers_vehown <- with(household, 
                             tapply(hh_wt_combined, 
-                              list(vehcount_reordered,numworkers), 
-                              sum))
+                                   list(vehcount_reordered,numworkers), 
+                                   sum))
 hhwt_workers_vehown
 
 hhwt_workers_vehown1 <- household%>% 
@@ -281,8 +281,8 @@ a6
 # transform vehicle count to numeric?
 class(household$vehicle_count)
 household$vehicle_count_trans <- recode(household$vehicle_count, 
-                                               "0 (no vehicles)" = "0",
-                                               "10 or more vehicles" = "10")
+                                        "0 (no vehicles)" = "0",
+                                        "10 or more vehicles" = "10")
 unique(household$vehicle_count_trans)
 class(household$vehicle_count_trans)
 
@@ -318,8 +318,8 @@ unique(hh_veh_access_num)
 # dplyr option - numerical veh count data
 household <- household%>%
   mutate(hh_veh_access1_num = case_when(vehicle_count_num < numworkers ~ "Limited Access",
-                                    vehicle_count_num == numworkers ~ "Equal",
-                                    vehicle_count_num > numworkers ~ "Good Access"))
+                                        vehicle_count_num == numworkers ~ "Equal",
+                                        vehicle_count_num > numworkers ~ "Good Access"))
 
 # comparing the results from the code above - using both categorical and numerical
 # # how can categorical data be compared to the integer data
@@ -419,7 +419,7 @@ hhwt_race_cat1
 
 # plot - frequency
 a10 <-ggplot(hhwt_race_cat1, 
-            aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access_num)) +
+             aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity") + 
   geom_text(aes(label=round(HouseholdWeight,0))) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
@@ -587,8 +587,8 @@ cross_tab_categorical2 <- function(table, var1, var2, wt_field) {
     group_by(.data[[var1]])%>%
     ungroup() %>%
     mutate(Percentage=WeightedTotal/sum(WeightedTotal)*100)
-
-    expanded_pivot <-expanded%>%
+  
+  expanded_pivot <-expanded%>%
     pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,WeightedTotal,Count))
   
   return (expanded_pivot)
@@ -612,8 +612,8 @@ person %>% group_by(gender) %>% summarise(n=n())
 
 person <- person%>%
   mutate(gender_simp = case_when(gender == "Female" ~ "Female",
-                                gender == "Male" ~ "Male",
-                                gender == "Another" | gender == "Prefer not to answer" ~ "Another"))
+                                 gender == "Male" ~ "Male",
+                                 gender == "Another" | gender == "Prefer not to answer" ~ "Another"))
 unique(person$gender_simp)
 person %>% group_by(gender_simp) %>% summarise(n=n())
 
@@ -637,8 +637,8 @@ person %>%
 # creating a person-level flag to indicate if commute mode used is non-motorized or motorized
 person[, commute_type := fcase(
   any(commute_mode == "Walk, jog, or wheelchair" |
-    commute_mode == "Bicycle or e-bike" |
-    commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"),"non-motorized",
+        commute_mode == "Bicycle or e-bike" |
+        commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"),"non-motorized",
   default = "motorized"), by = "person_id"]
 
 person %>%group_by(commute_type)%>%summarise(n=n())
@@ -799,8 +799,8 @@ pwt_race_commute
 
 # plot race (simp), commute mode (simp), gender (simp)
 b8.5 <- ggplot(person_and_household,
-             aes(x=gender_simp, y=sum(hh_wt_combined.x), 
-                 fill=simp_commute)) +
+               aes(x=gender_simp, y=sum(hh_wt_combined.x), 
+                   fill=simp_commute)) +
   geom_bar(stat="identity", position= "fill") +
   facet_grid(.~hh_race_condcat1) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
@@ -836,8 +836,8 @@ broad_income_no_na %>%
 
 # plot race (simp), commute mode (simp), income (broad, no na) - proportion
 b10 <- ggplot(broad_income_no_na,
-             aes(x=hhincome_broad, y=sum(hh_wt_combined.x), 
-                 fill=(simp_commute))) +
+              aes(x=hhincome_broad, y=sum(hh_wt_combined.x), 
+                  fill=(simp_commute))) +
   geom_bar(stat="identity", position= "fill") +
   facet_grid(.~hh_race_condcat1) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
@@ -855,7 +855,7 @@ class(person_and_household$age_category)
 
 # reorder age categories to be sequential
 person_and_household$agecat_reordered <- factor(person_and_household$age_category, 
-                                       levels=c("Under 18 years","18-64 years","65 years+"))
+                                                levels=c("Under 18 years","18-64 years","65 years+"))
 
 head(person_and_household$agecat_reordered)
 age_income_commute <- person_and_household %>% 
@@ -878,17 +878,17 @@ b11
 unique(person_and_household$hhincome_broad)
 unique(person_and_household$age_category)
 person_and_household$bincomecat_reordered <- factor(person_and_household$hhincome_broad, 
-                                                levels=c(
-                                                  "Under $25,000",
-                                                  "$25,000-$49,999",
-                                                  "$50,000-$74,999",
-                                                  "$75,000-$99,999",
-                                                  "$100,000 or more"))
+                                                    levels=c(
+                                                      "Under $25,000",
+                                                      "$25,000-$49,999",
+                                                      "$50,000-$74,999",
+                                                      "$75,000-$99,999",
+                                                      "$100,000 or more"))
 # filter out under 18, "other" commute modes
 age_income_commute1 <- person_and_household %>% 
   group_by(bincomecat_reordered, simp_commute, agecat_reordered) %>% 
   filter(!agecat_reordered == "Under 18 years" &
-         !simp_commute == "missing" &
+           !simp_commute == "missing" &
            !simp_commute == "other") %>%
   summarise(n=n(), PersonWeight = sum(hh_wt_combined.x))
 
@@ -1074,4 +1074,3 @@ person_no_na = person_no_na %>% filter(!mode_freq_5 %in% missing_codes)
 #here is an example for mode_freq_5 variable
 
 create_table_one_var("mode_freq_5", person_no_na,"person" )
-
