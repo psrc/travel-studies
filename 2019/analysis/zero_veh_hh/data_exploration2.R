@@ -119,6 +119,8 @@ write_cross_tab<-function(out_table, var1, var2, file_loc){
   
 }
 
+output_WB <- "T:/2020October/Mary/HHTS/OutputTables/test.xlsx"
+
 # Vehicle ownership----------------------------------
 # to check distribution of vehicle ownership
 glimpse(household)
@@ -147,6 +149,15 @@ hhwt_vehiclecount_reordered <- household%>%
   ungroup() %>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_vehiclecount_reordered
+
+# Create blank workbook
+wb <- createWorkbook()
+# Add sheets to workbook
+addWorksheet(wb, "VehicleCount_MOE")
+# Write data to sheets
+writeData(wb, sheet = "VehicleCount_MOE", x=hhwt_vehiclecount_reordered)
+# Export file
+saveWorkbook(wb,output_WB, overwrite = T)
 
 # plot
 a1<- ggplot(data = hhwt_vehiclecount_reordered, 
@@ -181,16 +192,14 @@ VehicleCount_MOE2<-VehicleCount_MOE2_temp%>%
   arrange(vehcount_simp)
 VehicleCount_MOE2
 
-# Create blank workbook
-wb <- createWorkbook()
 # Add sheets to workbook
-addWorksheet(wb, "VehicleCount_MOE1")
-addWorksheet(wb, "VehicleCount_MOE2")
+addWorksheet(wb, "VehicleCount_simp1")
+addWorksheet(wb, "VehicleCount_simp2")
 # Write data to sheets
-writeData(wb, sheet = "VehicleCount_MOE1", x=VehicleCount_MOE1)
-writeData(wb, sheet = "VehicleCount_MOE2", x=VehicleCount_MOE2)
+writeData(wb, sheet = "VehicleCount_simp1", x=VehicleCount_MOE1)
+writeData(wb, sheet = "VehicleCount_simp2", x=VehicleCount_MOE2)
 # Export file
-saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
+saveWorkbook(wb,output_WB, overwrite = T)
 
 # plot
 vehicleplot <- household %>%
@@ -225,7 +234,7 @@ addWorksheet(wb,"Number_of_workers_all1")
 addWorksheet(wb,"Number_of_workers_all2")
 writeData(wb, sheet = "Number_of_workers_all1", x=numworkers_MOE1)
 writeData(wb, sheet = "Number_of_workers_all2", x=numworkers_MOE2)
-saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
+saveWorkbook(wb,output_WB, overwrite = T)
 
 # Number of workers simplified----------------------------------
 # group number of workers above 3 individuals
@@ -248,7 +257,7 @@ addWorksheet(wb,"Number_of_workers_simp1")
 addWorksheet(wb,"Number_of_workers_simp2")
 writeData(wb, sheet = "Number_of_workers_simp1", x=numworkers_MOE1_simp)
 writeData(wb, sheet = "Number_of_workers_simp2", x=numworkers_MOE2_simp)
-saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
+saveWorkbook(wb,output_WB, overwrite = T)
 
 # plot
 workersplot <- household %>%
@@ -319,7 +328,7 @@ addWorksheet(wb,"County1")
 addWorksheet(wb,"County2")
 writeData(wb, sheet = "County1", x=county_MOE1)
 writeData(wb, sheet = "County2", x=county_MOE2)
-saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
+saveWorkbook(wb,output_WB, overwrite = T)
 
 
 # county and vehicle access
@@ -359,4 +368,47 @@ a6
 
 
 # Race----------------------------------
+glimpse(household)
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_race_category'
+# this is the second variable you want to summarize by
+var <- 'hh_veh_access_num'
 
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+hh_no_na = hh_no_na %>% 
+  filter(!hh_race_category %in% missing_codes, !hh_veh_access_num %in% missing_codes, 
+         !is.na(hh_race_category), 
+         !is.na(hh_veh_access_num))
+
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hh_race_category) %>%
+  summarize(sample_size = n())
+sample_size_group
+
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+
+# save to workbook
+addWorksheet(wb,"Race_and_VehAccess")
+writeData(wb, sheet = "Race_and_VehAccess", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
