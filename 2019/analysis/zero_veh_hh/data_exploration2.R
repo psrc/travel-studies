@@ -168,12 +168,29 @@ household <- household%>%
                                      vehicle_count == "7"|
                                      vehicle_count == "8"|
                                      vehicle_count == "9"|
-                                     vehicle_count == "10 or more vehicles" ~ "4+",
+                                     vehicle_count == "10 or more vehicles" ~ "4",
                                    TRUE~.$vehicle_count))
 unique(household$vehcount_simp)
 
-create_table_one_var_simp("vehcount_simp", household, "household")
-create_table_one_var("vehcount_simp", household, "household")
+VehicleCount_MOE1_temp <- create_table_one_var_simp("vehcount_simp", household, "household")
+VehicleCount_MOE1<-VehicleCount_MOE1_temp%>%
+  arrange(vehcount_simp)
+VehicleCount_MOE1
+VehicleCount_MOE2_temp <- create_table_one_var("vehcount_simp", household, "household")
+VehicleCount_MOE2<-VehicleCount_MOE2_temp%>%
+  arrange(vehcount_simp)
+VehicleCount_MOE2
+
+# Create blank workbook
+wb <- createWorkbook()
+# Add sheets to workbook
+addWorksheet(wb, "VehicleCount_MOE1")
+addWorksheet(wb, "VehicleCount_MOE2")
+# Write data to sheets
+writeData(wb, sheet = "VehicleCount_MOE1", x=VehicleCount_MOE1)
+writeData(wb, sheet = "VehicleCount_MOE2", x=VehicleCount_MOE2)
+# Export file
+saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
 
 # plot
 vehicleplot <- household %>%
@@ -194,15 +211,44 @@ unique(household$numworkers)
 describe(household$numworkers)
 xtabs(~numworkers, data=household)
 
-create_table_one_var_simp("numworkers", household, "household")
+numworkers_MOE1_temp <- create_table_one_var_simp("numworkers", household, "household")
+numworkers_MOE1 <- numworkers_MOE1_temp%>%
+  arrange(numworkers)
+numworkers_MOE1
+numworkers_MOE2_temp <- create_table_one_var("numworkers", household, "household")
+numworkers_MOE2 <-numworkers_MOE2_temp%>%
+  arrange(numworkers)
+numworkers_MOE
+
+# save to workbook
+addWorksheet(wb,"Number_of_workers_all1")
+addWorksheet(wb,"Number_of_workers_all2")
+writeData(wb, sheet = "Number_of_workers_all1", x=numworkers_MOE1)
+writeData(wb, sheet = "Number_of_workers_all2", x=numworkers_MOE2)
+saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
+
+# Number of workers simplified----------------------------------
 # group number of workers above 3 individuals
 household <- household%>%
   mutate(numworkers_simp = case_when(numworkers >= 3 ~ 3,
                                    TRUE~as.numeric(numworkers)))
 unique(household$numworkers_simp)
 
-create_table_one_var_simp("numworkers_simp", household, "household")
-create_table_one_var("numworkers_simp", household, "household")
+numworkers_MOE1_simp_temp<- create_table_one_var_simp("numworkers_simp", household, "household")
+numworkers_MOE1_simp<-numworkers_MOE1_simp_temp%>%
+  arrange(numworkers_simp)
+numworkers_MOE1_simp
+numworkers_MOE2_simp_temp<- create_table_one_var("numworkers_simp", household, "household")
+numworkers_MOE2_simp<-numworkers_MOE2_simp_temp%>%
+  arrange(numworkers_simp)
+numworkers_MOE2_simp
+
+# save to workbook
+addWorksheet(wb,"Number_of_workers_simp1")
+addWorksheet(wb,"Number_of_workers_simp2")
+writeData(wb, sheet = "Number_of_workers_simp1", x=numworkers_MOE1_simp)
+writeData(wb, sheet = "Number_of_workers_simp2", x=numworkers_MOE2_simp)
+saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
 
 # plot
 workersplot <- household %>%
@@ -223,8 +269,8 @@ a3
 class(household$vehcount_simp)
 class(household$numworkers_simp)
 # need to convert the vehcount to numerical
-household$vehcount_simp_num <- as.numeric(household$vehcount_simp)
-class(household$vehcount_simp_num)
+vehcount_simp_num <- as.numeric(household$vehcount_simp)
+class(vehcount_simp_num)
 
 household <- household%>%
   mutate(hh_veh_access_num = case_when(vehcount_simp_num < numworkers_simp ~ "Limited Access",
@@ -263,4 +309,54 @@ county_no_na = county_no_na %>%
   summarise(n=n(), HouseholdWeight=sum(hh_wt_combined))
 county_no_na
 
-create_table_one_var("final_cnty", household, "household")
+county_MOE1<- create_table_one_var_simp("final_cnty", household, "household")
+county_MOE1
+county_MOE2<- create_table_one_var("final_cnty", household, "household")
+county_MOE2
+
+# save to workbook
+addWorksheet(wb,"County1")
+addWorksheet(wb,"County2")
+writeData(wb, sheet = "County1", x=county_MOE1)
+writeData(wb, sheet = "County2", x=county_MOE2)
+saveWorkbook(wb,"T:/2020October/Mary/HHTS/OutputTables/test.xlsx", overwrite = T)
+
+
+# county and vehicle access
+xtabs(~hh_veh_access_num + final_cnty, data=household)
+
+county_access <- household%>%
+  filter(!is.na(final_cnty)) %>%
+  group_by(hh_veh_access_num,final_cnty) %>%
+  summarise(HouseholdWeight = sum(hh_wt_combined))
+
+a5 <- ggplot(data = county_access, 
+             aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                 fill= final_cnty)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(HouseholdWeight,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Household Vehicle Access by County",
+       fill = "County")
+a5
+
+# plot - proportion
+a6 <- ggplot(data = county_access, 
+             aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                 fill= final_cnty)) +
+  geom_bar(stat="identity", position="fill") + 
+  # geom_text(aes(label=round(HouseholdWeight,0)), 
+  #           hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Household Vehicle Access by County",
+       fill = "County")
+a6
+
+
+# Race----------------------------------
+
