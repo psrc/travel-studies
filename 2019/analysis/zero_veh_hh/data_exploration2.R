@@ -29,7 +29,8 @@ person <- data.table(p)
 p_MOE <- 0.5
 z<-1.645
 missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
-                   'Missing: Skip logic', 'Children or missing', 'Prefer not to answer')
+                   'Missing: Skip logic', 'Children or missing', 'Prefer not to answer',
+                   'Missing')
 
 # FUNCTIONS----------------------------------
 # Create a crosstab from one variable, calculate counts, totals, and shares,
@@ -368,7 +369,27 @@ a6
 
 
 # Race----------------------------------
-glimpse(household)
+glimpse(household$hh_race_category)
+
+# plot
+hh_race <- household%>%
+  filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
+  group_by(hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_race
+
+a7 <- ggplot(data = hh_race, 
+             aes(x=hh_race_category, y=HouseholdWeight)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(HouseholdWeight,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Survey Respondents' Household Race")
+a7
+
+# RACE AND VEHICLE ACCESS----------------------------------
 # User defined variables on each analysis:
 # this is the weight for summing in your analysis
 hh_wt_field<- 'hh_wt_combined'
@@ -388,9 +409,12 @@ hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
 sum(is.na(household$household_id))
 #if you think you need to filter out NAs and missing categories, please use the code below
 hh_no_na = hh_no_na %>% 
-  filter(!hh_race_category %in% missing_codes, !hh_veh_access_num %in% missing_codes, 
+  filter(!hh_race_category %in% missing_codes, 
+         !hh_veh_access_num %in% missing_codes, 
          !is.na(hh_race_category), 
          !is.na(hh_veh_access_num))
+
+glimpse(hh_no_na)
 
 # now find the sample size of your subgroup
 sample_size_group<- hh_no_na %>%
@@ -412,3 +436,84 @@ cross_table_w_MOE
 addWorksheet(wb,"Race_and_VehAccess")
 writeData(wb, sheet = "Race_and_VehAccess", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
+
+
+# Income----------------------------------
+unique(household$hhincome_broad)
+household$hhincomeb_reordered <- factor(household$hhincome_broad, 
+                                       levels=c("Under $25,000","$25,000-$49,999",
+                                                "$50,000-$74,999","$75,000-$99,999",
+                                                "$100,000 or more","Prefer not to answer"))
+
+# check new order
+levels(household$hhincomeb_reordered)
+# find sample size of group
+xtabs(~hhincomeb_reordered, data=household)
+xtabs(~hhincomeb_reordered + hh_veh_access_num, data=household)
+
+
+# INCOME AND VEHICLE ACCESS----------------------------------
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hhincomeb_reordered'
+# this is the second variable you want to summarize by
+var <- 'hh_veh_access_num'
+
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  group_by(hhincomeb_reordered) %>%
+  summarize(sample_size = n()) %>%
+  arrange(hhincomeb_reordered)
+sample_size_group
+
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+
+# merge the cross tab with the margin of error
+cross_table_w_MOE_temp<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE <- cross_table_w_MOE_temp %>%
+  arrange(hhincomeb_reordered)
+cross_table_w_MOE
+
+# save to workbook
+addWorksheet(wb,"Income_and_VehAccess")
+writeData(wb, sheet = "Income_and_VehAccess", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+
+# plot
+hh_income <- household%>%
+  filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
+  group_by(hhincomeb_reordered, hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_income
+
+a8 <- ggplot(data = hh_income, 
+             aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                 fill=hh_race_category)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(HouseholdWeight,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Estimated Number of Households in Region", 
+       title = "Survey Respondents' by Income and Race",
+       fill = "Household Race")
+a8
