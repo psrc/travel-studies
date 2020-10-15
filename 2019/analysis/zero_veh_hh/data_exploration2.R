@@ -449,10 +449,70 @@ household$hhincomeb_reordered <- factor(household$hhincome_broad,
 levels(household$hhincomeb_reordered)
 # find sample size of group
 xtabs(~hhincomeb_reordered, data=household)
-xtabs(~hhincomeb_reordered + hh_veh_access_num, data=household)
 
+
+# INCOME AND RACE----------------------------------
+xtabs(~hhincomeb_reordered + hh_race_category, data=household)
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hhincomeb_reordered'
+# this is the second variable you want to summarize by
+var <- 'hh_race_category'
+
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(hhincomeb_reordered) %>%
+  summarize(sample_size = n()) %>%
+  arrange(hhincomeb_reordered)
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE_temp<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE <- cross_table_w_MOE_temp %>%
+  arrange(hhincomeb_reordered)
+cross_table_w_MOE
+
+# save to workbook
+addWorksheet(wb,"Income_and_Race")
+writeData(wb, sheet = "Income_and_Race", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot: race and income
+hh_race_income <- household%>%
+  filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
+  group_by(hhincomeb_reordered,hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_race_income 
+
+a7.5 <- ggplot(data = hh_race_income, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill=hhincomeb_reordered)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Renting Households by Race and Income",
+       fill = "Income")
+a7.5
 
 # INCOME AND VEHICLE ACCESS----------------------------------
+xtabs(~hhincomeb_reordered + hh_veh_access_num, data=household)
 # User defined variables on each analysis:
 # this is the weight for summing in your analysis
 hh_wt_field<- 'hh_wt_combined'
@@ -517,6 +577,19 @@ a8 <- ggplot(data = hh_income,
        title = "Survey Respondents' by Income and Race",
        fill = "Household Race")
 a8
+
+a8.5 <-ggplot(data = hh_income, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill=hhincomeb_reordered)) +
+  geom_bar(stat="identity", position = 'fill') + 
+  # geom_text(aes(label=round(HouseholdWeight,0)),
+  #           hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Survey Respondents' by Income and Race",
+       fill = "Household Income")
+a8.5
 
 # Housing Tenure----------------------------------
 freq(household$rent_own) #requires summarytools #returns that there are no NAs
@@ -679,3 +752,24 @@ a11 <- ggplot(data = hh_rent_access_race,
        title = "Renting Households by Race and Vehicle Access",
        fill = "Vehicle Access")
 a11
+
+# HOUSING TENURE (RENT) AND VEHICLE ACCESS BY HH RACE AND INCOME----------------------------------
+# plot: housing tenure (rent), income, race, vehicle access
+hh_rent_access_race_income <- household%>%
+  filter(rent_own == "Rent") %>%
+  filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
+  group_by(hh_veh_access_num, hh_race_category, hhincomeb_reordered) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_rent_access_race_income
+
+a12 <- ggplot(data = hh_rent_access_race_income, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill=hhincomeb_reordered)) +
+  geom_bar(stat="identity") + 
+  facet_grid(.~hh_veh_access_num)+
+  theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Renting Households by Race, Vehicle Access, Income",
+       fill = "Vehicle Access")
+a12
