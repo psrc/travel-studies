@@ -517,3 +517,165 @@ a8 <- ggplot(data = hh_income,
        title = "Survey Respondents' by Income and Race",
        fill = "Household Race")
 a8
+
+# Housing Tenure----------------------------------
+freq(household$rent_own) #requires summarytools #returns that there are no NAs
+housingtenure <-as.factor(household$rent_own)
+xtabs(~rent_own, data=household)
+
+# calculate shares and MOEs
+htenure_allMOE1<- create_table_one_var_simp("rent_own", household, "household")
+htenure_allMOE1
+htenure_allMOE2<- create_table_one_var("rent_own", household, "household")
+htenure_allMOE2
+# save to workbook
+addWorksheet(wb,"HousingTenure_all1")
+addWorksheet(wb,"HousingTenure_all2")
+writeData(wb, sheet = "HousingTenure_all1", x=htenure_allMOE1)
+writeData(wb, sheet = "HousingTenure_all2", x=htenure_allMOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# simplify housing tenure categories
+unique(household$rent_own)
+household <- household %>% 
+  mutate(tenure_no_na = case_when(rent_own == "Prefer not to answer" | 
+           rent_own == "Other" |
+           rent_own == "Provided by job or military" ~ "Other",
+           TRUE~.$rent_own))
+
+# calculate shares and MOEs
+htenure_MOE1<- create_table_one_var_simp("tenure_no_na", household, "household")
+htenure_MOE1
+htenure_MOE2<- create_table_one_var("tenure_no_na", household, "household")
+htenure_MOE2
+# save to workbook
+addWorksheet(wb,"HousingTenure_simp1")
+addWorksheet(wb,"HousingTenure_simp2")
+writeData(wb, sheet = "HousingTenure_simp1", x=htenure_MOE1)
+writeData(wb, sheet = "HousingTenure_simp2", x=htenure_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot
+hh_tenure <- household%>%
+  group_by(tenure_no_na) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_tenure
+
+a9 <- ggplot(data = hh_tenure, 
+             aes(x=tenure_no_na, y=HouseholdWeight)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(HouseholdWeight,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Tenure", 
+       y = "Estimated Number of Households in Region", 
+       title = "Survey Households by Housing Tenure")
+a9
+
+# HOUSING TENURE AND VEHICLE ACCESS----------------------------------
+xtabs(~tenure_no_na + hh_veh_access_num, data=household)
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'tenure_no_na'
+# this is the second variable you want to summarize by
+var <- 'hh_veh_access_num'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  group_by(tenure_no_na) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"Tenure_and_VehAccess")
+writeData(wb, sheet = "Tenure_and_VehAccess", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot
+hh_tenure_access <- household%>%
+  group_by(tenure_no_na, hh_veh_access_num) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_tenure_access
+
+a10 <- ggplot(data = hh_tenure_access, 
+             aes(x=tenure_no_na, y=HouseholdWeight,
+                 fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Housing Tenure", 
+       y = "Estimated Number of Households in Region", 
+       title = "Households by Tenure and Vehicle Access",
+       fill = "Vehicle Access")
+a10
+
+# HOUSING TENURE (RENT) AND VEHICLE ACCESS BY HH RACE----------------------------------
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_race_category'
+# this is the second variable you want to summarize by
+var <- 'hh_veh_access_num'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  filter(rent_own == "Rent") %>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(hh_race_category) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"Rent_and_VehAccessRace")
+writeData(wb, sheet = "Rent_and_VehAccessRace", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot
+hh_rent_access_race <- household%>%
+  filter(rent_own == "Rent") %>%
+  group_by(hh_veh_access_num, hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_rent_access_race
+
+a11 <- ggplot(data = hh_rent_access_race, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Renting Households by Race and Vehicle Access",
+       fill = "Vehicle Access")
+a11
