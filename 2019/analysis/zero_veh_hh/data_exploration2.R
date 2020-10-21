@@ -57,7 +57,7 @@ create_table_one_var = function(var1, table_temp,table_type) {
   return(temp)
 }
 
-# Create a crosstab from one variable, calculate counts, totals, shares, and MOE
+# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE
 # for categorical data
 create_table_one_var_simp= function(var1, table_temp,table_type) {
   #table_temp = recategorize_var_upd(var2,table_temp)
@@ -117,11 +117,12 @@ write_cross_tab<-function(out_table, var1, var2, file_loc){
   file_ext<-file.path(file_loc, file_name)
   write.xlsx(out_table, file_ext, sheetName ="data", 
              col.names = TRUE, row.names = FALSE, append = FALSE)
-  
 }
 
 output_WB <- "T:/2020October/Mary/HHTS/OutputTables/test.xlsx"
 
+# ~~~~~~~~~~~~~~~~ ----------------------------------
+# Household DATASET----------------------------------
 # Vehicle ownership----------------------------------
 # to check distribution of vehicle ownership
 glimpse(household)
@@ -511,6 +512,17 @@ a7.5 <- ggplot(data = hh_race_income,
        fill = "Income")
 a7.5
 
+a7.75 <- ggplot(data = hh_race_income, 
+               aes(x=hh_race_category, y=HouseholdWeight,
+                   fill=hhincomeb_reordered)) +
+  geom_bar(stat="identity", position="fill") +
+  theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Renting Households by Race and Income",
+       fill = "Income")
+a7.75
+
 # INCOME AND VEHICLE ACCESS----------------------------------
 xtabs(~hhincomeb_reordered + hh_veh_access_num, data=household)
 # User defined variables on each analysis:
@@ -737,7 +749,7 @@ saveWorkbook(wb,output_WB, overwrite = T)
 
 # plot
 hh_rent_access_race <- household%>%
-  filter(rent_own == "Rent") %>%
+  filter(rent_own == "Rent", !hh_race_category=="Missing") %>%
   group_by(hh_veh_access_num, hh_race_category) %>%
   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
 hh_rent_access_race
@@ -773,3 +785,397 @@ a12 <- ggplot(data = hh_rent_access_race_income,
        title = "Renting Households by Race, Vehicle Access, Income",
        fill = "Vehicle Access")
 a12
+
+# Housing Type----------------------------------
+freq(household$res_type)
+xtabs(~res_type + hh_race_category, data=household)
+
+# shares and MOEs
+restype_MOE1<- create_table_one_var_simp("res_type", household, "household")
+restype_MOE1
+restype_MOE2<- create_table_one_var("res_type", household, "household")
+restype_MOE2
+# save to workbook
+addWorksheet(wb,"ResType_all1")
+addWorksheet(wb,"ResType_all2")
+writeData(wb, sheet = "ResType_all1", x=restype_MOE1)
+writeData(wb, sheet = "ResType_all2", x=restype_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# need to simplify because of high MOEs (compared to perc_combined)
+unique(household$res_type)
+household <- household %>% 
+  mutate(restype_simp = case_when(res_type == "Mobile home/trailer" | 
+                                    res_type == "Dorm or institutional housing" |
+                                    res_type == "Other (including boat, RV, van, etc.)" ~ "Other",
+                                  TRUE~.$res_type))
+unique(household$restype_simp)
+
+# shares and MOEs
+restype_simpMOE1<- create_table_one_var_simp("restype_simp", household, "household")
+restype_simpMOE1
+restype_simpMOE2<- create_table_one_var("restype_simp", household, "household")
+restype_simpMOE2
+# save to workbook
+addWorksheet(wb,"ResType_simp1")
+addWorksheet(wb,"ResType_simp2")
+writeData(wb, sheet = "ResType_simp1", x=restype_simpMOE1)
+writeData(wb, sheet = "ResType_simp2", x=restype_simpMOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# RESIDENTIAL TYPE (SIMP) AND HH RACE----------------------------------
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'restype_simp'
+# this is the second variable you want to summarize by
+var <- 'hh_race_category'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(restype_simp) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"ResType_and_Race")
+writeData(wb, sheet = "ResType_and_Race", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot
+hh_restype_race <- household%>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(restype_simp, hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_restype_race
+
+a13 <- ggplot(data = hh_restype_race, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill=restype_simp)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Residential Type by Race",
+       fill = "Residential Type")
+a13
+
+# RESIDENTIAL TYPE (SIMPx2) AND HH RACE----------------------------------
+# need to FURTHER simplify
+unique(household$restype_simp)
+household <- household %>% 
+  mutate(restype_simp2 = case_when(restype_simp == "Single-family house (detached house)" ~ "Single, Detached",
+                                   restype_simp == "Townhouse (attached house)" |
+                                    restype_simp == "Building with 3 or fewer apartments/condos" ~ "Low Density",
+                                   restype_simp == "Building with 4 or more apartments/condos" ~ "High Density",
+                                  TRUE~.$restype_simp))
+unique(household$restype_simp2)
+# plot
+hh_restypesimp2_race <- household%>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(restype_simp2, hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_restypesimp2_race
+
+a14 <- ggplot(data = hh_restypesimp2_race, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill=restype_simp2)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Residential Type by Household Race",
+       fill = "Residential Type")
+a14
+
+# ~~~~~~~~~~~~~~~~ ----------------------------------
+# Person DATASET----------------------------------
+# Investigate the person weights 
+head(person$hh_wt_combined)
+# verify number of samples for person dataset (11,940), weighted total (~4 million)
+nrow(person)
+sum(person$hh_wt_combined)
+
+
+# Demographics: Age and Gender----------------------------------
+xtabs(~age+gender, data=person)
+
+# plot
+b1 <- ggplot(person,
+             aes(x=age, y=sum(hh_wt_combined), fill=gender)) +
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Age", 
+       y = "Estimated Number of Households in Region", 
+       title = "Population Distribution",
+       fill = "Gender")
+b1
+
+person <- person%>%
+  mutate(gender_simp = case_when(gender == "Female" ~ "Female",
+                                 gender == "Male" ~ "Male",
+                                 gender == "Another" | gender == "Prefer not to answer" ~ "Another"))
+unique(person$gender_simp)
+person %>% group_by(gender_simp) %>% summarise(n=n())
+  
+# plot simplified gender
+b2 <- ggplot(person,
+             aes(x=age, y=sum(hh_wt_combined), fill=gender_simp)) +
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Age", 
+       y = "Estimated Number of Households in Region", 
+       title = "Population Distribution",
+       fill = "Gender")
+b2
+
+# Commute Mode----------------------------------
+unique(person$commute_mode)
+person %>% 
+  group_by(commute_mode) %>% 
+  summarise(n=n())
+
+# commute mode categorized into non-motorized or motorized
+person <- person%>%
+  mutate(commute_type = case_when(commute_mode == "Walk, jog, or wheelchair" |
+                                    commute_mode == "Bicycle or e-bike" |
+                                    commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)" ~"non-motorized",
+                                  TRUE ~ "motorized"))
+
+person %>%group_by(commute_type)%>%summarise(n=n())
+
+# simplified commuting modes
+person <- person%>%
+  mutate(simp_commute = case_when(commute_mode == "Walk, jog, or wheelchair" | 
+                                    commute_mode == "Bicycle or e-bike" | 
+                                    commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"~ "non_motorized",
+                                  commute_mode == "Drive alone" ~"SOV", 
+                                  commute_mode == "Carpool with other people not in household (may also include household members)" |
+                                    commute_mode == "Carpool ONLY with other household members" |
+                                    commute_mode == "Vanpool"~ "carpool",
+                                  commute_mode == "Bus (public transit)" |
+                                    commute_mode == "Commuter rail (Sounder, Amtrak)" |
+                                    commute_mode == "Urban rail (Link light rail, monorail)" |
+                                    commute_mode == "Ferry or water taxi" |
+                                    commute_mode == "Streetcar" |
+                                    commute_mode == "Paratransit"~"public_transit",
+                                  commute_mode == "Motorcycle/moped/scooter"|
+                                    commute_mode == "Motorcycle/moped"~ "small_veh",
+                                  commute_mode == "Private bus or shuttle" |
+                                    commute_mode == "Airplane or helicopter" | 
+                                    commute_mode == "Other (e.g. skateboard)"~ "other",
+                                  commute_mode == "Other hired service (Uber, Lyft, or other smartphone-app car service)" |
+                                    commute_mode == "Taxi (e.g., Yellow Cab)"~ "hired",
+                                  TRUE ~ "missing"))
+
+unique(person$simp_commute)
+person %>% group_by(simp_commute) %>% summarise(n=n())
+
+# simplified commute modes by all gender categories
+xtabs(~simp_commute + gender, data = person)
+
+# simplified commute modes by simplified gender categories
+xtabs(~simp_commute + gender_simp, data = person)
+
+# focus on non-motorized commutes
+nonmotorized <- person %>% 
+  filter(commute_type== "non-motorized")
+xtabs(~age+gender_simp, data = nonmotorized)
+
+b3 <- ggplot(nonmotorized,
+             aes(x=age, y=sum(hh_wt_combined), fill=gender_simp)) +
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Age", 
+       y = "Estimated Number of People in Region", 
+       title = "Non-motorized Commuting by Age and Gender",
+       fill = "Gender")
+b3
+
+# License Status----------------------------------
+unique(person$license)
+freq(person$license)
+
+# focus on yes/no
+binary_license <- person %>% 
+  filter(license== "Yes, has an intermediate or unrestricted license"| 
+                                      license== "No, does not have a license or permit")
+binary_license %>% group_by(license) %>% summarise(n=n(), sum(hh_wt_combined))
+
+# simplify license categories
+person <- person %>% 
+  mutate(license_simp = case_when(
+    license == "Yes, has an intermediate or unrestricted license" ~ "Yes",
+    license == "No, does not have a license or permit" ~ "No",
+    license == "Yes, has a learner's permit" ~ "Permit",
+    license == "Missing: Skip logic" ~ "Other"))
+freq(person$license_simp)
+
+# shares and MOEs
+license_MOE1<- create_table_one_var_simp("license_simp", person, "person")
+license_MOE1
+license_MOE2<- create_table_one_var("license_simp", person, "person")
+license_MOE2
+# save to workbook
+addWorksheet(wb,"License_simp1")
+addWorksheet(wb,"License_simp2")
+writeData(wb, sheet = "License_simp1", x=license_MOE1)
+writeData(wb, sheet = "License_simp1", x=license_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+
+# LICENSE STATUS (SIMP) AND PERSON RACE----------------------------------
+unique(person$race_category)
+freq(person$race_category)
+
+xtabs(~race_category + license_simp, data=person)
+
+# simplify race and license categories
+simp_license_race <- person %>%
+  filter(!race_category %in% missing_codes, 
+         !is.na(race_category),
+         !race_category=="Child",
+         license_simp== "Yes"| 
+           license_simp== "No")
+xtabs(~race_category + license_simp, data=simp_license_race)
+
+# plot
+b5 <- ggplot(simp_license_race,
+             aes(x=race_category, y=sum(hh_wt_combined), fill=license_simp)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Race", 
+       y = "Estimated Number of People in Region", 
+       title = "License Status by Race",
+       fill = "License Status")
+b5
+
+# ~~~~~~~~~~~~~~~~ ----------------------------------
+# Person & Household DATASETS----------------------------------
+glimpse(person)
+glimpse(household)
+
+person_and_household <- left_join(person, household,
+                                  by=c("household_id"="household_id"))
+# check number of rows to make sure no data lost
+nrow(person_and_household) #same as the person table - 11940
+# any NAs in person_id or household_id?
+glimpse(person_and_household)
+sum(person_and_household$hh_wt_combined.x) #4051580
+sum(person_and_household$hh_wt_combined.y) #4051580
+sum(is.na(person_and_household$person_id)) #0
+sum(is.na(person_and_household$household_id)) #0
+
+# LICENSE STATUS (SIMP) AND RACE----------------------------------
+xtabs(~license_simp+simp_commute, data=person_and_household)
+
+# plot license and race
+c1 <- ggplot(person_and_household,
+             aes(x=license_simp, y=sum(hh_wt_combined.x), fill=race_category)) +
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "License", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by License Status and Race",
+       fill = "Race")
+c1
+
+# LICENSE STATUS (SIMP), COMMUTE MODE, AND RACE----------------------------------
+xtabs(~license_simp+simp_commute, data=person_and_household)
+
+# plot license, race, commute simplified
+c2 <- ggplot(person_and_household,
+             aes(x=license_simp, y=sum(hh_wt_combined.x), fill=race_category)) +
+  geom_bar(stat="identity") + facet_grid(.~commute_type) +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "License", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by License Status and Age",
+       fill = "Race")
+c2
+
+# COMMUTE MODE (SIMP) AND INCOME (BROAD)----------------------------------
+unique(person_and_household$simp_commute)
+unique(person_and_household$hhincomeb_reordered)
+
+xtabs(~hhincomeb_reordered + simp_commute, data=person_and_household)
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined.x'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hhincomeb_reordered'
+# this is the second variable you want to summarize by
+var <- 'simp_commute'
+# filter data missing weights 
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- person_and_household %>%
+  group_by(hhincomeb_reordered) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(person_and_household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"Income_and_CommuteMode")
+writeData(wb, sheet = "Income_and_CommuteMode", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot
+income_commutemode <- person_and_household%>%
+  filter(!simp_commute=="missing") %>%
+  group_by(hhincomeb_reordered, simp_commute) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined.x))
+income_commutemode
+
+c3 <- ggplot(data = income_commutemode, 
+              aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                  fill=simp_commute)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Income", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Income",
+       fill = "Commute Mode")
+c3
+
+# plot - proportion
+c3.5 <- ggplot(data = income_commutemode, 
+             aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                 fill=simp_commute)) +
+  geom_bar(stat="identity", position='fill') + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Income", 
+       y = "Estimated Number of People in Region", 
+       title = "Commute Mode by Income",
+       fill = "Commute Mode")
+c3.5
