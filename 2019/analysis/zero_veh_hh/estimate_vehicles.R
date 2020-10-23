@@ -42,7 +42,7 @@ hh_df<-read.dt(dbtable.household.query, 'tablename')
 
 
 # this has some information on the Census Tract level that could be useful
-displ_index_data<- 'C:/Users/SChildress/Documents/GitHub/data-science/HHSurvey/displacement_risk_estimation.csv'
+displ_index_data<- 'C:/Users/SChildress/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/displacement_risk_estimation.csv'
 displ_risk_df <- read.csv(displ_index_data)
 
 
@@ -65,4 +65,4 @@ hh_df_veh <- hh_df_tract %>% mutate(vehicle_group = case_when(vehicle_count== "0
 vehicle_est= multinom(vehicle_group ~ numworkers + hhincome_detailed + hh_race_category+
                         ln_jobs_transit_45, data=hh_df_veh)
 
-summary(vehicle_est)
+stargazer(vehicle_est, type= 'text', out='C:/Users/SChildress/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/veh_est_results.txt')
