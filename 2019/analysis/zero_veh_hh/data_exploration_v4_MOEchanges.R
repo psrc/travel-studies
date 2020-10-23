@@ -56,11 +56,22 @@ cross_tab_categorical <- function(table, var1, var2, wt_field) {
     mutate(Percentage=Total/sum(Total)*100)
   
   expanded_pivot <-expanded%>%
-    pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
+    pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total,Count))
   
   return (expanded_pivot)
 } 
 
+
+categorical_moe <- function(sample_size_group){
+  sample_w_MOE<-sample_size_group %>%
+    mutate(p_col=p_MOE) %>%
+    mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
+    mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
+  
+  sample_w_MOE<- select(sample_w_MOE, -c(p_col, MOE_calc1))
+  
+  return(sample_w_MOE)
+} 
 
 # Number of vehicles----------------------------------
 
@@ -91,9 +102,9 @@ a1
 unique(household$vehicle_count)
 # factor(household$vehicle_count)
 household$vehcount_reordered <- factor(household$vehicle_count, 
-                                       levels=c("0 (no vehicles)","1","2","3","4","5",
-                                                "6","7","8","9","10 or more vehicles"))
-levels(vehcount_reordered)
+                                  levels=c("0 (no vehicles)","1","2","3","4","5",
+                                           "6","7","8","9","10 or more vehicles"))
+levels(household$vehcount_reordered)
 
 # plot household weights by number of vehicles (reordered)
 hhwt_vehiclecount_reordered <- household%>% 
@@ -103,6 +114,15 @@ hhwt_vehiclecount_reordered <- household%>%
   ungroup() %>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_vehiclecount_reordered
+
+# write to csv
+write.csv(hhwt_vehiclecount_reordered, 
+          file = "T:/2020October/Mary/HHTS/OutputTables/test.csv",
+          row.names = F)
+# write to xlsx - Write the first data set in a new workbook
+write.xlsx(hhwt_vehiclecount_reordered, file="T:/2020October/Mary/HHTS/OutputTables/test.xlsx",
+           sheetName= "VehicleCount", append= TRUE)
+
 # hhwt_vehiclecount <-aggregate(household$hh_day_wt_combined, 
 #                               by = list(VehicleCount=household$vehcount_reordered),
 #                               FUN = sum)
@@ -118,22 +138,6 @@ a2 <- ggplot(data = hhwt_vehiclecount_reordered,
        y = "Estimated Number of Households in Region", title = "Vehicle Ownership")
 a2
 
-# plot - vehicle ownership by county
-unique(household$final_cnty)
-simp_county_no_na <- household %>%
-  filter(!is.na(final_cnty))
-
-a2.5 <- ggplot(simp_county_no_na,
-               aes(x=vehcount_reordered, y=sum(hh_wt_combined), 
-                   fill=rent_v_own)) +
-  geom_bar(stat="identity") +
-  facet_grid(.~final_cnty)+
-  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
-  labs(x = "Vehicle Ownership", 
-       y = "Estimated Number of Households in Region", 
-       title = "Vehicle Ownership by County and Housing Tenure ",
-       fill = "Housing Tenure")
-a2.5
 
 # Housing tenure (rent_own)----------------------------------
 freq(household$rent_own) #requires summarytools
@@ -153,6 +157,10 @@ hhwt_housingtenure <- household%>%
   ungroup() %>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_housingtenure
+
+# Write this second data set into test workbook
+write.xlsx(hhwt_housingtenure, file = "T:/2020October/Mary/HHTS/OutputTables/test.xlsx",
+           sheetName = "HousingTenure", append = TRUE)
 
 # plot household weights by housing tenure
 # need to transform to dataframe because as a tibble it was plotting multiple labels 
@@ -177,7 +185,7 @@ tenure_no_na <- hhwt_housingtenure_df %>%
 unique(tenure_no_na)
 
 a3.5 <-ggplot(tenure_no_na, 
-              aes(x=rent_own, y=HouseholdWeight)) +
+            aes(x=rent_own, y=HouseholdWeight)) +
   geom_bar(stat="identity") + 
   geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   labs(x = "Number of Vehicles per Household", 
@@ -188,11 +196,14 @@ a3.5
 # Housing tenure (all categories) and vehicle ownership----------------------------------
 hhwt_vehcount_tenure <- household%>% 
   group_by(vehcount_reordered, rent_own)%>%
-  summarise(n=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
+  summarise(sample_size=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
-  ungroup() %>%
-  mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
+  ungroup()
 hhwt_vehcount_tenure
+
+# get the margins of error for your groups using Polina's code
+hhwt_vehcount_tenure_MOE <- categorical_moe(hhwt_vehcount_tenure)
+hhwt_vehcount_tenure_MOE
 
 # using cross_tab_categorical function (all tenure categories)
 hhwt_vehcount_tenure1 <- cross_tab_categorical(household,
@@ -207,11 +218,13 @@ hhwt_vehcount_tenure2 <- household %>%
            !rent_own == "Other" & 
            !rent_own == "Provided by job or military") %>%
   group_by(vehcount_reordered, rent_own, final_cnty)%>%
-  summarise(n=n(),HouseholdWeight=sum(hh_wt_combined)) %>%
-  mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
-  ungroup() %>%
-  mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
+  summarise(sample_size = n(),HouseholdWeight=sum(hh_wt_combined)) %>%
+  mutate(Percentage = HouseholdWeight/sum(HouseholdWeight)*100) %>%
+  ungroup()
 hhwt_vehcount_tenure2
+
+hhwt_vehcount_tenure2_MOE<- categorical_moe(hhwt_vehcount_tenure2)
+hhwt_vehcount_tenure2_MOE
 
 # plot 
 a4 <- ggplot(hhwt_vehcount_tenure2, 
@@ -246,6 +259,24 @@ hhwt_vehcount_tenure3 <- cross_tab_categorical(household,
                                                'hh_wt_combined')
 hhwt_vehcount_tenure3
 
+# plot - vehicle ownership by county
+unique(household$final_cnty)
+simp_county_no_na <- household %>%
+  filter(!is.na(final_cnty))
+
+a5.5 <- ggplot(simp_county_no_na,
+               aes(x=vehcount_reordered, y=sum(hh_wt_combined), 
+                   fill=rent_v_own)) +
+  geom_bar(stat="identity") +
+  facet_grid(.~final_cnty)+
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Vehicle Ownership", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Ownership by County and Housing Tenure ",
+       fill = "Housing Tenure")
+a5.5
+
+
 # Vehicle access: number of workers compared to vehicle count----------------------------------
 unique(household$numworkers)
 describe(household$numworkers)
@@ -255,17 +286,26 @@ unique(household$vehcount_reordered)
 # number of households: number of workers by vehicles owned
 hhwt_workers_vehown <- with(household, 
                             tapply(hh_wt_combined, 
-                                   list(vehcount_reordered,numworkers), 
-                                   sum))
+                              list(vehcount_reordered,numworkers), 
+                              sum))
 hhwt_workers_vehown
 
 hhwt_workers_vehown1 <- household%>% 
   group_by(vehcount_reordered,numworkers)%>%
-  summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
+  summarise(sample_size=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
-  mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
+  mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(sample_size))^(1/2)*100)
 hhwt_workers_vehown1
+
+# compare MOE with Polina's function (just one variable)
+vehiclecount_reordered <- household%>% 
+  group_by(vehcount_reordered) %>%
+  summarise(sample_size=n(),HouseholdWeight=sum(hh_wt_combined))%>%
+  mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
+  ungroup()
+vehiclecount_reordered_MOE<- categorical_moe(vehiclecount_reordered)
+vehiclecount_reordered_MOE
 
 # make numworkers factor, instead of continuous
 a6 <-ggplot(hhwt_workers_vehown1, 
@@ -281,8 +321,8 @@ a6
 # transform vehicle count to numeric?
 class(household$vehicle_count)
 household$vehicle_count_trans <- recode(household$vehicle_count, 
-                                        "0 (no vehicles)" = "0",
-                                        "10 or more vehicles" = "10")
+                                               "0 (no vehicles)" = "0",
+                                               "10 or more vehicles" = "10")
 unique(household$vehicle_count_trans)
 class(household$vehicle_count_trans)
 
@@ -313,13 +353,13 @@ household[, hh_veh_access_num := fcase(
   all(vehicle_count_num == numworkers), "Equal",
   all(vehicle_count_num > numworkers), "Good Access",
   default = "other"), by = "household_id"]
-unique(hh_veh_access_num)
+unique(household$hh_veh_access_num)
 
 # dplyr option - numerical veh count data
 household <- household%>%
   mutate(hh_veh_access1_num = case_when(vehicle_count_num < numworkers ~ "Limited Access",
-                                        vehicle_count_num == numworkers ~ "Equal",
-                                        vehicle_count_num > numworkers ~ "Good Access"))
+                                    vehicle_count_num == numworkers ~ "Equal",
+                                    vehicle_count_num > numworkers ~ "Good Access"))
 
 # comparing the results from the code above - using both categorical and numerical
 # # how can categorical data be compared to the integer data
@@ -329,7 +369,7 @@ household <- household%>%
 xtabs(~hh_veh_access_num+numworkers, data=household)
 xtabs(~hh_veh_access1_num+numworkers, data=household) #produce same results, different than first 2...
 
-xtabs(~vehicle_count_num+ household$numworkers)
+xtabs(~household$vehicle_count_num+ household$numworkers)
 
 
 hhwt_veh_access <- household %>% 
@@ -398,13 +438,20 @@ a9
 # focused hh race categories (consolidate: missing, other, exception)
 unique(household$hh_race_category)
 
-# simplifies race categories
-household[, hh_race_condcat1 := fcase(
-  all(hh_race_category == "White Only"), "While Only",
-  all(hh_race_category == "Asian"), "Asian",
-  all(hh_race_category == "Hispanic"), "Hispanic",
-  all(hh_race_category == "African American"), "African American",
-  default = "other"), by = "household_id"]
+# # data.table: simplifies race categories
+# household[, hh_race_condcat1 := fcase(
+#   all(hh_race_category == "White Only"), "While Only",
+#   all(hh_race_category == "Asian"), "Asian",
+#   all(hh_race_category == "Hispanic"), "Hispanic",
+#   all(hh_race_category == "African American"), "African American",
+#   default = "other"), by = "household_id"]
+
+# dplyr: simplifies race categories
+household <- household%>%
+  mutate(hh_race_condcat1=case_when(hh_race_category == "Other" |
+                                               hh_race_category == "Missing" ~ "other",
+                                    TRUE~.$hh_race_category))
+
 unique(household$hh_race_condcat1)
 
 # generate tibble showing race by access
@@ -419,9 +466,9 @@ hhwt_race_cat1
 
 # plot - frequency
 a10 <-ggplot(hhwt_race_cat1, 
-             aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access_num)) +
+            aes(x=hh_race_condcat1, y=HouseholdWeight, fill=hh_veh_access_num)) +
   geom_bar(stat="identity") + 
-  geom_text(aes(label=round(HouseholdWeight,0))) +
+  #geom_text(aes(label=round(HouseholdWeight,0))) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   labs(x = "Household Race", 
        y = "Estimated Number of Households in Region", 
@@ -494,13 +541,9 @@ unique(household$hhincome_broad)
 hhincomebroad_filtered <- household %>% 
   filter(hhincome_broad != "Prefer not to answer")
 head(hhincomebroad_filtered)
-glimpse(hhincomebroad_filtered)
-
-hhincomebroad_filtered_df <- as.data.frame(hhincomebroad_filtered)
-hhincomebroad_filtered_df
 
 # plot
-hhwt_broad_no_noanswer <- hhincomebroad_filtered_df %>% 
+hhwt_broad_no_noanswer <- hhincomebroad_filtered %>% 
   group_by(hhincome_broad, hh_veh_access_num, hh_race_condcat1) %>% 
   summarise(n=n(),HouseholdWeight=sum(hh_wt_combined))%>%
   mutate(perc_comb = HouseholdWeight/sum(HouseholdWeight)*100) %>%
@@ -512,7 +555,7 @@ a14 <- ggplot(hhwt_broad_no_noanswer,
               aes(x=hh_veh_access_num,
                   y=HouseholdWeight, fill=hhincome_broad)) +
   geom_bar(stat="identity") + facet_grid(.~hh_race_condcat1) +
-  geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
+  #geom_text(aes(label=round(HouseholdWeight,0)), hjust=0.5, vjust=-0.5) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1, vjust = 0.5)) +
   labs(x = "Vehicle Access (Workers)", 
        y = "Estimated Number of Households in Region", 
@@ -587,8 +630,8 @@ cross_tab_categorical2 <- function(table, var1, var2, wt_field) {
     group_by(.data[[var1]])%>%
     ungroup() %>%
     mutate(Percentage=WeightedTotal/sum(WeightedTotal)*100)
-  
-  expanded_pivot <-expanded%>%
+
+    expanded_pivot <-expanded%>%
     pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,WeightedTotal,Count))
   
   return (expanded_pivot)
@@ -612,8 +655,8 @@ person %>% group_by(gender) %>% summarise(n=n())
 
 person <- person%>%
   mutate(gender_simp = case_when(gender == "Female" ~ "Female",
-                                 gender == "Male" ~ "Male",
-                                 gender == "Another" | gender == "Prefer not to answer" ~ "Another"))
+                                gender == "Male" ~ "Male",
+                                gender == "Another" | gender == "Prefer not to answer" ~ "Another"))
 unique(person$gender_simp)
 person %>% group_by(gender_simp) %>% summarise(n=n())
 
@@ -634,38 +677,69 @@ person %>%
   group_by(commute_mode) %>% 
   summarise(n=n())
 
-# creating a person-level flag to indicate if commute mode used is non-motorized or motorized
-person[, commute_type := fcase(
-  any(commute_mode == "Walk, jog, or wheelchair" |
-        commute_mode == "Bicycle or e-bike" |
-        commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"),"non-motorized",
-  default = "motorized"), by = "person_id"]
+# # data.table: commute mode categorized into non-motorized or motorized
+# person[, commute_type := fcase(
+#   any(commute_mode == "Walk, jog, or wheelchair" |
+#     commute_mode == "Bicycle or e-bike" |
+#     commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"),"non-motorized",
+#   default = "motorized"), by = "person_id"]
+
+# dplyr: commute mode categorized into non-motorized or motorized
+person <- person%>%
+  mutate(commute_type = case_when(commute_mode == "Walk, jog, or wheelchair" |
+                                    commute_mode == "Bicycle or e-bike" |
+                                    commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)" ~"non-motorized",
+                                  TRUE ~ "motorized"))
 
 person %>%group_by(commute_type)%>%summarise(n=n())
 
-# creating a person-level flag to simplify commuting modes
-person[, simp_commute := fcase(
-  any(commute_mode == "Walk, jog, or wheelchair" | 
-        commute_mode == "Bicycle or e-bike" | 
-        commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"), "non_motorized", 
-  all(commute_mode == "Drive alone"),"SOV", 
-  any(commute_mode == "Carpool with other people not in household (may also include household members)" |
-        commute_mode == "Carpool ONLY with other household members" |
-        commute_mode == "Vanpool"), "carpool",
-  any(commute_mode == "Bus (public transit)" |
-        commute_mode == "Commuter rail (Sounder, Amtrak)" |
-        commute_mode == "Urban rail (Link light rail, monorail)" |
-        commute_mode == "Ferry or water taxi" |
-        commute_mode == "Streetcar" |
-        commute_mode == "Paratransit"), "public_transit",
-  any(commute_mode == "Motorcycle/moped/scooter"|
-        commute_mode == "Motorcycle/moped"), "small_veh",
-  any(commute_mode) == "Private bus or shuttle" |
-    commute_mode == "Airplane or helicopter" |
-    commute_mode == "Other (e.g. skateboard)", "other",
-  any(commute_mode == "Other hired service (Uber, Lyft, or other smartphone-app car service)" |
-        commute_mode == "Taxi (e.g., Yellow Cab)"), "hired",
-  default = "missing"), by = "person_id"]
+# # data.table: creating a person-level flag to simplify commuting modes
+# person[, simp_commute := fcase(
+#   any(commute_mode == "Walk, jog, or wheelchair" | 
+#         commute_mode == "Bicycle or e-bike" | 
+#         commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"), "non_motorized", 
+#   all(commute_mode == "Drive alone"),"SOV", 
+#   any(commute_mode == "Carpool with other people not in household (may also include household members)" |
+#         commute_mode == "Carpool ONLY with other household members" |
+#         commute_mode == "Vanpool"), "carpool",
+#   any(commute_mode == "Bus (public transit)" |
+#         commute_mode == "Commuter rail (Sounder, Amtrak)" |
+#         commute_mode == "Urban rail (Link light rail, monorail)" |
+#         commute_mode == "Ferry or water taxi" |
+#         commute_mode == "Streetcar" |
+#         commute_mode == "Paratransit"), "public_transit",
+#   any(commute_mode == "Motorcycle/moped/scooter"|
+#         commute_mode == "Motorcycle/moped"), "small_veh",
+#   any(commute_mode) == "Private bus or shuttle" |
+#     commute_mode == "Airplane or helicopter" |
+#     commute_mode == "Other (e.g. skateboard)", "other",
+#   any(commute_mode == "Other hired service (Uber, Lyft, or other smartphone-app car service)" |
+#         commute_mode == "Taxi (e.g., Yellow Cab)"), "hired",
+#   default = "missing"), by = "person_id"]
+
+# dplyr: creating a person-level flag to simplify commuting modes
+person <- person%>%
+  mutate(simp_commute = case_when(commute_mode == "Walk, jog, or wheelchair" | 
+                                    commute_mode == "Bicycle or e-bike" | 
+                                    commute_mode =="Scooter or e-scooter (e.g., Lime, Bird, Razor)"~ "non_motorized",
+         commute_mode == "Drive alone" ~"SOV", 
+         commute_mode == "Carpool with other people not in household (may also include household members)" |
+           commute_mode == "Carpool ONLY with other household members" |
+           commute_mode == "Vanpool"~ "carpool",
+         commute_mode == "Bus (public transit)" |
+           commute_mode == "Commuter rail (Sounder, Amtrak)" |
+           commute_mode == "Urban rail (Link light rail, monorail)" |
+           commute_mode == "Ferry or water taxi" |
+           commute_mode == "Streetcar" |
+           commute_mode == "Paratransit"~"public_transit",
+         commute_mode == "Motorcycle/moped/scooter"|
+           commute_mode == "Motorcycle/moped"~ "small_veh",
+         commute_mode == "Private bus or shuttle" |
+           commute_mode == "Airplane or helicopter" | 
+           commute_mode == "Other (e.g. skateboard)"~ "other",
+         commute_mode == "Other hired service (Uber, Lyft, or other smartphone-app car service)" |
+           commute_mode == "Taxi (e.g., Yellow Cab)"~ "hired",
+                                  TRUE ~ "missing"))
 
 unique(person$simp_commute)
 person %>% group_by(simp_commute) %>% summarise(n=n())
@@ -694,21 +768,28 @@ freq(person$license)
 # focus on yes/no
 binary_license <- person %>% filter(license== "Yes, has an intermediate or unrestricted license"| 
                                       license== "No, does not have a license or permit")
-binary_license %>% group_by(license) %>% summarise(n=n(), sum(hh_wt_combined.x))
+binary_license %>% group_by(license) %>% summarise(n=n(), sum(hh_wt_combined))
 
 xtabs(~ license + commute_type, data=binary_license)
-travel_license <- cross_tab_categorical2(binary_license, 'commute_type', 'license', 'hh_wt_combined.x')
+travel_license <- cross_tab_categorical2(binary_license, 'commute_type', 'license', 'hh_wt_combined')
 travel_license
 
 # plot license, age, commute simplified
 b4 <- ggplot(binary_license,
-             aes(x=license, y=sum(hh_wt_combined.x), fill=age)) +
+             aes(x=license, y=sum(hh_wt_combined), fill=age)) +
   geom_bar(stat="identity") + facet_grid(.~commute_type) +
   labs(x = "License", 
        y = "Estimated Number of People in Region", 
        title = "Commute Mode by License Status and Age",
        fill = "Age")
 b4 #overlapping X-axis text
+
+# join to household table
+glimpse(person)
+glimpse(household)
+
+person_and_household <- left_join(person, household,
+                                  by=c("household_id"="household_id"))
 
 # recode to simplify license category names
 binary_license <- person_and_household %>% 
@@ -728,13 +809,6 @@ b5 <- ggplot(binary_license,
        fill = "Age")
 b5
 
-# join to household table for income data
-glimpse(person)
-glimpse(household)
-
-person_and_household <- left_join(person, household,
-                                  by=c("household_id"="household_id"))
-
 # check number of rows to make sure no data lost
 nrow(person_and_household) #same as the person table 
 # any NAs in person_id or household_id?
@@ -742,8 +816,10 @@ glimpse(person_and_household)
 sum(person_and_household$hh_wt_combined.x) #4051580
 sum(person_and_household$hh_wt_combined.y) #4051580
 
-freq(person_and_household$person_id) #no NA
-freq(person_and_household$household_id) #no NA
+sum(is.na(person_and_household$person_id)) #0
+sum(is.na(person_and_household$household_id)) #0
+# freq(person_and_household$person_id) #no NA
+# freq(person_and_household$household_id) #no NA
 
 # commute mode (person) by household income (broad)
 xtabs(~commute_mode + race_category, data = person_and_household)
@@ -799,8 +875,8 @@ pwt_race_commute
 
 # plot race (simp), commute mode (simp), gender (simp)
 b8.5 <- ggplot(person_and_household,
-               aes(x=gender_simp, y=sum(hh_wt_combined.x), 
-                   fill=simp_commute)) +
+             aes(x=gender_simp, y=sum(hh_wt_combined.x), 
+                 fill=simp_commute)) +
   geom_bar(stat="identity", position= "fill") +
   facet_grid(.~hh_race_condcat1) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
@@ -836,8 +912,8 @@ broad_income_no_na %>%
 
 # plot race (simp), commute mode (simp), income (broad, no na) - proportion
 b10 <- ggplot(broad_income_no_na,
-              aes(x=hhincome_broad, y=sum(hh_wt_combined.x), 
-                  fill=(simp_commute))) +
+             aes(x=hhincome_broad, y=sum(hh_wt_combined.x), 
+                 fill=(simp_commute))) +
   geom_bar(stat="identity", position= "fill") +
   facet_grid(.~hh_race_condcat1) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
@@ -855,7 +931,7 @@ class(person_and_household$age_category)
 
 # reorder age categories to be sequential
 person_and_household$agecat_reordered <- factor(person_and_household$age_category, 
-                                                levels=c("Under 18 years","18-64 years","65 years+"))
+                                       levels=c("Under 18 years","18-64 years","65 years+"))
 
 head(person_and_household$agecat_reordered)
 age_income_commute <- person_and_household %>% 
@@ -878,17 +954,17 @@ b11
 unique(person_and_household$hhincome_broad)
 unique(person_and_household$age_category)
 person_and_household$bincomecat_reordered <- factor(person_and_household$hhincome_broad, 
-                                                    levels=c(
-                                                      "Under $25,000",
-                                                      "$25,000-$49,999",
-                                                      "$50,000-$74,999",
-                                                      "$75,000-$99,999",
-                                                      "$100,000 or more"))
+                                                levels=c(
+                                                  "Under $25,000",
+                                                  "$25,000-$49,999",
+                                                  "$50,000-$74,999",
+                                                  "$75,000-$99,999",
+                                                  "$100,000 or more"))
 # filter out under 18, "other" commute modes
 age_income_commute1 <- person_and_household %>% 
   group_by(bincomecat_reordered, simp_commute, agecat_reordered) %>% 
   filter(!agecat_reordered == "Under 18 years" &
-           !simp_commute == "missing" &
+         !simp_commute == "missing" &
            !simp_commute == "other") %>%
   summarise(n=n(), PersonWeight = sum(hh_wt_combined.x))
 
@@ -903,6 +979,7 @@ b12 <- ggplot(age_income_commute1,
        title = "Commute Mode by Age and Income",
        fill = "Commute Mode")
 b12
+
 
 
 
@@ -1015,7 +1092,6 @@ write_cross_tab<-function(out_table, var1, var2, file_loc){
 }
 
 
-
 # Polina's Code Examples -----------------------------------------------------------
 #Read the data from Elmer
 
@@ -1074,3 +1150,4 @@ person_no_na = person_no_na %>% filter(!mode_freq_5 %in% missing_codes)
 #here is an example for mode_freq_5 variable
 
 create_table_one_var("mode_freq_5", person_no_na,"person" )
+
