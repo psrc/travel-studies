@@ -52,9 +52,9 @@ displ_risk_df$GEOID<-as.character(displ_risk_df$GEOID)
 hh_df_tract<- merge(hh_df,displ_risk_df, by.x='final_home_tract', by.y='GEOID', all.x=TRUE)
 
 
-# get transit score data from Stefan; by block group ???
 
 unique(hh_df_tract$vehicle_count)
+# probably want to predict the vehicle categorization Mary had been using
 hh_df_veh <- hh_df_tract %>% mutate(vehicle_group = case_when(vehicle_count== "0 (no vehicles)" ~ '0',
                                                               vehicle_count == "1" ~ '1',
                                                               vehicle_count == "2" ~ '2',
@@ -62,7 +62,14 @@ hh_df_veh <- hh_df_tract %>% mutate(vehicle_group = case_when(vehicle_count== "0
 
 
 
-vehicle_est= multinom(vehicle_group ~ numworkers + hhincome_detailed + hh_race_category+
-                        ln_jobs_transit_45, data=hh_df_veh)
+# try different race groupings
+hh_df_veh$hh_race_upd = 
+  with(hh_df_veh,ifelse(hh_race_category == "White Only", 'White', 'People of Color'))
+
+# get transit score by block group from Stefan
+# try outher variables on the household table and the tract table
+# change race groupings
+vehicle_est= multinom(vehicle_group ~ numworkers + hhincome_detailed + dist_super+hh_race_upd+
+                        ln_jobs_transit_45+ln_jobs_auto_30, data=hh_df_veh)
 
 stargazer(vehicle_est, type= 'text', out='C:/Users/SChildress/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/veh_est_results.txt')
