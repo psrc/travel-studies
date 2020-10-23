@@ -55,16 +55,19 @@ hh_df_tract<- merge(hh_df,displ_risk_df, by.x='final_home_tract', by.y='GEOID', 
 
 unique(hh_df_tract$vehicle_count)
 # probably want to predict the vehicle categorization Mary had been using
-hh_df_veh <- hh_df_tract %>% mutate(vehicle_group = case_when(vehicle_count== "0 (no vehicles)" ~ '0',
-                                                              vehicle_count == "1" ~ '1',
-                                                              vehicle_count == "2" ~ '2',
-                                                              TRUE ~ "2+"))
+# lucky there are no nas
+hh_df_veh <- hh_df_tract %>% mutate(vehicle_group = case_when(vehicle_count== "0 (no vehicles)" ~ 0,
+                                                              vehicle_count == "1" ~  1,
+                                                              vehicle_count == "2" ~ 2,
+                                                              vehicle_count == "3" ~ 3,
+                                                              TRUE ~ 4))
 
-
+hh_df_veh %>% group_by(vehicle_group, vehicle_count) %>% tally()
 
 # try different race groupings
+# treat missing as its own or with Other
 hh_df_veh$hh_race_upd = 
-  with(hh_df_veh,ifelse(hh_race_category == "White Only", 'White', 'People of Color'))
+  with(hh_df_veh,ifelse(hh_race_category == "White Only", 'White Only', 'People of Color'))
 
 # get transit score by block group from Stefan
 # try outher variables on the household table and the tract table
