@@ -65,7 +65,7 @@ hh_df_veh <- hh_df_tract %>% mutate(vehicle_group = case_when(vehicle_count== "0
 hh_df_veh %>% group_by(vehicle_group, vehicle_count) %>% tally()
 
 # try different race groupings
-# treat missing as its own or with Other
+# treat missing as its own or with
 hh_df_veh$hh_race_upd = 
   with(hh_df_veh,ifelse(hh_race_category == "White Only", 'White Only', 'People of Color'))
 

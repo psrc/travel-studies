@@ -1,4 +1,3 @@
-
 # Load Libraries ----------------------------------------------------------
 
 library(data.table)
@@ -71,33 +70,36 @@ create_table_one_var = function(var1, table_temp,table_type ) {
 #Create a crosstab from two variables, calculate counts, totals, and shares,
 # for categorical data
 cross_tab_categorical <- function(table, var1, var2, wt_field) {
-    expanded <- table %>% 
+  expanded <- table %>% 
     group_by(.data[[var1]],.data[[var2]]) %>%
     summarize(Count= n(),Total=sum(.data[[wt_field]])) %>%
     group_by(.data[[var1]])%>%
     mutate(Percentage=Total/sum(Total)*100)
-                
-    expanded_pivot <-expanded%>%
+  
+  
+  expanded_pivot <-expanded%>%
     pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
-   
-    return (expanded_pivot)
-    
-  } 
-    
+  
+  return (expanded_pivot)
+  
+} 
+
 # Create margins of error for dataset
 categorical_moe <- function(sample_size_group){
   sample_w_MOE<-sample_size_group %>%
     mutate(p_col=p_MOE) %>%
     mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
     mutate(MOE_Percent=z*sqrt(MOE_calc1))
-
+  
+  sample_w_MOE<- select(sample_w_MOE, -c(p_col, MOE_calc1))
+  
   return(sample_w_MOE)
-  }   
- 
+}   
+
 
 #write out crosstabs
 write_cross_tab<-function(out_table, var1, var2, file_loc){
- 
+  
   file_name <- paste(var1,'_', var2,'.xlsx')
   file_ext<-file.path(file_loc, file_name)
   write.xlsx(out_table, file_ext, sheetName ="data", 
@@ -165,3 +167,51 @@ person_no_na = person_no_na %>% filter(!mode_freq_5 %in% missing_codes)
 #here is an example for mode_freq_5 variable
 
 create_table_one_var("mode_freq_5", person_no_na,"person" )
+
+
+
+# Two-way table -----------------------------------------------------------
+
+
+# This is an example of how to create a two-way table, including counts, weighted totals, shares, and margins of error.
+# The analysis is for race of a person by whether they have a driver's license or permit.
+
+# First before you start calcuating
+# you will need to determine the names of the data fields you are using, 
+# the weight to use, and an id for counting.
+
+# User defined variables on each analysis:
+
+# this is the weight for summing in your analysis
+person_wt_field<- 'hh_wt_combined'
+# this is a field to count the number of records
+person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'race_category'
+# this is the second thing you want to summarize by
+var <- 'license'
+
+# filter data missing weights
+persons_no_na<-person %>% drop_na(all_of(person_wt_field))
+
+# now find the sample size of your subgroup
+sample_size_group<- persons_no_na %>%
+  group_by(race_category) %>%
+  summarize(sample_size = n_distinct((person_dim_id)))
+
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+
+# calculate totals and shares
+cross_table<-cross_tab_categorical(persons_no_na,group_cat,var, person_wt_field)
+
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+
+# it looks like People of Color are more likely to not have a driver's license.
+# There is not enough data to summarize some of the categories such as learner's permit.
+# The children mostly do not answer this question (only for driver's age children.)
+cross_table_w_MOE
+# optional step:  write it out to a file
+#file_loc <- 'C:/Users/SChildress/Documents/GitHub/travel-studies/2019/analysis'
