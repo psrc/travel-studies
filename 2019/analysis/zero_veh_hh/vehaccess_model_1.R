@@ -1,4 +1,5 @@
-install.packages("stargazer")
+# To determine the relationship with households that have fewer/zero vehicles
+install.packages("MASS")
 library(nnet)
 library(data.table)
 library(tidyverse)
@@ -7,7 +8,11 @@ library(openxlsx)
 library(odbc)
 library(DBI)
 library(dplyr)
+library(summarytools)
 library(stargazer)
+library(MASS)
+
+parent_folder <- "C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/model_outputs/"
 
 # Estimating a multinomial logit model for household vehicles
 # https://www.princeton.edu/~otorres/LogitR101.pdf
@@ -37,17 +42,33 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
 
 
 #read in the household table
-dbtable.household.query<- paste("SELECT *  FROM HHSurvey.v_households_2017_2019_in_house")
-hh_df<-read.dt(dbtable.household.query, 'tablename')
+# dbtable.household.query<- paste("SELECT *  FROM HHSurvey.v_households_2017_2019_in_house")
+# hh_df<-read.dt(dbtable.household.query, 'tablename') # returning an error message
+
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "Elmer",
+                              trusted_connection = "yes")
+h <- dbGetQuery(elmer_connection,
+                "SELECT * FROM HHSurvey.v_households_2017_2019_in_house")
+p <- dbGetQuery(elmer_connection,
+                "SELECT * FROM HHSurvey.v_persons_2017_2019_in_house")
+
+dbDisconnect(elmer_connection)
+
+
+hh_df <- data.table(h)
+p_df <- data.table(p)
 
 
 # this has some information on the Census Tract level that could be useful
 displ_index_data<- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/displacement_risk_estimation.csv'
 displ_risk_df <- read.csv(displ_index_data)
-transit_score_data <- 'T:/2020October/Mary/HHTS/reference_materials/bg_transit_score2018_2_sf_10302020.csv'
+transit_score_data <- 'T:/2020November/Mary/HHTS/reference_materials/bg_transit_score2018_2_sf_10302020.csv'
 transit_sc_df <- read.csv(transit_score_data)
 
-#merge the households to info about the tracts/blocks they live in - displacement risk/transit score
+# merge the households to info about the tracts/blocks they live in - displacement risk/transit score (Stefan)
 hh_df$final_home_tract<- as.character(hh_df$final_home_tract)
 hh_df$final_home_bg<- as.character(hh_df$final_home_bg)
 # displacement risk - by tract
@@ -79,45 +100,191 @@ hh_df_veh <- hh_df_veh %>%
                                      TRUE~as.numeric(numworkers)))
 unique(hh_df_veh$numworkers_simp)
 
-# compare veh count and numworkers
+# compare veh count and numworkers to get vehicle access
 class(hh_df_veh$vehicle_group)
 class(hh_df_veh$numworkers_simp)
 
-
 hh_df_veh <- hh_df_veh %>%
-  mutate(hh_veh_access = case_when(vehicle_group < numworkers_simp ~ 'Reduced Access',
+  mutate(hh_veh_access = case_when(vehicle_group < numworkers_simp ~ 'Reduced access',
                                        vehicle_group == numworkers_simp ~ 'Equal access',
                                        vehicle_group > numworkers_simp ~ 'Good access'))
 unique(hh_df_veh$hh_veh_access)
+hh_df_veh$hh_veh_access <- factor(hh_df_veh$hh_veh_access, 
+                                  levels=c("Reduced access", "Equal access","Good access"))
+table(hh_df_veh$hh_veh_access)
 xtabs(~hh_veh_access, data=hh_df_veh)
 
 
-
-# try different race groupings
+# simplify race category 
 unique(hh_df_veh$hh_race_category)
 
-# further simplify race category 
 hh_df_veh <- hh_df_veh %>% 
   mutate(hh_race_2 = case_when(hh_race_category == "White Only" ~ 'White Only',
                                hh_race_category == "Missing" | hh_race_category == "Other" ~ "Missing/Other",
-                                                    TRUE ~ 'People of Color'))
+                                                    TRUE ~ 'People of Color')) 
+                                                    #POC = African American, Asian, Hispanic
+freq(hh_df_veh$hh_race_2) #requries summarytools
+
+# remove missing/other category
+hh_df_veh <- hh_df_veh %>%
+  filter(hh_race_2 != "Missing/Other")
 freq(hh_df_veh$hh_race_2)
 
 # get transit score by block group from Stefan
-# try other variables on the household table and the tract table
+glimpse(hh_df_veh$scaled_score)
+# try other geographic variables on the household table and the tract table
 hh_df_veh <- hh_df_veh %>%
   mutate(RGC_binary = case_when(final_home_rgcnum == "Not RCG" ~ "Not RGC",
                                 TRUE ~ "RGC"))
+freq(hh_df_veh$RGC_binary)
 
 
-# model
-vehicle_est = multinom(vehicle_group ~ 
+# By default the first category is the reference.
+table(hh_df_veh$hh_veh_access) # Reduced Access is reference
+table(hh_df_veh$hhincome_broad) # $100k+ is reference
+table(hh_df_veh$hh_race_2) # Missing/Other is reference
+table(hh_df_veh$RGC_binary) # Not RGC is reference
+table(hh_df_veh$numworkers) # 0 workers is reference
+table(hh_df_veh$vehicle_group) # 0 vehicles is reference
+table(hh_df_veh$seattle_home) # Home in Seattle is reference
+summary(hh_df_veh$scaled_score)
+
+# To change it so 'lowest' is the reference type
+# mydata$ses2 = relevel(mydata$ses, ref = "middle")
+
+# ORDERED LOGIT MODEL: geographic factors and vehicle access -----
+# Greene and Hensher (2009): "an unordered model specification is more appropriate when the set of alternative outcomes representing the dependent variable does not follow a natural ordinal ranking" 
+
+# categorical vehicle access: reduced, equal, good
+# documentation about function: https://www.rdocumentation.org/packages/MASS/versions/7.3-52/topics/polr
+m <-polr(as.factor(hh_veh_access) ~
+           RGC_binary + scaled_score + seattle_home,
+         data=hh_df_veh, Hess = T)
+summary(m)
+# odds ratio
+exp(coef(m))
+
+modelname <- "access_geog"
+stargazer(m, type= 'text', 
+          out=paste0(parent_folder, modelname, "_", Sys.Date(),".txt"))
+
+# add p-values store table
+ctable <- coef(summary(m))
+# calculate and store p values
+p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,2)
+# combined table
+(ctable <-cbind(ctable, "p value"=p))
+
+# convert coefficients into odd radios
+m2 <- exp(coef(m))
+modelname <- "access_geog_2"
+stargazer(m2, type= 'text', 
+          out=paste0(parent_folder, modelname, "_", Sys.Date(),".txt"))
+
+# HOUSEHOLD VEHICLE OWNERSHIP -----
+
+# Greene and Hensher (2009): "a looser interpretation of the vehicle ownership count as a reflection of the underlying preference intensity for ownership suggests an ordered choice model...though a somewhat fuzzy ordering might still seem natural, several authors have opted instead, to replace the ordered choice model with an ordered choice framework, the multinomial logit model and variants"
+
+# Cui (2018): "The results show that the number of driver's licenses has the most significant impact on car ownership, followed by owning house, family size, household income and household registration in Beijing. Different from previous studies, it is found that the age of households between 35-44 and 55-64 will significantly affect the number of car ownership" - age of households is determined by the householder
+
+table(hh_df_veh$vehicle_group) #0 vehicles is reference
+
+# join household and person tables -----
+person_and_household <- left_join(p_df, hh_df_veh,
+                                  by=c("household_id"="household_id"))
+  # check number of rows to make sure no data lost
+nrow(person_and_household) #same as the person table - 11940
+  # any NAs in person_id or household_id?
+glimpse(person_and_household)
+sum(is.na(person_and_household$person_id)) #0
+sum(is.na(person_and_household$household_id)) #0
+
+# household drivers licenses
+unique(person_and_household$license)
+freq(person_and_household$license)
+
+person_and_household <- person_and_household %>% 
+  mutate(license_simp = case_when(
+    license == "Yes, has an intermediate or unrestricted license" ~ "Yes",
+    license == "No, does not have a license or permit" ~ "No",
+    license == "Yes, has a learner's permit" ~ "Permit",
+    TRUE ~ "Other"))
+freq(person_and_household$license_simp)
+
+person_and_household <- person_and_household %>%
+  mutate(license_binary = ifelse(license_simp == "Yes", 1, 0)) %>%
+  group_by(household_id) %>%
+  mutate(hh_license=sum(license_binary))
+
+freq(person_and_household$license_binary) 
+freq(person_and_household$hh_license) 
+  # need to run MOE calculations?
+  # should licenses be simplified - recategorized to consolidate 3+ or 4+? 
+table(person_and_household$hh_license)
+
+# housing tenure [rent_own]
+unique(person_and_household$rent_own)
+head(person_and_household$rent_own)
+
+
+person_and_household <- person_and_household %>% 
+  mutate(tenure_binary = case_when(rent_own == "Prefer not to answer" |
+                                     rent_own == "Other" |
+                                     rent_own == "Provided by job or military" ~ "Other",
+                                   rent_own == "Own/paying mortgage" ~ "Own",
+                                   TRUE ~ "Rent"))
+
+freq(person_and_household$tenure_binary)
+
+# household size [hhsize]
+freq(person_and_household$hhsize) # need to run MOE calculations?
+
+
+# household income [hhincome_broad]
+freq(person_and_household$hhincome_broad)
+
+person_and_household$hhincomeb_reordered <- factor(person_and_household$hhincome_broad, 
+                                        levels=c("Under $25,000","$25,000-$49,999",
+                                                 "$50,000-$74,999","$75,000-$99,999",
+                                                 "$100,000 or more","Prefer not to answer"))
+table(person_and_household$hhincomeb_reordered)
+
+# householder age - how to accomplish this?
+freq(person_and_household$relationship)
+# person_and_household <- person_and_household %>%
+#   mutate(surveyed = ifelse(relationship == "Self", "Self", "Other"))
+# freq(person_and_household$surveyed)
+freq(person_and_household$lifecycle)
+# group ages of householder, regardless of size
+# assume that the householders in "Household includes children age 5-17" or "Household includes children under 5" are within age categories 35-64 and under 35, respectively? The large age categories doesn't line up with the age categories provided in the Cui study - but the age field does line up. Is there a way to recategorize it based on the "age" field categories, instead of using the "lifecycle" field?
+
+
+
+  
+# MULTINOMIAL LOGIT: SES factors and household vehicle ownership -----
+
+# Potogolou and Susilo (2008): "results show that the multinomial logit model is the one to be selected for modeling the level of household car ownership over ordered logit and ordered probit"
+
+# documentation about function: https://www.rdocumentation.org/packages/nnet/versions/7.3-14/topics/multinom
+vehicle_multinom <- multinom(vehicle_group ~ 
                          numworkers + hhincome_broad + hh_race_2 +
                          rent +
-                         ln_jobs_transit_45 + ln_jobs_auto_30 + dist_super +
+                         ln_jobs_transit_45 + ln_jobs_auto_30 + dist_super + scaled_score +
                          seattle_home + RGC_binary, 
                        data=hh_df_veh)
+vehicle_multinom
 
-vehicle_est
+stargazer(vehicle_multinom, type= 'text', 
+          out=paste('C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/model_outputs/fullmodel_',Sys.Date(),'.txt', sep = ""))
 
-stargazer(vehicle_est, type= 'text', out='C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/veh_est_results_mr.txt')
+# ORDERED LOGIT: SES factors and household vehicle ownership -----
+
+# Cui (2018): "it is not suitable to use the multinomial logit model, so this paper uses the ordered logistic regression model"
+
+# ordered logit model
+vehicle_ordered <-polr(as.factor(vehicle_group) ~
+           RGC_binary + scaled_score + seattle_home,
+         data=hh_df_veh, Hess = T)
+summary(vehicle_ordered)
+# odds ratio
+exp(coef(vehicle_ordered))

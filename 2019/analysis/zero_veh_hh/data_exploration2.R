@@ -2,7 +2,7 @@
 # List of packages required
 packages <- c("data.table","odbc","DBI","summarytools",
               "dplyr", "tidyverse", "psych", "openxlsx",
-              "ggplot2","tidyr")
+              "ggplot2","tidyr", "gridExtra")
 lapply(packages, install.packages, character.only = TRUE)
 
 # LOAD LIBRARIES----------------------------------
@@ -119,7 +119,10 @@ write_cross_tab<-function(out_table, var1, var2, file_loc){
              col.names = TRUE, row.names = FALSE, append = FALSE)
 }
 
-output_WB <- "T:/2020October/Mary/HHTS/OutputTables/test.xlsx"
+# set up excel file
+output_WB <- paste("T:/2020November/Mary/HHTS/OutputTables/test_",Sys.Date(),".xlsx", sep = "")
+# Create blank workbook
+wb <- createWorkbook()
 
 # ~~~~~~~~~~~~~~~~ ----------------------------------
 # Household DATASET----------------------------------
@@ -152,8 +155,6 @@ hhwt_vehiclecount_reordered <- household%>%
   mutate(MOE=z*((p_MOE*(1-p_MOE))/sum(n))^(1/2)*100)
 hhwt_vehiclecount_reordered
 
-# Create blank workbook
-wb <- createWorkbook()
 # Add sheets to workbook
 addWorksheet(wb, "VehicleCount_MOE")
 # Write data to sheets
@@ -161,7 +162,7 @@ writeData(wb, sheet = "VehicleCount_MOE", x=hhwt_vehiclecount_reordered)
 # Export file
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weights
 a1<- ggplot(data = hhwt_vehiclecount_reordered, 
             aes(x=VehicleCount, y=HouseholdWeight)) +
   geom_bar(stat="identity", position = 'dodge') + 
@@ -170,6 +171,16 @@ a1<- ggplot(data = hhwt_vehiclecount_reordered,
   labs(x = "Number of Vehicles per Household", 
        y = "Estimated Number of Households in Region", title = "Vehicle Ownership")
 a1
+
+# plot - shares
+a1.2<- ggplot(data = hhwt_vehiclecount_reordered, 
+            aes(x=VehicleCount, y=n)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  labs(x = "Number of Vehicles per Household", 
+       y = "Share of Surveyed Households", title = "Vehicle Ownership")
+a1.2
 
 # Vehicle ownership simplified----------------------------------
 # group vehicle ownership above 3 vehicles
@@ -203,7 +214,7 @@ writeData(wb, sheet = "VehicleCount_simp2", x=VehicleCount_MOE2)
 # Export file
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weights
 vehicleplot <- household %>%
   group_by(vehcount_simp) %>%
   summarise(HouseholdWeight = sum(hh_wt_combined))
@@ -217,6 +228,20 @@ a2 <- ggplot(data = vehicleplot,
        y = "Estimated Number of Households in Region", title = "Vehicle Ownership")
 a2
 
+# plot - shares
+vehicleplot <- household %>%
+  group_by(vehcount_simp) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+
+a2.2 <- ggplot(data = vehicleplot, 
+             aes(x=vehcount_simp, y=n)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  labs(x = "Number of Vehicles per Household", 
+       y = "Share of Surveyed Households", title = "Vehicle Ownership")
+a2.2
+
 # Number of workers----------------------------------
 unique(household$numworkers)
 describe(household$numworkers)
@@ -229,7 +254,7 @@ numworkers_MOE1
 numworkers_MOE2_temp <- create_table_one_var("numworkers", household, "household")
 numworkers_MOE2 <-numworkers_MOE2_temp%>%
   arrange(numworkers)
-numworkers_MOE
+numworkers_MOE2
 
 # save to workbook
 addWorksheet(wb,"Number_of_workers_all1")
@@ -261,10 +286,10 @@ writeData(wb, sheet = "Number_of_workers_simp1", x=numworkers_MOE1_simp)
 writeData(wb, sheet = "Number_of_workers_simp2", x=numworkers_MOE2_simp)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weights
 workersplot <- household %>%
   group_by(numworkers_simp) %>%
-  summarise(HouseholdWeight = sum(hh_wt_combined))
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
 
 a3 <- ggplot(data = workersplot, 
              aes(x=numworkers_simp, y=HouseholdWeight)) +
@@ -274,6 +299,16 @@ a3 <- ggplot(data = workersplot,
   labs(x = "Number of Workers per Household", 
        y = "Estimated Number of Households in Region", title = "Household Workers")
 a3
+
+# plot - shares
+a3.2 <- ggplot(data = workersplot, 
+             aes(x=numworkers_simp, y=n)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  labs(x = "Number of Workers per Household", 
+       y = "Share of Surveyed Households", title = "Household Workers")
+a3.2
 
 # Vehicle Access----------------------------------
 # compare number of vehicles with number of workers
@@ -303,10 +338,10 @@ writeData(wb, sheet = "VehAccess2", x=vehaccess_MOE2)
 saveWorkbook(wb,output_WB, overwrite = T)
 
 
-# plot
+# plot - household weights
 accessplot <- household %>%
   group_by(hh_veh_access_num) %>%
-  summarise(HouseholdWeight = sum(hh_wt_combined))
+  summarise(n=n(),HouseholdWeight = sum(hh_wt_combined))
 
 a4 <- ggplot(data = accessplot, 
              aes(x=hh_veh_access_num, y=HouseholdWeight)) +
@@ -318,6 +353,20 @@ a4 <- ggplot(data = accessplot,
        y = "Estimated Number of Households in Region", 
        title = "Household Vehicle Ownership and Household Workers")
 a4
+
+# plot - shares
+a4.2 <- ggplot(data = accessplot, 
+             aes(x=hh_veh_access_num, y=n)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Households", 
+       title = "Household Vehicle Ownership and Household Workers")
+a4.2
+
+grid.arrange(a4, a4.2, nrow=1, ncol=2)
 
 # vehicle access by county
 unique(household$final_cnty)
@@ -388,8 +437,10 @@ saveWorkbook(wb,output_WB, overwrite = T)
 county_access <- household%>%
   filter(!is.na(final_cnty)) %>%
   group_by(hh_veh_access_num,final_cnty) %>%
-  summarise(HouseholdWeight = sum(hh_wt_combined))
+  summarise(n=n(),HouseholdWeight = sum(hh_wt_combined))
+county_access
 
+# plot - household weights
 a5 <- ggplot(data = county_access, 
              aes(x=hh_veh_access_num, y=HouseholdWeight, 
                  fill= final_cnty)) +
@@ -403,8 +454,8 @@ a5 <- ggplot(data = county_access,
        fill = "County")
 a5
 
-# plot - proportion
-a6 <- ggplot(data = county_access, 
+# plot - household weights - proportion
+a5.1 <- ggplot(data = county_access, 
              aes(x=hh_veh_access_num, y=HouseholdWeight, 
                  fill= final_cnty)) +
   geom_bar(stat="identity", position="fill") +
@@ -413,8 +464,33 @@ a6 <- ggplot(data = county_access,
        y = "Estimated Number of Households in Region", 
        title = "Household Vehicle Access by County",
        fill = "County")
-a6
+a5.1
 
+# plot - shares
+a5.2 <- ggplot(data = county_access, 
+             aes(x=hh_veh_access_num, y=n, 
+                 fill= final_cnty)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Household Vehicle Access by County",
+       fill = "County")
+a5.2
+
+# plot - shares - proportion
+a5.3 <- ggplot(data = county_access, 
+               aes(x=hh_veh_access_num, y=n, 
+                   fill= final_cnty)) +
+  geom_bar(stat="identity", position="fill") +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Household Vehicle Access by County",
+       fill = "County")
+a5.3
 
 # Race----------------------------------
 unique(household$hh_race_category)
@@ -432,7 +508,7 @@ writeData(wb, sheet = "Race1", x=race_MOE1)
 writeData(wb, sheet = "Race2", x=race_MOE2)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weights
 hh_race <- household%>%
   filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
   group_by(hh_race_category) %>%
@@ -450,6 +526,22 @@ a7 <- ggplot(data = hh_race,
        title = "Survey Respondents' Household Race")
 a7
 
+
+# plot - shares
+a7.2 <- ggplot(data = hh_race, 
+             aes(x=hh_race_category, y=n)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Share of Surveyed Households")
+a7.2
+
+freq(household$hh_race_category) 
+  # when compared to % of household weights in race_MOE1, higher 
+
 # RACE AND VEHICLE ACCESS----------------------------------
 # User defined variables on each analysis:
 # this is the weight for summing in your analysis
@@ -461,7 +553,6 @@ hh_wt_field<- 'hh_wt_combined'
 group_cat <- 'hh_race_category'
 # this is the second variable you want to summarize by
 var <- 'hh_veh_access_num'
-
 # filter data missing weights
 hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
 #filter data missing values
@@ -472,48 +563,58 @@ hh_no_na = hh_no_na %>%
   filter(!hh_race_category %in% missing_codes,
          !is.na(hh_race_category))
 glimpse(hh_no_na)
-
 # now find the sample size of your subgroup
 sample_size_group<- hh_no_na %>%
   group_by(hh_race_category) %>%
   summarize(sample_size = n())
 sample_size_group
-
 # get the margins of error for your groups
 sample_size_MOE<- categorical_moe(sample_size_group)
-
 # calculate totals and shares
 cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
-
 # merge the cross tab with the margin of error
 cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
 cross_table_w_MOE
-
 # save to workbook
 addWorksheet(wb,"Race_and_VehAccess")
 writeData(wb, sheet = "Race_and_VehAccess", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weight
 hh_race_access <- household%>%
   filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
   group_by(hh_race_category, hh_veh_access_num) %>%
   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
 hh_race_access
 
-a7.2 <- ggplot(data = hh_race_access, 
+a7.3 <- ggplot(data = hh_race_access, 
              aes(x=hh_race_category, y=HouseholdWeight,
                  fill=hh_veh_access_num)) +
   geom_bar(stat="identity", position = 'dodge') + 
-  geom_text(aes(label=round(HouseholdWeight,0)), 
-            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  #geom_text(aes(label=round(HouseholdWeight,0)), 
+            #hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
   theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
   labs(x = "Household Race", 
        y = "Estimated Number of Households in Region", 
        title = "Vehicle Access by Race",
        fill="Vehicle Access")
-a7.2
+a7.3
 
+# plot - household shares
+a7.4 <- ggplot(data = hh_race_access, 
+               aes(x=hh_race_category, y=n,
+                   fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  #geom_text(aes(label=round(n,0)), 
+            #hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Share of Surveyed Households in Region", 
+       title = "Vehicle Access by Race",
+       fill="Vehicle Access")
+a7.4
+
+grid.arrange(a7.3, a7.4, nrow=1, ncol=2)
 
 # Income----------------------------------
 unique(household$hhincome_broad)
@@ -526,6 +627,19 @@ household$hhincomeb_reordered <- factor(household$hhincome_broad,
 levels(household$hhincomeb_reordered)
 # find sample size of group
 xtabs(~hhincomeb_reordered, data=household)
+
+hh_income <- household%>%
+  group_by(hhincomeb_reordered) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_income
+
+# plot 
+i1 <-ggplot(data=hh_income, aes(x=hhincomeb_reordered, y=HouseholdWeight))+
+  geom_bar(stat="identity")
+i2<-ggplot(data=hh_income, aes(x=hhincomeb_reordered, y=n))+
+  geom_bar(stat="identity")
+
+grid.arrange(i1, i2, nrow=1, ncol=2)
 
 
 # INCOME AND RACE----------------------------------
@@ -570,7 +684,7 @@ addWorksheet(wb,"Income_and_Race")
 writeData(wb, sheet = "Income_and_Race", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot: race and income
+# plot: race and income - household weights
 hh_race_income <- household%>%
   filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
   group_by(hhincomeb_reordered,hh_race_category) %>%
@@ -584,21 +698,47 @@ a7.5 <- ggplot(data = hh_race_income,
   theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
   labs(x = "Race", 
        y = "Estimated Number of Households in Region", 
-       title = "Households by Race and Income",
+       title = "Regional Households by Race and Income",
        fill = "Income")
 a7.5
 
 # plot - proportion
-a7.75 <- ggplot(data = hh_race_income, 
+a7.6 <- ggplot(data = hh_race_income, 
                aes(x=hh_race_category, y=HouseholdWeight,
                    fill=hhincomeb_reordered)) +
   geom_bar(stat="identity", position="fill") +
   theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
   labs(x = "Race", 
        y = "Estimated Number of Households in Region", 
-       title = "Households by Race and Income",
+       title = "Regional Households by Race and Income",
        fill = "Income")
-a7.75
+a7.6
+
+
+# plot: race and income - shares
+a7.7 <- ggplot(data = hh_race_income, 
+               aes(x=hh_race_category, y=n,
+                   fill=hhincomeb_reordered)) +
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Share of Surveyed Households", 
+       title = "Share of Households by Race and Income",
+       fill = "Income")
+a7.7
+
+# plot - proportion
+a7.8 <- ggplot(data = hh_race_income, 
+               aes(x=hh_race_category, y=n,
+                   fill=hhincomeb_reordered)) +
+  geom_bar(stat="identity", position="fill") +
+  theme(axis.text.x=element_text(angle = 60, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Share of Surveyed Housholds", 
+       title = "Share of Households by Race and Income",
+       fill = "Income")
+a7.8
+
 
 # INCOME AND VEHICLE ACCESS----------------------------------
 xtabs(~hhincomeb_reordered + hh_veh_access_num, data=household)
@@ -645,7 +785,7 @@ writeData(wb, sheet = "Income_and_VehAccess", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
 
 
-# plot
+# plot - household weights
 hh_income_access <- household%>%
   filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
   group_by(hh_veh_access_num, hhincomeb_reordered) %>%
@@ -665,7 +805,7 @@ a8 <- ggplot(data = hh_income_access,
        fill = "Vehicle Access")
 a8
 
-# plot - proportion
+# proportion
 a8.2 <-ggplot(data = hh_income_access, 
               aes(x=hhincomeb_reordered, y=HouseholdWeight,
                   fill=hh_veh_access_num)) +
@@ -677,6 +817,32 @@ a8.2 <-ggplot(data = hh_income_access,
        fill = "Vehicle Access")
 a8.2
 
+# plot - shares
+a8.3 <- ggplot(data = hh_income_access, 
+             aes(x=hhincomeb_reordered, y=n,
+                 fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access by Income",
+       fill = "Vehicle Access")
+a8.3
+
+# proportion
+a8.4 <-ggplot(data = hh_income_access, 
+              aes(x=hhincomeb_reordered, y=n,
+                  fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'fill') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access by Income",
+       fill = "Vehicle Access")
+a8.4
+
 # INCOME, RACE, and VEHICLE ACCESS----------------------------------
 hh_income_race_access <- household%>%
   filter(!hh_race_category %in% missing_codes, !is.na(hh_race_category)) %>%
@@ -684,67 +850,416 @@ hh_income_race_access <- household%>%
   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
 hh_income_race_access
 
-a8.3 <- ggplot(data = hh_income_race_access, 
+# plot - stacked
+a8.5 <- ggplot(data = hh_income_race_access, 
              aes(x=hhincomeb_reordered, y=HouseholdWeight,
                  fill=hh_race_category)) +
   geom_bar(stat="identity") + 
   facet_wrap(~hh_veh_access_num) +
   # geom_text(aes(label=round(HouseholdWeight,0)), 
   #           hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
-  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
   labs(x = "Household Income", 
        y = "Estimated Number of Households in Region", 
        title ="Vehicle Access by Income and Race",
        fill = "Household Race")
-a8.3
+a8.5
 
-# # Limited Vehicle Access----------------------------------
-# 
-# 
-# # LIMITED VEHICLE ACCESS AND RACE----------------------------------
-# 
-# # LIMITED VEHICLE ACCESS AND INCOME----------------------------------
-# lim_vehaccess<-household%>%
-#   filter(hh_veh_access_num=="Limited Access")%>%
-#   group_by(hhincomeb_reordered)%>%
-#   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined), WeightRevised=sum(hh_wt_revised))
-# lim_vehaccess
-# 
-# # shares and MOEs
-# limvehaccess_income_MOE1<- create_table_one_var_simp("hhincomeb_reordered", lim_vehaccess, "household")
-# limvehaccess_income_MOE1
-# limvehaccess_income_MOE2<- create_table_one_var("hhincomeb_reordered", lim_vehaccess, "household")
-# limvehaccess_income_MOE2
-# 
-# # save to workbook
-# addWorksheet(wb,"Income_limVehAccess1")
-# addWorksheet(wb,"Income_limVehAccess2")
-# writeData(wb, sheet = "VehAccess1", x=limvehaccess_income_MOE1)
-# writeData(wb, sheet = "VehAccess2", x=limvehaccess_income_MOE2)
-# saveWorkbook(wb,output_WB, overwrite = T)
-# 
-# # LIMITED VEHICLE ACCESS, RACE, AND INCOME----------------------------------
-# # plot
-# limited_vehaccess <- household%>%
-#   filter(!hh_race_category %in% missing_codes, 
-#          !is.na(hh_race_category),
-#          hh_veh_access_num=="Limited Access") %>%
-#   group_by(hhincomeb_reordered, hh_race_category, hh_veh_access_num) %>%
-#   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
-# limited_vehaccess
-# 
-# a8.4 <- ggplot(data = limited_vehaccess, 
-#                aes(x=hhincomeb_reordered, y=HouseholdWeight,
-#                    fill=hh_race_category)) +
-#   geom_bar(stat="identity") +
-#   # geom_text(aes(label=round(HouseholdWeight,0)),
-#   #           hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
-#   theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
-#   labs(x = "Household Income", 
-#        y = "Estimated Number of Households in Region", 
-#        title ="Limited Vehicle Access by Income and Race",
-#        fill = "Household Race")
-# a8.4
+# plot - dodge
+a8.51 <- ggplot(data = hh_income_race_access, 
+               aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                   fill=hh_race_category)) +
+  geom_bar(stat="identity", position='dodge') + 
+  facet_wrap(~hh_veh_access_num) +
+  # geom_text(aes(label=round(HouseholdWeight,0)), 
+  #           hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
+  labs(x = "Household Income", 
+       y = "Estimated Number of Households in Region", 
+       title ="Vehicle Access by Income and Race",
+       fill = "Household Race")
+a8.51
+
+# plot - proportion
+a8.52 <- ggplot(data = hh_income_race_access, 
+                aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                    fill=hh_race_category)) +
+  geom_bar(stat="identity", position='fill') + 
+  facet_wrap(~hh_veh_access_num) +
+  # geom_text(aes(label=round(HouseholdWeight,0)), 
+  #           hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
+  labs(x = "Household Income", 
+       y = "Estimated Number of Households in Region", 
+       title ="Vehicle Access by Income and Race",
+       fill = "Household Race")
+a8.52
+
+# compare
+compare_income_race_2 <- grid.arrange(a8.5, a8.52, nrow=1, ncol=2)
+compare_income_race_3 <- grid.arrange(a8.5, a8.51, a8.52, nrow=1, ncol=3)
+
+# Limited Vehicle Access----------------------------------
+household <- household %>% 
+  mutate(hh_veh_access_lim = case_when(hh_veh_access_num == "Limited Access" ~ "Fewer",
+                                  TRUE~ "Equal or Greater"))
+# investigate recategorization
+household %>%
+  group_by(hh_veh_access_lim, hh_veh_access_num) %>%
+  tally() #1634 - fewer cars than workers
+
+# BINARY LIMITED VEHICLE ACCESS AND INCOME----------------------------------
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hhincomeb_reordered'
+# this is the second variable you want to summarize by
+var <- 'hh_veh_access_lim'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  # filter(hh_veh_access_num == "Limited Access") %>%
+  group_by(hhincomeb_reordered) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"SimpVehAccess_Income")
+writeData(wb, sheet = "SimpVehAccess_Income", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot - values - weights
+income_vehaccess <-household %>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(hh_veh_access_lim, hhincomeb_reordered) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+
+income_access <- ggplot(data = income_vehaccess, 
+                   aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                       fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Estimated Number of Households in Region", 
+       title ="Fewer Vehicles by Income",
+       fill="Vehicle Access")
+income_access
+
+# plot - proportion - weights
+income_access.2 <- ggplot(data = income_vehaccess, 
+                        aes(x=hhincomeb_reordered, y=HouseholdWeight,
+                            fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='fill') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Estimated Number of Households in Region", 
+       title ="Fewer Vehicles by Income",
+       fill="Vehicle Access")
+income_access.2
+
+grid.arrange(income_access, income_access.2, nrow=1, ncol=2)
+
+# plot - values - shares
+income_access.3 <- ggplot(data = income_vehaccess, 
+                        aes(x=hhincomeb_reordered, y=n,
+                            fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Surveyed Households", 
+       title ="Fewer Vehicles by Income",
+       fill="Vehicle Access")
+income_access.3
+
+# plot - proportion - shares
+income_access.4 <- ggplot(data = income_vehaccess, 
+                          aes(x=hhincomeb_reordered, y=n,
+                              fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='fill') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Surveyed Households", 
+       title ="Fewer Vehicles by Income",
+       fill="Vehicle Access")
+income_access.4
+
+grid.arrange(income_access, income_access.2, 
+             income_access.3, income_access.4,
+             nrow=2, ncol=2)
+
+# BINARY LIMITED VEHICLE ACCESS AND RACE----------------------------------
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_race_category'
+# this is the second variable you want to summarize by
+var <- 'hh_veh_access_lim'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  # filter(hh_veh_access_num == "Limited Access") %>%
+  group_by(hh_race_category) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"SimpVehAccess_Race")
+writeData(wb, sheet = "SimpVehAccess_Race", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot - values - weights
+race_vehaccess <-household %>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(hh_veh_access_lim, hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+
+race_access <- ggplot(data = race_vehaccess, 
+                        aes(x=hh_race_category, y=HouseholdWeight,
+                            fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of Households in Region", 
+       title ="Fewer Vehicles by Race",
+       fill="Vehicle Access")
+race_access
+
+# plot - proportion - weights
+race_access.2 <- ggplot(data = race_vehaccess, 
+                          aes(x=hh_race_category, y=HouseholdWeight,
+                              fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='fill') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of Households in Region", 
+       title ="Fewer Vehicles by Race",
+       fill="Vehicle Access")
+race_access.2
+
+grid.arrange(income_access, income_access.2, nrow=1, ncol=2)
+
+# plot - values - shares
+race_access.3 <- ggplot(data = race_vehaccess, 
+                          aes(x=hh_race_category, y=n,
+                              fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Surveyed Households", 
+       title ="Fewer Vehicles by Race",
+       fill="Vehicle Access")
+race_access.3
+
+# plot - proportion - shares
+race_access.4 <- ggplot(data = race_vehaccess, 
+                          aes(x=hh_race_category, y=n,
+                              fill=hh_veh_access_lim)) +
+  geom_bar(stat="identity", position='fill') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Surveyed Households", 
+       title ="Fewer Vehicles by Race",
+       fill="Vehicle Access")
+race_access.4
+
+grid.arrange(race_access, race_access.2, 
+             race_access.3, race_access.4,
+             nrow=2, ncol=2)
+
+# compare income and race for limited access households - household weights
+binary_race_and_income <- grid.arrange(income_access, income_access.2, 
+             race_access, race_access.2,
+             nrow=2, ncol=2)
+
+
+# JUST LIMITED VEHICLE ACCESS AND INCOME----------------------------------
+hh_limvehaccess <-household %>%
+  filter(hh_veh_access_lim == "Fewer")
+glimpse(hh_limvehaccess)
+nrow(hh_limvehaccess) #1634
+
+# shares and MOEs
+limvehaccess_income_MOE1<- create_table_one_var_simp("hhincomeb_reordered", hh_limvehaccess, "household")
+limvehaccess_income_MOE1
+limvehaccess_income_MOE2<- create_table_one_var("hhincomeb_reordered", hh_limvehaccess, "household")
+limvehaccess_income_MOE2
+
+# save to workbook
+addWorksheet(wb,"Income_limVehAccess1")
+addWorksheet(wb,"Income_limVehAccess2")
+writeData(wb, sheet = "Income_limVehAccess1", x=limvehaccess_income_MOE1)
+writeData(wb, sheet = "Income_limVehAccess1", x=limvehaccess_income_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot - household weights
+limveh_income <- hh_limvehaccess %>%
+  group_by(hhincomeb_reordered) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+limveh_income
+
+income.1 <- ggplot(data = limveh_income, 
+               aes(x=hhincomeb_reordered, y=HouseholdWeight)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Estimated Number of Households in Region", 
+       title ="Households with Fewer Vehicles by Income")
+income.1
+
+# plot - shares
+income.2 <- ggplot(data = limveh_income, 
+                   aes(x=hhincomeb_reordered, y=n)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Income", 
+       y = "Surveyed Households", 
+       title ="Households with Fewer Vehicles by Income")
+income.2
+
+grid.arrange(income.1, income.2, nrow=1, ncol=2)
+
+
+# JUST LIMITED VEHICLE ACCESS AND RACE----------------------------------
+limvehaccess_race_MOE1<- create_table_one_var_simp("hh_race_category", hh_limvehaccess, "household")
+limvehaccess_race_MOE1
+limvehaccess_race_MOE2<- create_table_one_var("hh_race_category", hh_limvehaccess, "household")
+limvehaccess_race_MOE2
+
+# save to workbook
+addWorksheet(wb,"Race_limVehAccess1")
+addWorksheet(wb,"Race_limVehAccess2")
+writeData(wb, sheet = "Race_limVehAccess1", x=limvehaccess_race_MOE1)
+writeData(wb, sheet = "Race_limVehAccess2", x=limvehaccess_race_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot - household weights
+limveh_race <- hh_limvehaccess %>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+limveh_race
+
+race.1 <- ggplot(data = limveh_race, 
+                   aes(x=hh_race_category, y=HouseholdWeight)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Estimated Number of Households in Region", 
+       title ="Households with Fewer Vehicles by Race")
+race.1
+
+# plot - shares
+race.2 <- ggplot(data = limveh_race, 
+                   aes(x=hh_race_category, y=n)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Race", 
+       y = "Surveyed Households", 
+       title ="Households with Fewer Vehicles by Race")
+race.2
+
+grid.arrange(race.1, race.2, nrow=1, ncol=2)
+
+# JUST LIMITED VEHICLE ACCESS, RACE, AND INCOME----------------------------------
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_race_category'
+# this is the second variable you want to summarize by
+var <- 'hhincomeb_reordered'
+# filter data missing weights 
+hh_no_na<-hh_limvehaccess %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(hh_limvehaccess$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- hh_limvehaccess %>%
+  # filter(hh_veh_access_num == "Limited Access") %>%
+  group_by(hh_race_category) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_limvehaccess,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"LimVehAccess_Race")
+writeData(wb, sheet = "LimVehAccess_Race", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot - household weight
+hh_limaccess_race_income <- hh_limvehaccess%>%
+  filter(!hh_race_category=="Missing") %>%
+  group_by(hhincomeb_reordered, hh_race_category) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+hh_limaccess_race_income
+
+d1 <- ggplot(data = hh_limaccess_race_income, 
+              aes(x=hh_race_category, y=HouseholdWeight,
+                  fill = hhincomeb_reordered)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Estimated Number of Households in Region", 
+       title = "Households with Fewer Vehicles than Workers",
+       fill= "Household Income")
+d1
+
+
+# plot - shares
+d1.2 <- ggplot(data = hh_limaccess_race_income, 
+                aes(x=hh_race_category, y=n,
+                    fill = hhincomeb_reordered)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Share of Surveyed Households", 
+       title = "Households by Race and Limited Vehicle Access")
+d1.2
+
+# compare plots
+grid.arrange(d1, d1.2, nrow=1, ncol=2)
 
 
 
@@ -785,7 +1300,7 @@ writeData(wb, sheet = "HousingTenure_simp1", x=htenure_MOE1)
 writeData(wb, sheet = "HousingTenure_simp2", x=htenure_MOE2)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weights
 hh_tenure <- household%>%
   group_by(tenure_no_na) %>%
   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
@@ -801,6 +1316,18 @@ a9 <- ggplot(data = hh_tenure,
        y = "Estimated Number of Households in Region", 
        title = "Survey Households by Housing Tenure")
 a9
+
+# plot - shares
+a9.2 <- ggplot(data = hh_tenure, 
+             aes(x=tenure_no_na, y=n)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  geom_text(aes(label=round(n,0)), 
+            hjust=0.5, vjust=-0.5, size=2.5, inherit.aes = T) +
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Household Tenure", 
+       y = "Share of Surveyed Households", 
+       title = "Survey Households by Housing Tenure")
+a9.2
 
 # HOUSING TENURE AND VEHICLE ACCESS----------------------------------
 xtabs(~tenure_no_na + hh_veh_access_num, data=household)
@@ -838,7 +1365,7 @@ addWorksheet(wb,"Tenure_and_VehAccess")
 writeData(wb, sheet = "Tenure_and_VehAccess", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weights
 hh_tenure_access <- household%>%
   group_by(tenure_no_na, hh_veh_access_num) %>%
   summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
@@ -854,6 +1381,18 @@ a10 <- ggplot(data = hh_tenure_access,
        title = "Households by Tenure and Vehicle Access",
        fill = "Vehicle Access")
 a10
+
+# plot - household weights
+a10.2 <- ggplot(data = hh_tenure_access, 
+              aes(x=tenure_no_na, y=n,
+                  fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  theme(axis.text.x=element_text(angle = 45, hjust = 1)) +
+  labs(x = "Housing Tenure", 
+       y = "Share of Surveyed Households", 
+       title = "Households by Tenure and Vehicle Access",
+       fill = "Vehicle Access")
+a10.2
 
 # HOUSING TENURE (RENT) AND VEHICLE ACCESS BY HH RACE----------------------------------
 # User defined variables on each analysis:
@@ -892,7 +1431,7 @@ addWorksheet(wb,"Rent_and_VehAccessRace")
 writeData(wb, sheet = "Rent_and_VehAccessRace", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - household weight
 hh_rent_access_race <- household%>%
   filter(rent_own == "Rent", !hh_race_category=="Missing") %>%
   group_by(hh_veh_access_num, hh_race_category) %>%
@@ -909,6 +1448,19 @@ a11 <- ggplot(data = hh_rent_access_race,
        title = "Renting Households by Race and Vehicle Access",
        fill = "Vehicle Access")
 a11
+
+
+# plot - household weight
+a11.2 <- ggplot(data = hh_rent_access_race, 
+              aes(x=hh_race_category, y=n,
+                  fill=hh_veh_access_num)) +
+  geom_bar(stat="identity", position = 'dodge') + 
+  theme(axis.text.x=element_text(angle = 90, hjust = 1)) +
+  labs(x = "Race", 
+       y = "Share of Surveyed Households", 
+       title = "Renting Households by Race and Vehicle Access",
+       fill = "Vehicle Access")
+a11.2
 
 # HOUSING TENURE (RENT) AND VEHICLE ACCESS BY HH RACE AND INCOME----------------------------------
 # plot: housing tenure (rent), income, race, vehicle access
@@ -1032,7 +1584,7 @@ household <- household %>%
                                    restype_simp == "Building with 4 or more apartments/condos" ~ "High Density",
                                   TRUE~.$restype_simp))
 unique(household$restype_simp2)
-# plot
+# plot - household weights
 hh_restypesimp2_race <- household%>%
   filter(!hh_race_category=="Missing") %>%
   group_by(restype_simp2, hh_race_category) %>%
@@ -1049,6 +1601,20 @@ a14 <- ggplot(data = hh_restypesimp2_race,
        title = "Residential Type by Household Race",
        fill = "Residential Type")
 a14
+
+# plot - shares
+a14.2 <- ggplot(data = hh_restypesimp2_race, 
+              aes(x=hh_race_category, y=n,
+                  fill=restype_simp2)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Race", 
+       y = "Share of Surveyed Households", 
+       title = "Residential Type by Household Race",
+       fill = "Residential Type")
+a14.2
+
+grid.arrange(a14, a14.2, nrow=1, ncol=2)
 
 # ~~~~~~~~~~~~~~~~ ----------------------------------
 # Person DATASET----------------------------------
@@ -1068,7 +1634,7 @@ b1 <- ggplot(person,
   geom_bar(stat="identity")+
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Age", 
-       y = "Estimated Number of Households in Region", 
+       y = "Estimated Number of Individuals in Region", 
        title = "Population Distribution",
        fill = "Gender")
 b1
@@ -1078,18 +1644,31 @@ person <- person%>%
                                  gender == "Male" ~ "Male",
                                  gender == "Another" | gender == "Prefer not to answer" ~ "Another"))
 unique(person$gender_simp)
-person %>% group_by(gender_simp) %>% summarise(n=n())
+simp_gender_age<- person %>% 
+  group_by(gender_simp, age) %>% 
+  summarise(n=n(), PersonWeight=sum(hh_wt_combined))
   
-# plot simplified gender
-b2 <- ggplot(person,
-             aes(x=age, y=sum(hh_wt_combined), fill=gender_simp)) +
+# plot simplified gender - household weights
+b2 <- ggplot(simp_gender_age,
+             aes(x=age, y=PersonWeight, fill=gender_simp)) +
   geom_bar(stat="identity")+
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Age", 
-       y = "Estimated Number of Households in Region", 
+       y = "Estimated Number of Individuals in Region", 
        title = "Population Distribution",
        fill = "Gender")
 b2
+
+# plot simplified gender - shares
+b2.2 <- ggplot(simp_gender_age,
+             aes(x=age, y=n, fill=gender_simp)) +
+  geom_bar(stat="identity")+
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Age", 
+       y = "Share of Surveyed Individuals", 
+       title = "Population Distribution",
+       fill = "Gender")
+b2.2
 
 # Commute Mode----------------------------------
 unique(person$commute_mode)
@@ -1198,12 +1777,13 @@ simp_license_race <- person %>%
          !is.na(race_category),
          !race_category=="Child",
          license_simp== "Yes"| 
-           license_simp== "No")
+           license_simp== "No") %>%
+  group_by(n=n(), PersonWeight=sum(hh_wt_combined))
 xtabs(~race_category + license_simp, data=simp_license_race)
 
-# plot
+# plot - person weights
 b5 <- ggplot(simp_license_race,
-             aes(x=race_category, y=sum(hh_wt_combined), fill=license_simp)) +
+             aes(x=race_category, y=PersonWeight, fill=license_simp)) +
   geom_bar(stat="identity") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Race", 
@@ -1211,6 +1791,17 @@ b5 <- ggplot(simp_license_race,
        title = "License Status by Race",
        fill = "License Status")
 b5
+
+# plot - shares
+b5.2 <- ggplot(simp_license_race,
+             aes(x=race_category, y=n, fill=license_simp)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Race", 
+       y = "Surveyed Individuals", 
+       title = "License Status by Race",
+       fill = "License Status")
+b5.2
 
 # ~~~~~~~~~~~~~~~~ ----------------------------------
 # Person & Household DATASETS----------------------------------
@@ -1295,7 +1886,7 @@ addWorksheet(wb,"Income_and_CommuteMode")
 writeData(wb, sheet = "Income_and_CommuteMode", x=cross_table_w_MOE)
 saveWorkbook(wb,output_WB, overwrite = T)
 
-# plot
+# plot - person weights
 income_commutemode <- person_and_household%>%
   filter(!simp_commute=="missing") %>%
   group_by(hhincomeb_reordered, simp_commute) %>%
@@ -1313,8 +1904,8 @@ c3 <- ggplot(data = income_commutemode,
        fill = "Commute Mode")
 c3
 
-# plot - proportion
-c3.5 <- ggplot(data = income_commutemode, 
+# proportion
+c3.2 <- ggplot(data = income_commutemode, 
              aes(x=hhincomeb_reordered, y=HouseholdWeight,
                  fill=simp_commute)) +
   geom_bar(stat="identity", position='fill') + 
@@ -1323,7 +1914,293 @@ c3.5 <- ggplot(data = income_commutemode,
        y = "Estimated Number of People in Region", 
        title = "Commute Mode by Income",
        fill = "Commute Mode")
-c3.5
+c3.2
 
-# COMMUTE MODE (SIMP) AND COUNTY----------------------------------
-unique(person_and_household$final_cnty)
+# plot - shares
+c3.3 <- ggplot(data = income_commutemode, 
+             aes(x=hhincomeb_reordered, y=n,
+                 fill=simp_commute)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Income", 
+       y = "Surveyed Individuals", 
+       title = "Commute Mode by Income",
+       fill = "Commute Mode")
+c3.3
+
+# proportion
+c3.4 <- ggplot(data = income_commutemode, 
+               aes(x=hhincomeb_reordered, y=n,
+                   fill=simp_commute)) +
+  geom_bar(stat="identity", position='fill') + 
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Income", 
+       y = "Surveyed Individuals", 
+       title = "Commute Mode by Income",
+       fill = "Commute Mode")
+c3.4
+
+# HOUSING LOCATION AND VEHICLE ACCESS----------------------------------
+# based on Regional Growth Centers
+unique(household$final_home_rgcnum)
+
+# recategorize final home RGC (binary)
+household <- household %>% 
+  mutate(RGC_binary = case_when(final_home_rgcnum == "Not RCG" ~ "Not RGC",
+                                   TRUE ~ "RGC"))
+xtabs(~RGC_binary + hh_veh_access_num, data=household)
+
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_veh_access_num'
+# this is the second variable you want to summarize by
+var <- 'RGC_binary'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  group_by(hh_veh_access_num) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# save to workbook
+addWorksheet(wb,"ResRGC_and_VehAccess")
+writeData(wb, sheet = "ResRGC_and_VehAccess", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+
+# plot
+RGC_vehaccess <- household %>%
+  group_by(hh_veh_access_num, RGC_binary) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+RGC_vehaccess
+
+# plot - weights
+c4.1 <- ggplot(RGC_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                                  fill=RGC_binary)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Access by Housing Location (RGC)",
+       fill = "Housing Location")
+c4.1
+
+# plot - weights, proportion
+c4.2 <- ggplot(RGC_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                                  fill=RGC_binary)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Access by Housing Location (RGC)",
+       fill = "Housing Location")
+c4.2
+
+# plot - shares
+c4.3 <- ggplot(RGC_vehaccess, aes(x=hh_veh_access_num, y=n, 
+                                fill=RGC_binary)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access by Housing Location (RGC)",
+       fill = "Housing Location")
+c4.3
+
+# plot - shares, proportion
+c4.4 <- ggplot(RGC_vehaccess, aes(x=hh_veh_access_num, y=n, 
+                                  fill=RGC_binary)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access by Housing Location (RGC)",
+       fill = "Housing Location")
+c4.4
+
+grid.arrange(c4.1, c4.2, c4.3, c4.4, nrow=2, ncol=2)
+
+# based on in/out of Seattle
+unique(household$seattle_home)
+freq(household$seattle_home)
+
+xtabs(~seattle_home + hh_veh_access_num, data=household)
+
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_veh_access_num'
+# this is the second variable you want to summarize by
+var <- 'seattle_home'
+# filter data missing weights 
+hh_no_na<-household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- household %>%
+  group_by(hh_veh_access_num) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# # save to workbook
+addWorksheet(wb,"Seattlehome_and_VehAccess")
+writeData(wb, sheet = "Seattlehome_and_VehAccess", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+
+# plot
+SEAhome_vehaccess <- household %>%
+  group_by(hh_veh_access_num, seattle_home) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+SEAhome_vehaccess
+
+# plot - weights
+c5.1 <- ggplot(SEAhome_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                                  fill=seattle_home)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Access by Housing Location",
+       fill = "Housing Location")
+c5.1
+
+# plot - weights, proportion
+c5.2 <- ggplot(SEAhome_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                                  fill=seattle_home)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Access by Housing Location",
+       fill = "Housing Location")
+c5.2
+
+# plot - shares
+c5.3 <- ggplot(SEAhome_vehaccess, aes(x=hh_veh_access_num, y=n, 
+                                  fill=seattle_home)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access by Housing Location",
+       fill = "Housing Location")
+c5.3
+
+# plot - shares, proportion
+c5.4 <- ggplot(SEAhome_vehaccess, aes(x=hh_veh_access_num, y=n, 
+                                  fill=seattle_home)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access by Housing Location",
+       fill = "Housing Location")
+c5.4
+
+grid.arrange(c5.1, c5.2, c5.3, c5.4, nrow=2, ncol=2)
+
+# TRANSIT SCORE AND VEHICLE ACCESS----------------------------------
+transit_score_data <- 'T:/2020November/Mary/HHTS/reference_materials/bg_transit_score2018_2_sf_10302020.csv'
+transit_sc_df <- read.csv(transit_score_data)
+
+household$final_home_bg<- as.character(household$final_home_bg)
+
+# transit score - by block
+transit_sc_df$geoid10<-as.character(transit_sc_df$geoid10)
+glimpse(transit_sc_df$geoid10)
+glimpse(hh_df_tract$final_home_bg)
+household<- merge(household, transit_sc_df, by.x='final_home_bg', by.y='geoid10', all.x=TRUE )
+glimpse(household)
+
+# reorder vehicle access
+household$hh_veh_access_num <- factor(household$hh_veh_access_num, 
+                                  levels=c("Limited Access", "Equal","Good Access"))
+# plot transit score mean
+summary(household$scaled_score)
+
+transitscore_vehaccess <- household %>%
+  group_by(hh_veh_access_num, RGC_binary) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined), 
+            TransitScore_average = mean(scaled_score, na.rm=T),
+            TransitScore_median = median(scaled_score, na.rm=T))
+transitscore_vehaccess
+
+addWorksheet(wb,"TransitScore_and_VehAccess")
+writeData(wb, sheet = "TransitScore_and_VehAccess", x=transitscore_vehaccess)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot - weights
+c6 <- ggplot(transitscore_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                                      fill=TransitScore_average)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Access and Transit Score",
+       fill = "Transit Score") +
+  scale_fill_gradient(low = "red", high = "blue")
+c6
+
+# plot - shares
+c6.2 <- ggplot(transitscore_vehaccess, aes(x=hh_veh_access_num, y=n, 
+                                         fill=TransitScore_average)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Vehicle Access", 
+       y = "Share of Surveyed Households", 
+       title = "Vehicle Access and Transit Score",
+       fill = "Transit Score") +
+  scale_fill_gradient(low = "red", high = "blue")
+c6.2
+
+grid.arrange(c6, c6.2, nrow=1, ncol=2)
+
+# look at transit score by RGC 
+c6.3 <- ggplot(transitscore_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeight, 
+                                         fill=TransitScore_average)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  facet_wrap(~RGC_binary) +
+  labs(x = "Vehicle Access", 
+       y = "Estimated Number of Households in Region", 
+       title = "Vehicle Access and Transit Score",
+       fill = "Transit Score") +
+  scale_fill_gradient(low = "red", high = "blue")
+c6.3
+
+# HOUSEHOLD LICENSE (SUM)----------------------------------
+
+
+
+# HOUSEHOLD SIZE ----------------------------------
