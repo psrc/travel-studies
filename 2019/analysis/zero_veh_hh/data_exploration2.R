@@ -1819,6 +1819,58 @@ sum(person_and_household$hh_wt_combined.y) #4051580
 sum(is.na(person_and_household$person_id)) #0
 sum(is.na(person_and_household$household_id)) #0
 
+
+# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE
+# for categorical data
+create_table_one_var_simp_joined= function(var1, table_temp,table_type) {
+  #table_temp = recategorize_var_upd(var2,table_temp)
+  #print(table_temp)
+  if (table_type == "household" | table_type == "person" ) {
+    weight_2017 = "hh_wt_revised.x"
+    weight_2019 = "hh_wt_2019.x"
+    weight_comb = "hh_wt_combined.x"
+  } else if (table_type == "trip") {
+    weight_2017 = "trip_weight_revised.x"
+    weight_2019 = "trip_wt_2019.x"
+    weight_comb = "trip_wt_combined.x"  
+  } 
+  
+  temp = table_temp %>% 
+    select(!!sym(var1), all_of(weight_2017), all_of(weight_2019), all_of(weight_comb)) %>% 
+    #filter(!.[[1]] %in% missing_codes, !is.na(.[[1]])) %>% 
+    group_by(!!sym(var1)) %>% 
+    summarise(n=n(),sum_wt_comb = sum(.data[[weight_comb]],na.rm = TRUE)) %>% 
+    mutate(perc_comb = sum_wt_comb/sum(sum_wt_comb)*100) %>% 
+    ungroup() %>%  mutate(MOE=1.65*(0.25/sum(n))^(1/2)*100) %>% arrange(desc(perc_comb))
+  return(temp)
+}
+
+
+# Create a crosstab from one variable, calculate counts, totals, and shares,
+# for categorical data
+create_table_one_var_joined = function(var1, table_temp,table_type) {
+  #table_temp = recategorize_var_upd(var2,table_temp)
+  #print(table_temp)
+  if (table_type == "household" | table_type == "person" ) {
+    weight_2017 = "hh_wt_revised.x"
+    weight_2019 = "hh_wt_2019.x"
+    weight_comb = "hh_wt_combined.x"
+  } else if (table_type == "trip") {
+    weight_2017 = "trip_weight_revised.x"
+    weight_2019 = "trip_wt_2019.x"
+    weight_comb = "trip_wt_combined.x"  
+  } 
+  
+  temp = table_temp %>% 
+    select(!!sym(var1), all_of(weight_2017), all_of(weight_2019), all_of(weight_comb)) %>% 
+    #filter(!.[[1]] %in% missing_codes, !is.na(.[[1]])) %>% 
+    group_by(!!sym(var1)) %>% 
+    summarise(n=n(),sum_wt_comb = sum(.data[[weight_comb]],na.rm = TRUE),sum_wt_2017 = sum(.data[[weight_2017]],na.rm = TRUE),sum_wt_2019 = sum(.data[[weight_2019]],na.rm = TRUE)) %>% 
+    mutate(perc_comb = sum_wt_comb/sum(sum_wt_comb)*100, perc_2017 = sum_wt_2017/sum(sum_wt_2017)*100, perc_2019 = sum_wt_2019/sum(sum_wt_2019)*100,delta = perc_2019-perc_2017) %>% 
+    ungroup() %>%  mutate(MOE=1.65*(0.25/sum(n))^(1/2)*100) %>% arrange(desc(perc_comb))
+  return(temp)
+}
+
 # LICENSE STATUS (SIMP) AND RACE----------------------------------
 xtabs(~license_simp+simp_commute, data=person_and_household)
 
@@ -2200,7 +2252,271 @@ c6.3 <- ggplot(transitscore_vehaccess, aes(x=hh_veh_access_num, y=HouseholdWeigh
 c6.3
 
 # HOUSEHOLD LICENSE (SUM)----------------------------------
+unique(person_and_household$license)
+freq(person_and_household$license)
+
+person_and_household <- person_and_household %>% 
+  mutate(license_simp = case_when(
+    license == "Yes, has an intermediate or unrestricted license" ~ "Yes",
+    license == "No, does not have a license or permit" ~ "No",
+    license == "Yes, has a learner's permit" ~ "Permit",
+    TRUE ~ "Other"))
+freq(person_and_household$license_simp)
+
+person_and_household <- person_and_household %>%
+  mutate(license_binary = ifelse(license_simp == "Yes", 1, 0)) %>%
+  group_by(household_id) %>%
+  mutate(hh_license=sum(license_binary))
+
+freq(person_and_household$license_binary) 
+freq(person_and_household$hh_license)
+
+glimpse(person_and_household)
+# shares and MOEs
+hh_license_MOE1<- create_table_one_var_simp_joined("hh_license", person_and_household, "household")
+hh_license_MOE1
+hh_license_MOE2<- create_table_one_var_joined("hh_license", person_and_household, "household")
+hh_license_MOE2
+
+# save to workbook
+addWorksheet(wb,"HH_License_simp1")
+addWorksheet(wb,"HH_License_simp2")
+writeData(wb, sheet = "HH_License_simp1", x=hh_license_MOE1)
+writeData(wb, sheet = "HH_License_simp2", x=hh_license_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
 
 
+# based on small n as household licenses increase, consolidate 4 and 5
+person_and_household <- person_and_household %>%
+  mutate(hh_license_cat = case_when(hh_license == "5" ~ "4",
+                                    hh_license == "4" ~ "4",
+                                    hh_license == "3" ~ "3",
+                                    hh_license == "2" ~ "2",
+                                    hh_license == "1" ~ "1",
+                                    hh_license == "0" ~ "0")) %>%
+  filter(hh_license != "NA")
+freq(person_and_household$hh_license_cat)
+
+# shares and MOEs
+hh_license_cat_MOE1<- create_table_one_var_simp_joined("hh_license_cat", person_and_household, "household")
+hh_license_cat_MOE1
+hh_license_cat_MOE2<- create_table_one_var_joined("hh_license_cat", person_and_household, "household")
+hh_license_cat_MOE2
+
+# save to workbook
+addWorksheet(wb,"HH_License_cat_simp1")
+addWorksheet(wb,"HH_License_cat_simp2")
+writeData(wb, sheet = "HH_License_cat_simp1", x=hh_license_cat_MOE1)
+writeData(wb, sheet = "HH_License_cat_simp2", x=hh_license_cat_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# HOUSEHOLD LICENSE (SUM) AND VEH COUNT ----------------------------------
+freq(person_and_household$vehcount_simp)
+
+xtabs(~hh_license_cat + vehcount_simp, data=person_and_household)
+
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined.x'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_license_cat'
+# this is the second variable you want to summarize by
+var <- 'vehcount_simp'
+# filter data missing weights 
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field.x))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- person_and_household %>%
+  group_by(hh_license_cat) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(person_and_household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# # save to workbook
+addWorksheet(wb,"HHLicense_VehCount")
+writeData(wb, sheet = "HHLicense_VehCount", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# plot
+hhlicense_vehcount <- person_and_household %>%
+  group_by(hh_license_cat, vehcount_simp) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined.x))
+hhlicense_vehcount
+
+# plot - weights
+e1.1 <- ggplot(hhlicense_vehcount, aes(x=hh_license_cat, y=HouseholdWeight, 
+                                      fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Number of Household Licenses", 
+       y = "Estimated Number of Households in Region", 
+       title = "Household License Count and Vehicle Count",
+       fill = "Number of Vehicles")
+e1.1
+
+# plot - weights, proportion
+e1.2 <- ggplot(hhlicense_vehcount, aes(x=hh_license_cat, y=HouseholdWeight, 
+                                      fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Number of Household Licenses", 
+       y = "Estimated Number of Households in Region", 
+       title = "Household License Count and Vehicle Count",
+       fill = "Number of Vehicles")
+e1.2
+
+# plot - shares
+e1.3 <- ggplot(hhlicense_vehcount, aes(x=hh_license_cat, y=n, 
+                                      fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Number of Household Licenses", 
+       y = "Share of Surveyed Households", 
+       title = "Household License Count and Vehicle Count",
+       fill = "Number of Vehicles")
+e1.3
+
+# plot - shares, proportion
+e1.4 <- ggplot(hhlicense_vehcount, aes(x=hh_license_cat, y=n, 
+                                      fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Number of Household Licenses", 
+       y = "Share of Surveyed Households", 
+       title = "Household License Count and Vehicle Count",
+       fill = "Number of Vehicles")
+e1.4
+
+grid.arrange(e1.1, e1.2, e1.3, e1.4, nrow=2, ncol=2)
 
 # HOUSEHOLD SIZE ----------------------------------
+freq(person_and_household$hhsize)
+
+# shares and MOEs
+hh_size_MOE2<- create_table_one_var_joined("hhsize", person_and_household, "household")
+hh_size_MOE2
+
+addWorksheet(wb,"HH_size_simp1")
+writeData(wb, sheet = "HH_size_simp1", x=hh_size_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+summary(person_and_household$hhsize) #character
+person_and_household$hhsize <- as.factor(person_and_household$hhsize)
+
+# based on small n as household size increases, consolidate 6,7,8
+person_and_household$hh_size_cat <- recode(person_and_household$hhsize,
+                                           "6 people" = "6 or more people",
+                                           "7 people" = "6 or more people",
+                                           "8 people" = "6 or more people")
+freq(person_and_household$hh_size_cat)
+
+# shares and MOEs
+hh_size_cat_MOE2<- create_table_one_var_joined("hh_size_cat", person_and_household, "household")
+hh_size_cat_MOE2
+
+# save to workbook
+addWorksheet(wb,"HH_size_cat_simp2")
+writeData(wb, sheet = "HH_size_cat_simp2", x=hh_size_cat_MOE2)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+# HOUSEHOLD SIZE AND VEH COUNT ----------------------------------
+xtabs(~hh_size_cat + vehcount_simp, data=person_and_household)
+
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined.x'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_size_cat'
+# this is the second variable you want to summarize by
+var <- 'vehcount_simp'
+# filter data missing weights 
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field.x))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id))
+# now find the sample size of your subgroup
+sample_size_group<- person_and_household %>%
+  group_by(hh_size_cat) %>%
+  summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
+# calculate totals and shares
+cross_table<-cross_tab_categorical(person_and_household,group_cat,var, hh_wt_field)
+cross_table
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+cross_table_w_MOE
+# # save to workbook
+addWorksheet(wb,"HHSize_VehCount")
+writeData(wb, sheet = "HHSize_VehCount", x=cross_table_w_MOE)
+saveWorkbook(wb,output_WB, overwrite = T)
+
+
+# plot
+hhsize_vehcount <- person_and_household %>%
+  group_by(hh_size_cat, vehcount_simp) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined.x))
+hhsize_vehcount
+
+# plot - weights
+e2.1 <- ggplot(hhsize_vehcount, aes(x=hh_size_cat, y=HouseholdWeight, 
+                                       fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Size", 
+       y = "Estimated Number of Households in Region", 
+       title = "Household License Count by Household Size",
+       fill = "Number of Vehicles")
+e2.1
+
+# plot - weights, proportion
+e2.2 <- ggplot(hhsize_vehcount, aes(x=hh_size_cat, y=HouseholdWeight, 
+                                       fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Size", 
+       y = "Estimated Number of Households in Region", 
+       title = "Household License Count by Household Size",
+       fill = "Number of Vehicles")
+e2.2
+
+# plot - shares
+e2.3 <- ggplot(hhsize_vehcount, aes(x=hh_size_cat, y=n, 
+                                       fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='dodge') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Size", 
+       y = "Share of Surveyed Households", 
+       title = "Household License Count by Household Size",
+       fill = "Number of Vehicles")
+e2.3
+
+# plot - shares, proportion
+e2.4 <- ggplot(hhsize_vehcount, aes(x=hh_size_cat, y=n, 
+                                       fill=vehcount_simp)) + 
+  geom_bar(stat="identity", position='fill') +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Size", 
+       y = "Share of Surveyed Households", 
+       title = "Household License Count by Household Size",
+       fill = "Number of Vehicles")
+e2.4
+
+grid.arrange(e2.1, e2.2, e2.3, e2.4, nrow=2, ncol=2)

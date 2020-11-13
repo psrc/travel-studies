@@ -219,8 +219,18 @@ person_and_household <- person_and_household %>%
 freq(person_and_household$license_binary) 
 freq(person_and_household$hh_license) 
   # need to run MOE calculations?
-  # should licenses be simplified - recategorized to consolidate 3+ or 4+? 
 table(person_and_household$hh_license)
+  # should licenses be simplified - recategorized to consolidate 3+ or 4+? 
+person_and_household <- person_and_household %>%
+  mutate(hh_license_cat = case_when(hh_license == "5" ~ "4",
+                                    hh_license == "4" ~ "4",
+                                    hh_license == "3" ~ "3",
+                                    hh_license == "2" ~ "2",
+                                    hh_license == "1" ~ "1",
+                                    hh_license == "0" ~ "0")) %>%
+  filter(hh_license != "NA")
+freq(person_and_household$hh_license_cat)
+table(person_and_household$hh_license_cat) # 0 household licenses is reference
 
 # housing tenure [rent_own]
 unique(person_and_household$rent_own)
@@ -237,8 +247,15 @@ person_and_household <- person_and_household %>%
 freq(person_and_household$tenure_binary)
 
 # household size [hhsize]
-freq(person_and_household$hhsize) # need to run MOE calculations?
+freq(person_and_household$hhsize) # need to run MOE calculations
 
+# based on small n as household size increases, consolidate 6,7,8
+person_and_household$hh_size_cat <- recode(person_and_household$hhsize,
+                                           "6 people" = "6 or more people",
+                                           "7 people" = "6 or more people",
+                                           "8 people" = "6 or more people")
+freq(person_and_household$hh_size_cat)
+table(person_and_household$hh_size_cat) # 1 person is reference
 
 # household income [hhincome_broad]
 freq(person_and_household$hhincome_broad)
@@ -282,9 +299,25 @@ stargazer(vehicle_multinom, type= 'text',
 # Cui (2018): "it is not suitable to use the multinomial logit model, so this paper uses the ordered logistic regression model"
 
 # ordered logit model
-vehicle_ordered <-polr(as.factor(vehicle_group) ~
-           RGC_binary + scaled_score + seattle_home,
-         data=hh_df_veh, Hess = T)
+vehicle_ordered <-polr(as.factor(vehicle_group) ~ hh_license_cat + tenure_binary + hh_size_cat + hhincomeb_reordered + hh_race_2,
+         data=person_and_household, Hess = T)
 summary(vehicle_ordered)
 # odds ratio
 exp(coef(vehicle_ordered))
+
+modelname <- "SES_ordered"
+stargazer(vehicle_ordered, type= 'text', 
+          out=paste0(parent_folder, modelname, "_", Sys.Date(),".txt"))
+
+# add p-values store table
+ctable <- coef(summary(vehicle_ordered))
+# calculate and store p values
+p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,2)
+# combined table
+(ctable <-cbind(ctable, "p value"=p))
+
+# convert coefficients into odd radios
+vehicle_ordered_2 <- exp(coef(vehicle_ordered))
+modelname <- "vehicle_ordered_2"
+stargazer(vehicle_ordered_2, type= 'text', 
+          out=paste0(parent_folder, modelname, "_", Sys.Date(),".txt"))
