@@ -266,41 +266,57 @@ person_and_household$hhincomeb_reordered <- factor(person_and_household$hhincome
                                                  "$100,000 or more","Prefer not to answer"))
 table(person_and_household$hhincomeb_reordered)
 
-# householder age - how to accomplish this?
-freq(person_and_household$relationship)
-# person_and_household <- person_and_household %>%
-#   mutate(surveyed = ifelse(relationship == "Self", "Self", "Other"))
-# freq(person_and_household$surveyed)
+# householder age
 freq(person_and_household$lifecycle)
-# group ages of householder, regardless of size
-# assume that the householders in "Household includes children age 5-17" or "Household includes children under 5" are within age categories 35-64 and under 35, respectively? The large age categories doesn't line up with the age categories provided in the Cui study - but the age field does line up. Is there a way to recategorize it based on the "age" field categories, instead of using the "lifecycle" field?
+person_and_household$lifecycle <- as.factor(person_and_household$lifecycle)
 
-
-
+person_and_household <- person_and_household %>%
+  mutate(hh_lifecycle = case_when(lifecycle == "Household size = 1, Householder under age 35" |
+                                    lifecycle == "Household size > 1, Householder under age 35" ~
+                                    "Under age 35",
+                                  lifecycle == "Household size = 1, Householder age 35 - 64" |
+                                    lifecycle == "Household size > 1, Householder age 35 - 64" ~ 
+                                    "Age 35-64",
+                                  lifecycle == "Household size = 1, Householder age 65+" |
+                                    lifecycle == "Household size > 1, Householder age 65+" ~
+                                    "Age 65+",
+                                  lifecycle == "Household includes children under 5" ~
+                                    "With children under 5",
+                                  lifecycle == "Household includes children age 5-17" ~
+                                    "With children age 5-17"))
   
+person_and_household$hh_lifecycle <- factor(person_and_household$hh_lifecycle, 
+                                                   levels=c("Under age 35","Age 35-64",
+                                                            "Age 65+","With children under 5",
+                                                            "With children age 5-17"))
+freq(person_and_household$hh_lifecycle)
+
+
 # MULTINOMIAL LOGIT: SES factors and household vehicle ownership -----
 
 # Potogolou and Susilo (2008): "results show that the multinomial logit model is the one to be selected for modeling the level of household car ownership over ordered logit and ordered probit"
 
+
 # documentation about function: https://www.rdocumentation.org/packages/nnet/versions/7.3-14/topics/multinom
-vehicle_multinom <- multinom(vehicle_group ~ 
-                         numworkers + hhincome_broad + hh_race_2 +
-                         rent +
-                         ln_jobs_transit_45 + ln_jobs_auto_30 + dist_super + scaled_score +
-                         seattle_home + RGC_binary, 
-                       data=hh_df_veh)
+
+# factors from Cui study + additional: numworkers
+vehicle_multinom <- multinom(vehicle_group ~ numworkers + hhincomeb_reordered + hh_race_2 +
+                               hh_license_cat + tenure_binary + hh_size_cat + hh_lifecycle, 
+                       data=person_and_household)
 vehicle_multinom
 
+modelname <- "SES_multinom"
 stargazer(vehicle_multinom, type= 'text', 
-          out=paste('C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/model_outputs/fullmodel_',Sys.Date(),'.txt', sep = ""))
+          out=paste0(parent_folder, modelname, "_", Sys.Date(),".txt"))
 
 # ORDERED LOGIT: SES factors and household vehicle ownership -----
 
 # Cui (2018): "it is not suitable to use the multinomial logit model, so this paper uses the ordered logistic regression model"
 
 # ordered logit model
-vehicle_ordered <-polr(as.factor(vehicle_group) ~ hh_license_cat + tenure_binary + hh_size_cat + hhincomeb_reordered + hh_race_2,
-         data=person_and_household, Hess = T)
+vehicle_ordered <-polr(as.factor(vehicle_group) ~ numworkers + hhincomeb_reordered + hh_race_2 +
+                         hh_license_cat + tenure_binary + hh_size_cat + hh_lifecycle, 
+                       data=person_and_household, Hess = T)
 summary(vehicle_ordered)
 # odds ratio
 exp(coef(vehicle_ordered))
@@ -318,6 +334,6 @@ p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,2)
 
 # convert coefficients into odd radios
 vehicle_ordered_2 <- exp(coef(vehicle_ordered))
-modelname <- "vehicle_ordered_2"
+modelname <- "SES_ordered_2"
 stargazer(vehicle_ordered_2, type= 'text', 
           out=paste0(parent_folder, modelname, "_", Sys.Date(),".txt"))
