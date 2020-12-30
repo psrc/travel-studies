@@ -1,0 +1,2476 @@
+---
+title: "Household Travel Survey: Vehicle Ownership"
+author: "Mary Richards"
+date: "`r format(Sys.time(), '%B %d %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+  word_document: default
+  pdf_document: default
+---
+
+This report presents preliminary findings for household vehicle ownership trends based on the Household Travel Survey (2017 and 2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE) # formatting
+```
+
+```{r Libraries, include=FALSE}
+library(nnet)
+library(data.table)
+library(tidyverse)
+library(DT)
+library(openxlsx)
+library(odbc)
+library(DBI)
+
+library(Hmisc) # before dplyr so dplyr functions will worklibrary(Hmisc)
+library(corrplot)
+
+library(dplyr)
+library(summarytools)
+library(stargazer)
+library(MASS)
+library(caret) #requires lattice and ggplot2
+library(ggplot2)
+library(lattice)
+library(interactions)
+library(hablar)
+
+library(tidyr)
+library(reshape2)
+library(table1)
+library(knitr)
+library(kableExtra)
+```
+
+## 1. Background Information
+This section describes the different explanatory and outcome variables.
+\
+```{r Data setup, include = FALSE}
+# Load Data
+parent_folder <- "C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/model_outputs/"
+
+#read in the household table
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "Elmer",
+                              trusted_connection = "yes")
+h <- dbGetQuery(elmer_connection,
+                "SELECT * FROM HHSurvey.v_households_2017_2019_in_house")
+p <- dbGetQuery(elmer_connection,
+                "SELECT * FROM HHSurvey.v_persons_2017_2019_in_house")
+
+dbDisconnect(elmer_connection)
+
+
+household <- data.table(h)
+person <- data.table(p)
+
+# Statistical assumptions for margins of error
+p_MOE <- 0.5
+z<-1.645
+missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
+                   'Missing: Skip logic', 'Children or missing', 'Prefer not to answer',
+                   'Missing')
+```
+
+```{r Functions}
+# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE
+# for categorical data
+create_table_one_var_simp= function(var1, table_temp, table_type) {
+  #table_temp = recategorize_var_upd(var2,table_temp)
+  #print(table_temp)
+  if (table_type == "household" | table_type == "person" ) {
+    weight_2017 = "hh_wt_revised"
+    weight_2019 = "hh_wt_2019"
+    weight_comb = "hh_wt_combined"
+  } else if (table_type == "trip") {
+    weight_2017 = "trip_weight_revised"
+    weight_2019 = "trip_wt_2019"
+    weight_comb = "trip_wt_combined"  
+  } 
+  
+  temp = table_temp %>% dplyr::select(!!sym(var1), all_of(weight_2017), all_of(weight_2019),
+                                      all_of(weight_comb)) %>% 
+    filter(!.[[1]] %in% missing_codes, !is.na(.[[1]])) %>% 
+    group_by(!!sym(var1)) %>% 
+    summarise(n=n(),sum_wt_comb = sum(.data[[weight_comb]],na.rm = TRUE), 
+              sum_wt_comb = round(sum_wt_comb, 0)) %>% 
+    mutate(perc_comb = sum_wt_comb/sum(sum_wt_comb)*100, perc_comb = round(perc_comb, 2)) %>% 
+    ungroup() %>%  
+    mutate(MOE=1.65*(0.25/sum(n))^(1/2)*100, MOE = round(MOE, 2)) %>% arrange(var1)
+  return(temp)
+}
+
+#Create a crosstab from two variables, calculate counts, totals, and shares,
+# for categorical data
+cross_tab_categorical <- function(table, var1, var2, wt_field) {
+  expanded <- table %>% 
+    group_by(.data[[var1]],.data[[var2]]) %>%
+    dplyr::summarize(Count= n(),Total=sum(.data[[wt_field]])) %>%
+    group_by(.data[[var1]])%>%
+    mutate(Percentage=Total/sum(Total)*100)
+  
+  
+  expanded_pivot <-expanded%>%
+    pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
+  
+  return (expanded_pivot)
+  
+} 
+
+# Create margins of error for dataset
+categorical_moe <- function(sample_size_group){
+  sample_w_MOE<-sample_size_group %>%
+    mutate(p_col=p_MOE) %>%
+    mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
+    mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
+  
+  sample_w_MOE<- dplyr::select(sample_w_MOE, -c(p_col, MOE_calc1))
+  
+  return(sample_w_MOE)
+}
+
+# create table with bivariate analysis stats
+bivariate_Pvalue <- function(outcome, explanatory){
+  model_output <- polr(as.factor(outcome) ~ explanatory, Hess=T)
+  ctable <- coef(summary(model_output))
+  # calculate and store p values
+  p <- pnorm(abs(ctable[,"t value"]), lower.tail = F)*2
+  p_round <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,4)
+  ctable <- cbind(ctable, "p-value"=p, "simp p-value"=p_round)
+  return(ctable)
+}
+
+# create stargazer table
+stargazer_table <- function(outcome, explanatory, table_title){
+  stargazer::stargazer(
+    polr(as.factor(outcome) ~ explanatory, Hess=T), type = "html",
+                      title =  table_title,
+                      notes.append =  FALSE, 
+                      notes =  c("<sup>&sstarf;</sup>p<0.1; <sup>&sstarf;&sstarf;</sup>p<0.05; <sup>&sstarf;&sstarf;&sstarf;</sup>p<0.01"))
+
+}
+
+# rounding function applied to categorical columns 
+my.render.cat <- function(x) {
+    c("", sapply(stats.default(x), function(y) with(y,
+        sprintf("%d (%.0f%%)", FREQ, PCT))))}
+```
+
+## 2. Outcome Variables
+The two outcome variables from these models are at the household level (by household id):  
+
+1. Vehicle count - the number of vehicles owned (reported by survey respondents)
+2. Vehicle access - the number of household vehicles owned in relation to the number of workers in each household
+
+
+### a. Household Vehicle Count
+Survey Responses:  
+*"How many motor vehicles (in working order) are there in your household?"*
+```{r Vehicle Count: Original Data}
+household$vehcount_ordered <- factor(household$vehicle_count,
+                                                levels=c("0 (no vehicles)","1","2","3","4","5",
+                                                         "6","7","8","9","10 or more vehicles"))
+
+table1(~vehcount_ordered, data=household, render.categorical=my.render.cat)
+```
+\
+```{r Vehicle Count: MOE}
+x <- create_table_one_var_simp("vehcount_ordered",household, "household")
+print(as_tibble(x), n = 12)
+```
+
+Based on survey responses, there is a very small number of households with more than 3 vehicles, so these households are grouped together.
+
+*Number of workers by household id*
+```{r Grouping vehicle count}
+household <- household %>% 
+  mutate(vehicle_group = case_when(vehicle_count== "0 (no vehicles)" ~ 0,
+                                   vehicle_count == "1" ~ 1,
+                                   vehicle_count == "2" ~ 2,
+                                   TRUE ~ 3))
+
+household$vehicle_group <- as_factor(household$vehicle_group)
+table1(~vehicle_group, data=household, render.categorical=my.render.cat)
+```
+
+```{r Vehicle Count regrouped: MOE}
+x <- create_table_one_var_simp("vehicle_group",household, "household")
+print(as_tibble(x))
+```
+
+
+### b. Household Vehicle Access
+This variable is based on the number of household vehicles (explained above) and the number of workers within the household. 
+```{r Number of household workers}
+# # look at vehicle access by number of workers in a household
+# unique(person_and_household$numworkers)
+household$numworkers <- as_factor(household$numworkers)
+table1(~numworkers, data=household, render.categorical=my.render.cat)
+```
+
+```{r Number of household workers: MOE}
+x <- create_table_one_var_simp("numworkers",household, "household")
+print(as_tibble(x))
+```
+\
+Based on survey responses, there is a very small number of households with more than 3 workers, so these households are grouped together
+```{r Grouping household workers}
+household <- household %>% 
+  mutate(numworkers_group = case_when(numworkers== "0" ~ 0,
+                                   numworkers == "1" ~ 1,
+                                   numworkers == "2" ~ 2,
+                                   TRUE ~ 3))
+household$numworkers_group <- as.factor(household$numworkers_group)
+table1(~numworkers_group, data=household, render.categorical=my.render.cat)
+```
+
+```{r Grouping household workers: MOE}
+x <- create_table_one_var_simp("numworkers_group",household, "household")
+print(as_tibble(x))
+```
+\
+**Vehicle Access is calculated by comparing the number of vehicles and the number of workers per household**
+
+* *limited access*:  vehicles < workers
+* *equal access*:  vehicles = workers
+* *good access*: vehicles > workers
+
+```{r calculating vehicle access}
+# compare veh count and numworkers to get vehicle access
+# convert "vehicle_group" and "numworkers_group" from factor to numeric
+household$vehicle_group <- as.numeric(as.character(household$vehicle_group))
+household$numworkers_group <- as.numeric(household$numworkers_group)
+
+household <- household %>%
+  mutate(hh_veh_access = case_when(vehicle_group < numworkers_group ~ 'Reduced access',
+                                   vehicle_group == numworkers_group ~ 'Equal access',
+                                   vehicle_group > numworkers_group ~ 'Good access'))
+
+household$hh_veh_access <- factor(household$hh_veh_access, 
+                                  levels=c("Reduced access", "Equal access","Good access"))
+table1(~hh_veh_access, data=household, render.categorical=my.render.cat)
+```
+Although vehicle access is an interesting measurement to explore, it requires a few levels of aggregation and adjustment, which could introduce error or oversimplification. Therefore, analysis will be based on household vehicle ownership, or the count of vehicles per household. 
+\
+
+## 3. Explanatory or predictor variables
+There are many personal and household characteristics that can contribute to vehicle ownership at the household level. 
+Based on these considerations and the data available through survey responses, the following table will attempt to match the person-level and household-level characteristics with responses provided by the survey participants. The data listed in the right column are from the in-house person (p) and household (h) views, available through Elmer, or describe an externally-sourced dataset (e).  
+
+```{r characteristics and corresponding survey questions}
+c1 <- as.data.frame(c(
+  "1. Income",
+  "2. Gender",
+  "3. Age",
+  "4. Household size",
+  "5. Number of licensed (or licensed age) individuals",
+  "6. Occupation",
+  "7. Educational Attainment",
+  "8. Number of workers",
+  "9. Household lifecycle or age composition of household members",
+  "10. Race or ethnicity",
+  "11. Physical disabilities",
+  "12. Housing type",
+  "13. Housing or work location and proximity to transit",
+  "14. Commuting patterns",
+  "15. Quality of transit options available",
+  "16. Housing proximity to services",
+  "17. Environmental consciousness"))
+colnames(c1)[1] <- "Vehicle-ownership Considerations"
+c2 <- as.data.frame(c(
+  "*hhincome_broad (p/h), hhincome_detailed (p/h)*",
+  "*gender (p)*",
+  "*age (p), age_category (p)*",
+  "*hhsize (p/h)*",
+  "*license (p)*",
+  "*employment (p), jobs_count (p)*",
+  "*education (p)*",
+  "*numworkers (h)*",
+  "*lifecycle (p/h)*",
+  "*race_category (p)*",
+  "*?*",
+  "*rent_own (h), res_type (h)*",
+  "*final_home_rgcnum (h), seattle_home (h)*",
+  "*commute_freq (p), commute_mode (p), commute_dur (p), telecommute_freq (p)*",
+  "*transit score by block group (e)*",
+  "*displacement risk index (e)*",
+  "*?*"))
+colnames(c2)[1] <- "Survey Variables"
+
+corresponding <- cbind(c1,c2)
+
+# print table using kable()
+kable(corresponding, format = "html",escape = FALSE, align = c('l','l')) %>% kable_styling("bordered",full_width = F, position = "left") #%>% column_spec(2, color = "red")#%>% column_spec(2, bold = T)
+```
+\
+Because the outcome variable is household vehicle ownership, the person-level variables need to be aggregated to the household level. With this in mind, gender and employment type were removed from this analysis. The number of jobs per person was included.  
+The table below illustrates the person-level variables related to vehicle ownership and the way in which they were aggregated:
+```{r person-level characteristics and corresponding stats methods}
+c1 <- as.data.frame(c(
+  "Number of licensed (or licensed age) individuals",
+  "Number of jobs",
+  "Educational Attainment",
+  "Commuting Patterns
+  \n* Distance (mi) by automobile
+  \n* Time (?) by automobile
+  \n* Commute frequency (days/week)"))
+colnames(c1)[1] <- "Person-level variables"
+c2 <- as.data.frame(c(
+  "sum",
+  "sum",
+  "min, max",
+  "\nmean
+  \nmean
+  \nmin, max"))
+colnames(c2)[1] <- "Aggregation method(s)"
+
+corresponding <- cbind(c1,c2)
+
+# print table using kable()
+kable(corresponding, format = "html",escape = FALSE, align = c('l','l')) %>% kable_styling("bordered",full_width = F, position = "left") #%>% column_spec(2, color = "red")#%>% column_spec(2, bold = T)
+```
+
+In addition to these variables, two additional ones were calculated:  
+
+* Number of household jobs per worker (sum of household jobs/numworkers)  
+* Number of household commute trips per week (sum of household commute trips/(numworkers*5))
+
+\
+
+```{r HOUSEHOLD TABLE, include = FALSE}
+# this has some information on the Census Tract level that could be useful
+displ_index_data<- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/displacement_risk_estimation.csv'
+displ_risk_df <- read.csv(displ_index_data)
+transit_score_data <- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/zero_veh_hh/bg_transit_score2018_2_sf_10302020.csv'
+transit_sc_df <- read.csv(transit_score_data)
+
+# merge the households to info about the tracts/blocks they live in - displacement risk/transit score (Stefan)
+household$final_home_tract<- as.character(household$final_home_tract)
+household$final_home_bg<- as.character(household$final_home_bg)
+# displacement risk - by tract
+displ_risk_df$GEOID<-as.character(displ_risk_df$GEOID)
+household <- merge(household,displ_risk_df, by.x='final_home_tract', by.y='GEOID', all.x=TRUE)
+# glimpse(household)
+# transit score - by block
+transit_sc_df$geoid10<-as.character(transit_sc_df$geoid10)
+# glimpse(transit_sc_df$geoid10)
+# glimpse(household$final_home_bg)
+household <- merge(household, transit_sc_df, by.x='final_home_bg', by.y='geoid10', all.x=TRUE )
+# glimpse(household)
+# nrow(household)
+household$household_id <- as.character(household$household_id)
+```
+
+```{r PERSON TABLE description, include=FALSE}
+# need to summarise the variables of interest so that they can be representative at the household level
+# to prepare the variables for aggregation: 
+    # licenses, employment, educational attainment, commuting patterns
+```
+
+```{r license : person table, include=FALSE}
+# freq(person$license)
+table(person$license)
+
+
+# simplify license status
+person <- person %>% 
+  mutate(license_simp = case_when(
+    license == "No, does not have a license or permit" ~ "Non-driver",
+    license == "Missing: Skip logic" ~ "Missing",
+    TRUE ~ "Driver"))
+table(person$license_simp)
+
+
+# assign those categorized as drivers with number, so that the total can be determined by household
+person <- person %>%
+  mutate(driver = case_when(license_simp=="Driver"~ 1,
+                            license_simp=="Non-driver"~ 0,
+                            TRUE~ as.numeric(NA))) 
+person$household_id <- as.character(person$household_id)
+```
+
+```{r employment : person table, include=FALSE}
+# freq(person$employment)
+freq(person$jobs_count)
+
+# convert jobs count to numeric to allow for aggregation
+person <- person %>%
+  mutate(jobs_count_num = case_when(jobs_count=="0 jobs"~0,
+                                    jobs_count=="1 job"~1,
+                                    jobs_count=="2 jobs"~2,
+                                    jobs_count=="3 jobs"~3,
+                                    jobs_count=="4 jobs"~4,
+                                    jobs_count=="5 or more jobs"~5,
+                                    TRUE~ as.numeric(NA)))
+freq(person$jobs_count_num)
+```
+
+```{r education : person table, include=FALSE}
+freq(person$education)
+table(person$education)
+
+# convert to numbers to allow for aggregation
+person <- person %>%
+  mutate(education_num = case_when(education=="Associates degree"~ 5,
+                                   education=="High school graduate"~ 2,
+                                   education=="Some college" ~ 4,
+                                   education=="Bachelor degree" ~ 6,
+                                   education=="Less than high school" ~ 1,
+                                   education=="Vocational/technical training" ~ 3,
+                                   education=="Graduate/post-graduate degree" ~ 7, 
+                                   TRUE~ as.numeric(NA))) 
+
+# to check if "some college" is only for younger respondents (under 25yo: 107/1154; <10%)
+# xtabs(~education+age, data=person) 
+```
+
+```{r commuting patterns : person table, include=FALSE}
+summary(person$commute_auto_distance) #very high MAX values
+summary(person$commute_auto_time) #very high MAX values
+freq(person$commute_freq)
+# freq(person$commute_dur) # ? not very helpful
+# freq(person$commute_mode) # indirectly related
+# freq(person$simp_commute) # indirectly related
+# freq(person$work_park_type) # indirectly related
+
+# filter out outliers from auto commute distance and time
+# person <- person %>%
+#   mutate(com_auto_dist_cleaned =) %>%
+#   mutate(com_auto_time_cleaneed =)
+
+# convert to numbers to allow for aggregation
+person <- person %>%
+  mutate(commute_freq_num = case_when(commute_freq=="1 day a week"~ 1,
+                                       commute_freq=="2 days a week"~ 2,
+                                       commute_freq=="3 days a week"~ 3,
+                                       commute_freq=="4 days a week"~ 4,
+                                       commute_freq=="5 days a week"~ 5,
+                                       commute_freq=="6-7 days a week"~ 6,
+                                      TRUE~ as.numeric(NA))) 
+# simplify categories
+person <- person %>%
+  mutate(commute_freq_simpnum = case_when(commute_freq=="Less than monthly" |
+                                        commute_freq== "A few times per month"~ 1,
+                                      commute_freq=="1 day a week" |
+                                        commute_freq=="2 days a week" |
+                                        commute_freq=="3 days a week"~ 2,
+                                      commute_freq=="4 days a week" |
+                                        commute_freq=="5 days a week" |
+                                        commute_freq=="6-7 days a week"~ 3,
+                                      TRUE~ as.numeric(NA))) 
+freq(person$commute_freq_num)
+freq(person$commute_freq_simpnum)
+```
+
+```{r aggregating person table, include=FALSE}
+# person_hh <- person %>%
+#   #dplyr::select(household_id, driver, hh_wt_combined) %>%
+#   group_by(household_id) %>%
+#   summarise(hh_driver = sum(driver, na.rm=T),
+#             hh_jobs = sum(jobs_count_num, na.rm=T),
+#             hh_edu_min = min(education_num, na.rm=T), 
+#             hh_edu_max = max(education_num, na.rm=T),
+#             # but use 'education' for stats to keep text, simplify to fewer categories?
+#             hh_commute_freq_min = min(commute_freq_simpnum, na.rm=T),
+#             hh_commute_freq_max = max(commute_freq_simpnum, na.rm=T),
+#             hh_commute_freq_sum = sum(commute_freq_num, na.rm=T),
+#             hh_com_auto_time_avg = mean(commute_auto_time, na.rm=T),
+#             hh_com_auto_time_sum = sum(commute_auto_time, na.rm=T),
+#             hh_com_auto_dist_avg = mean(commute_auto_distance, na.rm=T),
+#             hh_com_auto_dist_sum = sum(commute_auto_distance, na.rm=T))
+
+person_hh <- person %>%
+  #dplyr::select(household_id, driver, hh_wt_combined) %>%
+  group_by(household_id) %>%
+  summarise(hh_driver = sum(driver, na.rm=T),
+            hh_jobs = sum(jobs_count_num, na.rm=T),
+            hh_edu_min = min_(s(education_num)), 
+            hh_edu_max = max_(s(education_num)),
+            # requires hablar package to return NA instead of Inf
+            hh_commute_freq_min = min_(s(commute_freq_simpnum)),
+            hh_commute_freq_max = max_(s(commute_freq_simpnum)),
+            hh_commute_freq_sum = sum(commute_freq_num, na.rm=T),
+            hh_com_auto_time_avg = mean(commute_auto_time, na.rm=T),
+            hh_com_auto_time_sum = sum(commute_auto_time, na.rm=T),
+            hh_com_auto_dist_avg = mean(commute_auto_distance, na.rm=T),
+            hh_com_auto_dist_sum = sum(commute_auto_distance, na.rm=T))
+nrow(person_hh) # check number of rows after grouping by household_id
+max
+# recategorize education to text
+person_hh$hh_edu_min <- as.character(person_hh$hh_edu_min)
+person_hh$hh_edu_max <- as.character(person_hh$hh_edu_max)
+
+person_hh <- person_hh %>%
+  mutate(education_min = case_when(hh_edu_min=="5"~"Associates degree",
+                                   hh_edu_min=="2"~"High school graduate",
+                                   hh_edu_min=="4"~"Some college",
+                                   hh_edu_min=="6"~"Bachelor degree",
+                                   hh_edu_min=="1"~"Less than high school",
+                                   hh_edu_min=="3"~"Vocational/technical training",
+                                   hh_edu_min=="7"~"Graduate/post-graduate degree", 
+                                   TRUE~ as.character(NA))) %>%
+  mutate(education_max = case_when(hh_edu_max=="5"~"Associates degree",
+                                   hh_edu_max=="2"~"High school graduate",
+                                   hh_edu_max=="4"~"Some college",
+                                   hh_edu_max=="6"~"Bachelor degree",
+                                   hh_edu_max=="1"~"Less than high school",
+                                   hh_edu_max=="3"~"Vocational/technical training",
+                                   hh_edu_max=="7"~"Graduate/post-graduate degree", 
+                                   TRUE~ as.character(NA)))
+
+# simplify the number of drivers - grouping households with 4+ licenses
+person_hh <- person_hh %>%
+  mutate(driver_simp = case_when(hh_driver== 5 ~ 4,
+                                 hh_driver== 6 ~ 4,
+                                 hh_driver== 7 ~ 4,
+                                 hh_driver== 9 ~ 4,
+                                 TRUE~.$hh_driver)) 
+person_hh$driver_simp <- as.factor(person_hh$driver_simp)
+freq(person_hh$driver_simp)
+
+# recategorize commute frequency to text
+person_hh <- person_hh %>%
+  mutate(commute_freq_simp_min = case_when(hh_commute_freq_min==1~ "Less than once a week",
+                                           hh_commute_freq_min==2~ "3 or fewer days a week",
+                                           hh_commute_freq_min==3~ "4 or more days a week",
+                                           TRUE~ as.character(NA))) %>%
+  mutate(commute_freq_simp_max = case_when(hh_commute_freq_max==1~ "Less than once a week",
+                                           hh_commute_freq_max==2~ "3 or fewer days a week",
+                                           hh_commute_freq_max==3~ "4 or more days a week",
+                                           TRUE~ as.character(NA)))
+freq(person_hh$commute_freq_simp_min)
+freq(person_hh$commute_freq_simp_max)
+summary(person_hh$hh_commute_freq_sum)
+
+
+glimpse(person_hh)
+```
+  
+```{r JOIN household and person tables, include=FALSE}
+person_and_household <- left_join(person_hh, household,
+                                  by=c("household_id"="household_id"))
+
+# add variables using both tables
+person_and_household$numworkers_num <- as.numeric(person_and_household$numworkers)
+person_and_household <- person_and_household %>%
+  mutate(jobs_numworkers = hh_jobs/numworkers_num, na.rm=T) %>% # if 1: every worker has 1 job
+  mutate(hh_commutetrips = hh_commute_freq_sum/(numworkers_num*5), na.rm=T) # if 1: all workers commuting every weekday
+
+nrow(person_and_household) # check numner of rows: 6319
+glimpse(person_and_household)
+```
+\
+
+### a. Univariate analysis
+The dependent variable or outcome will be vehicle ownership (*"vehicle_group"*: 0, 1, 2, 3+) and the independent or explanatory variables will be from the list above. Because the vehicle ownership is ordinal, an ordered logit model will be applied.
+
+The following section will introduce descriptive statistics for each of the explanatory variables, followed by analysis. For an overview of the results from these individual analyses, please skip to section 3b.
+\
+\
+
+#### <span style="color:#009D6A">*1. Income*</span>  
+The survey variable "hhincome_broad" is divided into 5 categories, while the survey variable "hhincome_detailed" is divided into 10 categories. Although the broader categories do not provide as much detail, the sample sizes within each category are larger and there are fewer households who chose "Prefer not to answer" (broad: 829, detailed: 1,309). 
+```{r income : stats}
+# freq(person_and_household$hhincome_broad)
+
+person_and_household$hhincomeb_reordered <- factor(person_and_household$hhincome_broad, 
+                                                   levels=c("Under $25,000","$25,000-$49,999",
+                                                            "$50,000-$74,999","$75,000-$99,999",
+                                                            "$100,000 or more","Prefer not to answer"))
+# table(person_and_household$hhincomeb_reordered)
+table1(~hhincomeb_reordered, data=person_and_household, render.categorical=my.render.cat)
+
+```
+
+```{r income : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hhincomeb_reordered'
+# this is the second variable you want to summarize by
+var <-  'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hhincomeb_reordered %in% missing_codes,
+#          !is.na(hhincomeb_reordered))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hhincomeb_reordered) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r income : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r income : vehicle ownership plot}
+# xtabs(~vehicle_group + hhincomeb_reordered, data = person_and_household)
+hh_vehcount_income <- person_and_household %>%
+  filter(!is.na(hhincomeb_reordered)) %>%
+  group_by(hhincomeb_reordered,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_income 
+
+ggplot(data=hh_vehcount_income, aes(x=hhincomeb_reordered, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Income (broad)", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Income")
+```
+
+
+Reference group: Under $25,000
+```{r income : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hhincomeb_reordered)
+```
+
+```{r income : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$hhincomeb_reordered,
+                'Vehicle Ownership by Income')
+```
+\
+<span style="color:#20b2aa">In reference to the households making under $25k, households in higher income categories are more likely to own more vehicles. This positive association between household income and household vehicle ownership is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*2. Age/Lifecycle*</span>  
+Person-level ages are likely to influence vehicle ownership, but because the variable of interest is vehicle ownership, the household age composition or household lifecycle will be evaluated.
+
+Households were organized into four categories based on the composition and age of people in the household:  
+
+* *Households with children:* any household with at least one member under age 18  
+* *Households with younger adults:* any household without children where all adults are age 18-34  
+* *Households with older adults:* any household without children where all adults are age 18-64 and at least one adult is age 35-64  
+* *Households with seniors:* any household with at one adult age 65 and older
+```{r age/Lifecycle : stats}
+# freq(person_and_household$lifecycle)
+# table(person_and_household$lifecycle)
+table1(~lifecycle, data=person_and_household, render.categorical=my.render.cat)
+person_and_household$lifecycle <- as_factor(person_and_household$lifecycle)
+```
+\
+Because of the large number of categories - accounting for both size and age, they are reduced to reflect only age ranges
+```{r age/Lifecycle : setup}
+person_and_household <- person_and_household %>%
+  mutate(hh_lifecycle = case_when(lifecycle == "Household size = 1, Householder under age 35" |
+                                    lifecycle == "Household size > 1, Householder under age 35" ~
+                                    "Under age 35",
+                                  lifecycle == "Household size = 1, Householder age 35 - 64" |
+                                    lifecycle == "Household size > 1, Householder age 35 - 64" ~ 
+                                    "Age 35-64",
+                                  lifecycle == "Household size = 1, Householder age 65+" |
+                                    lifecycle == "Household size > 1, Householder age 65+" ~
+                                    "Age 65+",
+                                  lifecycle == "Household includes children under 5" ~
+                                    "With children under 5",
+                                  lifecycle == "Household includes children age 5-17" ~
+                                    "With children age 5-17"))
+
+person_and_household$hh_lifecycle <- factor(person_and_household$hh_lifecycle, 
+                                            levels=c("Under age 35","Age 35-64",
+                                                     "Age 65+","With children under 5",
+                                                     "With children age 5-17"))
+# freq(person_and_household$hh_lifecycle)
+# table(person_and_household$hh_lifecycle)
+table1(~hh_lifecycle, data=person_and_household, render.categorical=my.render.cat)
+
+```
+
+```{r age/Lifecycle : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_lifecycle'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hh_lifecycle %in% missing_codes,
+#          !is.na(hh_lifecycle))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hh_lifecycle) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r age/Lifecycle : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r age/Lifecycle : vehicle ownership plot}
+# xtabs(~vehicle_group + hhincomeb_reordered, data = person_and_household)
+hh_vehcount_lifecycle <- person_and_household %>%
+  filter(!is.na(hh_lifecycle)) %>%
+  group_by(hh_lifecycle,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_lifecycle 
+
+ggplot(data = hh_vehcount_lifecycle, aes(x=hh_lifecycle, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Lifecycle", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Household age composition")
+```
+
+Reference group: Under age 35
+```{r age/Lifecycle : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_lifecycle)
+```
+
+```{r age/Lifecycle : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_lifecycle,
+                "Vehicle Ownership by Household Lifecycle")
+```
+\
+<span style="color:#20b2aa">The relationship between household lifecycle and household vehicle ownership is  statistically significant, with households with children owning more vehicles, especially those with children ages 5-17, likely because of lifestyle requirements and housing patterns. Households with individuals 65+ are more likely to own more vehicles than households ages 35-64, likely because of mobility considerations and housing patterns. All of the household lifecycle categories included in the table above are more likely to own more vehicles than households under age 35.</span>
+\
+\
+
+#### <span style="color:#009D6A">*3. Household size*</span>  
+The survey question provides respondents with 9 options for household size. 
+\
+Original Data
+```{r household size}
+# unique(person_and_household$hhsize)
+# freq(person_and_household$hhsize)
+
+# table(person_and_household$hhsize)
+table1(~hhsize, data=person_and_household, render.categorical=my.render.cat)
+```
+Because there are so few people with more than 5 people, these households have been combined together into one category for analysis.
+```{r household size : simplified, include=FALSE}
+person_and_household <- person_and_household %>%
+  mutate(hhsize_simp = case_when(hhsize =="5 people" |
+                                   hhsize == "6 people" |
+                                   hhsize == "7 people" |
+                                   hhsize == "8 people" |
+                                   hhsize == "9 people" ~ "5 or more people",
+                                 TRUE~.$hhsize))
+# table(person_and_household$hhsize_simp)
+table1(~hhsize_simp, data=person_and_household, render.categorical=my.render.cat)
+```
+
+```{r household size : simplified - numeric}
+# convert hhsize variable to numeric
+person_and_household <- person_and_household %>%
+  mutate(hhsize_simp_num = case_when(hhsize_simp == "1 person" ~ "1",
+                                     hhsize_simp == "2 people" ~ "2",
+                                     hhsize_simp == "3 people" ~ "3",
+                                     hhsize_simp == "4 people" ~ "4",
+                                     hhsize_simp == "5 or more people" ~ "5",
+                                     TRUE~.$hhsize_simp))
+person_and_household$hhsize_simp_num <- as.numeric(person_and_household$hhsize_simp_num)
+# class(person_and_household$hhsize_simp_num)
+
+table1(~hhsize_simp_num, data=person_and_household, render.categorical=my.render.cat)
+```
+
+```{r household size : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hhsize_simp_num'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hhincomeb_reordered %in% missing_codes,
+#          !is.na(hhsize_simp))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hhsize_simp_num) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r household size : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r household size : vehicle ownership plot}
+# xtabs(~vehicle_group + hhincomeb_reordered, data = person_and_household)
+hh_vehcount_hhsize <- person_and_household %>%
+  filter(!is.na(hhsize_simp_num)) %>%
+  group_by(hhsize_simp_num,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_hhsize 
+
+ggplot(data =hh_vehcount_hhsize, aes(x=hhsize_simp_num, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household size", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Household size")
+```
+
+```{r household size : stats}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hhsize_simp_num)
+```
+
+```{r household size : bivariate analysis, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$hhsize_simp_num,
+                'Vehicle Ownership by Household size')
+```
+\
+<span style="color:#20b2aa">In reference to the households with one person, households with more people are more likely to own more vehicles. This positive association between household income and household vehicle ownership is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*4. Number of household licenses*</span>  
+Original data at a person level (11,940 survey respondents)
+```{r license}
+# freq(person_and_household$license)
+
+# table(person$license)
+table1(~license, data=person, render.categorical=my.render.cat)
+```
+\
+These categories have been simplified to drivers or non-drivers. Those with a permit are considered to be drivers as they are in the pursuit of a license. Despite this recategorization, there is a large disparity between these groups, with over 10 times as many people reporting that they have a license.  
+```{r license : simplified}
+# table(person$license_simp)
+table1(~license_simp, data=person, render.categorical=my.render.cat)
+```
+\
+The person level data of having a license is aggregated to the household level. The following values reflect the number of licenses within each surveyed household (6,319 households). 
+```{r number license}
+freq(person_and_household$hh_driver)
+# person_and_household$hh_driver <- as.factor(person_and_household$hh_driver)
+# table1(~hh_driver, data=person_and_household, render.categorical=my.render.cat)
+```
+\
+Because there are so few households with more than 4 drivers, these categories have been simplified.  
+```{r number license : simplified - numeric}
+person_and_household$driver_simp <- as.numeric(person_and_household$driver_simp)
+freq(person_and_household$driver_simp)
+```
+\
+Margin of Error
+```{r number license : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'driver_simp'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id)) #0
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(driver_simp) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r number license : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r number license : vehicle ownership plot}
+# xtabs(~vehicle_group + hhincomeb_reordered, data = person_and_household)
+hh_vehcount_licensecount <- person_and_household %>%
+  filter(!is.na(driver_simp)) %>%
+  group_by(driver_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_license 
+
+ggplot(data=hh_vehcount_licensecount, aes(x=driver_simp, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Number of Household Licenses", 
+       y = "Surveyed Households", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Number of Household Licenses")
+```
+
+Reference group: 0 licenses in the household
+```{r number license : stats}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$driver_simp)
+```
+
+```{r number license : bivariate analysis, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$driver_simp,
+                'Vehicle Ownership by Number of Household Licenses')
+```
+\
+<span style="color:#20b2aa">In reference to the households with no licensed members, households with more licensed drivers are more likely to own more vehicles. This positive association between number of household licenses and household vehicle ownership is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*5. Number of workers*</span>
+This variable is defined as number of household members with 1+ jobs. 
+
+Original data at a household level
+```{r numworkers : stats}
+# unique(person_and_household$numworkers)
+# freq(person_and_household$numworkers)
+
+freq(person_and_household$numworkers)
+```
+Because there are so few people with more than 4 people, these households have been grouped together into one category for analysis.
+```{r numworkers : simplified}
+person_and_household$numworkers <- as.numeric(person_and_household$numworkers)
+person_and_household <- person_and_household %>% 
+  mutate(numworkers_simp = case_when(numworkers == 5~4,
+                                     numworkers == 6~4,
+                                     TRUE~.$numworkers))
+person_and_household$numworkers_simp <- as.factor(person_and_household$numworkers_simp)
+# table(person_and_household$numworkers_simp)
+table1(~numworkers_simp, data=person_and_household, render.categorical=my.render.cat)
+person_and_household$numworkers_simp <- as.numeric(person_and_household$numworkers_simp)
+```
+
+```{r numworkers : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'numworkers_simp'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!vehicle_group %in% missing_codes,
+#          !is.na(vehicle_group))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(numworkers_simp) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r numworkers : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r numworkers : vehicle ownership plot}
+# xtabs(~vehicle_group + hhincomeb_reordered, data = person_and_household)
+hh_vehcount_numworkers <- person_and_household %>%
+  filter(!is.na(numworkers_simp)) %>%
+  group_by(numworkers_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_numworkers 
+
+ggplot(data =hh_vehcount_numworkers, aes(x=numworkers_simp, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household size", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Household size")
+```
+
+
+Reference group: 1 person
+```{r numworkers : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$numworkers_simp)
+```
+
+```{r numworkers : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$numworkers_simp,
+                'Vehicle Ownership by Number of Workers')
+```
+\
+<span style="color:#20b2aa">In reference to the households with one person, households with more workers are more likely to own more vehicles. This positive association between the number of household workers and household vehicle ownership is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*6. Number of Jobs*</span>
+
+Original data at a person level (11,940 survey respondents)
+```{r jobs : stats}
+# unique(person_and_household$jobs)
+
+freq(person$jobs_count)
+```
+\
+The person level jobs data is aggregated to the household level. The following tables reflect the sum of the jobs held by individuals within each of the surveyed households (6,319). 
+```{r jobs aggregated}
+freq(person_and_household$hh_jobs)
+```
+\
+\
+
+##### <span style="color:#486CAB">*Jobs : Worker ratio*</span>
+The number of household jobs per worker (sum of household jobs/sum household members with 1+ jobs) was calculated to create a more standardized measurement.  
+```{r jobs:workers stats}
+# unique(person_and_household$jobs)
+
+summary(person_and_household$jobs_numworkers)
+```
+
+```{r jobs:workers plot}
+# plot histogram
+ggplot(person_and_household, aes(jobs_numworkers)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Jobs:workers Ratio", 
+       y = "Surveyed Households")
+```
+
+```{r jobs:workers : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$jobs_numworkers)
+```
+
+```{r jobs:workers : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$jobs_numworkers,
+                'Vehicle Ownership by jobs:workers ratio')
+```
+\
+<span style="color:#20b2aa">When there are more jobs/workers within a household, these households are more likely to own more vehicles. This positive association between the number of jobs per household worker and household vehicle ownership is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*7. Educational attainment*</span>
+\
+Original data at a person level (11,940 survey respondents)
+```{r edu}
+# freq(person_and_household$license)
+
+# table(person$education)
+table1(~education, data=person, render.categorical=my.render.cat)
+```
+
+\
+The person level education data is aggregated to the household level. The following tables reflect the lowest and highest educational attainment of the individuals within each of the surveyed households (6,319). 
+```{r edu aggregated min}
+freq(person_and_household$education_min)
+```
+\
+```{r edu aggregated max}
+freq(person_and_household$education_max)
+```
+\
+These education attainment categories have been simplified into the following 4 categories:
+
+* high school or less
+* vocational, associates, less than 4 years of college
+* bachelor degree
+* post-graduate
+
+```{r edu : simplified}
+person_and_household <- person_and_household %>%
+  mutate(hh_edu_min_simp = case_when(education_min=="Less than high school" |
+                                       education_min=="High school graduate"~ "high school",
+                                     education_min=="Vocational/technical training" |
+                                       education_min=="Associates degree" |
+                                       education_min=="Some college" ~ "specialized, <4y",
+                                     education_min=="Graduate/post-graduate degree" ~"post-graduate",
+                                       TRUE~.$education_min)) %>%
+  mutate(hh_edu_max_simp = case_when(education_max=="Less than high school" |
+                                       education_max=="High school graduate"~ "High school",
+                                     education_max=="Vocational/technical training" |
+                                       education_max=="Associates degree" |
+                                       education_max=="Some college" ~ "Specialized, <4y",
+                                     education_max=="Graduate/post-graduate degree" ~"Post-graduate",
+                                       TRUE~.$education_max))
+
+freq(person_and_household$hh_edu_min_simp)
+freq(person_and_household$hh_edu_max_simp)
+```
+\
+\
+
+##### <span style="color:#486CAB">*Household education minimum*</span>
+Margin of Error
+```{r edu min : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_edu_min_simp'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id)) #0
+# now find the sample size of your subgroup
+sample_size_group <- hh_no_na %>%
+  group_by(hh_edu_min_simp) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r edu min : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r edu min : vehicle ownership plot}
+hh_vehcount_edumin <- person_and_household %>%
+  filter(!is.na(hh_edu_min_simp)) %>%
+  group_by(hh_edu_min_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_edumin 
+
+ggplot(data=hh_vehcount_edumin, aes(x=hh_edu_min_simp, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Lowest Education Attainment", 
+       y = "Surveyed Households", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Education attainment (min)")
+```
+
+Reference group: Bachelor degree
+```{r edu min : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_edu_min_simp)
+```
+
+```{r edu min : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$hh_edu_min_simp,
+                'Vehicle Ownership by Lowest educational attainment')
+```
+\
+<span style="color:#20b2aa">In reference to the households with a bachelor degree as the lowest educational attainment, households with more education (post-graduate) are less likely to own more vehicles, while those with less education are more likely to own more vehicles. This negative association between educational attainment (min) and household vehicle ownership is statistically significant.</span>
+\
+\
+
+##### <span style="color:#486CAB">*Household education maximum*</span>
+Margin of Error
+```{r edu max : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_edu_max_simp'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id)) #0
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hh_edu_max_simp) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r edu max : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r edu max : vehicle ownership plot}
+hh_vehcount_edumax <- person_and_household %>%
+  filter(!is.na(hh_edu_max_simp)) %>%
+  group_by(hh_edu_max_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_edumax 
+
+ggplot(data=hh_vehcount_edumax, aes(x=hh_edu_max_simp, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Highest Education Attainment", 
+       y = "Surveyed Households", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Education attainment (max)")
+```
+
+Reference group: Bachelor degree
+```{r edu max : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_edu_max_simp)
+```
+
+```{r edu max : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$hh_edu_max_simp,
+                'Vehicle Ownership by Highest educational attainment')
+```
+\
+<span style="color:#20b2aa">In reference to the households with a bachelor degree as the highest educational attainment, households with more education (post-graduate) are more likely to own more vehicles, while those with high school or less are less likely to own more vehicles. This positive association between educational attainment (max) and household vehicle ownership is statistically significant. 
+\
+\
+The relationship between households with specialized/vocational/less than 4 years of college and a bachelor degree is not significant. </span>
+\
+\
+
+#### <span style="color:#009D6A">*8. Race*</span>
+The household travel survey asked participants about the race of adults in each household, with no children in households assigned to any racial group.
+\
+Original data at a person level (11,940 survey respondents).
+```{r person-level race : stats}
+# table(person_and_household$hh_race_category)
+table1(~race_category, data=person, render.categorical=my.render.cat)
+```
+\
+The person level race data is aggregated to the household level (6,319) based on the following logic:  
+
+1. Households were grouped into single racial groups alone based on the identified race of the individual members (i.e. African American alone, Asian alone, Hispanic alone, etc.), as well as a category for households with members of different races 
+\
+```{r hh race : stats}
+# table(person_and_household$hh_race_category)
+table1(~hh_race_category, data=person_and_household, render.categorical=my.render.cat)
+```
+\
+2. Other than Asian and Non-Hispanic White, the groups were too small to report, and were therefore combined together into categories large enough to achieve statistically valid sample sizes. Survey participants could choose not to select any choice for race; households with any adults missing race were assigned to a Missing group. The "Missing/Other" group includes households categorized as "Missing" or "Other."
+\
+
+Three groups are shown in the analysis below: 
+
+* A composite of households where all adults are African American, Hispanic, or Native American, and households with non-White adults of multiple races
+* Households where all adults are Asian alone
+* Households where all adults are Non-Hispanic White alone
+\
+
+##### <span style="color:#486CAB">*White Only, Asian, and other POC households*</span>
+White only (7,147), Asian (2,141), other POC (935), and missing/other (1,717).
+```{r race expanded categories : setup, include = FALSE}
+person_and_household <- person_and_household %>%
+  mutate(hh_race_3 = case_when(hh_race_category == "White Only" ~ "White Only",
+                               hh_race_category == "Missing" | hh_race_category == "Other" ~ "Missing/Other",
+                               hh_race_category == "Asian" ~ "Asian",
+                               TRUE ~ "People of Color"))
+# table(person_and_household$hh_race_3)
+table1(~hh_race_3, data=person_and_household, render.categorical=my.render.cat)
+
+person_and_household$hh_race_3 <- factor(person_and_household$hh_race_3,
+                                         levels = c("White Only", "People of Color", "Asian", "Missing/Other"))
+``` 
+
+```{r race expanded : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_race_3' 
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+# filter data missing values
+# before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+# if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hh_race_2 %in% missing_codes,
+#          !is.na(hh_race_2))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hh_race_3) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r race expanded : vehicle ownership MOE}
+cross_table_w_MOE
+```
+\
+Reference group: White Only
+```{r race expanded: bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_race_3)
+```
+
+```{r race expanded : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                person_and_household$hh_race_3,
+                "Vehicle Ownership by Race")
+```
+\
+<span style="color:#20b2aa">The relationship between race and household vehicle ownership is statistically significant for Asian households. POC households show a similar trend - owning fewer vehicles than white households - but the relationship is not significant. This is likely because of the small sample size of POC households, excluding Asian households (less than 10% of the sample: 467/6,319). This indicates that the White Only and POC household analysis is largely based on Asian households (~16%: 1,024/6,319).</span>
+\
+\
+
+##### <span style="color:#486CAB">*Alternative: White Only and POC households*</span>
+Because of the small numbers of respondents identifying as non-white, these groups have been grouped together as "POC" - including households with individuals who identified as "African American," "Asian", and "Hispanic." 
+```{r race : setup, include=FALSE}
+# simplify race category 
+person_and_household <- person_and_household %>% 
+  mutate(hh_race_2 = case_when(hh_race_category == "White Only" ~ 'White Only',
+                               hh_race_category == "Missing" | hh_race_category == "Other" ~ "Missing/Other",
+                               TRUE ~ "People of Color")) 
+#POC = African American, Asian, Hispanic
+freq(person_and_household$hh_race_2) #requries summarytools
+
+# # remove missing/other category
+# person_and_household <- person_and_household %>%
+#   filter(hh_race_2 != "Missing/Other")
+# freq(person_and_household$hh_race_2)
+```
+
+```{r race : descriptive stats table}
+# person_and_household %>%
+#   group_by(hh_race_category, hh_race_2) %>%
+#   tally()
+# table(person_and_household$hh_race_2)
+table1(~hh_race_2, data=person_and_household, render.categorical=my.render.cat)
+
+person_and_household$hh_race_2 <- factor(person_and_household$hh_race_2,
+                                         levels = c("White Only", "People of Color", "Missing/Other"))
+```
+\
+```{r race : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'hh_race_2'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hh_race_2 %in% missing_codes,
+#          !is.na(hh_race_2))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(hh_race_2) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r race : vehicle ownership MOE}
+cross_table_w_MOE
+```
+\
+```{r race : vehicle ownership plot}
+# xtabs(~vehicle_group + hh_race_2, data = person_and_household)
+hh_vehcount_race <- person_and_household %>%
+  filter(!is.na(hh_race_2)) %>%
+  group_by(hh_race_2,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_race
+
+ggplot(data = hh_vehcount_race, aes(x=hh_race_2, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Race",
+       y = "Survey Responses",
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Race")
+```
+
+Reference group: White Only
+```{r race : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_race_2)
+```
+
+```{r race : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_race_2,
+                "Vehicle Ownership by Race")
+```
+\
+<span style="color:#20b2aa">The relationship between race and household vehicle ownership is statistically significant with POC households owning fewer vehicles.</span>
+\
+\
+
+#### <span style="color:#009D6A">*9. Housing*</span>
+This category can be analyzed at two different levels: 
+
+* housing tenure (rent vs. own)  
+* residential type  
+
+##### <span style="color:#486CAB">*Housing tenure*</span>
+```{r tenure : stats}
+# freq(person_and_household$rent_own)
+# table(person_and_household$rent_own)
+table1(~rent_own, data=person_and_household, render.categorical=my.render.cat)
+```
+\
+Because the majority of respondents identify as renters or owners, the other categories with fewer responses were grouped together. 
+```{r tenure : setup}
+person_and_household <- person_and_household %>% 
+  mutate(rent_own_simp = case_when(rent_own == "Prefer not to answer" | 
+                                    rent_own == "Other" |
+                                    rent_own == "Provided by job or military" ~ "Other",
+                                  TRUE~.$rent_own))
+
+person_and_household$rent_own_simp <- factor(person_and_household$rent_own_simp, 
+                                            levels=c("Own/paying mortgage",
+                                                     "Rent",
+                                                     "Other"))
+# freq(person_and_household$rent_own_simp)
+# table(person_and_household$rent_own_simp)
+table1(~rent_own_simp, data=person_and_household, render.categorical=my.render.cat)
+```
+
+```{r tenure : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'rent_own_simp'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hh_lifecycle %in% missing_codes,
+#          !is.na(hh_lifecycle))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(rent_own_simp) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r tenure : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r tenure : vehicle ownership plot}
+# xtabs(~vehicle_group + hh_vehcount_rentown, data = person_and_household)
+hh_vehcount_rentown <- person_and_household %>%
+  filter(!is.na(rent_own_simp)) %>%
+  group_by(rent_own_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_rentown 
+
+ggplot(data = hh_vehcount_rentown, aes(x=rent_own_simp, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Tenure", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Household Tenure")
+```
+
+Reference group: Own/paying mortgage
+```{r tenure : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$rent_own_simp)
+```
+
+```{r tenure : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$rent_own_simp,
+                "Vehicle Ownership by Household Tenure")
+```
+\
+<span style="color:#20b2aa">The relationship between household tenure and household vehicle ownership is statistically significant, with renting individuals reporting that they are part of households that own fewer vehicles.</span>
+\
+\
+
+##### <span style="color:#486CAB">*Housing type*</span>
+```{r housing type : stats}
+# freq(person_and_household$res_type)
+# table(person_and_household$res_type)
+table1(~res_type, data=person_and_household, render.categorical=my.render.cat)
+```
+\
+Because the majority of respondents identify as living in apartment buildings or single-family detached houses, the survey responses have been simplified and recategorized. 
+```{r housing type : setup}
+person_and_household <- person_and_household %>% 
+  mutate(restype_simp = case_when(res_type == "Mobile home/trailer" | 
+                                    res_type == "Dorm or institutional housing" |
+                                    res_type == "Other (including boat, RV, van, etc.)" ~ "Other",
+                                  res_type == "Building with 3 or fewer apartments/condos" |
+                                    res_type == "Building with 4 or more apartments/condos" ~ "Apartment/condo",
+                                  res_type == "Single-family house (detached house)" ~ "Single-family",
+                                  res_type == "Townhouse (attached house)" ~ "Townhouse",
+                                  TRUE~.$res_type))
+
+# freq(person_and_household$restype_simp)
+# table(person_and_household$restype_simp)
+table1(~restype_simp, data=person_and_household, render.categorical=my.render.cat)
+```
+
+```{r housing type : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'restype_simp'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hh_lifecycle %in% missing_codes,
+#          !is.na(hh_lifecycle))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(restype_simp) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r housing type : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r housing type : vehicle ownership plot}
+# xtabs(~vehicle_group + hh_vehcount_rentown, data = person_and_household)
+hh_vehcount_housetype <- person_and_household %>%
+  filter(!is.na(restype_simp)) %>%
+  group_by(restype_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+
+ggplot(data = hh_vehcount_housetype, aes(x=restype_simp, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Type", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Household Type")
+```
+
+Reference group: Apartment/condo
+```{r housing type : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$restype_simp)
+```
+
+```{r housing type : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$restype_simp,
+                "Vehicle Ownership by Household Type")
+```
+\
+<span style="color:#20b2aa">The relationship between household type and household vehicle ownership is statistically significant, with single-family (detached) households reporting highest vehicle ownership. Households in townhomes (attached) report higher vehicle ownership than those in apartments or condos, but lower vehicle ownership than those in single-family houses.</span>
+\
+\
+
+#### <span style="color:#009D6A">*10. Housing location*</span>
+This measurement will analyze housing location in relation to regional growth centers (RGCs). According to PSRC's VISION 2050 planning process: "The region has designated 29 regional growth centers. These are locations of the region’s most significant business, governmental, and cultural facilities and are planning for growth." More information is available at https://www.psrc.org/centers.   
+\
+
+```{r RGC : stats}
+freq(person_and_household$final_home_rgcnum)
+```
+\
+TO simplify analysis, the 29 RGCs are categorized together.
+```{r RGC : setup}
+person_and_household <- person_and_household %>%
+  mutate(RGC_binary = case_when(final_home_rgcnum == "Not RCG" ~ "Not RGC",
+                                TRUE ~ "RGC"))
+
+# freq(person_and_household$RGC_binary)
+table1(~RGC_binary, data = person_and_household)
+```
+
+```{r RGC : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'RGC_binary'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(household$household_id))
+#if you think you need to filter out NAs and missing categories, please use the code below
+# hh_no_na = hh_no_na %>%
+#   filter(!hh_lifecycle %in% missing_codes,
+#          !is.na(hh_lifecycle))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(RGC_binary) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r RGC : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r RGC : vehicle ownership plot}
+# xtabs(~vehicle_group + hh_vehcount_rentown, data = person_and_household)
+hh_vehcount_RGC <- person_and_household %>%
+  filter(!is.na(RGC_binary)) %>%
+  group_by(RGC_binary,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+
+ggplot(data = hh_vehcount_RGC, aes(x=RGC_binary, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Housing Location", 
+       y = "Survey Responses", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by RGC")
+```
+
+Reference group: Not RGC
+```{r RGC : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$RGC_binary)
+```
+
+```{r RGC : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$RGC_binary,
+                "Vehicle Ownership by RGC")
+```
+\
+<span style="color:#20b2aa">Households located in RGCs report lower vehicle ownership than those living outside of RGCs. This is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*11 Commute patterns*</span>
+There are 4 commute-related variables. The first three are at the person level and the last is at the household-level:
+
+* Distance (mi) by automobile
+* Time (min) by automobile
+* Commute frequency (days/week)
+* Number of household commute trips per week
+\
+
+##### <span style="color:#486CAB">*Commute Distance*</span>
+Original data at a person level (11,940 survey respondents)
+```{r commuting auto distance stats}
+summary(person$commute_auto_distance) #very high MAX values
+```
+
+```{r commuting auto distance person-level plot}
+# plot histogram
+ggplot(person, aes(commute_auto_distance)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Reported Commute Distance (mi)", 
+       y = "Surveyed Respondents")
+```
+\
+These statistics show outliers within the dataset. **These outliers have not yet been removed.** 
+\
+\
+The person level commute distance data is aggregated to the household level (6,319):  
+
+* the average commute distance (mi) of the household individuals
+* the total commute distance (mi) of the household individuals
+\
+
+###### <span style="color:#B60078">*Commute distance (average)*</span>
+```{r commuting auto distance average plot}
+# plot histogram
+ggplot(person_and_household, aes(hh_com_auto_dist_avg)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Average Commute Distance (mi)", 
+       y = "Surveyed Households")
+```
+
+```{r commuting auto distance average : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_dist_avg)
+```
+
+```{r commuting auto distance average : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_dist_avg,
+                "Vehicle Ownership by Average Commute Distance")
+```
+\
+There are fewer observations because of the 4,174 NA values - a result of using the `mean()`.  
+\
+\
+
+###### <span style="color:#B60078">*Commute distance (total)*</span>
+```{r commuting auto distance sum plot}
+# plot histogram
+ggplot(person_and_household, aes(hh_com_auto_dist_sum)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Total Commute Distance (mi)", 
+       y = "Surveyed Households")
+```
+
+```{r commuting auto distance sum : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_dist_sum)
+```
+
+```{r commuting auto distance sum : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_dist_sum,
+                "Vehicle Ownership by Total Commute Distance")
+```
+\
+<span style="color:#20b2aa">Both average household commute distance and the total household commute distance are positively associated with household vehicle ownership. Although the coefficients are small, these variables are statistically significant.</span>
+\
+\
+
+##### <span style="color:#486CAB">*Commute Time*</span>
+Original data at a person level (11,940 survey respondents)
+```{r commuting auto time}
+summary(person$commute_auto_time) #very high MAX values
+```
+
+```{r commuting auto time person-level plot}
+# plot histogram
+ggplot(person, aes(commute_auto_time)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Reported Commute Time (min)", 
+       y = "Surveyed Respondents")
+```
+\
+These statistics show outliers within the dataset. **These outliers have not yet been removed.**
+\
+\
+The person level commute distance data is aggregated to the household level (6,319):  
+
+* the average commute time (min) of the household individuals
+* the total commute time (mi) of the household individuals
+\
+
+###### <span style="color:#B60078">*Commute time (average)*</span>
+```{r commuting auto time average plot}
+# plot histogram
+ggplot(person_and_household, aes(hh_com_auto_time_avg)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Average Commute Time (min)", 
+       y = "Surveyed Households")
+```
+
+```{r commuting auto time average : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_time_avg)
+```
+
+```{r commuting auto time average : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_time_avg,
+                "Vehicle Ownership by Average Commute Time")
+```
+\
+There are fewer observations because of the 4,174 NA values - a result of using the `mean()`.  
+\
+\
+
+###### <span style="color:#B60078">*Commute time (total)*</span>
+```{r commuting auto time total plot}
+# plot histogram
+ggplot(person_and_household, aes(hh_com_auto_time_sum)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Average Commute Time (min)", 
+       y = "Surveyed Households")
+```
+
+```{r commuting auto time total : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_time_sum)
+```
+
+```{r commuting auto time total : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_com_auto_time_sum,
+                "Vehicle Ownership by Total Commute Time")
+```
+\
+<span style="color:#20b2aa">Both average household commute time and the total household commute time are positively associated with household vehicle ownership. Although the coefficients are small, these variables are statistically significant.</span> 
+\
+\
+
+
+##### <span style="color:#486CAB">*Commute Frequency*</span>
+Original data at a person level (11,940 survey respondents)
+```{r commuting frequency stats}
+# freq(person$commute_freq)
+table1(~commute_freq, data=person, render.categorical=my.render.cat)
+```
+\
+The commuting frequency data is aggregated to the household level. The following tables reflect the lowest and highest commuting frequencies of the individuals within each of the surveyed households (6,319). 
+```{r commuting frequency aggregated min}
+freq(person_and_household$hh_commute_freq_min)
+```
+\
+```{r commuting frequency aggregated max}
+freq(person_and_household$hh_commute_freq_max)
+```
+\
+These commute frequencies have been simplified into the following 4 categories:
+
+* high school or less
+* vocational, associates, less than 4 years of college
+* bachelor degree
+* post-graduate
+\
+
+###### <span style="color:#B60078">*Commute frequency (min)*</span>
+Margin of Error
+```{r commuting frequency min : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'commute_freq_simp_min'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id)) #0
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(commute_freq_simp_min) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r commuting frequency min : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r commuting frequency min : vehicle ownership plot}
+hh_vehcount_commutefreqmin <- person_and_household %>%
+  filter(!is.na(commute_freq_simp_min)) %>%
+  group_by(commute_freq_simp_min, vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_commutefreqmin 
+
+ggplot(data=hh_vehcount_commutefreqmin, aes(x=commute_freq_simp_min, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Commute Frequency (min)", 
+       y = "Surveyed Households", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Commuting Frequency (min)")
+```
+
+Reference group: 3 or fewer days a week 
+```{r commuting frequency min : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$commute_freq_simp_min)
+```
+
+```{r commuting frequency min : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$commute_freq_simp_min,
+                'Vehicle Ownership by Commuting Frequency (min)')
+```
+\
+\
+
+###### <span style="color:#B60078">*Commute frequency (max)*</span>
+Margin of Error
+```{r commuting frequency max : MOE setup, include=FALSE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_combined'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'commute_freq_simp_max'
+# this is the second variable you want to summarize by
+var <- 'vehicle_group'
+# filter data missing weights
+hh_no_na<-person_and_household %>% drop_na(all_of(hh_wt_field))
+#filter data missing values
+#before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+sum(is.na(person_and_household$household_id)) #0
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(commute_freq_simp_max) %>%
+  dplyr::summarize(sample_size = n())
+sample_size_group
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+# calculate totals and shares
+cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
+# merge the cross tab with the margin of error
+cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
+```
+
+```{r commuting frequency max : vehicle ownership MOE}
+cross_table_w_MOE
+```
+
+```{r commuting frequency max : vehicle ownership plot}
+hh_vehcount_commutefreqmax <- person_and_household %>%
+  filter(!is.na(commute_freq_simp_max)) %>%
+  group_by(commute_freq_simp_max,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_commutefreqmax 
+
+ggplot(data=hh_vehcount_commutefreqmax, aes(x=commute_freq_simp_max, y=n, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Commute Frequency (max)", 
+       y = "Surveyed Households", 
+       fill = "Vehicle Ownership",
+       title = "Vehicle Ownership by Commute frequency (max)")
+```
+
+Reference group: 3 or fewer days a week
+```{r commuting frequency max : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$commute_freq_simp_max)
+```
+
+```{r commuting frequency max : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group,
+                person_and_household$commute_freq_simp_max,
+                'Vehicle Ownership by Commute frequency (max)')
+```
+\
+<span style="color:#20b2aa">Household commute frequency does not have a clear relationship with household vehicle ownership based on the aggregation techniques.
+\
+\
+* When analyzing households by the individuals with the least frequent commute, those commuting less than once a week (not statistically significant) and those working 4 or more times a week (statistically significant, p<0.001) have fewer household vehicles than households with an individual commuting 3 or fewer days a week.
+\
+* When analyzing households by the individual with the most frequent commute, those commuting less than once a week have fewer household vehicles (not statistically significant)than households with an individual commuting 3 or fewer days a week. Households commuting 4 or more times a week have more household vehicles (statistically significant, p<0.1).
+\
+\
+The reason that the households with individuals commuting less than once a week represents a very small sample of the total surveyed households (~2%, 147/6,319).</span>
+\
+\
+
+##### <span style="color:#486CAB">*Household Commute Trips*</span>
+This variable measures the number of commute trips that occur within a household by the number of commute trips that would be anticipated for the number of workers within a household. This variable was calculated by dividing the sum of household commute trips per week by the number of workers within the household multiplied by 5 (sum of household commute trips/(numworkers*5)). This value assumes that most workers commute 5 days a week.  
+\
+Aggregated data at a household level (6,319 survey respondents). 
+```{r commuting trips}
+summary(person_and_household$hh_commutetrips)
+```
+
+```{r commuting trips plot}
+# plot histogram
+ggplot(person_and_household, aes(hh_commutetrips)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Commute Trips by Household Workers", 
+       y = "Surveyed Respondents")
+```
+
+```{r commuting trips : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$hh_commutetrips)
+```
+
+```{r commuting trips : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$hh_commutetrips,
+                "Vehicle Ownership by Trips:Worker Ratio")
+```
+\
+<span style="color:#20b2aa">The number of commute trips by workers within the household is positively associated with higher household vehicle ownership. This relationship is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*12. Transit accessibility*</span>
+Transit accessibility is measured at a census block geographic scale. These values are calculated using the transit score methodology (https://www.walkscore.com/transit-score-methodology.shtml) and are scaled by determining the log of the highest score (downtown Seattle) and the minimum score above 0. Higher values indicate greater transit accessibility.
+\
+Because the scores are by census block and survey respondents provided their home locations, this variable measures transit accessibility based on housing location (instead of work location). Work location is not considered in this analysis because it is at a person-level, instead of a household-level. **Future work could take the average of the transit scores associated with household members' work locations.**   
+\
+*For more information about the generation of the raw or scaled block group transit scores, please contact Stefan Coe.* 
+
+```{r transit acc : stats}
+# freq(person_and_household$scaled_score)
+summary(person_and_household$scaled_score)
+```
+
+```{r transit acc : plot}
+# plot histogram
+ggplot(person_and_household, aes(scaled_score)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Transit Accessibility", 
+       y = "Surveyed Respondents")
+```
+
+```{r transit acc : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$scaled_score)
+```
+
+```{r transit acc : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$scaled_score,
+                "Vehicle Ownership by Household Transit Accessibility")
+```
+\
+<span style="color:#20b2aa">Transit accessibility is negatively associated with household vehicle ownership, with households living in block groups with higher access to transit owning fewer household vehicles. This relationship is statistically significant.</span>
+\
+\
+
+#### <span style="color:#009D6A">*13. Proximity to jobs and services*</span>
+Proximity to services is based on a displacement risk index created by PSRC. Although there are a number of variables that were explored to create the index, this analysis will include the following:
+
+* jobs accessible by automobile (30min)
+* jobs accessible by transit (45m)
+* distance to a supermarket (mi)
+* distance to a school (mi)
+
+*other variables not included in this analysis: distance to pharmacies, restaurants, parks*
+\
+\
+
+##### <span style="color:#486CAB">*Jobs accessible by automobile (30min)*</span>  
+This value is calculated by 
+```{r job accessibility auto : stats}
+summary(person_and_household$ln_jobs_auto_30)
+```
+
+```{r job accessibility auto : plot}
+# plot histogram
+ggplot(person_and_household, aes(ln_jobs_auto_30)) + 
+  geom_histogram(bins=10)+
+  labs(x = "Job Accessibility (auto, 30min)", 
+       y = "Surveyed Respondents")
+```
+
+```{r job accessibility auto : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$ln_jobs_auto_30)
+```
+
+```{r job accessibility auto : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$ln_jobs_auto_30,
+                "Vehicle Ownership by Job Accessibility (auto)")
+```
+\
+\
+
+##### <span style="color:#486CAB">*Jobs accessible by transit (45min)*</span>  
+This value is calculated by 
+```{r job accessibility transit : stats}
+summary(person_and_household$ln_jobs_transit_45)
+```
+
+```{r job accessibility transit : plot}
+# plot histogram
+ggplot(person_and_household, aes(ln_jobs_transit_45)) + 
+  geom_histogram(bins=10)+
+  labs(x = "Job Accessibility (transit, 45min)", 
+       y = "Surveyed Respondents")
+```
+
+```{r job accessibility transit : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$ln_jobs_transit_45)
+```
+
+```{r job accessibility transit : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$ln_jobs_transit_45,
+                "Vehicle Ownership by Job Accessibility (transit)")
+```
+\
+\
+
+##### <span style="color:#486CAB">*Distance to a supermarket*</span>  
+This value is calculated by 
+```{r supermarket distance : stats}
+summary(person_and_household$dist_super)
+```
+
+```{r supermarket distance : plot}
+# plot histogram
+ggplot(person_and_household, aes(dist_super)) + 
+  geom_histogram(bins=30)+
+  labs(x = "Supermarket Distance (mi)", 
+       y = "Surveyed Respondents")
+```
+
+```{r supermarket distance : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$dist_super)
+```
+
+```{r supermarket distance : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$dist_super,
+                "Vehicle Ownership by Distance to a Supermarket")
+```
+\
+\
+
+##### <span style="color:#486CAB">*Distance to a school*</span>  
+This value is calculated by 
+```{r school distance : stats}
+summary(person_and_household$dist_school)
+```
+
+```{r school distance : plot}
+# plot histogram
+ggplot(person_and_household, aes(dist_school)) + 
+  geom_histogram(bins=30)+
+  labs(x = "School Distance (mi)", 
+       y = "Surveyed Respondents")
+```
+
+```{r school distance : bivariate analysis}
+bivariate_Pvalue(person_and_household$vehicle_group, 
+                 person_and_household$dist_school)
+```
+
+```{r school distance : stargazer table, results='asis'}
+stargazer_table(person_and_household$vehicle_group, 
+                 person_and_household$dist_school,
+                "Vehicle Ownership by Distance to a school")
+```
+\
+
+<span style="color:#20b2aa">Overall, the relationship between proximity to jobs and services and household vehicle ownership is statistically significant.
+\
+\
+* **job accessibility ** 
+  + *by automobile (30min)*: Higher jobs accessibility by automobile is associated with lower vehicle ownership    
+  + *by transit (45m)*: Higher job accessibility by transit is associated with lower vehicle ownership, weaker relationship when compared to job accessibility by auto 
+\
+* **distance to services (mi)**   
+  + *supermarket*: Farther distance between house and supermarket is associated with higher vehicle ownership  
+  + *school*: Farther distance between house and school is associated with higher vehicle ownership, weaker relationship when compared to supermarket distance </span>
+\
+\
+
+### b. Overview: univariate analysis results  
+The table below shows which explanatory variables were statistically significant when analyzed against household vehicle ownership. Significance: &ast;p<0.1; &ast;&ast;&ast;p<0.05; &ast;&ast;&ast;p<0.01
+
+```{r univariate analysis results, results='asis'}
+c1 <- as.data.frame(c(
+  "1. Income",
+  "2. Age/Lifecycle",
+  "3. Household size",
+  "4. Number of household licenses",
+  "5. Number of workers",
+  "6. Number of jobs",
+  "7. Educational Attainment",
+  "8. Race",
+  "9. Housing",
+  "10. Housing location",
+  "11. Commute patterns",
+  "12. Transit accessibility",
+  "13. Proximity to jobs and services"))
+colnames(c1)[1] <- "Explanatory variables"
+c2 <- as.data.frame(c(
+  "***",
+  "***",
+  "***",
+  "***",
+  "***",
+  "***",
+  "***",
+  "** and ***",
+  "** and ***",
+  "***",
+  "<span>&#42; and ***</span>",
+  "***",
+  "***"))
+colnames(c2)[1] <- "Significance"
+c3 <- as.data.frame(c(
+  "higher income",
+  "households with children and older individuals",
+  "larger households",
+  "higher number of household licenses",
+  "higher number of workers",
+  "higher jobs:workers ratio",
+  "*depends on aggregation technique*",
+  "white only households",
+  "households that own and live in single-family detached homes",
+  "households located in RGCs",
+  "farther commute distances, longer commute times, households with more commute trips/worker",
+  "lower transit accessibility",
+  "lower job accessibility, reduced proximity to services"))
+colnames(c3)[1] <- "Trend (higher household vehicle ownership)"
+
+corresponding <- cbind(c1,c2, c3)
+
+# print table using kable()
+kable(corresponding, format = "html",escape = FALSE, align = c('l','l','l')) %>% kable_styling("bordered",full_width = F, position = "left") #%>% column_spec(2, color = "red")#%>% column_spec(2, bold = T)
+```
+\
+
+## 4. Correlation matrix with all variables
+The outcome variable is vehicle ownership (`vehicle_group`: 0, 1, 2, 3+).   
+The explanatory variables can be categorized as **categorical** and *numeric*. The reference group is provided for the categorical variables. 
+\
+```{r reference variables, eval=FALSE, include=FALSE}
+table(person_and_household$hhincomeb_reordered) # Under $25k is reference
+table(person_and_household$hh_lifecycle) # Under age 35
+table(person_and_household$hhsize_simp_num) # numeric, not categorical
+table(person_and_household$driver_simp) # numeric, not categorical
+table(person_and_household$numworkers_simp) # numeric, not categorical 
+table(person_and_household$jobs_numworkers) # numeric, not categorical
+table(person_and_household$hh_edu_max_simp) # Bachelor degree for both min and max
+table(person_and_household$hh_race_2) # White Only for both race categorizations
+table(person_and_household$rent_own_simp) # Own/paying mortgage
+table(person_and_household$restype_simp) # Apartment/condo
+table(person_and_household$RGC_binary) # Not RGC 
+table(person_and_household$commute_freq_simp_min) # 3 or fewer days a week for both min and max
+table(person_and_household$scaled_score) # numeric, not categorical
+table(person_and_household$ln_jobs_auto_30) # numeric, not categorical
+```
+**1. Income : Under $25k is reference**  
+**2. Age/Lifecycle : Under age 35**  
+*3. Household size*  
+*4. Number of household licenses*  
+*5. Number of workers*  
+*6. Number of jobs*  
+**7. Educational Attainment : Bachelor degree**  
+**8. Race : White Only**  
+**9. Housing : (1) Own/paying mortgage; (2) Apartment/condo**  
+**10. Housing location : Not RGC**  
+**11. Commute patterns : 3 or fewer days a week (frequency)**  
+*12. Transit accessibility*  
+*13. Proximity to jobs and services* 
+\
+
+The correlation matrix table will illustrate relationships or associations between the variables. The coefficient indicates the strength of the relationship and the direction of the correlation (positive or negative). This analysis represents a subset of the variables - numerical, not categorical.
+```{r correlation matrix : setup}
+# select data
+correl_data <- person_and_household %>%
+  dplyr::select(hhsize_simp_num,
+                driver_simp,
+                numworkers_simp,
+                jobs_numworkers,
+                hh_com_auto_time_avg, hh_com_auto_time_sum, hh_commutetrips,
+                scaled_score,
+                ln_jobs_auto_30, ln_jobs_transit_45, dist_super, dist_school)
+```
+\
+
+**Correlations between the different variables**
+```{r correlation matrix : coefficients}
+# create matrix
+cor_matrix <- round(cor(x = as.matrix(correl_data),
+                      method = "pearson", use = "pairwise.complete.obs"),3)
+# cor_matrix
+
+# Hide upper triangle
+upper<-cor_matrix
+upper[upper.tri(cor_matrix)]<-""
+upper<-as.data.frame(upper, nrow=15, ncol=15)
+print.data.frame(upper)
+```
+\
+
+**Significance levels (p-values)**
+```{r correlation matrix : p-values}
+# p-values for matrix (requires "Hmisc" package) - generates one table of correlation coefficients (the correlation matrix) and another table of the p-values
+cor_matrix_pvalues <-  rcorr(as.matrix(correl_data))
+# extract p-values
+round(cor_matrix_pvalues$P,3)
+```
+\
+```{r correlation plot}
+# corrplot.mixed(cor_matrix)
+corrplot(cor_matrix, type = "lower", tl.col = "black", tl.srt = 45)
+
+# # include p-values
+# res1 <- cor.mtest(correl_data, conf.level = .95)
+# 
+# corrplot(cor_matrix, type = "lower", p.mat = res1$p, insig = "label_sig",
+#          sig.level = c(.001, .01, .05), pch.cex = .9, pch.col = "white")
+# corrplot(cor_matrix,type = "lower", p.mat = res1$p, insig = "label_sig", pch.col = "white",
+#          pch = "p<.05", pch.cex = .5)
+```
+\
+\
+
+## 5. Ordered Logit Model
+```{r full model : analysis}
+# documentation about function: https://www.rdocumentation.org/packages/MASS/versions/7.3-52/topics/polr
+ordered_logit <-polr(as.factor(vehicle_group) ~
+                       hhincomeb_reordered +
+                       hh_lifecycle + 
+                       hhsize_simp_num +
+                       driver_simp +
+                       numworkers_simp +
+                       jobs_numworkers +
+                       hh_edu_min_simp + hh_edu_max_simp +
+                       hh_race_2 + hh_race_3 +
+                       rent_own_simp + restype_simp +
+                       RGC_binary +
+                       hh_com_auto_time_avg + hh_com_auto_time_sum + commute_freq_simp_min + commute_freq_simp_max + hh_commutetrips +
+                       scaled_score +
+                       ln_jobs_auto_30 + ln_jobs_transit_45 + dist_super + dist_school,
+                       data=person_and_household, Hess = T)
+# adding coefficients and p-values store table
+ctable <- coef(summary(ordered_logit))
+# calculate and store p values
+p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,2)
+# combined table
+ctable <-cbind(ctable, "p value"=p)
+ctable
+```
+
+```{r full model: stargazer table, results='asis'}
+stargazer::stargazer(ordered_logit,
+                     type = "html",
+                     title = "Correlation Matrix for all variables",
+                     notes.append = FALSE,
+                     notes =  c("<sup>&sstarf;</sup>p<0.1;<sup>&sstarf;&sstarf;</sup>p<0.05;<sup>&sstarf;&sstarf;&sstarf;</sup>p<0.01"))
+```
+
+ 
