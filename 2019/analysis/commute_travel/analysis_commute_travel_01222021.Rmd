@@ -1,0 +1,199 @@
+---
+title: 'Household Travel Survey: Commuting Data'
+author: "Suzanne Childress & Mary Richards"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+  word_document: default
+  pdf_document: default
+---
+
+This report presents preliminary findings for commuting trends based on the Household Travel Survey (2017 and 2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE) # formatting
+```
+
+```{r libraries, include=FALSE}
+# source('travel_survey_analysis_functions.R')
+library(tidyverse)
+library(openxlsx)
+library(odbc)
+library(DBI)
+library(dplyr)
+library(ggplot2)
+
+library(table1)
+library(knitr)
+library(kableExtra)
+library(summarytools)
+```
+
+```{r functions, include=FALSE}
+# connecting to Elmer
+db.connect <- function() {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\Sockeye",
+                                database = "Elmer",
+                                trusted_connection = "yes"
+  )
+}
+
+# a function to read tables and queries from Elmer
+read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
+  elmer_connection <- db.connect()
+  if (type == 'table_name') {
+    dtelm <- dbReadTable(elmer_connection, SQL(astring))
+  } else {
+    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
+  }
+  dbDisconnect(elmer_connection)
+  dtelm
+}
+
+# rounding function applied to categorical columns 
+my.render.cat <- function(x) {
+    c("", sapply(stats.default(x), function(y) with(y,
+        sprintf("%d (%.0f%%)", FREQ, PCT))))}
+```
+
+
+```{r read in and set up data}
+#### Read in Data ####
+#where you are running your R code
+wrkdir <- "C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis"
+
+
+#where you want to output tables
+file_loc <- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/outputs'
+
+sql.trip.query <- paste("SELECT hhincome_detailed, race_category, person_dim_id, mode_simple, 
+                        survey_year, o_purpose, d_purpose, trip_wt_2019 FROM HHSurvey.v_trips_2017_2019")
+
+trips <- read.dt(sql.trip.query, 'sqlquery')
+trips_2019 <- trips %>% filter(survey_year==2019)
+
+sql.person.query<-paste("SELECT employment, hhincome_detailed,race_category,person_dim_id, vehicle_count,commute_auto_time,
+commute_auto_Distance, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5, workplace, survey_year, sample_county,
+work_county,telecommute_freq, hh_wt_2019 FROM HHSurvey.v_persons_2017_2019")
+
+persons<-read.dt(sql.person.query, 'sqlquery')
+persons_2019 <- persons  %>% filter(survey_year==2019)
+```
+
+## Commuting Trips
+This analysis will focus primarily on people who usually work outside the home. The main question we will be attempting to answer is:   
+
+* **What is the share of trips made for "commuting"?**
+
+Commuting will be defined as the trips where one of the trip ends is a regular workplace - based on the survey logic, the origin or destination purpose is 'Went to primary workplace'
+```{r, include=FALSE}
+# filter to commute trips made by people who work outside the home usually ####
+trips_total <- sum(trips_2019$trip_wt_2019)
+#17,813,956
+trips_commute <- trips_2019 %>% 
+  filter(o_purpose=='Went to primary workplace' | d_purpose=='Went to primary workplace') %>%
+  summarize(commute_trips=sum(trip_wt_2019))
+
+trips_commute/trips_total
+# 24%
+```
+Out of the total number of trips (17,813,956) documented as part of the 2019 survey results, 24% of them are commuting trips. 
+
+
+## Distance to Work
+This analysis will focus primarily on people who usually work outside the home. Those working outside the home are defined as those with full-time or part-time paid employment or those who identified as self-employed.
+```{r}
+workers <- persons_2019 %>% 
+  filter(employment=='Employed full time (35+ hours/week, paid)'|
+           employment=='Employed part time (fewer than 35 hours/week, paid)'|
+           employment=='Self-employed')
+
+work_loc_type <- workers %>% 
+  group_by(workplace) %>%
+  summarize(tot_workers=sum(hh_wt_2019)) %>%
+  mutate(share_workers=tot_workers/sum(workers$hh_wt_2019))
+
+# get workers who don't work at home all the time with commute distances less than 200 miles
+# remove outliers
+not_home_workers <- workers %>% 
+  filter(workplace!='At home (telecommute or self-employed with home office)') %>%
+  filter(commute_auto_Distance<200)
+not_home_workers
+```
+The main question we will be attempting to answer is:   
+
+* **How does the distance or time from home to your primary workplace vary by income and race?** 
+
+The following statistics uses the fields `commute_auto_distance` and `commute_auto_time` to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances. 
+
+### Commute distance
+```{r}
+mean_dist<-weighted.mean(not_home_workers$commute_auto_Distance, w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+
+hist(not_home_workers$commute_auto_Distance)
+ggplot(not_home_workers, aes(x=commute_auto_Distance, weight=hh_wt_2019)) + 
+  geom_histogram(fill='darkblue', binwidth=2)+xlim(c(0, 50)) +
+  geom_vline(xintercept=mean_dist) +
+  labs(title="Distribution of 2019 Commute Distances (from the HTS)",
+      x ="Commute Distance (miles)", y = "Number of Workers (Weighted)")
+```
+The vertical line at x=___ represents the mean distance traveled by workers 
+\
+
+
+#### Income
+The average commuting distance by income:
+```{r}
+avg_dist_by_inc<-not_home_workers %>% 
+  group_by(hhincome_detailed) %>% 
+  summarize(avg_dist=weighted.mean(commute_auto_Distance,hh_wt_2019))
+
+table1(~avg_dist | hhincome_detailed, data=avg_dist_by_inc, render.categorical=my.render.cat)
+```
+\
+
+#### Race
+The average commuting distance by race:
+```{r}
+avg_dist_by_race<-not_home_workers %>% 
+  group_by(race_category) %>% 
+  summarize(avg_time=weighted.mean(commute_auto_Distance,hh_wt_2019))
+
+table1()
+```
+\
+
+### Commute duration
+```{r}
+mean_time<-weighted.mean(not_home_workers$commute_auto_time, w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+
+ggplot(not_home_workers, aes(x=commute_auto_time, weight=hh_wt_2019)) + geom_histogram(fill='darkblue', binwidth=5)+xlim(c(0, 200))+
+  scale_x_continuous(breaks=seq(0,200,5))+
+  geom_vline(xintercept=mean_time)+
+  labs(title="Distribution of 2019 Commute Times (from the HTS)",
+       x ="Commute Times(minutes))", y = "Number of Workers (Weighted)")
+```
+\
+
+#### Income
+The average commuting duration by income:
+```{r}
+avg_time_by_inc<-not_home_workers %>% group_by(hhincome_detailed)%>% 
+  summarize(avg_dist=weighted.mean(commute_auto_time,hh_wt_2019))
+```
+\
+
+#### Race
+The average commuting duration by race:
+```{r}
+avg_time_by_race<-not_home_workers %>% group_by(race_category)%>% 
+  summarize(avg_time=weighted.mean(commute_auto_time,hh_wt_2019))
+```
