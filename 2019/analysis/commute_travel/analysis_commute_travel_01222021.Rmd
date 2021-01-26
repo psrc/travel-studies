@@ -145,11 +145,30 @@ ggplot(not_home_workers, aes(x=commute_auto_Distance, weight=hh_wt_2019)) +
   labs(title="Distribution of 2019 Commute Distances (from the HTS)",
       x ="Commute Distance (miles)", y = "Number of Workers (Weighted)")
 ```
-The vertical line at x=___ represents the mean distance traveled by workers 
+The vertical line at x=13.97 miles represents the mean distance traveled by workers 
+\
 \
 
 
 #### Income
+Distribution of survey respondents by income (detailed)
+```{r}
+# reorder detailed income categories
+not_home_workers$hhincome_detailed <- factor(not_home_workers$hhincome_detailed,
+                                             levels=c("Under $10,000",
+                                                      "$10,000-$24,999",
+                                                      "$25,000-$34,999",
+                                                      "$35,000-$49,999",
+                                                      "$50,000-$74,999",
+                                                      "$75,000-$99,999",
+                                                      "$100,000-$149,999",
+                                                      "$150,000-$199,999",
+                                                      "$200,000-$249,999",
+                                                      "$250,000 or more",
+                                                      "Prefer not to answer"))
+freq(not_home_workers$hhincome_detailed)
+```
+
 The average commuting distance by income:
 ```{r}
 avg_dist_by_inc<-not_home_workers %>% 
@@ -161,13 +180,26 @@ table1(~avg_dist | hhincome_detailed, data=avg_dist_by_inc, render.categorical=m
 \
 
 #### Race
+Distribution of survey respondents by income (detailed)
+```{r}
+# reorder detailed income categories
+not_home_workers$race_category <- factor(not_home_workers$race_category,
+                                         levels=c("African American",
+                                                  "Asian",
+                                                  "Hispanic",
+                                                  "White Only",
+                                                  "Other",
+                                                  "Missing"))
+freq(not_home_workers$race_category)
+```
+
 The average commuting distance by race:
 ```{r}
 avg_dist_by_race<-not_home_workers %>% 
   group_by(race_category) %>% 
-  summarize(avg_time=weighted.mean(commute_auto_Distance,hh_wt_2019))
+  summarize(avg_dist=weighted.mean(commute_auto_Distance,hh_wt_2019))
 
-table1()
+table1(~avg_dist | race_category, data=avg_dist_by_race, render.categorical=my.render.cat)
 ```
 \
 
@@ -186,14 +218,20 @@ ggplot(not_home_workers, aes(x=commute_auto_time, weight=hh_wt_2019)) + geom_his
 #### Income
 The average commuting duration by income:
 ```{r}
-avg_time_by_inc<-not_home_workers %>% group_by(hhincome_detailed)%>% 
-  summarize(avg_dist=weighted.mean(commute_auto_time,hh_wt_2019))
+avg_time_by_inc<-not_home_workers %>% 
+  group_by(hhincome_detailed) %>% 
+  summarize(avg_time=weighted.mean(commute_auto_time,hh_wt_2019))
+
+table1(~avg_time | hhincome_detailed, data=avg_time_by_inc, render.categorical=my.render.cat)
 ```
 \
 
 #### Race
 The average commuting duration by race:
 ```{r}
-avg_time_by_race<-not_home_workers %>% group_by(race_category)%>% 
+avg_time_by_race<-not_home_workers %>% 
+  group_by(race_category) %>% 
   summarize(avg_time=weighted.mean(commute_auto_time,hh_wt_2019))
+
+table1(~avg_time | race_category, data=avg_time_by_race, render.categorical=my.render.cat)
 ```
