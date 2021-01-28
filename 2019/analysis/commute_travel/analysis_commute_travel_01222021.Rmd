@@ -58,12 +58,98 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
   dtelm
 }
 
+# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE
+# for categorical data
+create_table_one_var_simp= function(var1, table_temp, table_type) {
+  #table_temp = recategorize_var_upd(var2,table_temp)
+  #print(table_temp)
+  if (table_type == "household" | table_type == "person" ) {
+    weight_2017 = "hh_wt_revised"
+    weight_2019 = "hh_wt_2019"
+    weight_comb = "hh_wt_combined"
+  } else if (table_type == "trip") {
+    weight_2017 = "trip_weight_revised"
+    weight_2019 = "trip_wt_2019"
+    weight_comb = "trip_wt_combined"  
+  } 
+  
+  temp = table_temp %>% dplyr::select(!!sym(var1), all_of(weight_2017), all_of(weight_2019),
+                                      all_of(weight_comb)) %>% 
+    filter(!.[[1]] %in% missing_codes, !is.na(.[[1]])) %>% 
+    group_by(!!sym(var1)) %>% 
+    summarise(n=n(),sum_wt_comb = sum(.data[[weight_comb]],na.rm = TRUE), 
+              sum_wt_comb = round(sum_wt_comb, 0)) %>% 
+    mutate(perc_comb = sum_wt_comb/sum(sum_wt_comb)*100, perc_comb = round(perc_comb, 2)) %>% 
+    ungroup() %>%  
+    mutate(MOE=1.65*(0.25/sum(n))^(1/2)*100, MOE = round(MOE, 2)) %>% arrange(var1)
+  return(temp)
+}
+
+#Create a crosstab from two variables, calculate counts, totals, and shares,
+# for categorical data
+cross_tab_categorical <- function(table, var1, var2, wt_field) {
+  expanded <- table %>% 
+    group_by(.data[[var1]],.data[[var2]]) %>%
+    dplyr::summarize(Count= n(),Total=sum(.data[[wt_field]])) %>%
+    group_by(.data[[var1]])%>%
+    mutate(Percentage=Total/sum(Total)*100)
+  
+  
+  expanded_pivot <-expanded%>%
+    pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
+  
+  return (expanded_pivot)
+  
+} 
+
+# Create margins of error for dataset
+categorical_moe <- function(sample_size_group){
+  sample_w_MOE<-sample_size_group %>%
+    mutate(p_col=p_MOE) %>%
+    mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
+    mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
+  
+  sample_w_MOE<- dplyr::select(sample_w_MOE, -c(p_col, MOE_calc1))
+  
+  return(sample_w_MOE)
+}
+
+# create table with bivariate analysis stats
+bivariate_Pvalue <- function(outcome, explanatory){
+  model_output <- polr(as.factor(outcome) ~ explanatory, Hess=T)
+  ctable <- coef(summary(model_output))
+  # calculate and store p values
+  p <- pnorm(abs(ctable[,"t value"]), lower.tail = F)*2
+  p_round <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,4)
+  #odds ratio
+  oddsratio <- round(exp(coef(model_output)),4)
+  #combine elements
+  ctable <- cbind(round(ctable,4), "p-value"=p, "simp p."=p_round, "odds ratio"=oddsratio)
+  return(ctable)
+}
+
+# create stargazer table
+stargazer_table <- function(outcome, explanatory, table_title){
+  stargazer::stargazer(
+    polr(as.factor(outcome) ~ explanatory, Hess=T), type = "html",
+                      title =  table_title,
+                      notes.append =  FALSE, 
+                      notes =  c("<sup>&sstarf;</sup>p<0.1; <sup>&sstarf;&sstarf;</sup>p<0.05; <sup>&sstarf;&sstarf;&sstarf;</sup>p<0.01"))
+
+}
+
 # rounding function applied to categorical columns 
 my.render.cat <- function(x) {
     c("", sapply(stats.default(x), function(y) with(y,
         sprintf("%d (%.0f%%)", FREQ, PCT))))}
-```
 
+# Statistical assumptions for margins of error
+p_MOE <- 0.5
+z<-1.645
+missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
+                   'Missing: Skip logic', 'Children or missing', 'Prefer not to answer',
+                   'Missing')
+```
 
 ```{r read in and set up data}
 #### Read in Data ####
@@ -109,7 +195,7 @@ Out of the total number of trips (17,813,956) documented as part of the 2019 sur
 
 
 ## Sample
-5,711 people responded to the 2019 survey and provided their employment status and workplace
+5,711 people responded to the 2019 survey and provided their employment status and workplace.
 \
 
 ### Employment Status
@@ -126,10 +212,11 @@ persons_2019$employment <- factor(persons_2019$employment,
                                           "Missing: Skip logic"))
 
 employment_stats<-persons_2019 %>%
+  filter(employment!="Missing: Skip logic") %>%
   group_by(employment) %>% 
   summarize(sample_size=n(), 
-            HouseholdWeight = round(sum(hh_wt_2019),0), 
-            Percent=round((sample_size/nrow(persons_2019))*100))
+            HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
+  mutate(Percent=(sample_size/sum(sample_size))*100)
 employment_stats
 ```
 \
@@ -145,10 +232,11 @@ persons_2019$workplace <- factor(persons_2019$workplace,
                                           "Missing: Skip logic"))
   
 workplace_stats<-persons_2019 %>%
+  filter(workplace!="Missing: Skip logic") %>%
   group_by(workplace) %>% 
   summarize(sample_size=n(), 
-            HouseholdWeight = round(sum(hh_wt_2019),0), 
-            Percent=round((sample_size/nrow(persons_2019))*100))
+            HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
+  mutate(Percent=(sample_size/sum(sample_size))*100)
 workplace_stats
 ```
 \
@@ -177,7 +265,7 @@ Out of a total 5,711 people who responded to the 2019 travel survey, 2,704 are i
 \
 
 ## General commute statistics
-The following statistics uses the fields `commute_auto_distance` and `commute_auto_time` to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances. 
+The following statistics uses the fields `commute_auto_Distance` and `commute_auto_time` to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances. 
 \
 
 ### Commute distance
@@ -243,6 +331,7 @@ not_home_workers$hhincome_detailed <- factor(not_home_workers$hhincome_detailed,
 ```
 From workers with incomes less than $75,000 annually, lower income workers have shorter commutes.  For example, workers with incomes under $10,000 have commutes of around 14 minutes, whereas workers with incomes from $50,000-$74,999 have commutes around 27 minutes. The average travel time to work is about the same for workers in households with incomes greater than $75,000 – it’s around 33 minutes.
 \
+\
 
 The average commuting distance by income:
 ```{r}
@@ -279,12 +368,45 @@ People who identify as other race have the shortest commutes (sample size?) Peop
 \
 
 The average commuting distance by race:
-```{r}
+```{r simple dist race, eval=FALSE, include=FALSE}
 avg_dist_by_race<-not_home_workers %>% 
   group_by(race_category) %>% 
-  summarize(sample_size=n(), avg_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+  summarize(sample_size=n(),
+            avg_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2),
+            HouseholdWeight=sum(hh_wt_2019))%>%
+  mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
+  ungroup() %>%
+  mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%
+  mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
 
 avg_dist_by_race
+```
+
+```{r dist race with MOE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_2019'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'race_category'
+# this is the second variable you want to summarize by
+var <-  'avg_dist'
+# filter data missing weights
+hh_no_na<-not_home_workers %>% drop_na(all_of(hh_wt_field))
+# filter data missing values
+# before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+# sum(is.na(not_home_workers$person_dim_id))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(race_category) %>%
+  dplyr::summarize(sample_size = n(),
+                   avg_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
 ```
 \
 
@@ -333,6 +455,7 @@ table1(~time_bins, data=not_home_workers)
 #### Income
 The distance to work increases with income up to 200K, then declines. The average distance to work for people in households with incomes less than $10,000 is 6 miles. The average distance to work for people in households with incomes $150,000-$200,000 is 18 miles (3 times as long).
 \
+\
 
 The average commuting duration by income:
 ```{r}
@@ -358,12 +481,44 @@ People who identify with by a race other than African American, Asian, Hispanic 
 \
 
 The average commuting duration by race:
-```{r}
+```{r simple time race, eval=FALSE, include=FALSE}
 avg_time_by_race<-not_home_workers %>% 
   group_by(race_category) %>% 
-  summarize(sample_size=n(), avg_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
-
+  summarize(sample_size=n(),
+            avg_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2),
+            HouseholdWeight=sum(hh_wt_2019))%>%
+  mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
+  ungroup() %>%
+  mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%
+  mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
+  
 avg_time_by_race
+```
+
+```{r time race with MOE}
+# User defined variables on each analysis:
+# this is the weight for summing in your analysis
+hh_wt_field<- 'hh_wt_2019'
+# # this is a field to count the number of records
+# person_count_field<-'person_dim_id'
+# this is how you want to group the data in the first dimension,
+# this is how you will get the n for your sub group
+group_cat <- 'race_category'
+# this is the second variable you want to summarize by
+var <-  'avg_time'
+# filter data missing weights
+hh_no_na<-not_home_workers %>% drop_na(all_of(hh_wt_field))
+# filter data missing values
+# before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
+# sum(is.na(not_home_workers$person_dim_id))
+# now find the sample size of your subgroup
+sample_size_group<- hh_no_na %>%
+  group_by(race_category) %>%
+  dplyr::summarize(sample_size = n(),
+                   avg_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
+# get the margins of error for your groups
+sample_size_MOE<- categorical_moe(sample_size_group)
+sample_size_MOE
 ```
 \
 

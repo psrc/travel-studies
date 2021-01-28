@@ -2820,14 +2820,14 @@ div.tocify {
 </div>
 <div id="sample" class="section level2">
 <h2>Sample</h2>
-<p>5,711 people responded to the 2019 survey and provided their employment status and workplace<br />
+<p>5,711 people responded to the 2019 survey and provided their employment status and workplace.<br />
 </p>
 <div id="employment-status" class="section level3">
 <h3>Employment Status</h3>
 The following table shows the distribution of respondents’ employment status.
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["employment"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["HouseholdWeight"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["Percent"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"Employed full time (35+ hours/week, paid)","2":"2811","3":"1687954","4":"49"},{"1":"Employed part time (fewer than 35 hours/week, paid)","2":"428","3":"274028","4":"7"},{"1":"Self-employed","2":"346","3":"166300","4":"6"},{"1":"Unpaid volunteer or intern","2":"32","3":"13127","4":"1"},{"1":"Homemaker","2":"170","3":"183598","4":"3"},{"1":"Retired","2":"810","3":"571258","4":"14"},{"1":"Not currently employed","2":"313","3":"235731","4":"5"},{"1":"Missing: Skip logic","2":"801","3":"919678","4":"14"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["employment"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["HouseholdWeight"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["Percent"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"Employed full time (35+ hours/week, paid)","2":"2811","3":"1687954","4":"57.2505092"},{"1":"Employed part time (fewer than 35 hours/week, paid)","2":"428","3":"274028","4":"8.7169043"},{"1":"Self-employed","2":"346","3":"166300","4":"7.0468432"},{"1":"Unpaid volunteer or intern","2":"32","3":"13127","4":"0.6517312"},{"1":"Homemaker","2":"170","3":"183598","4":"3.4623218"},{"1":"Retired","2":"810","3":"571258","4":"16.4969450"},{"1":"Not currently employed","2":"313","3":"235731","4":"6.3747454"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <p><br />
@@ -2838,7 +2838,7 @@ The following table shows the distribution of respondents’ employment status.
 The following table shows where workers go for work.
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["workplace"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["HouseholdWeight"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["Percent"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"At home (telecommute or self-employed with home office)","2":"271","3":"136682","4":"5"},{"1":"Drives for a living (e.g., bus driver, salesperson)","2":"78","3":"75233","4":"1"},{"1":"Usually the same location (outside home)","2":"2668","3":"1505449","4":"47"},{"1":"Workplace regularly varies (different offices or jobsites)","2":"568","3":"410918","4":"10"},{"1":"Missing: Skip logic","2":"2126","3":"1923393","4":"37"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["workplace"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["HouseholdWeight"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["Percent"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"At home (telecommute or self-employed with home office)","2":"271","3":"136682","4":"7.559275"},{"1":"Drives for a living (e.g., bus driver, salesperson)","2":"78","3":"75233","4":"2.175732"},{"1":"Usually the same location (outside home)","2":"2668","3":"1505449","4":"74.421199"},{"1":"Workplace regularly varies (different offices or jobsites)","2":"568","3":"410918","4":"15.843794"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <p><br />
@@ -2853,7 +2853,7 @@ The following table shows where workers go for work.
 </div>
 <div id="general-commute-statistics" class="section level2">
 <h2>General commute statistics</h2>
-<p>The following statistics uses the fields <code>commute_auto_distance</code> and <code>commute_auto_time</code> to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances.<br />
+<p>The following statistics uses the fields <code>commute_auto_Distance</code> and <code>commute_auto_time</code> to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances.<br />
 </p>
 <div id="commute-distance" class="section level3">
 <h3>Commute distance</h3>
@@ -2911,6 +2911,7 @@ Share of workers with auto commutes
 <div id="income" class="section level4">
 <h4>Income</h4>
 <p>From workers with incomes less than $75,000 annually, lower income workers have shorter commutes. For example, workers with incomes under $10,000 have commutes of around 14 minutes, whereas workers with incomes from $50,000-$74,999 have commutes around 27 minutes. The average travel time to work is about the same for workers in households with incomes greater than $75,000 – it’s around 33 minutes.<br />
+<br />
 </p>
 <p>The average commuting distance by income:</p>
 <pre><code>## # A tibble: 11 x 3
@@ -2934,10 +2935,10 @@ Share of workers with auto commutes
 <h4>Race</h4>
 <p>People who identify as other race have the shortest commutes (sample size?) People who identify as white only have the longest commutes (15 miles).<br />
 </p>
-The average commuting distance by race:
+<p>The average commuting distance by race:</p>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["race_category"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["avg_dist"],"name":[3],"type":["dbl"],"align":["right"]}],"data":[{"1":"African American","2":"66","3":"11.92"},{"1":"Asian","2":"382","3":"14.19"},{"1":"Hispanic","2":"122","3":"12.77"},{"1":"White Only","2":"1873","3":"15.08"},{"1":"Other","2":"119","3":"8.83"},{"1":"Missing","2":"142","3":"12.33"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["race_category"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["avg_dist"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["MOE_Percent"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"African American","2":"66","3":"11.92","4":"10.124275"},{"1":"Asian","2":"382","3":"14.19","4":"4.208276"},{"1":"Hispanic","2":"122","3":"12.77","4":"7.446565"},{"1":"White Only","2":"1873","3":"15.08","4":"1.900496"},{"1":"Other","2":"119","3":"8.83","4":"7.539845"},{"1":"Missing","2":"142","3":"12.33","4":"6.902267"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <p><br />
@@ -3000,6 +3001,7 @@ Share of workers with auto commutes
 <div id="income-1" class="section level4">
 <h4>Income</h4>
 <p>The distance to work increases with income up to 200K, then declines. The average distance to work for people in households with incomes less than $10,000 is 6 miles. The average distance to work for people in households with incomes $150,000-$200,000 is 18 miles (3 times as long).<br />
+<br />
 </p>
 <p>The average commuting duration by income:</p>
 <pre><code>## # A tibble: 11 x 3
@@ -3024,10 +3026,10 @@ Share of workers with auto commutes
 <h4>Race</h4>
 <p>People who identify with by a race other than African American, Asian, Hispanic or White have the shortest commutes at about 18 minutes. African American, Asian, Hispanic, and White Only workers all have commutes around 30 minutes long.<br />
 </p>
-The average commuting duration by race:
+<p>The average commuting duration by race:</p>
 <div data-pagedtable="false">
 <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["race_category"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["avg_time"],"name":[3],"type":["dbl"],"align":["right"]}],"data":[{"1":"African American","2":"66","3":"26.30"},{"1":"Asian","2":"382","3":"30.83"},{"1":"Hispanic","2":"122","3":"29.37"},{"1":"White Only","2":"1873","3":"30.47"},{"1":"Other","2":"119","3":"17.85"},{"1":"Missing","2":"142","3":"28.92"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+{"columns":[{"label":["race_category"],"name":[1],"type":["fct"],"align":["left"]},{"label":["sample_size"],"name":[2],"type":["int"],"align":["right"]},{"label":["avg_time"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["MOE_Percent"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"African American","2":"66","3":"26.30","4":"10.124275"},{"1":"Asian","2":"382","3":"30.83","4":"4.208276"},{"1":"Hispanic","2":"122","3":"29.37","4":"7.446565"},{"1":"White Only","2":"1873","3":"30.47","4":"1.900496"},{"1":"Other","2":"119","3":"17.85","4":"7.539845"},{"1":"Missing","2":"142","3":"28.92","4":"6.902267"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
   </script>
 </div>
 <p><br />
