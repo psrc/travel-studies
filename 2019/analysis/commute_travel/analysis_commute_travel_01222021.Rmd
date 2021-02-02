@@ -377,9 +377,27 @@ avg_dist_by_race<-not_home_workers %>%
   mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
   mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%
-  mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
-
+  mutate(MOE_Percent=z*sqrt(MOE_calc1)*100) %>%
+  stdev=sd(avg_dist)
 avg_dist_by_race
+```
+
+```{r}
+# Construction of CI about the mean when population standard deviation is unknown 
+# degrees of freedom = 66-1 = 65
+# t(0.025) of 65 = 1.997
+# sample standard deviation
+# n = 66
+
+sample_sz <- nrow(not_home_workers)
+
+avg_dist_by_race <- not_home_workers %>%
+  group_by(race_category) %>%
+  summarise(sample_prop=n()) %>%
+  ungroup()%>%
+  mutate(stdev=(sample_prop*(1-sample_prop))/sample_sz, na.rm=T) %>%
+  mutate(MOE=z*sqrt(calc1))
+
 ```
 
 ```{r dist race with MOE}
