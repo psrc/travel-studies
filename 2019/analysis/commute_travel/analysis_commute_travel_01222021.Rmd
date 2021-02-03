@@ -58,8 +58,7 @@ read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
   dtelm
 }
 
-# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE
-# for categorical data
+# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE for categorical data
 create_table_one_var_simp= function(var1, table_temp, table_type) {
   #table_temp = recategorize_var_upd(var2,table_temp)
   #print(table_temp)
@@ -73,20 +72,22 @@ create_table_one_var_simp= function(var1, table_temp, table_type) {
     weight_comb = "trip_wt_combined"  
   } 
   
-  temp = table_temp %>% dplyr::select(!!sym(var1), all_of(weight_2017), all_of(weight_2019),
-                                      all_of(weight_comb)) %>% 
+  temp = table_temp %>% dplyr::select(!!sym(var1), all_of(weight_2019)) %>% 
     filter(!.[[1]] %in% missing_codes, !is.na(.[[1]])) %>% 
     group_by(!!sym(var1)) %>% 
-    summarise(n=n(),sum_wt_comb = sum(.data[[weight_comb]],na.rm = TRUE), 
-              sum_wt_comb = round(sum_wt_comb, 0)) %>% 
-    mutate(perc_comb = sum_wt_comb/sum(sum_wt_comb)*100, perc_comb = round(perc_comb, 2)) %>% 
+    summarise(SampleSize=n(),
+              Weighted_2019 = sum(.data[[weight_2019]],na.rm = TRUE), 
+              Weighted_2019 = round(Weighted_2019, 0)) %>% 
+    mutate(WeightedPercent = Weighted_2019/sum(Weighted_2019)*100, 
+           WeightedPercent = round(WeightedPercent, 2)) %>% 
     ungroup() %>%  
-    mutate(MOE=1.65*(0.25/sum(n))^(1/2)*100, MOE = round(MOE, 2)) %>% arrange(var1)
+    mutate(MOE=1.65*(0.25/sum(SampleSize))^(1/2)*100, 
+           MOE=round(MOE, 2)) %>% 
+    arrange(var1)
   return(temp)
 }
 
-#Create a crosstab from two variables, calculate counts, totals, and shares,
-# for categorical data
+# Create a crosstab from two variables, calculate counts, totals, and shares for categorical data
 cross_tab_categorical <- function(table, var1, var2, wt_field) {
   expanded <- table %>% 
     group_by(.data[[var1]],.data[[var2]]) %>%
@@ -138,6 +139,24 @@ stargazer_table <- function(outcome, explanatory, table_title){
 
 }
 
+# Confidence Interval for mean = sample mean + Z-value for confidence level(sample st. dev/sqrt(number of elements in sample))
+
+Mean.SD_CI <- function(x, cat_var, num_var, weight_var){
+  cat_var <- enquo(cat_var)
+  num_var <- enquo(num_var)
+  weight_var <- enquo(weight_var)
+
+  x %>%
+    group_by(!!cat_var) %>%
+    summarize(n = n(),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_avg = round(weighted.mean(!!num_var, !!weight_var),2),
+              sd = round(sd(!!num_var),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+}
+
 # rounding function applied to categorical columns 
 my.render.cat <- function(x) {
     c("", sapply(stats.default(x), function(y) with(y,
@@ -145,7 +164,8 @@ my.render.cat <- function(x) {
 
 # Statistical assumptions for margins of error
 p_MOE <- 0.5
-z<-1.645
+z <- 1.645 #90% CI
+z_95 <- 1.96 #95% CI
 missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
                    'Missing: Skip logic', 'Children or missing', 'Prefer not to answer',
                    'Missing')
@@ -173,9 +193,10 @@ work_county,telecommute_freq, hh_wt_2019 FROM HHSurvey.v_persons_2017_2019")
 persons<-read.dt(sql.person.query, 'sqlquery')
 persons_2019 <- persons  %>% filter(survey_year==2019)
 ```
+\
 
 ## Commuting Trips
-This analysis will focus primarily on people who usually work outside the home. The main question we will be attempting to answer is:   
+This analysis will focus on the commute trips of people who usually work outside the home. 
 
 * **What is the share of trips made for "commuting"?**
 
@@ -192,10 +213,12 @@ trips_commute/trips_total
 # 24%
 ```
 Out of the total number of trips (17,813,956) documented as part of the 2019 survey results, 24% of them are commuting trips (4,189,078). 
-
+\
+\
 
 ## Sample
 5,711 people responded to the 2019 survey and provided their employment status and workplace.
+\
 \
 
 ### Employment Status
@@ -211,14 +234,17 @@ persons_2019$employment <- factor(persons_2019$employment,
                                           "Not currently employed",
                                           "Missing: Skip logic"))
 
-employment_stats<-persons_2019 %>%
-  filter(employment!="Missing: Skip logic") %>%
-  group_by(employment) %>% 
-  summarize(sample_size=n(), 
-            HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
-  mutate(Percent=(sample_size/sum(sample_size))*100)
-employment_stats
+# employment_stats<-persons_2019 %>%
+#   filter(employment!="Missing: Skip logic") %>%
+#   group_by(employment) %>% 
+#   summarize(sample_size=n(), 
+#             HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
+#   mutate(Percent=(sample_size/sum(sample_size))*100)
+# employment_stats
+
+create_table_one_var_simp('employment', persons_2019, 'person')
 ```
+\
 \
 
 ### Workplace
@@ -231,51 +257,85 @@ persons_2019$workplace <- factor(persons_2019$workplace,
                                           "Workplace regularly varies (different offices or jobsites)",
                                           "Missing: Skip logic"))
   
-workplace_stats<-persons_2019 %>%
-  filter(workplace!="Missing: Skip logic") %>%
-  group_by(workplace) %>% 
-  summarize(sample_size=n(), 
-            HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
-  mutate(Percent=(sample_size/sum(sample_size))*100)
-workplace_stats
+# workplace_stats<-persons_2019 %>%
+#   filter(workplace!="Missing: Skip logic") %>%
+#   group_by(workplace) %>% 
+#   summarize(sample_size=n(), 
+#             HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
+#   mutate(Percent=(sample_size/sum(sample_size))*100)
+# workplace_stats
+
+create_table_one_var_simp('workplace', persons_2019, 'person')
+
 ```
+\
 \
 
 ## Defining Commuters
-This analysis will focus primarily on people who usually work outside the home. Those working outside the home are defined as those with full-time or part-time paid employment or those who identified as self-employed. These individuals were further defined as those with workplaces that are not at home. 
+This subset of the respondents are based on the following survey questions: 
+
+* **"Primary type of employment?"** 
+* **"Please answer for your primary jobs where you work the most hours per week"**
+    + "Usual work location?"
+\
+
+For this analysis, commuters are those with: 
+
+1. full-time or part-time paid employment or those who identified as self-employed with workplaces.  
+2. workplaces that are not at home  
+3. commute distances less than 200 miles
+\
+
 ```{r}
 workers <- persons_2019 %>% 
   filter(employment=='Employed full time (35+ hours/week, paid)'|
            employment=='Employed part time (fewer than 35 hours/week, paid)'|
            employment=='Self-employed')
 
-work_loc_type <- workers %>% 
-  group_by(workplace) %>%
-  summarize(Total_workers=sum(hh_wt_2019)) %>%
-  mutate(Share_workers=round(Total_workers/sum(workers$hh_wt_2019),2))
+# work_loc_type <- workers %>% 
+#   group_by(workplace) %>%
+#   summarize(Sample_size=n(),
+#             Weighted_2019=sum(hh_wt_2019)) %>%
+#   mutate(Weighted_Percent=(round(Weighted_2019/sum(workers$hh_wt_2019),4)*100))
 
 # get workers who don't work at home all the time with commute distances less than 200 miles
 # remove outliers
 not_home_workers <- workers %>% 
   filter(workplace!='At home (telecommute or self-employed with home office)') %>%
   filter(commute_auto_Distance<200)
+
+# table1(~employment|workplace, data=not_home_workers,
+#        render.categorical=my.render.cat)
+
+not_home_workers %>%
+  group_by(employment) %>%
+  summarize(Sample_size=n(),
+            Weighted_2019=sum(hh_wt_2019)) %>%
+  mutate(Weighted_Percent=(round(Weighted_2019/sum(not_home_workers$hh_wt_2019),4)*100))
+
+not_home_workers %>%
+  group_by(workplace) %>%
+  summarize(Sample_size=n(),
+            Weighted_2019=sum(hh_wt_2019)) %>%
+  mutate(Weighted_Percent=(round(Weighted_2019/sum(not_home_workers$hh_wt_2019),4)*100))
 ```
   
-Out of a total 5,711 people who responded to the 2019 travel survey, 2,704 are individuals employed outside of the home who commute with automobile commutes of less than 200 miles. The commute distance limit was intended to remove outliers.
+Out of a total 5,711 people who responded to the 2019 travel survey, **2,704** are individuals employed outside of the home who commute with automobile commutes of less than 200 miles. The commute distance limit was intended to remove outliers.
+\
 \
 
 ## General commute statistics
 The following statistics uses the fields `commute_auto_Distance` and `commute_auto_time` to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances. 
 \
+\
+The main question we will be attempting to answer is: **How does the distance or commute time from home to your primary workplace vary by income and race?**
+\
+\
 
 ### Commute distance
-The main question we will be attempting to answer is:   
-
-* **How does the distance or time from home to your primary workplace vary by income and race?**
-
-
 ```{r}
-mean_dist<-weighted.mean(not_home_workers$commute_auto_Distance, w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+mean_dist<-weighted.mean(not_home_workers$commute_auto_Distance,
+                         w=not_home_workers$hh_wt_2019,na.rm=TRUE)
 
 hist(not_home_workers$commute_auto_Distance, main="Histogram of Commute Distance (miles)")
 ggplot(not_home_workers, aes(x=commute_auto_Distance, weight=hh_wt_2019)) + 
@@ -335,25 +395,25 @@ From workers with incomes less than $75,000 annually, lower income workers have 
 \
 
 The average commuting distance by income:
+```{r distance income with sample CI}
+Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_Distance, hh_wt_2019)
+```
+
 ```{r}
 avg_dist_by_inc<-not_home_workers %>%
   group_by(hhincome_detailed) %>% 
   summarize(n=n(),
-            percent=round((n/nrow(not_home_workers))*100,2),
+            Percent=round((n/nrow(not_home_workers))*100,2),
             HouseholdWeight=sum(hh_wt_2019),
             avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
 
-avg_dist_by_inc %>% 
-  print(n = Inf)
-```
-
-```{r}
 ggplot(avg_dist_by_inc, aes(x=hhincome_detailed, y=avg_weighted_dist)) + 
   geom_col() +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Distance by Income",
       x ="Income Categories", y = "Average Weighted Distance (miles)")
 ```
+\
 \
 
 #### Race
@@ -372,69 +432,16 @@ People who identify as other race have the shortest commutes (sample size?) Peop
 \
 
 The average commuting distance by race:
-```{r simple dist race, eval=FALSE, include=FALSE}
-avg_dist_by_race<-not_home_workers %>% 
-  group_by(race_category) %>% 
-  summarize(n=n(),
-            HouseholdWeight=sum(hh_wt_2019),
-            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2)) %>%
-  mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
-  ungroup() %>%
-  mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%
-  mutate(MOE_Percent=z*sqrt(MOE_calc1)*100) %>%
-  stdev=sd(avg_dist)
-avg_dist_by_race
+```{r dist race with sample CI}
+Mean.SD_CI(not_home_workers, race_category, commute_auto_Distance, hh_wt_2019)
 ```
-
-```{r, eval=FALSE, include=FALSE}
-# Construction of CI about the mean when population standard deviation is unknown 
-# degrees of freedom = 66-1 = 65
-# t(0.025) of 65 = 1.997
-# sample standard deviation
-# n = 66
-
-sample_sz <- nrow(not_home_workers)
-
-avg_dist_by_race <- not_home_workers %>%
-  group_by(race_category) %>%
-  summarise(sample_prop=n()) %>%
-  ungroup()%>%
-  mutate(stdev=(sample_prop*(1-sample_prop))/sample_sz, na.rm=T) %>%
-  mutate(MOE=z*sqrt(calc1))
-
-```
-
-```{r dist race with MOE}
-# User defined variables on each analysis:
-# this is the weight for summing in your analysis
-hh_wt_field<- 'hh_wt_2019'
-# # this is a field to count the number of records
-# person_count_field<-'person_dim_id'
-# this is how you want to group the data in the first dimension,
-# this is how you will get the n for your sub group
-group_cat <- 'race_category'
-# this is the second variable you want to summarize by
-var <-  'avg_dist'
-# filter data missing weights
-hh_no_na<-not_home_workers %>% drop_na(all_of(hh_wt_field))
-# filter data missing values
-# before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
-# sum(is.na(not_home_workers$person_dim_id))
-# now find the sample size of your subgroup
-sample_size_group<- hh_no_na %>%
-  group_by(race_category) %>%
-  dplyr::summarize(sample_size = n(),
-                   avg_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
-
-# get the margins of error for your groups
-sample_size_MOE<- categorical_moe(sample_size_group)
-sample_size_MOE
-```
+\
 \
 
 ### Commute duration
 ```{r}
-mean_time<-weighted.mean(not_home_workers$commute_auto_time, w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+mean_time<-weighted.mean(not_home_workers$commute_auto_time,
+                         w=not_home_workers$hh_wt_2019,na.rm=TRUE)
 
 hist(not_home_workers$commute_auto_time, main="Histogram of Commute Duration (minutes)")
 ggplot(not_home_workers, aes(x=commute_auto_time, weight=hh_wt_2019)) + geom_histogram(fill='darkblue', binwidth=5)+xlim(c(0, 200))+
@@ -481,18 +488,19 @@ The distance to work increases with income up to 200K, then declines. The averag
 \
 
 The average commuting duration by income:
+```{r time income with sample CI}
+Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_time, hh_wt_2019)
+```
+
 ```{r}
 avg_time_by_inc<-not_home_workers %>% 
   group_by(hhincome_detailed) %>% 
-  summarize(n=n(), 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
             HouseholdWeight=sum(hh_wt_2019),
+            WeightedPercent=round((HouseholdWeight/sum(HouseholdWeight))*100,2),
             avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
 
-avg_time_by_inc %>% 
-  print(n = Inf)
-```
-\
-```{r}
 ggplot(avg_time_by_inc, aes(x=hhincome_detailed, y=avg_weighted_time)) + 
   geom_col() +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
@@ -500,51 +508,17 @@ ggplot(avg_time_by_inc, aes(x=hhincome_detailed, y=avg_weighted_time)) +
       x ="Income Categories", y = "Weighted Average Commute Time (minutes)")
 ```
 \
+\
 
 #### Race
 People who identify with by a race other than African American, Asian, Hispanic or White have the shortest commutes at about 18 minutes. African American, Asian, Hispanic, and White Only workers all have commutes around 30 minutes long.
 \
 
 The average commuting duration by race:
-```{r simple time race, eval=FALSE, include=FALSE}
-avg_time_by_race<-not_home_workers %>% 
-  group_by(race_category) %>% 
-  summarize(n=n(),
-            HouseholdWeight=sum(hh_wt_2019),
-            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2)%>%
-  mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
-  ungroup() %>%
-  mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%
-  mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
-  
-avg_time_by_race
+```{r time race with sample CI}
+Mean.SD_CI(not_home_workers, race_category, commute_auto_time, hh_wt_2019)
 ```
-
-```{r time race with MOE}
-# User defined variables on each analysis:
-# this is the weight for summing in your analysis
-hh_wt_field<- 'hh_wt_2019'
-# # this is a field to count the number of records
-# person_count_field<-'person_dim_id'
-# this is how you want to group the data in the first dimension,
-# this is how you will get the n for your sub group
-group_cat <- 'race_category'
-# this is the second variable you want to summarize by
-var <-  'avg_time'
-# filter data missing weights
-hh_no_na<-not_home_workers %>% drop_na(all_of(hh_wt_field))
-# filter data missing values
-# before you filter out the data, you have to investigate if there are any NAs or missing values in your variables and why they are there.
-# sum(is.na(not_home_workers$person_dim_id))
-# now find the sample size of your subgroup
-sample_size_group<- hh_no_na %>%
-  group_by(race_category) %>%
-  dplyr::summarize(sample_size = n(),
-                   avg_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
-# get the margins of error for your groups
-sample_size_MOE<- categorical_moe(sample_size_group)
-sample_size_MOE
-```
+\
 \
 
 ## Trends in Travel Time
