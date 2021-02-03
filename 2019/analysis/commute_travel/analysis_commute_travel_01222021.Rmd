@@ -305,6 +305,7 @@ not_home_workers %>%
   group_by(dist_bins) %>%
   summarise(n=n(),
             percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
             min=min(commute_auto_Distance), 
             max=max(commute_auto_Distance), 
             avg=mean(commute_auto_Distance)) 
@@ -337,18 +338,21 @@ The average commuting distance by income:
 ```{r}
 avg_dist_by_inc<-not_home_workers %>%
   group_by(hhincome_detailed) %>% 
-  summarize(sample_size=n(), avg_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+  summarize(n=n(),
+            percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
 
 avg_dist_by_inc %>% 
   print(n = Inf)
 ```
 
 ```{r}
-ggplot(avg_dist_by_inc, aes(x=hhincome_detailed, y=avg_dist)) + 
+ggplot(avg_dist_by_inc, aes(x=hhincome_detailed, y=avg_weighted_dist)) + 
   geom_col() +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Distance by Income",
-      x ="Income Categories", y = "Average Distance (miles)")
+      x ="Income Categories", y = "Average Weighted Distance (miles)")
 ```
 \
 
@@ -371,9 +375,9 @@ The average commuting distance by race:
 ```{r simple dist race, eval=FALSE, include=FALSE}
 avg_dist_by_race<-not_home_workers %>% 
   group_by(race_category) %>% 
-  summarize(sample_size=n(),
-            avg_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2),
-            HouseholdWeight=sum(hh_wt_2019))%>%
+  summarize(n=n(),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2)) %>%
   mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
   mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%
@@ -382,7 +386,7 @@ avg_dist_by_race<-not_home_workers %>%
 avg_dist_by_race
 ```
 
-```{r}
+```{r, eval=FALSE, include=FALSE}
 # Construction of CI about the mean when population standard deviation is unknown 
 # degrees of freedom = 66-1 = 65
 # t(0.025) of 65 = 1.997
@@ -462,6 +466,7 @@ not_home_workers %>%
   group_by(time_bins) %>%
   summarise(n=n(),
             percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
             min=min(commute_auto_time), 
             max=max(commute_auto_time), 
             avg=mean(commute_auto_time)) 
@@ -479,18 +484,20 @@ The average commuting duration by income:
 ```{r}
 avg_time_by_inc<-not_home_workers %>% 
   group_by(hhincome_detailed) %>% 
-  summarize(sample_size=n(), avg_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
+  summarize(n=n(), 
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
 
 avg_time_by_inc %>% 
   print(n = Inf)
 ```
 \
 ```{r}
-ggplot(avg_time_by_inc, aes(x=hhincome_detailed, y=avg_time)) + 
+ggplot(avg_time_by_inc, aes(x=hhincome_detailed, y=avg_weighted_time)) + 
   geom_col() +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Travel Time by Income",
-      x ="Income Categories", y = "Average Commute Time (minutes)")
+      x ="Income Categories", y = "Weighted Average Commute Time (minutes)")
 ```
 \
 
@@ -502,9 +509,9 @@ The average commuting duration by race:
 ```{r simple time race, eval=FALSE, include=FALSE}
 avg_time_by_race<-not_home_workers %>% 
   group_by(race_category) %>% 
-  summarize(sample_size=n(),
-            avg_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2),
-            HouseholdWeight=sum(hh_wt_2019))%>%
+  summarize(n=n(),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2)%>%
   mutate(Percent = HouseholdWeight/sum(HouseholdWeight)*100) %>%
   ungroup() %>%
   mutate(MOE_calc1=(p_MOE*(1-p_MOE))/sample_size) %>%

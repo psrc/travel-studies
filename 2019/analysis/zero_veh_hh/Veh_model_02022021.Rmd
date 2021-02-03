@@ -1,5 +1,5 @@
 ---
-title: "Household Travel Survey, 2017 and 2019: Household Vehicle Ownership"
+title: "Household Travel Survey, 2017 and 2019: Household Vehicle Count"
 author: "Mary Richards"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
@@ -12,7 +12,7 @@ output:
   word_document: default
 ---
 
-This report presents preliminary findings for household vehicle ownership trends based on the Household Travel Survey (2017 and 2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
+This report presents preliminary findings for household vehicle count trends based on the Household Travel Survey (2017 and 2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
 
 ```{r global-options, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, 
@@ -53,7 +53,7 @@ library(DescTools) #for goodness of fit - models
 This work helps to supplement PSRC's SoundCast Auto Ownership Model (https://www.psrc.org/sites/default/files/2015psrc-modechoiceautomodels.pdf, 2015). According to the results from this model, the most predictive variables are the number of drivers and workers in the household, along with household income. In addition to these variables, the model also considers additional traveler/household characteristics (such as age of household members per driver), transportation level of service variables (such as distance to transit stop and number of transit stops), and land use variables (such as service and retail density). 
 
 
-The following sections describe the process to understand the important factors that contribute to household vehicle ownership.
+The following sections describe the process to understand the important factors that contribute to household vehicle access and count.
 \
 ```{r Data setup, include = FALSE}
 # Load Data
@@ -172,8 +172,8 @@ my.render.cat <- function(x) {
         sprintf("%d (%.0f%%)", FREQ, PCT))))}
 ```
 
-## 2. Outcome Variables
-The two potential outcome variables for these models are at the household level (by `household_id`):  
+## 2. Dependent Variables
+The two potential dependent variables for these models are at the household level (by `household_id`):  
 
 1. Vehicle count - the number of vehicles owned (reported by survey respondents)
 2. Vehicle access - the number of household vehicles owned in relation to the number of workers in each household
@@ -267,12 +267,12 @@ household$hh_veh_access <- factor(household$hh_veh_access,
 table1(~hh_veh_access, data=household, render.categorical=my.render.cat)
 ```
 
-Although vehicle access is an interesting measurement to explore, it requires a few levels of aggregation and adjustment, which could introduce error or oversimplification. Therefore, analysis will be based on household vehicle ownership, or the count of vehicles per household. 
+Although vehicle access is an interesting measurement to explore, it requires a few levels of aggregation and adjustment, which could introduce error or oversimplification. Therefore, analysis will be based on the count of vehicles per household. 
 \
 \
 
 ## 3. Explanatory or predictor variables
-There are many personal and household characteristics that can contribute to vehicle ownership at the household level. 
+There are many personal and household characteristics that can contribute to vehicle count at the household level. 
 \
 Based on these considerations and the data available through survey responses, the following table will attempt to match the person-level and household-level characteristics with responses provided by the survey participants. The data listed in the right column are from the in-house person (p) and household (h) views, available through Elmer, or describe an externally-sourced dataset (e).  
 
@@ -322,9 +322,9 @@ corresponding <- cbind(c1,c2)
 kable(corresponding, format = "html",escape = FALSE, align = c('l','l')) %>% kable_styling("bordered",full_width = F, position = "left") #%>% column_spec(2, color = "red")#%>% column_spec(2, bold = T)
 ```
 \
-Because the outcome variable is household vehicle ownership, the person-level variables need to be aggregated to the household level. With this in mind, gender and employment type were removed from this analysis.  
+Because the dependent variable is household vehicle count, the person-level variables need to be aggregated to the household level. With this in mind, gender and employment type were removed from this analysis.  
 \
-The table below illustrates the person-level variables related to vehicle ownership and the way in which they were aggregated:
+The table below illustrates the person-level variables related to vehicle count and the way in which they were aggregated:
 ```{r person-level characteristics and corresponding stats methods}
 c1 <- as.data.frame(c(
   "Number of licensed (or licensed age) individuals",
@@ -652,7 +652,7 @@ glimpse(person_and_household)
 \
 
 ### a. Univariate analysis
-The dependent variable or outcome will be vehicle ownership (`vehicle_group`: 0, 1, 2, 3+) and the independent or explanatory variables will be from the list above. Because the vehicle ownership is ordinal, an ordered logit model will be applied.
+The dependent variable or outcome will be vehicle count (`vehicle_group`: 0, 1, 2, 3+) and the independent or explanatory variables will be from the list above. Because the vehicle count is ordinal, an ordered logit model will be applied.
 
 The following section will introduce descriptive statistics for each of the explanatory variables, followed by analysis. For an overview of the results from these individual analyses, please skip to section 3b.
 \
@@ -725,8 +725,8 @@ ggplot(data=hh_vehcount_income, aes(x=hhincomeb_reordered, y=n, fill= vehicle_gr
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Income (broad)", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Income")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Income")
 ```
 
 
@@ -741,15 +741,15 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 # income : stargazer table
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$hhincomeb_reordered,
-                'Vehicle Ownership by Income')
+                'Vehicle Count by Income')
 ```
 \
-<span style="color:#20b2aa">In reference to the households making under $25k, households in higher income categories are more likely to own more vehicles. This positive association between household income and household vehicle ownership is statistically significant.</span>
+<span style="color:#20b2aa">In reference to the households making under $25k, households in higher income categories are more likely to own more vehicles. This positive association between household income and household vehicle count is statistically significant.</span>
 \
 \
 
 #### <span style="color:#009D6A">*2. Age/Lifecycle*</span>  
-Person-level ages are likely to influence vehicle ownership, but because the variable of interest is vehicle ownership, the household age composition or household lifecycle will be evaluated.
+Person-level ages are likely to influence household vehicle count, but because the variable of interest is vehicle count, the household age composition or household lifecycle will be evaluated.
 
 Households were organized into four categories based on the composition and age of people in the household:  
 
@@ -843,8 +843,8 @@ ggplot(data = hh_vehcount_lifecycle, aes(x=hh_lifecycle, y=n, fill= vehicle_grou
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Household Lifecycle", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Household age composition")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Household age composition")
 ```
 
 Reference group: Under age 35
@@ -856,10 +856,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r ageLifecycle : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_lifecycle,
-                "Vehicle Ownership by Household Lifecycle")
+                "Vehicle Count by Household Lifecycle")
 ```
 \
-<span style="color:#20b2aa">The relationship between household lifecycle and household vehicle ownership is  statistically significant, with households with children owning more vehicles, especially those with children ages 5-17, likely because of lifestyle requirements and housing patterns. Households with individuals 65+ are more likely to own more vehicles than households ages 35-64, likely because of mobility considerations and housing patterns. All of the household lifecycle categories included in the table above are more likely to own more vehicles than households under age 35.</span>
+<span style="color:#20b2aa">The relationship between household lifecycle and household vehicle count is  statistically significant, with households with children owning more vehicles, especially those with children ages 5-17, likely because of lifestyle requirements and housing patterns. Households with individuals 65+ are more likely to own more vehicles than households ages 35-64, likely because of mobility considerations and housing patterns. All of the household lifecycle categories included in the table above are more likely to own more vehicles than households under age 35.</span>
 \
 \
 
@@ -954,8 +954,8 @@ ggplot(data =hh_vehcount_hhsize, aes(x=hhsize_simp_num, y=n, fill= vehicle_group
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Household size", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Household size")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Household size")
 ```
 
 ```{r household size : stats}
@@ -966,7 +966,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r household size : bivariate analysis, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$hhsize_simp_num,
-                'Vehicle Ownership by Household size')
+                'Vehicle Count by Household size')
 ```
 \
 <span style="color:#20b2aa">In reference to the households with one person, households with more people are more likely to own more vehicles. This positive association between household income and household vehicle ownership is statistically significant.</span>
@@ -1048,8 +1048,8 @@ ggplot(data=hh_vehcount_licensecount, aes(x=driver_simp, y=n, fill= vehicle_grou
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Number of Household Licenses", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Number of Household Licenses")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Number of Household Licenses")
 ```
 
 Reference group: 0 licenses in the household
@@ -1061,10 +1061,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r number license : bivariate analysis, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$driver_simp,
-                'Vehicle Ownership by Number of Household Licenses')
+                'Vehicle Count by Number of Household Licenses')
 ```
 \
-<span style="color:#20b2aa">In reference to the households with no licensed members, households with more licensed drivers are more likely to own more vehicles. This positive association between number of household licenses and household vehicle ownership is statistically significant.</span>
+<span style="color:#20b2aa">In reference to the households with no licensed members, households with more licensed drivers are more likely to own more vehicles. This positive association between number of household licenses and household vehicle count is statistically significant.</span>
 \
 \
 
@@ -1078,7 +1078,7 @@ Original data at a household level
 
 freq(person_and_household$numworkers)
 ```
-Because there are so few people with more than 4 people, these households have been grouped together into one category for analysis.
+Because there are so few households with more than 4 workers, these households have been grouped together into one category for analysis.
 ```{r numworkers : simplified}
 person_and_household$numworkers <- as.numeric(person_and_household$numworkers)
 person_and_household <- person_and_household %>% 
@@ -1139,10 +1139,10 @@ hh_vehcount_numworkers <- person_and_household %>%
 ggplot(data =hh_vehcount_numworkers, aes(x=numworkers_simp, y=n, fill= vehicle_group)) +
   geom_bar(stat="identity") +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
-  labs(x = "Household size", 
+  labs(x = "Number of Workers", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Household size")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Number of Workers")
 ```
 
 
@@ -1155,10 +1155,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r numworkers : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$numworkers_simp,
-                'Vehicle Ownership by Number of Workers')
+                'Vehicle Count by Number of Workers')
 ```
 \
-<span style="color:#20b2aa">In reference to the households with one person, households with more workers are more likely to own more vehicles. This positive association between the number of household workers and household vehicle ownership is statistically significant.</span>
+<span style="color:#20b2aa">In reference to the households with one person, households with more workers are more likely to own more vehicles. This positive association between the number of household workers and household vehicle count is statistically significant.</span>
 \
 \
 
@@ -1202,10 +1202,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r jobs:workers : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$jobs_numworkers,
-                'Vehicle Ownership by jobs:workers ratio')
+                'Vehicle Count by jobs:workers ratio')
 ```
 \
-<span style="color:#20b2aa">When there are more jobs/workers within a household, these households are more likely to own more vehicles. This positive association between the number of jobs per household worker and household vehicle ownership is statistically significant.</span>
+<span style="color:#20b2aa">When there are more jobs/workers within a household, these households are more likely to own more vehicles. This positive association between the number of jobs per household worker and household vehicle count is statistically significant.</span>
 \
 \
 
@@ -1286,8 +1286,8 @@ ggplot(data=hh_vehcount_edumin_pri, aes(x=education_min, y=n, fill= vehicle_grou
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Lowest Education Attainment", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Education attainment (min)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Education attainment (min)")
 ```
 
 Reference group: Less than high school
@@ -1299,7 +1299,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r edu min primary : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$education_min,
-                'Vehicle Ownership by Lowest educational attainment')
+                'Vehicle Count by Lowest educational attainment')
 ```
 \
 <span style="color:#20b2aa">In reference to the households with less than a high school degree as the lowest educational attainment, households with less education are more likely to own more vehicles while households with more education ("Bachelor degree" and "Graduate/post-graduate degree") are more likely to own fewer vehicles. This negative association is statistically significant.
@@ -1355,13 +1355,13 @@ ggplot(edu_age_plot,
 ```
 \
 \
-```{r edu : vocational-technical hh and veh ownership table}
+```{r edu : vocational-technical hh and veh Count table}
 table1(~ as.factor(vehicle_group) |
          education_min,
        data=person_and_household)
 ```
 \
-Because individuals with **`Vocational/technical training`** are more likely to have jobs in the specific service professions, this may necessitate the need for a vehicle. Further investigation into vehicle ownership for this subset of the households reveals that households with vocational/technical training make up the highest proportion of households with 2 vehicles (35%) and 3 vehicles (18%). <span style="color:#f75f28">It is important to note that the sample size of households with `Vocational/technical training` as minimum educational attainment represents only 3.4% of the total number of households surveyed.</span>
+Because individuals with **`Vocational/technical training`** are more likely to have jobs in the specific service professions, this may necessitate the need for a vehicle. Further investigation into vehicle for this subset of the households reveals that households with vocational/technical training make up the highest proportion of households with 2 vehicles (35%) and 3 vehicles (18%). <span style="color:#f75f28">It is important to note that the sample size of households with `Vocational/technical training` as minimum educational attainment represents only 3.4% of the total number of households surveyed.</span>
 \
 ```{r edu min hh and veh ownership plot}
 edu_veh_plot <- person_and_household %>%
@@ -1374,14 +1374,14 @@ ggplot(edu_veh_plot,
        aes(x=vehicle_group, y = freq, group=education_min, color = education_min)) + 
   geom_point() +
   geom_line() +
-  labs(x = "Household Vehicle Ownership",
+  labs(x = "Household Vehicle Count",
        y = "Frequency",
        color = "Educational Attainment",
-       title = "Vehicle Ownership by Educational Attainment (min)")
+       title = "Vehicle Count by Educational Attainment (min)")
 ```
 \
 \
-<span style="color:#20b2aa">The following table provides more detailed information into the relationship between education and a more standardized vehicle ownership value (**number of household vehicles*/*number of household workers**). Higher values indicate that the households own more vehicles per number of household workers.</span>
+<span style="color:#20b2aa">The following table provides more detailed information into the relationship between education and a more standardized vehicle count value (**number of household vehicles*/*number of household workers**). Higher values indicate that the households own more vehicles per number of household workers.</span>
 ```{r edu : min hh and veh ownership by numworkers table}
 hh_edu_veh_workers <- person_and_household %>%
   group_by(education_min,vehicle_group, numworkers_simp) %>%
@@ -1407,7 +1407,7 @@ ggplot(edu_vehworkers_plot,
   theme(legend.position = "none") +
   labs(x = "Educational Attainment",
        y = "Household Vehicles:Number of Workers",
-       title = "Vehicle Ownership by Educational Attainment (min)")
+       title = "Vehicle Count by Educational Attainment (min)")
 ```
 \
 \
@@ -1459,8 +1459,8 @@ ggplot(data=hh_vehcount_edumax_pri, aes(x=education_max, y=n, fill= vehicle_grou
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Highest Education Attainment", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Education attainment (max)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Education attainment (max)")
 ```
 
 Reference group: Less than high school
@@ -1472,13 +1472,13 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r edu max primary : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$education_max,
-                'Vehicle Ownership by Highest educational attainment')
+                'Vehicle Count by Highest educational attainment')
 ```
 \
 <span style="color:#20b2aa">In reference to the households with less than a high school degree as the highest educational attainment, households with fewest years of educational training ("High school graduate", "Vocational/technical training", and "Some college") are likely to own fewer vehicles, while households with more education ("Associates degree", "Bachelor degree", and "Graduate/post-graduate") are likely to own more vehicles. These results are statistically significant and reveal a general linear trend.</span>
 \
 \
-```{r edu max hh and veh ownership plot}
+```{r edu max hh and veh Count plot}
 edu_veh_plot <- person_and_household %>%
   filter(!is.na(education_max)) %>%
   group_by(education_max, vehicle_group) %>%
@@ -1489,14 +1489,14 @@ ggplot(edu_veh_plot,
        aes(x=vehicle_group, y = freq, group=education_max, color = education_max)) + 
   geom_point() +
   geom_line() +
-  labs(x = "Household Vehicle Ownership",
+  labs(x = "Household Vehicle",
        y = "Frequency",
        color = "Educational Attainment",
-       title = "Vehicle Ownership by Educational Attainment (max)")
+       title = "Vehicle Count by Educational Attainment (max)")
 ```
 \
 \
-<span style="color:#20b2aa">The following table provides more detailed information into the relationship between education and a more standardized vehicle ownership value (**number of household vehicles*/*number of household workers**). Higher values indicate that the households own more vehicles per number of household workers.</span>
+<span style="color:#20b2aa">The following table provides more detailed information into the relationship between education and a more standardized vehicle count value (**number of household vehicles*/*number of household workers**). Higher values indicate that the households own more vehicles per number of household workers.</span>
 ```{r edu : max hh and veh ownership by numworkers table}
 hh_edu_veh_workers <- person_and_household %>%
   group_by(education_max,vehicle_group, numworkers_simp) %>%
@@ -1523,7 +1523,7 @@ ggplot(edu_vehworkers_plot,
   theme(legend.position = "none") +
   labs(x = "Educational Attainment",
        y = "Household Vehicles:Number of Workers",
-       title = "Vehicle Ownership by Educational Attainment (max)")
+       title = "Vehicle Count by Educational Attainment (max)")
 ```
 \
 ```{r edu max hh and veh ownership by numworkers - all households plot}
@@ -1541,7 +1541,7 @@ ggplot(edu_allvehworkers_plot,
   labs(x = "Household Vehicles",
        y = "Household Vehicles:Number of Workers",
        color = "Educational Attainment",
-       title = "Vehicle Ownership by Educational Attainment (max)")
+       title = "Vehicle Count by Educational Attainment (max)")
 ```
 \
 \
@@ -1644,8 +1644,8 @@ ggplot(data=hh_vehcount_edumin, aes(x=hh_edu_min_simp, y=n, fill= vehicle_group)
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Lowest Education Attainment", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by simplified education attainment (min)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by simplified education attainment (min)")
 ```
 
 Reference group: High school
@@ -1657,10 +1657,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r edu min simp : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$hh_edu_min_simp,
-                'Vehicle Ownership by Lowest educational attainment (simplified)')
+                'Vehicle Count by Lowest educational attainment (simplified)')
 ```
 \
-<span style="color:#20b2aa">In reference to the households with a high school degree as the lowest educational attainment, households with more education (post-graduate) are less likely to own more vehicles, while those with less education are more likely to own more vehicles. This negative association between educational attainment (min) and household vehicle ownership is statistically significant.</span>
+<span style="color:#20b2aa">In reference to the households with a high school degree as the lowest educational attainment, households with more education (post-graduate) are less likely to own more vehicles, while those with less education are more likely to own more vehicles. This negative association between educational attainment (min) and household vehicle count is statistically significant.</span>
 \
 \
 
@@ -1711,8 +1711,8 @@ ggplot(data=hh_vehcount_edumax, aes(x=hh_edu_max_simp, y=n, fill= vehicle_group)
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Highest Education Attainment", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by simplified education attainment (max)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by simplified education attainment (max)")
 ```
 
 Reference group: High school
@@ -1724,10 +1724,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r edu max simp : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$hh_edu_max_simp,
-                'Vehicle Ownership by Highest educational attainment (simplified)')
+                'Vehicle Count by Highest educational attainment (simplified)')
 ```
 \
-<span style="color:#20b2aa">In reference to the households with a high school degree as the highest educational attainment, households with more education (post-graduate) are more likely to own more vehicles, while those with high school or less are less likely to own more vehicles. This positive association between educational attainment (max) and household vehicle ownership is statistically significant.</span>
+<span style="color:#20b2aa">In reference to the households with a high school degree as the highest educational attainment, households with more education (post-graduate) are more likely to own more vehicles, while those with high school or less are less likely to own more vehicles. This positive association between educational attainment (max) and household vehicle count is statistically significant.</span>
 \
 \
 
@@ -1820,10 +1820,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r race expanded : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                 person_and_household$hh_race_3,
-                "Vehicle Ownership by Race")
+                "Vehicle Count by Race")
 ```
 \
-<span style="color:#20b2aa">The relationship between race and household vehicle ownership is statistically significant for Asian households. POC households show a similar trend - owning fewer vehicles than white households - but the relationship is not significant. This is likely because of the small sample size of POC households, excluding Asian households (less than 10% of the sample: 467/6,319). This indicates that the White Only and POC household analysis is largely based on Asian households (~16%: 1,024/6,319).</span>
+<span style="color:#20b2aa">The relationship between race and household vehicle count is statistically significant for Asian households. POC households show a similar trend - owning fewer vehicles than white households - but the relationship is not significant. This is likely because of the small sample size of POC households, excluding Asian households (less than 10% of the sample: 467/6,319). This indicates that the White Only and POC household analysis is largely based on Asian households (~16%: 1,024/6,319).</span>
 \
 \
 
@@ -1905,8 +1905,8 @@ ggplot(data = hh_vehcount_race, aes(x=hh_race_2, y=n, fill= vehicle_group)) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Race",
        y = "Survey Responses",
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Race")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Race")
 ```
 
 Reference group: White Only
@@ -1918,10 +1918,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r race : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_race_2,
-                "Vehicle Ownership by Race")
+                "Vehicle Count by Race")
 ```
 \
-<span style="color:#20b2aa">The relationship between race and household vehicle ownership is statistically significant with POC households owning fewer vehicles.</span>
+<span style="color:#20b2aa">The relationship between race and household vehicle count is statistically significant with POC households owning fewer vehicles.</span>
 \
 \
 
@@ -2005,8 +2005,8 @@ ggplot(data = hh_vehcount_rentown, aes(x=rent_own_simp, y=n, fill= vehicle_group
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Household Tenure", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Household Tenure")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Household Tenure")
 ```
 
 Reference group: Own/paying mortgage
@@ -2018,10 +2018,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r tenure : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$rent_own_simp,
-                "Vehicle Ownership by Household Tenure")
+                "Vehicle Count by Household Tenure")
 ```
 \
-<span style="color:#20b2aa">The relationship between household tenure and household vehicle ownership is statistically significant, with renting individuals reporting that they are part of households that own fewer vehicles.</span>
+<span style="color:#20b2aa">The relationship between household tenure and household vehicle count is statistically significant, with renting individuals reporting that they are part of households that own fewer vehicles.</span>
 \
 \
 
@@ -2098,8 +2098,8 @@ ggplot(data = hh_vehcount_housetype, aes(x=restype_simp, y=n, fill= vehicle_grou
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Household Type", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Household Type")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Household Type")
 ```
 
 Reference group: Apartment/condo
@@ -2111,10 +2111,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r housing type : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$restype_simp,
-                "Vehicle Ownership by Household Type")
+                "Vehicle Count by Household Type")
 ```
 \
-<span style="color:#20b2aa">The relationship between household type and household vehicle ownership is statistically significant, with single-family (detached) households reporting highest vehicle ownership. Households in townhomes (attached) report higher vehicle ownership than those in apartments or condos, but lower vehicle ownership than those in single-family houses.</span>
+<span style="color:#20b2aa">The relationship between household type and household vehicle counts is statistically significant, with single-family (detached) households reporting highest vehicle counts. Households in townhomes (attached) report higher vehicle counts than those in apartments or condos, but lower vehicle counts than those in single-family houses.</span>
 \
 \
 
@@ -2185,8 +2185,8 @@ ggplot(data = hh_vehcount_RGC, aes(x=RGC_binary, y=n, fill= vehicle_group)) +
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Housing Location", 
        y = "Survey Responses", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by RGC")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by RGC")
 ```
 
 Reference group: Not RGC
@@ -2198,10 +2198,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r RGC : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$RGC_binary,
-                "Vehicle Ownership by RGC")
+                "Vehicle Count by RGC")
 ```
 \
-<span style="color:#20b2aa">Households located in RGCs report lower vehicle ownership than those living outside of RGCs. This is statistically significant.</span>
+<span style="color:#20b2aa">Households located in RGCs report lower vehicle counts than those living outside of RGCs. This is statistically significant.</span>
 \
 \
 
@@ -2254,7 +2254,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting auto distance average : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_com_auto_dist_avg,
-                "Vehicle Ownership by Average Commute Distance")
+                "Vehicle Count by Average Commute Distance")
 ```
 \
 There are fewer observations because of the 4,174 NA values - a result of using the `mean()`.  
@@ -2278,10 +2278,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting auto distance sum : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_com_auto_dist_sum,
-                "Vehicle Ownership by Total Commute Distance")
+                "Vehicle Count by Total Commute Distance")
 ```
 \
-<span style="color:#20b2aa">Both average household commute distance and the total household commute distance are positively associated with household vehicle ownership. Although the coefficients are small, these variables are statistically significant.</span>
+<span style="color:#20b2aa">Both average household commute distance and the total household commute distance are positively associated with household vehicle counts. Although the coefficients are small, these variables are statistically significant.</span>
 \
 \
 
@@ -2325,7 +2325,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting auto time average : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_com_auto_time_avg,
-                "Vehicle Ownership by Average Commute Time")
+                "Vehicle Count by Average Commute Time")
 ```
 \
 There are fewer observations because of the 4,174 NA values - a result of using the `mean()`.  
@@ -2349,10 +2349,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting auto time total : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_com_auto_time_sum,
-                "Vehicle Ownership by Total Commute Time")
+                "Vehicle Count by Total Commute Time")
 ```
 \
-<span style="color:#20b2aa">Both average household commute time and the total household commute time are positively associated with household vehicle ownership. Although the coefficients are small, these variables are statistically significant.</span> 
+<span style="color:#20b2aa">Both average household commute time and the total household commute time are positively associated with household vehicle count. Although the coefficients are small, these variables are statistically significant.</span> 
 \
 \
 
@@ -2427,8 +2427,8 @@ ggplot(data=hh_vehcount_commutefreqmin_all, aes(x=commute_freq_min, y=n, fill= v
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Commute Frequency (min)", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Commuting Frequency (min)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Commuting Frequency (min)")
 ```
 
 Reference group: 1 day a week
@@ -2440,7 +2440,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting frequency min : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$commute_freq_min,
-                'Vehicle Ownership by Commuting Frequency (min)')
+                'Vehicle Count by Commuting Frequency (min)')
 ```
 \
 
@@ -2475,11 +2475,11 @@ cross_table<-cross_tab_categorical(hh_no_na,group_cat,var, hh_wt_field)
 cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
 ```
 
-```{r commuting frequency max : vehicle ownership MOE}
+```{r commuting frequency max : vehicle Count MOE}
 cross_table_w_MOE
 ```
 
-```{r commuting frequency max vehicle ownership plot}
+```{r commuting frequency max vehicle plot}
 hh_vehcount_commutefreqmax_all <- person_and_household %>%
   filter(!is.na(commute_freq_max)) %>%
   group_by(commute_freq_max,vehicle_group) %>%
@@ -2491,8 +2491,8 @@ ggplot(data=hh_vehcount_commutefreqmax_all, aes(x=commute_freq_max, y=n, fill= v
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Commute Frequency (max)", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Commute frequency (max)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Commute frequency (max)")
 ```
 
 Reference group: 1 day a week
@@ -2504,17 +2504,17 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting frequency max : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$commute_freq_max,
-                'Vehicle Ownership by Commute frequency (max)')
+                'Vehicle Count by Commute frequency (max)')
 ```
 \
-<span style="color:#20b2aa">Overall, the results from this analysis do not reveal a statistically significant association. There is a negative association between household vehicle ownership and household commute frequency (both max and min). Negative coefficients in the logistic regression model translate into odds ratios that are less than one, which means that the predicted probability is decreasing as the covariate increases. Odds ratios which are less than 1 imply a negative relationship between the outcome (vehicle ownership) and explanatory (commute frequency) variables. There are more statistically significant results from the household's least frequent commute frequency analysis.</span>
+<span style="color:#20b2aa">Overall, the results from this analysis do not reveal a statistically significant association. There is a negative association between household vehicle count and household commute frequency (both max and min). Negative coefficients in the logistic regression model translate into odds ratios that are less than one, which means that the predicted probability is decreasing as the covariate increases. Odds ratios which are less than 1 imply a negative relationship between the outcome (vehicle count) and explanatory (commute frequency) variables. There are more statistically significant results from the household's least frequent commute frequency analysis.</span>
 \
 
 * <span style="color:#20b2aa"> **MINIMUM:** In reference to the households with an individual commuting 1 day a week (minimum), households commuting more frequently seem to own fewer vehicles. 
-    * The odds of higher household vehicle ownership are 0.236 times lower for households where the least frequent commute is 6-7 days compared to households with at least one individual commuting of 1 day a week, given the other variables are held constant. This is statistically significant and reveals a negative association - less likely to own more vehicles.  
-    * As the minimum commuting frequency increases, the odds ratios steadily decrease (although all less than 1) revealing an overall negative association. The odds of higher vehicle ownership for households with less frequent commutes (2 days a week and 3 days a week) are lower (0.6492 and 0.5794 times lower, respectively). Both of these values are statistically significant (p<0.1 and p<0.5, respectively). 
+    * The odds of higher household vehicle count are 0.236 times lower for households where the least frequent commute is 6-7 days compared to households with at least one individual commuting of 1 day a week, given the other variables are held constant. This is statistically significant and reveals a negative association - less likely to own more vehicles.  
+    * As the minimum commuting frequency increases, the odds ratios steadily decrease (although all less than 1) revealing an overall negative association. The odds of higher vehicle count for households with less frequent commutes (2 days a week and 3 days a week) are lower (0.6492 and 0.5794 times lower, respectively). Both of these values are statistically significant (p<0.1 and p<0.5, respectively). 
 * <span style="color:#20b2aa"> **MAXIMUM:** In part because of small sample sizes, the only statistically significant finding is for households where the most frequent commute is 3 days a week, meaning that all members of the household commute 3 or fewer days a week. 
-    * The negative coefficient and the odds ratio below 1 indicate a negative relationship. This is in reference to households with the most frequent commute of 1 day (very small sample size). In reference to the households with an individual commuting at most 1 day a week, households commuting at most 3 days a week are more likely to own fewer vehicles. The odds of higher household vehicle ownership are 0.455 times lower for households where the most frequent commute is 3 days a week than for households with a most frequent commute of 1 day a week, given the other variables are held constant. 
+    * The negative coefficient and the odds ratio below 1 indicate a negative relationship. This is in reference to households with the most frequent commute of 1 day (very small sample size). In reference to the households with an individual commuting at most 1 day a week, households commuting at most 3 days a week are more likely to own fewer vehicles. The odds of higher household vehicle count are 0.455 times lower for households where the most frequent commute is 3 days a week than for households with a most frequent commute of 1 day a week, given the other variables are held constant. 
 \
 
 <span style="color:#20b2aa">These results seem to contradict expected trends.</span>
@@ -2590,8 +2590,8 @@ ggplot(data=hh_vehcount_commutefreqmin, aes(x=commute_freq_simp_min, y=n, fill= 
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Commute Frequency (min)", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Simplified Commuting Frequency (min)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Simplified Commuting Frequency (min)")
 ```
 
 Reference group: Less than once a week
@@ -2603,7 +2603,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting frequency min simp : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$commute_freq_simp_min,
-                'Vehicle Ownership by Simplified Commuting Frequency (min)')
+                'Vehicle Count by Simplified Commuting Frequency (min)')
 ```
 \
 \
@@ -2655,8 +2655,8 @@ ggplot(data=hh_vehcount_commutefreqmax, aes(x=commute_freq_simp_max, y=n, fill= 
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Commute Frequency (max)", 
        y = "Surveyed Households", 
-       fill = "Vehicle Ownership",
-       title = "Vehicle Ownership by Simplified Commute frequency (max)")
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Simplified Commute frequency (max)")
 ```
 
 Reference group: Less than once a week
@@ -2668,10 +2668,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting frequency max simp : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group,
                 person_and_household$commute_freq_simp_max,
-                'Vehicle Ownership by Simplified Commute frequency (max)')
+                'Vehicle Count by Simplified Commute frequency (max)')
 ```
 \
-<span style="color:#20b2aa">Household commute frequency does not have a clear relationship with household vehicle ownership based on the simplification and aggregation techniques.</span>
+<span style="color:#20b2aa">Household commute frequency does not have a clear relationship with household vehicle count based on the simplification and aggregation techniques.</span>
 \
 
 * <span style="color:#20b2aa">In reference to the households with an individual commuting 3 or fewer days a week (**minimum**), both those commuting less than once a week (not statistically significant) and those working 4 or more times a week (statistically significant, p<0.01) have fewer household vehicles than households.
@@ -2706,10 +2706,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r commuting trips : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$hh_commutetrips,
-                "Vehicle Ownership by Trips:Worker Ratio")
+                "Vehicle Count by Trips:Worker Ratio")
 ```
 \
-<span style="color:#20b2aa">The number of commute trips by workers within the household is positively associated with higher household vehicle ownership. This relationship is statistically significant.</span>
+<span style="color:#20b2aa">The number of commute trips by workers within the household is positively associated with higher household vehicle count This relationship is statistically significant.</span>
 \
 \
 
@@ -2741,10 +2741,10 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r transit acc : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$scaled_score,
-                "Vehicle Ownership by Household Transit Accessibility")
+                "Vehicle Count by Household Transit Accessibility")
 ```
 \
-<span style="color:#20b2aa">Transit accessibility is negatively associated with household vehicle ownership, with households living in block groups with higher access to transit owning fewer household vehicles. This relationship is statistically significant.</span>
+<span style="color:#20b2aa">Transit accessibility is negatively associated with household vehicle count, with households living in block groups with higher access to transit owning fewer household vehicles. This relationship is statistically significant.</span>
 \
 \
 
@@ -2782,7 +2782,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r job accessibility auto : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$ln_jobs_auto_30,
-                "Vehicle Ownership by Job Accessibility (auto)")
+                "Vehicle Count by Job Accessibility (auto)")
 ```
 \
 \
@@ -2809,7 +2809,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r job accessibility transit : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$ln_jobs_transit_45,
-                "Vehicle Ownership by Job Accessibility (transit)")
+                "Vehicle Count by Job Accessibility (transit)")
 ```
 \
 \
@@ -2836,7 +2836,7 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r supermarket distance : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$dist_super,
-                "Vehicle Ownership by Distance to a Supermarket")
+                "Vehicle Count by Distance to a Supermarket")
 ```
 \
 \
@@ -2863,29 +2863,29 @@ bivariate_Pvalue(person_and_household$vehicle_group,
 ```{r school distance : stargazer table, results='asis'}
 stargazer_table(person_and_household$vehicle_group, 
                  person_and_household$dist_school,
-                "Vehicle Ownership by Distance to a school")
+                "Vehicle Count by Distance to a school")
 ```
 \
 
-<span style="color:#20b2aa">Overall, the relationship between proximity to jobs and services and household vehicle ownership is statistically significant.
+<span style="color:#20b2aa">Overall, the relationship between proximity to jobs and services and household vehicle count is statistically significant.
 \
 
 
 * **job accessibility **
 \
-    + *by automobile (30min)*: Higher jobs accessibility by automobile is associated with lower vehicle ownership
-    + *by transit (45m)*: Higher job accessibility by transit is associated with lower vehicle ownership, weaker relationship when compared to job accessibility by auto 
+    + *by automobile (30min)*: Higher jobs accessibility by automobile is associated with lower vehicle count
+    + *by transit (45m)*: Higher job accessibility by transit is associated with lower vehicle count, weaker relationship when compared to job accessibility by auto 
 \
 
 * **distance to services (mi)**
 \
-    + *supermarket*: Farther distance between house and supermarket is associated with higher vehicle ownership
-    + *school*: Farther distance between house and school is associated with higher vehicle ownership, weaker relationship when compared to supermarket distance
+    + *supermarket*: Farther distance between house and supermarket is associated with higher vehicle count
+    + *school*: Farther distance between house and school is associated with higher vehicle count, weaker relationship when compared to supermarket distance
 \
 \
 
 ### b. Overview: univariate analysis results  
-The table below shows which explanatory variables were statistically significant when analyzed against household vehicle ownership. Significance: &ast;p<0.1; &ast;&ast;&ast;p<0.05; &ast;&ast;&ast;p<0.01
+The table below shows which explanatory variables were statistically significant when analyzed against household vehicle count. Significance: &ast;p<0.1; &ast;&ast;&ast;p<0.05; &ast;&ast;&ast;p<0.01
 
 ```{r univariate analysis results, results='asis'}
 c1 <- as.data.frame(c(
@@ -2932,7 +2932,7 @@ c3 <- as.data.frame(c(
   "farther commute distances, longer commute times, households with more commute trips/worker",
   "lower transit accessibility",
   "lower job accessibility, reduced proximity to services"))
-colnames(c3)[1] <- "Trend (higher household vehicle ownership)"
+colnames(c3)[1] <- "Trend (higher household vehicle count)"
 
 corresponding <- cbind(c1,c2, c3)
 
@@ -2942,7 +2942,7 @@ kable(corresponding, format = "html",escape = FALSE, align = c('l','l','l')) %>%
 \
 
 ## 4. Correlation matrix with numerical variables
-The outcome variable is vehicle ownership (`vehicle_group`: 0, 1, 2, 3+).   
+The dependent variable is household vehicle count (`vehicle_group`: 0, 1, 2, 3+).   
 The explanatory variables can be categorized as **categorical** and *numeric*. The reference group is provided for the categorical variables. 
 \
 ```{r reference variables, eval=FALSE, include=FALSE}
@@ -3046,13 +3046,13 @@ corrplot::corrplot(cor_matrix, type = "lower", tl.col = "black", tl.srt = 45)
 #          pch = "p<.05", pch.cex = .5)
 ```
 \
-Based on the correlation matrix, household vehicle ownership is most correlated with the number of licensed household members (*0.569 = large correlation*), household size (*0.491 = moderate correlation*), and transit accessibility (*-0.477 = moderate correlation*).
+Based on the correlation matrix, household vehicle count is most correlated with the number of licensed household members (*0.569 = large correlation*), household size (*0.491 = moderate correlation*), and transit accessibility (*-0.477 = moderate correlation*).
 \
 \
 
 ## 5. Identifying important variables
 ### Model with all variables
-The ordered logit model reports the effects of X on Y when “controlling” for the other independent variables. This model tests main effects - assessing the relationship between each independent variable and the dependent variable (household vehicle ownership).
+The ordered logit model reports the effects of X on Y when “controlling” for the other independent variables. This model tests main effects - assessing the relationship between each independent variable and the dependent variable (household vehicle count).
 ```{r full model : analysis}
 # documentation about function: https://www.rdocumentation.org/packages/MASS/versions/7.3-52/topics/polr
 ordered_logit_all <-polr(as.factor(vehicle_group) ~
@@ -3081,8 +3081,14 @@ oddsratio <- round(exp(coef(ordered_logit_all)),2)
 ctable <-cbind(ctable, "p value"=p, "odds ratio"=oddsratio)
 ctable
 ```
+
+```{r McFadden R2 model}
+# Resource: http://finzi.psych.upenn.edu/R/library/DescTools/html/PseudoR2.html
+
+PseudoR2(ordered_logit_all, "all")
+```
 \
-<span style="color:#20b2aa">This model indicates that of the variables included, higher household vehicle ownership is most associated with: **household licenses, household income, commute frequency (?), household lifecycle, and residential type**. 
+<span style="color:#20b2aa">This model indicates that of the variables included, higher household vehicle count is most associated with: **household licenses, household income, commute frequency (?), household lifecycle, and residential type**. 
 \
 \
 This interpretation is based on the odds ratios. For example, for the households in the `$100,000 or more` income category, the odds of owning more vehicles (vs. owning 0 vehicles) is 3.276 times that of households in the reference income group (`Under $25,000`).</span>
@@ -3097,7 +3103,7 @@ stargazer::stargazer(ordered_logit_all,
 \
 
 ### Numerical variables
-Although the majority of the individual correlations between vehicle ownership and the explanatory variables are significant, incorporating interaction effects into the model will contribute to more fully understanding the relationship. Therefore, the next step requires determining which variable interactions should be added to the model.
+Although the majority of the individual correlations between vehicle count and the explanatory variables are significant, incorporating interaction effects into the model will contribute to more fully understanding the relationship. Therefore, the next step requires determining which variable interactions should be added to the model.
 \
 
 Overall, the dependent, or explanatory, variables can be organized into 3 categories: 
@@ -3143,18 +3149,18 @@ kable(corresponding, format = "html",escape = FALSE, align = c('l','l','l')) %>%
 Identifying variables that are highly correlated is important to reduce unreliable results from multicollinearity.
 
 ##### <span style="color:#486CAB">*SES characteristics*</span>
-Of the SES-related variables, `number of household licenses` is most highly correlated with vehicle ownership (*0.57 = large correlation*). As a result, **`number of household licenses`** has the best explanatory power and will be included in the model as the SES-variable.
+Of the SES-related variables, `number of household licenses` is most highly correlated with vehicle count (*0.57 = large correlation*). As a result, **`number of household licenses`** has the best explanatory power and will be included in the model as the SES-variable.
 \
 \
 When compared to the other SES-related variables, the `number of household licenses` is most correlated with `household size` (*0.81 = large correlation*) and the `number of household workers` (*0.48 = moderate correlation*), so these will not be included in the same model but can be used as alternatives. 
 \
 \
-`Jobs per worker` and `number of workers` are also highly correlated (*0.74 = large correlation*) because of the way that the former was calculated. Out of these two variables, `vehicle ownership` is more highly correlated with the `number of workers` *(0.29 = small correlation)* than `jobs per worker` *(0.14 = small correlation)*, but because `number of workers` is more correlated with `number of household licenses` (*0.48 = moderate correlation*) than `jobs per worker` (*0.26 = small correlation*), **`jobs per worker`** will be included in the model.
+`Jobs per worker` and `number of workers` are also highly correlated (*0.74 = large correlation*) because of the way that the former was calculated. Out of these two variables, vehicle count is more highly correlated with the `number of workers` *(0.29 = small correlation)* than `jobs per worker` *(0.14 = small correlation)*. Both `number of workers` and `jobs per worker` are correlated with `number of household licenses` (*0.48 = moderate correlation* and *0.26 = small correlation*, respectively). Both are correlated with number of `household size` (*0.48 = moderate correlation* and *0.25 = small correlation*, respectively). Because of these correlations, neither will be included in the model. 
 \
 \
 
 ##### <span style="color:#486CAB">*Home/work characteristics*</span>
-Of the home and work-related variables, `total auto commuting time` is most highly correlated with vehicle ownership (*0.147 = small correlation*), closely followed by `average auto commuting time` (*0.145 = small correlation*).
+Of the home and work-related variables, `total auto commuting time` is most highly correlated with vehicle count (*0.147 = small correlation*), closely followed by `average auto commuting time` (*0.145 = small correlation*).
 \
 \
 Based on these results, **`total commuting time`** has the best explanatory power and will be included in the model as the home/work variable. 
@@ -3165,13 +3171,13 @@ An alternative could be `number of household commute trips`, as is most correlat
 \
 
 ##### <span style="color:#486CAB">*Accessibility characteristics*</span>
-Of the accessibility-related variables, `transit score` is most highly correlated with vehicle ownership (*-0.477 = moderate correlation*). When compared to the other accessibility-related variables, `transit score` is highly correlated with `jobs accessible by transit within 45 minutes` (*0.786 = large correlation*), `jobs accessible by auto within 30 minutes` (*0.763 = large correlation*), and `distance to supermarkets` (*-0.699 = large correlation*).
+Of the accessibility-related variables, `transit score` is most highly correlated with vehicle count (*-0.477 = moderate correlation*). When compared to the other accessibility-related variables, `transit score` is highly correlated with `jobs accessible by transit within 45 minutes` (*0.786 = large correlation*), `jobs accessible by auto within 30 minutes` (*0.763 = large correlation*), and `distance to supermarkets` (*-0.699 = large correlation*).
 \
 \
 Based on these results, **`transit score`** has the best explanatory power and will be included in the model as the accessibility variable. 
 \
 \
-Alternatives could be `jobs accessible by auto within 30 minutes` (*-0.39 = moderate correlation*), or  `jobs accessible by transit within 45 minutes` (*-0.38 = moderate correlation*), which are the second and third most correlated accessibility variables when considering vehicle ownership, respectively.
+Alternatives could be `jobs accessible by auto within 30 minutes` (*-0.39 = moderate correlation*), or  `jobs accessible by transit within 45 minutes` (*-0.38 = moderate correlation*), which are the second and third most correlated accessibility variables when considering vehicle count, respectively.
 \
 \
 
@@ -3196,12 +3202,12 @@ Because these variables are not included in the correlation matrix, finding cate
 **Little explanatory power**
 
 * Household education: Minimum aggregation technique appears to have more explanatory power than maximum aggregation
-* Race: Although the univariate analysis between vehicle ownership and household race (`hh_race_2`: comparing white only and POC households) does indicate a significant relationship (p<0.01), it is not significant when included in the ordered logit model.   
+* Race: Although the univariate analysis between vehicle count and household race (`hh_race_2`: comparing white only and POC households) does indicate a significant relationship (p<0.01), it is not significant when included in the ordered logit model.   
 \
 \
 
 ## 6. Adjusted Models
-The ordered logit model reports the effects of X on Y when “controlling” for the other independent variables. This model tests main effects - assessing the relationship between each independent variable and the dependent variable (household vehicle ownership).
+The ordered logit model reports the effects of X on Y when “controlling” for the other independent variables. This model tests main effects - assessing the relationship between each independent variable and the dependent variable (household vehicle count).
 
 The following models will include different combinations of the numerical and categorical variables that seem to have the most explanatory power.
 
@@ -3214,7 +3220,6 @@ ordered_logit_1 <-polr(as.factor(vehicle_group) ~
                        hh_lifecycle + 
                        driver_simp +
                        numworkers_simp +
-                       jobs_numworkers +
                        rent_own_simp +
                        RGC_binary +
                        hh_com_auto_time_sum +
@@ -3233,6 +3238,9 @@ ctable <-cbind(ctable, "p value"=p, "odds ratio"=oddsratio)
 ctable
 ```
 
+```{r McFadden R2 model1}
+PseudoR2(ordered_logit_1, "all")
+```
 
 ### Second try: *Model 2*
 This slightly expanded model includes the important numerical variables that were identified above and the categorical variables with explanatory power *and slight explanatory power* are included.
@@ -3243,7 +3251,6 @@ ordered_logit_2 <-polr(as.factor(vehicle_group) ~
                        hh_lifecycle + 
                        driver_simp +
                        numworkers_simp +
-                       jobs_numworkers +
                        rent_own_simp + restype_simp +
                        RGC_binary +
                        hh_com_auto_time_sum +
@@ -3261,6 +3268,10 @@ oddsratio <- round(exp(coef(ordered_logit_2)),2)
 # combined table
 ctable <-cbind(ctable, "p value"=p, "odds ratio"=oddsratio)
 ctable
+```
+
+```{r McFadden R2 model2}
+PseudoR2(ordered_logit_2, "all")
 ```
 \
 
@@ -3300,32 +3311,15 @@ Source: https://onlinelibrary.wiley.com/doi/pdf/10.1002/9781118856406.app5
 \
 
 #### <span style="color:#009D6A">Comparison Results</span> 
-*Reference (full model with all variables):*
-```{r McFadden R2 model}
-# Resource: http://finzi.psych.upenn.edu/R/library/DescTools/html/PseudoR2.html
-
-PseudoR2(ordered_logit_all, "all")
-```
-
-*Model 1:*
-```{r McFadden R2 model1}
-PseudoR2(ordered_logit_1, "all")
-```
-
-*Model 2:*
-```{r McFadden R2 model2}
-PseudoR2(ordered_logit_2, "all")
-```
-
-<span style="color:#20b2aa"> Based on the McFadden and AIC/BIC values, the full model seems to have the best fit. 
+Based on the McFadden and AIC/BIC values, the full model seems to have the best fit. 
 \
-Model 1 is a slightly better fit than Model 2 according to McFadden, but is a worse fit according to the AIC/BIC values.</span>
+Model 1 is a slightly better fit than Model 2 according to McFadden, but is a worse fit according to the AIC/BIC values.
 \
 \
 \
 
 #### <span style="color:#009D6A">Example</span> 
-<span style="color:#20b2aa"> The influence of residential type changes in model 2, when compared to the full model with all variables. The trend remains similar for households living in **single-family housing** - remaining significant, although becoming slightly more explanatory. </span>
+ The influence of residential type changes in model 2, when compared to the full model with all variables. The trend remains similar for households living in **single-family housing** - remaining significant, although becoming slightly more explanatory.
 ```{r res type comparison table, results='asis'}
 c1 <- as.data.frame(c(
   "Coefficient",
@@ -3348,14 +3342,14 @@ c2 <- as.data.frame(c(
   "3,505.55"))
 colnames(c2)[1] <- "Full Model"
 c3 <- as.data.frame(c(
-  "0.89",
+  "0.90",
   "0.10",
-  "8.92",
+  "8.97",
   "0.00",
-  "2.44",
+  "2.45",
   "0.29",
-  "7,821.30",
-  "7,982.27"))
+  "7,822.34",
+  "7,976.87"))
 colnames(c3)[1] <- "Model 2"
 
 corresponding <- cbind(c1,c2, c3)
@@ -3374,30 +3368,129 @@ kable(corresponding, format = "html",escape = FALSE, align = c('l','l','l')) %>%
 This section summarizes the results presented in Section 5: Identifying important variables. 
 \
 
-#### <span style="color:#009D6A">*Most significant factors*</span>
+#### <span style="color:#009D6A">*Dependent variable*</span>  
+Household vehicle count, in response to the question: "How many motor vehicles (in working order) are there in your household?" Households are categorized into groups with 0, 1, 2, or 3+ vehicles. 
+\
+\
 
-* **Number of household licenses** 
-* **Household size/number of workers**
-* **Income**
-* **Household lifecycle** 
+The following results are based on Model 1 (above)
+
+#### <span style="color:#009D6A">*Most significant explanatory factors*</span>
+These variables are ordered based on impact - the highest odds ratio. All of them are significant (high t-values and low p-values). The relationship between the dependent variable (household vehicle count) and the explanatory variable is summarized in sub-bullet points. 
+
+* **Number of household licenses** [household members with license or permit]
+    + <span style="color:#20b2aa">Positive</span>: more household licenses &rightarrow; more vehicles
+* **Income** [5 broad income categories]
+    + <span style="color:#20b2aa">Positive</span>: more income &rightarrow; more vehicles
+* **Household lifecycle** [age of household members, presence of children]
+    + <span style="color:#20b2aa">Positive</span>: older household members &rightarrow; more vehicles
+    + Households with children &rightarrow; fewer vehicles
+* **Number of workers** [household members with 1+ jobs]
+    + <span style="color:#20b2aa">Positive</span>: more household workers &rightarrow; more vehicles
+* **Total commuting time** [minutes by automobile]
+    + <span style="color:#20b2aa">Positive</span>: higher commute times by automobile \rightarrow more vehicles
+* **Transit accessibility** [transit score, scaled to region]
+    + <span style="color:#20b2aa">Negative</span>: better transit accessibility/higher transit scores &rightarrow; fewer vehicles
+* **Housing in/out of RGC** [housing location within a Regional Growth Center]
+    + Living in the RGC (vs. outside RGC) &rightarrow; fewer household vehicles
+    + *Note: variable likely related to transit accessibility*
 * **Housing tenure**
-* **Accessibility/proximity to transit**
-* **Total commuting time**
-* **Number of jobs accessible by auto (30m) or transit (45m)**
+    + Households renting their homes (vs. owning) &rightarrow; fewer households vehicles
+    + *Note: "other" housing category is likely affecting the model statistics*
 \
 
 #### <span style="color:#009D6A">*For consideration*</span>
-Based on significance or strength of impact
+From model 2, these variables are statistically significant. 
 
-* **Residential type**: single-family (in reference to apartment/condo is significant and has relatively strong impact, other residential types are not significant
+* **Residential type**: single-family (in reference to apartment/condo) is significant and has relatively strong impact, other residential types are not significant
 * **Commute frequency**: min vs. max aggregation techniques reveal differing significance levels and impact
-* **Housing in/out of RGC**: significant, impact - but distant measurement of accessibility
 \
 
 #### <span style="color:#009D6A">*Of interest*</span>
 
-* **Race**: Although the univariate analysis between vehicle ownership and household race (hh_race_2: comparing white only and POC households) does indicate a significant relationship (p<0.01), it is not significant when included in the full ordered logit model. 
+* **Race**: Although the univariate analysis between vehicle count and household race (hh_race_2: comparing white only and POC households) does indicate a significant relationship (p<0.01), it is not significant when included in the full ordered logit model. 
 * **Education**: Household-level aggregation techniques (min, max) result in contradicting trends (univariate analysis). Education as a variable is not significant in the full ordered logit model.
+\
+\ 
+ 
+### Revised Models with Race
+Model 1 includes the variables that had the largest impact on household vehicle count in the full model. The following model will incorporate race to determine possible effects.
+\
+
+#### *Model 1a (with race)*
+```{r adj full model 1 with race : analysis}
+# documentation about function: https://www.rdocumentation.org/packages/MASS/versions/7.3-52/topics/polr
+ordered_logit_1_race <-polr(as.factor(vehicle_group) ~
+                              hhincomeb_reordered +
+                              hh_lifecycle + 
+                              driver_simp +
+                              numworkers_simp +
+                              hh_race_2 +
+                              rent_own_simp +
+                              RGC_binary +
+                              hh_com_auto_time_sum +
+                              scaled_score,
+                            data=person_and_household,
+                            Hess = T)
+
+# adding coefficients and p-values store table
+ctable <- round(coef(summary(ordered_logit_1_race)),2)
+# calculate and store p values
+p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,3)
+# odds ratio
+oddsratio <- round(exp(coef(ordered_logit_1_race)),2)
+# combined table
+ctable <-cbind(ctable, "p value"=p, "odds ratio"=oddsratio)
+ctable
+```
+
+```{r McFadden R2 model1 with race}
+PseudoR2(ordered_logit_1_race, "all")
+```
+Race in this model (Model 1a) is significant. Households of color (in reference to White only households) are more likely to own fewer vehicles. The strength of this association may be impacted by the "Missing/Other" race category. 
+\
+Based on the McFadden values, this model is slightly worse than the full model, but better than Model 1 and Model 2. 
+\
+This model is a slightly better fit than Model 1 or Model 2 according to McFadden. Based on AIC values it is slightly better than Model 1 and worse than Model 2. Based on BIC values it is slightly worse than Model 1 and worse than Model 2.   
+\
+
+#### *Model 2a (with race)*
+Model 2 includes the important numerical variables that were identified above and the categorical variables with explanatory power *and slight explanatory power* are included.
+```{r adj full model 2 with race : analysis}
+# documentation about function: https://www.rdocumentation.org/packages/MASS/versions/7.3-52/topics/polr
+ordered_logit_2_race <-polr(as.factor(vehicle_group) ~
+                              hhincomeb_reordered +
+                              hh_lifecycle +
+                              driver_simp +
+                              numworkers_simp +
+                              hh_race_2 +
+                              rent_own_simp + restype_simp +
+                              RGC_binary +
+                              hh_com_auto_time_sum +
+                              commute_freq_simp_min +
+                              scaled_score,
+                            data=person_and_household,
+                            Hess = T)
+
+# adding coefficients and p-values store table
+ctable <- round(coef(summary(ordered_logit_2_race)),2)
+# calculate and store p values
+p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,3)
+# odds ratio
+oddsratio <- round(exp(coef(ordered_logit_2_race)),2)
+# combined table
+ctable <-cbind(ctable, "p value"=p, "odds ratio"=oddsratio)
+ctable
+```
+
+```{r McFadden R2 model2 with race}
+PseudoR2(ordered_logit_2_race, "all")
+```
+Race in this model (Model 2a) is significant - less significant than in Model 1a, but the odds ratio is higher. Households of color (in reference to White only households) are more likely to own fewer vehicles. The strength of this association may be impacted by the "Missing/Other" race category. 
+\
+Based on the McFadden values, this model is slightly worse than the full model and Model 1a, but better than Model 1 and Model 2. 
+\
+This model is a slightly worse fit than Model 1 and slightly better than Model 2 according to McFadden. Based on AIC values it is slightly better than Models 1, 1a, and 2. Based on BIC values it is slightly worse than Model 2, and worse than Models 1 and 1a.   
 \
 \
 
