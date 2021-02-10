@@ -35,7 +35,7 @@ library(corrplot)
 library(summarytools)
 library(stargazer)
 library(MASS)
-library(caret) #requires lattice and ggplot2
+library(caret) #requires lattice and ggplot2, for re-sampling models
 library(lattice)
 library(interactions)
 library(hablar)
@@ -45,7 +45,7 @@ library(reshape2)
 library(table1)
 library(knitr)
 library(kableExtra)
-library(interplot) #for ploting interactions
+library(interplot) #for plotting interactions
 library(DescTools) #for goodness of fit - models
 ```
 
@@ -3085,7 +3085,13 @@ ctable
 ```{r McFadden R2 model}
 # Resource: http://finzi.psych.upenn.edu/R/library/DescTools/html/PseudoR2.html
 
-PseudoR2(ordered_logit_all, "all")
+PseudoR2 <- PseudoR2(ordered_logit_all, "all")
+PseudoR2
+```
+
+```{r McFadden adj R2 model, include=FALSE, eval=FALSE}
+PseudoR2(ordered_logit_all, which="McFaddenAdj")
+# returns NA
 ```
 \
 <span style="color:#20b2aa">This model indicates that of the variables included, higher household vehicle count is most associated with: **household licenses, household income, commute frequency (?), household lifecycle, and residential type**. 
@@ -3102,8 +3108,25 @@ stargazer::stargazer(ordered_logit_all,
 ```
 \
 
-### Numerical variables
-Although the majority of the individual correlations between vehicle count and the explanatory variables are significant, incorporating interaction effects into the model will contribute to more fully understanding the relationship. Therefore, the next step requires determining which variable interactions should be added to the model.
+Manually calculated pseudo $R^{2}$ values
+```{r McFadden calculated R2 full model}
+loglikelihood_fitted <- PseudoR2[11]
+loglikelihood_restricted <- PseudoR2[12]
+# the number of parameters includes interaction terms, random effects, dummy variables standing for non-reference categories of a nominal predictor, polynomials, etc.
+n_parameters <- 39 # or 8
+```
+*McFadden's* $R^{2}$
+```{r}
+Mc_R2 <- 1-(loglikelihood_fitted/loglikelihood_restricted)
+Mc_R2
+```
+
+*McFadden's Adjusted* $R^{2}$
+```{r}
+McAdj_R2 <- 1-((loglikelihood_fitted-n_parameters)/loglikelihood_restricted)
+McAdj_R2
+```
+\
 \
 
 Overall, the dependent, or explanatory, variables can be organized into 3 categories: 
@@ -3144,11 +3167,14 @@ corresponding <- cbind(c1,c2, c3)
 # print table using kable()
 kable(corresponding, format = "html",escape = FALSE, align = c('l','l','l')) %>% kable_styling("bordered",full_width = F, position = "left")
 ```
+\
+\
 
-#### <span style="color:#009D6A">Based on correlation coefficients</span>
+### Numerical variables
+**Based on correlation coefficients**  
 Identifying variables that are highly correlated is important to reduce unreliable results from multicollinearity.
 
-##### <span style="color:#486CAB">*SES characteristics*</span>
+#### <span style="color:#009D6A">*SES characteristics*</span>
 Of the SES-related variables, `number of household licenses` is most highly correlated with vehicle count (*0.57 = large correlation*). As a result, **`number of household licenses`** has the best explanatory power and will be included in the model as the SES-variable.
 \
 \
@@ -3159,7 +3185,7 @@ When compared to the other SES-related variables, the `number of household licen
 \
 \
 
-##### <span style="color:#486CAB">*Home/work characteristics*</span>
+#### <span style="color:#009D6A">*Home/work characteristics*</span>
 Of the home and work-related variables, `total auto commuting time` is most highly correlated with vehicle count (*0.147 = small correlation*), closely followed by `average auto commuting time` (*0.145 = small correlation*).
 \
 \
@@ -3170,7 +3196,7 @@ An alternative could be `number of household commute trips`, as is most correlat
 \
 \
 
-##### <span style="color:#486CAB">*Accessibility characteristics*</span>
+#### <span style="color:#009D6A">*Accessibility characteristics*</span>
 Of the accessibility-related variables, `transit score` is most highly correlated with vehicle count (*-0.477 = moderate correlation*). When compared to the other accessibility-related variables, `transit score` is highly correlated with `jobs accessible by transit within 45 minutes` (*0.786 = large correlation*), `jobs accessible by auto within 30 minutes` (*0.763 = large correlation*), and `distance to supermarkets` (*-0.699 = large correlation*).
 \
 \
@@ -3182,7 +3208,7 @@ Alternatives could be `jobs accessible by auto within 30 minutes` (*-0.39 = mode
 \
 
 ### Categorical Variables
-Because these variables are not included in the correlation matrix, finding categorical variables with explanatory power requires more interpretation of the values that reflect significance (t- and p-values). 
+Because these variables are not included in the correlation matrix, finding categorical variables with explanatory power requires more interpretation of the values that reflect significance (t- and p-values) from the full model (with all variables). 
 \
 \
 **Explanatory power**
@@ -3239,8 +3265,36 @@ ctable
 ```
 
 ```{r McFadden R2 model1}
-PseudoR2(ordered_logit_1, "all")
+PseudoR2 <- PseudoR2(ordered_logit_1, "all")
+PseudoR2
 ```
+
+```{r McFadden adj R2 model1, include=FALSE, eval=FALSE}
+PseudoR2(ordered_logit_1, "McFaddenAdj")
+# returns NA
+```
+
+Manually calculated pseudo $R^{2}$ values
+```{r McFadden calculated R2 model1}
+loglikelihood_fitted <- PseudoR2[11]
+loglikelihood_restricted <- PseudoR2[12]
+
+# the number of parameters includes interaction terms, random effects, dummy variables standing for non-reference categories of a nominal predictor, polynomials, etc.
+n_parameters <- 16 # or 8
+```
+*McFadden's* $R^{2}$
+```{r}
+Mc_R2 <- 1-(loglikelihood_fitted/loglikelihood_restricted)
+Mc_R2
+```
+
+*McFadden's Adjusted* $R^{2}$
+```{r}
+McAdj_R2 <- 1-((loglikelihood_fitted-n_parameters)/loglikelihood_restricted)
+McAdj_R2
+```
+\
+\
 
 ### Second try: *Model 2*
 This slightly expanded model includes the important numerical variables that were identified above and the categorical variables with explanatory power *and slight explanatory power* are included.
@@ -3271,9 +3325,38 @@ ctable
 ```
 
 ```{r McFadden R2 model2}
-PseudoR2(ordered_logit_2, "all")
+PseudoR2 <- PseudoR2(ordered_logit_2, "all")
+PseudoR2
+```
+
+```{r McFadden adj R2 model2, include=FALSE, eval=FALSE}
+PseudoR2(ordered_logit_2, "McFaddenAdj")
+# returns NA
 ```
 \
+
+Manually calculated pseudo $R^{2}$ values
+```{r McFadden calculated R2 model2}
+loglikelihood_fitted <- PseudoR2[11]
+loglikelihood_restricted <- PseudoR2[12]
+
+# the number of parameters includes interaction terms, random effects, dummy variables standing for non-reference categories of a nominal predictor, polynomials, etc.
+n_parameters <- 21 # or 10
+```
+*McFadden's* $R^{2}$
+```{r}
+Mc_R2 <- 1-(loglikelihood_fitted/loglikelihood_restricted)
+Mc_R2
+```
+
+*McFadden's Adjusted* $R^{2}$
+```{r}
+McAdj_R2 <- 1-((loglikelihood_fitted-n_parameters)/loglikelihood_restricted)
+McAdj_R2
+```
+\
+\
+
 
 ### Comparing Models
 "Although there's no commonly accepted agreement on how to assess the fit of a logistic regression, there are some approaches. The goodness of fit of the logistic regression model can be expressed by some variants of pseudo R squared statistics, most of which being based on the deviance of the model."
@@ -3316,10 +3399,9 @@ Based on the McFadden and AIC/BIC values, the full model seems to have the best 
 Model 1 is a slightly better fit than Model 2 according to McFadden, but is a worse fit according to the AIC/BIC values.
 \
 \
-\
 
-#### <span style="color:#009D6A">Example</span> 
- The influence of residential type changes in model 2, when compared to the full model with all variables. The trend remains similar for households living in **single-family housing** - remaining significant, although becoming slightly more explanatory.
+**Explanatory factor - residential type**  
+The influence of residential type changes in model 2, when compared to the full model with all variables. The trend remains similar for households living in **single-family housing** - remaining significant, although becoming slightly more explanatory.
 ```{r res type comparison table, results='asis'}
 c1 <- as.data.frame(c(
   "Coefficient",
@@ -3328,6 +3410,7 @@ c1 <- as.data.frame(c(
   "p-value",
   "Odds ratio",
   "McFadden",
+  "McFadden Adj",
   "AIC",
   "BIC"))
 colnames(c1)[1] <- "Values"
@@ -3338,6 +3421,7 @@ c2 <- as.data.frame(c(
   "0.00",
   "2.12",
   "0.32",
+  "0.30",
   "3,272.44",
   "3,505.55"))
 colnames(c2)[1] <- "Full Model"
@@ -3347,6 +3431,7 @@ c3 <- as.data.frame(c(
   "8.97",
   "0.00",
   "2.45",
+  "0.29",
   "0.29",
   "7,822.34",
   "7,976.87"))
@@ -3445,13 +3530,44 @@ ctable
 ```
 
 ```{r McFadden R2 model1 with race}
-PseudoR2(ordered_logit_1_race, "all")
+PseudoR2 <- PseudoR2(ordered_logit_1_race, "all")
+PseudoR2
 ```
-Race in this model (Model 1a) is significant. Households of color (in reference to White only households) are more likely to own fewer vehicles. The strength of this association may be impacted by the "Missing/Other" race category. 
+
+```{r McFadden adj  R2 model1 with race, include=FALSE, eval=FALSE}
+PseudoR2(ordered_logit_1_race, "McFaddenAdj")
+# returns NA
+```
+<span style="color:#20b2aa">Race in this model (Model 1a) is significant. Households of color (in reference to White only households) are more likely to own fewer vehicles. The strength of this association may be impacted by the "Missing/Other" race category. 
 \
-Based on the McFadden values, this model is slightly worse than the full model, but better than Model 1 and Model 2. 
 \
-This model is a slightly better fit than Model 1 or Model 2 according to McFadden. Based on AIC values it is slightly better than Model 1 and worse than Model 2. Based on BIC values it is slightly worse than Model 1 and worse than Model 2.   
+Based on the McFadden values, this model is a slightly worse fit than the full model, but a better fit than Model 1 and Model 2. 
+\
+\
+This model is a slightly better fit than Model 1 or Model 2 according to McFadden. Based on AIC values it is slightly better than Model 1 and worse than Model 2. Based on BIC values it is slightly worse than Model 1 and worse than Model 2.</span>   
+\
+\
+
+Manually calculated pseudo $R^{2}$ values
+```{r McFadden calculated R2 model1 with race}
+loglikelihood_fitted <- PseudoR2[11]
+loglikelihood_restricted <- PseudoR2[12]
+
+# the number of parameters includes interaction terms, random effects, dummy variables standing for non-reference categories of a nominal predictor, polynomials, etc.
+n_parameters <- 18 # or 9
+```
+*McFadden's* $R^{2}$
+```{r}
+Mc_R2 <- 1-(loglikelihood_fitted/loglikelihood_restricted)
+Mc_R2
+```
+
+*McFadden's Adjusted* $R^{2}$
+```{r}
+McAdj_R2 <- 1-((loglikelihood_fitted-n_parameters)/loglikelihood_restricted)
+McAdj_R2
+```
+\
 \
 
 #### *Model 2a (with race)*
@@ -3484,15 +3600,46 @@ ctable
 ```
 
 ```{r McFadden R2 model2 with race}
-PseudoR2(ordered_logit_2_race, "all")
+PseudoR2 <- PseudoR2(ordered_logit_2_race, "all")
+PseudoR2
 ```
-Race in this model (Model 2a) is significant - less significant than in Model 1a, but the odds ratio is higher. Households of color (in reference to White only households) are more likely to own fewer vehicles. The strength of this association may be impacted by the "Missing/Other" race category. 
+
+```{r McFadden adj R2 model2 with race, include=FALSE, eval=FALSE}
+PseudoR2(ordered_logit_2_race, "McFaddenAdj")
+# returns NA
+```
+<span style="color:#20b2aa">Race in this model (Model 2a) is significant - less significant than in Model 1a, but the odds ratio is higher. Households of color (in reference to White only households) are more likely to own fewer vehicles. The strength of this association may be impacted by the "Missing/Other" race category. 
 \
-Based on the McFadden values, this model is slightly worse than the full model and Model 1a, but better than Model 1 and Model 2. 
 \
-This model is a slightly worse fit than Model 1 and slightly better than Model 2 according to McFadden. Based on AIC values it is slightly better than Models 1, 1a, and 2. Based on BIC values it is slightly worse than Model 2, and worse than Models 1 and 1a.   
+Based on the McFadden values, this model is a slightly worse fit than the full model and Model 1a, but a better fit than Model 1 and Model 2. 
 \
 \
+This model is a slightly worse fit than Model 1 and slightly better than Model 2 according to McFadden. Based on AIC values it is slightly better than Models 1, 1a, and 2. Based on BIC values it is slightly worse than Model 2, and worse than Models 1 and 1a.</span>   
+\
+\
+
+Manually calculated pseudo $R^{2}$ values
+```{r McFadden calculated model2 with race}
+loglikelihood_fitted <- PseudoR2[11]
+loglikelihood_restricted <- PseudoR2[12]
+
+# the number of parameters includes interaction terms, random effects, dummy variables standing for non-reference categories of a nominal predictor, polynomials, etc.
+n_parameters <- 23 # or 11
+```
+*McFadden's* $R^{2}$
+```{r}
+Mc_R2 <- 1-(loglikelihood_fitted/loglikelihood_restricted)
+Mc_R2
+```
+
+*McFadden's Adjusted* $R^{2}$
+```{r}
+McAdj_R2 <- 1-((loglikelihood_fitted-n_parameters)/loglikelihood_restricted)
+McAdj_R2
+```
+\
+\
+
 
 ### Variable interactions
 Because some of the independent variables may interact with each other, as shown through the correlation matrix, considering interaction effects can add complexity because they incorporate an additional dimension - a third variable influencing the relationship between the independent and dependent variable.
@@ -3622,6 +3769,7 @@ ctable
 \
 \
 
+
 #### <span style="color:#009D6A">No significance</span> 
 
 * Race*household lifecycle
@@ -3631,3 +3779,32 @@ ctable
 * Race*RGC
 * Race*transit accessibility
 * Race*total auto commute time
+* Household size and income
+\
+
+*Household size and income*
+```{r test important interactions model 8: analysis}
+# documentation about function: https://www.rdocumentation.org/packages/MASS/versions/7.3-52/topics/polr
+ordered_logit <-polr(as.factor(vehicle_group) ~
+                       hhincomeb_reordered*hhsize_simp_num +
+                       hh_lifecycle +
+                       hh_race_2 +
+                       jobs_numworkers +
+                       driver_simp +
+                       hh_edu_min_simp +
+                       rent_own_simp +restype_simp +
+                       RGC_binary +
+                       hh_com_auto_time_sum +
+                       scaled_score,
+                       data=person_and_household, Hess = T)
+
+# adding coefficients and p-values store table
+ctable <- round(coef(summary(ordered_logit)),2)
+# calculate and store p values
+p <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,3)
+# odds ratio
+oddsratio <- round(exp(coef(ordered_logit)),2)
+# combined table
+ctable <-cbind(ctable, "p value"=p, "odds ratio"=oddsratio)
+ctable
+```
