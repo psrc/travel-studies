@@ -396,7 +396,8 @@ From workers with incomes less than $75,000 annually, lower income workers have 
 
 The average commuting distance by income:
 ```{r distance income with sample CI}
-Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_Distance, hh_wt_2019)
+dist_income_stats <- Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_Distance, hh_wt_2019)
+dist_income_stats
 ```
 
 ```{r}
@@ -411,7 +412,11 @@ ggplot(avg_dist_by_inc, aes(x=hhincome_detailed, y=avg_weighted_dist)) +
   geom_col() +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Distance by Income",
-      x ="Income Categories", y = "Average Weighted Distance (miles)")
+      x ="Income Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_income_stats$Weighted_avg-dist_income_stats$CI_95, 
+                    ymax=dist_income_stats$Weighted_avg+dist_income_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
 ```
 \
 \
@@ -450,8 +455,8 @@ ggplot(avg_dist_by_race, aes(x=race_category, y=avg_weighted_dist)) +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Distance by Race",
       x ="Race Categories", y = "Average Weighted Distance (miles)") +
-  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$sd, 
-                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$sd), 
+  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$CI_95, 
+                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$CI_95), 
                 width=.2,
                 position=position_dodge(.9))
 ```
@@ -509,7 +514,8 @@ The distance to work increases with income up to 200K, then declines. The averag
 
 The average commuting duration by income:
 ```{r time income with sample CI}
-Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_time, hh_wt_2019)
+time_income_stats <- Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_time, hh_wt_2019)
+time_income_stats
 ```
 
 ```{r}
@@ -525,7 +531,11 @@ ggplot(avg_time_by_inc, aes(x=hhincome_detailed, y=avg_weighted_time)) +
   geom_col() +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Travel Time by Income",
-      x ="Income Categories", y = "Weighted Average Commute Time (minutes)")
+      x ="Income Categories", y = "Weighted Average Commute Time (minutes)") +
+  geom_errorbar(aes(ymin=time_income_stats$Weighted_avg-time_income_stats$CI_95, 
+                    ymax=time_income_stats$Weighted_avg+time_income_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
 ```
 \
 \
@@ -553,8 +563,8 @@ ggplot(avg_time_by_race, aes(x=race_category, y=avg_weighted_time)) +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Time by Race",
       x ="Race Categories", y = "Average Weighted Time (minutes)") +
-  geom_errorbar(aes(ymin=time_race_stats$Weighted_avg-dist_race_stats$sd, 
-                    ymax=time_race_stats$Weighted_avg+dist_race_stats$sd), 
+  geom_errorbar(aes(ymin=time_race_stats$Weighted_avg-time_race_stats$CI_95, 
+                    ymax=time_race_stats$Weighted_avg+time_race_stats$CI_95), 
                 width=.2,
                 position=position_dodge(.9))
 ```
