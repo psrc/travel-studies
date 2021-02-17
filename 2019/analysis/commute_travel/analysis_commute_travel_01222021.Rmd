@@ -433,7 +433,27 @@ People who identify as other race have the shortest commutes (sample size?) Peop
 
 The average commuting distance by race:
 ```{r dist race with sample CI}
-Mean.SD_CI(not_home_workers, race_category, commute_auto_Distance, hh_wt_2019)
+dist_race_stats <- Mean.SD_CI(not_home_workers, race_category, commute_auto_Distance, hh_wt_2019)
+dist_race_stats
+```
+
+```{r}
+avg_dist_by_race<-not_home_workers %>%
+  group_by(race_category) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_race, aes(x=race_category, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+      x ="Race Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$sd, 
+                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$sd), 
+                width=.2,
+                position=position_dodge(.9))
 ```
 \
 \
@@ -516,7 +536,27 @@ People who identify with by a race other than African American, Asian, Hispanic 
 
 The average commuting duration by race:
 ```{r time race with sample CI}
-Mean.SD_CI(not_home_workers, race_category, commute_auto_time, hh_wt_2019)
+time_race_stats <- Mean.SD_CI(not_home_workers, race_category, commute_auto_time, hh_wt_2019)
+time_race_stats
+```
+
+```{r}
+avg_time_by_race<-not_home_workers %>%
+  group_by(race_category) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
+
+ggplot(avg_time_by_race, aes(x=race_category, y=avg_weighted_time)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Time by Race",
+      x ="Race Categories", y = "Average Weighted Time (minutes)") +
+  geom_errorbar(aes(ymin=time_race_stats$Weighted_avg-dist_race_stats$sd, 
+                    ymax=time_race_stats$Weighted_avg+dist_race_stats$sd), 
+                width=.2,
+                position=position_dodge(.9))
 ```
 \
 \
