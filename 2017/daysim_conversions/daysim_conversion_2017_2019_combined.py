@@ -994,6 +994,7 @@ def main():
     ## FIXE: REMOVE
     # temp access to created files
 
+
     #person_day = pd.read_csv(os.path.join(output_dir,'pday17.csv'))
     #household_day = pd.read_csv(os.path.join(output_dir,'hhday17.csv'))
 
@@ -1016,6 +1017,11 @@ def main():
                 col_list.remove(col)
         df[expcol] = df[expcol].astype('str').apply(lambda row: row.split('.')[0] + "." + row.split('.')[-1][0:2])
         df[col_list] = df[col_list].fillna(-1).astype(dtype='int', errors='ignore')
+
+        # Make sure persons and households are coordinated across the files
+        # Only want trips from people that have households, etc. 
+        df = df[df['hhno'].isin(hh['hhno'])]
+
         #df.to_csv(os.path.join(output_dir,df_name+'P14.dat'), index=False, sep=' ')
         #df.to_csv(os.path.join(output_dir,df_name+'P17.csv'), index=False, sep=',')
         df.to_csv(os.path.join(output_dir,df_name+'.tsv'), index=False, sep='\t')
