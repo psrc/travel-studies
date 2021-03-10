@@ -159,7 +159,8 @@ Mean.SD_CI <- function(x, cat_var, num_var, weight_var){
     
   Mean.SD_CI_temp<- dplyr::select(Mean.SD_CI_table, -c(n))
   
-  return(Mean.SD_CI_temp)
+  # return(Mean.SD_CI_temp)
+  return(Mean.SD_CI_table)
 }
 
 # rounding function applied to categorical columns 
@@ -272,12 +273,13 @@ not_home_workers <- workers %>%
 
 not_home_workers %>%
   group_by(employment) %>%
-  summarize(Weighted_2019=round(sum(hh_wt_2019))) %>%
+  summarize(n=n(),
+            Weighted_2019=round(sum(hh_wt_2019))) %>%
   mutate(Weighted_Percent=(round(Weighted_2019/sum(not_home_workers$hh_wt_2019),4)*100))
-
 not_home_workers %>%
   group_by(workplace) %>%
-  summarize(Weighted_2019=round(sum(hh_wt_2019))) %>%
+  summarize(n=n(),
+            Weighted_2019=round(sum(hh_wt_2019))) %>%
   mutate(Weighted_Percent=(round(Weighted_2019/sum(not_home_workers$hh_wt_2019),4)*100))
 ```
   
@@ -286,10 +288,15 @@ Out of a total 5,711 people who responded to the 2019 travel survey, **2,704** a
 \
 
 ## General commute statistics
+### Methodology
+
 The following statistics uses the fields `commute_auto_Distance` and `commute_auto_time` to summarize the distribution of distance to work and commute duration. It is important to note that only 2019 data has the distances. 
 \
 \
 The main question we will be attempting to answer is: **How does the distance or commute time from home to your primary workplace vary by income and race?**
+\
+\
+Commute travel times and distances were found using the google distance matrix api (https://developers.google.com/maps/documentation/distance-matrix/overview).  Survey respondents reported home locations and work locations for all household workers.  Google travel time and distance data were pulled from the api given these locations, assuming an 8 am travel time in April of 2019..
 \
 \
 
