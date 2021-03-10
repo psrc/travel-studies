@@ -14,16 +14,16 @@ from lookup import *
 
 # Set input paths
 
-trip_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\5_trip.csv'
-hh_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\1_household.csv'
-person_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2_person.csv'
+trip_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2018\5_trip.csv'
+hh_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2018\1_household.csv'
+person_file_dir = r'R:\e2projects_two\2018_base_year\survey\geocode_parcels\2018\2_person.csv'
 
 # FIXME - which columns to use?:
 hh_wt_col = 'hh_wt_combined'
 
 # Output directory
-#output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
-output_dir = r'R:\e2projects_two\2018_base_year\survey\daysim_format'
+output_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
+#output_dir = r'R:\e2projects_two\2018_base_year\survey\daysim_format'
 #output_dir  = r'C:\Users\bnichols\Documents\estimation_2017\2014_estimation'
 
 # Flexible column names, given that these may change in future surveys
@@ -1004,8 +1004,8 @@ def main():
 
     #tour.loc[tour['tmodetp'] == -1, 'tmodetp'] = 10
 
-    for df_name, df in {'prec': person, 'trip': trip, 'tour': tour, 'hrec': hh,
-                        'hday': household_day, 'pday': person_day}.items():
+    for df_name, df in {'_person': person, '_trip': trip, '_tour': tour, '_household': hh,
+                        '_household_day': household_day, '_person_day': person_day}.items():
         print(df_name)
         #print(df)
         expcol = [col for col in df.columns if 'expfac' in col][0]
@@ -1016,8 +1016,9 @@ def main():
                 col_list.remove(col)
         df[expcol] = df[expcol].astype('str').apply(lambda row: row.split('.')[0] + "." + row.split('.')[-1][0:2])
         df[col_list] = df[col_list].fillna(-1).astype(dtype='int', errors='ignore')
-        df.to_csv(os.path.join(output_dir,df_name+'P14.dat'), index=False, sep=' ')
-        df.to_csv(os.path.join(output_dir,df_name+'P17.csv'), index=False, sep=',')
+        #df.to_csv(os.path.join(output_dir,df_name+'P14.dat'), index=False, sep=' ')
+        #df.to_csv(os.path.join(output_dir,df_name+'P17.csv'), index=False, sep=',')
+        df.to_csv(os.path.join(output_dir,df_name+'.tsv'), index=False, sep='\t')
 
 if __name__ == '__main__':
     main()
