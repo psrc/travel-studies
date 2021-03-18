@@ -1,0 +1,1444 @@
+---
+title: 'Household Travel Survey: Commuting Data'
+author: "Suzanne Childress & Mary Richards"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+  word_document: default
+  pdf_document: default
+---
+
+This report presents preliminary findings for commuting trends based on the Household Travel Survey (2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE) # formatting
+```
+
+```{r libraries, include=FALSE}
+# source('travel_survey_analysis_functions.R')
+library(tidyverse)
+library(openxlsx)
+library(odbc)
+library(DBI)
+library(dplyr)
+library(ggplot2)
+
+library(table1)
+library(knitr)
+library(kableExtra)
+library(summarytools)
+library(formattable)
+```
+
+```{r functions, include=FALSE}
+# connecting to Elmer
+db.connect <- function() {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\Sockeye",
+                                database = "Elmer",
+                                trusted_connection = "yes"
+  )
+}
+
+# a function to read tables and queries from Elmer
+read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
+  elmer_connection <- db.connect()
+  if (type == 'table_name') {
+    dtelm <- dbReadTable(elmer_connection, SQL(astring))
+  } else {
+    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
+  }
+  dbDisconnect(elmer_connection)
+  dtelm
+}
+
+# Create a simplified crosstab from one variable, calculate counts, totals, shares, and MOE for categorical data
+create_table_one_var_simp= function(var1, table_temp, table_type) {
+  #table_temp = recategorize_var_upd(var2,table_temp)
+  #print(table_temp)
+  if (table_type == "household" | table_type == "person" ) {
+    weight_2017 = "hh_wt_revised"
+    weight_2019 = "hh_wt_2019"
+    weight_comb = "hh_wt_combined"
+  } else if (table_type == "trip") {
+    weight_2017 = "trip_weight_revised"
+    weight_2019 = "trip_wt_2019"
+    weight_comb = "trip_wt_combined"  
+  } 
+  
+  temp = table_temp %>% 
+    dplyr::select(!!sym(var1), all_of(weight_2019)) %>% 
+    filter(!.[[1]] %in% missing_codes, !is.na(.[[1]])) %>% 
+    group_by(!!sym(var1)) %>% 
+    summarise(SampleSize=n(),
+              Weighted_2019 = sum(.data[[weight_2019]],na.rm = TRUE), 
+              Weighted_2019 = round(Weighted_2019, 0)) %>% 
+    mutate(WeightedPercent = Weighted_2019/sum(Weighted_2019)*100, 
+           WeightedPercent = round(WeightedPercent, 2)) %>% 
+    ungroup() %>%  
+    mutate(MOE=1.65*(0.25/sum(SampleSize))^(1/2)*100, 
+           MOE=round(MOE, 2)) %>% 
+    arrange(var1)
+  return(temp)
+}
+
+# Create a crosstab from two variables, calculate counts, totals, and shares for categorical data
+cross_tab_categorical <- function(table, var1, var2, wt_field) {
+  expanded <- table %>% 
+    group_by(.data[[var1]],.data[[var2]]) %>%
+    dplyr::summarize(Count= n(),Total=sum(.data[[wt_field]])) %>%
+    group_by(.data[[var1]])%>%
+    mutate(Percentage=Total/sum(Total)*100)
+  
+  
+  expanded_pivot <-expanded%>%
+    pivot_wider(names_from=.data[[var2]], values_from=c(Percentage,Total, Count))
+  
+  return (expanded_pivot)
+  
+} 
+
+# Create margins of error for dataset
+categorical_moe <- function(sample_size_group){
+  sample_w_MOE<-sample_size_group %>%
+    mutate(p_col=p_MOE) %>%
+    mutate(MOE_calc1= (p_col*(1-p_col))/sample_size) %>%
+    mutate(MOE_Percent=z*sqrt(MOE_calc1)*100)
+  
+  sample_w_MOE<- dplyr::select(sample_w_MOE, -c(p_col, MOE_calc1))
+  
+  return(sample_w_MOE)
+}
+
+# create table with bivariate analysis stats
+bivariate_Pvalue <- function(outcome, explanatory){
+  model_output <- polr(as.factor(outcome) ~ explanatory, Hess=T)
+  ctable <- coef(summary(model_output))
+  # calculate and store p values
+  p <- pnorm(abs(ctable[,"t value"]), lower.tail = F)*2
+  p_round <- round(pnorm(abs(ctable[,"t value"]), lower.tail = F)*2,4)
+  #odds ratio
+  oddsratio <- round(exp(coef(model_output)),4)
+  #combine elements
+  ctable <- cbind(round(ctable,4), "p-value"=p, "simp p."=p_round, "odds ratio"=oddsratio)
+  return(ctable)
+}
+
+# create stargazer table
+stargazer_table <- function(outcome, explanatory, table_title){
+  stargazer::stargazer(
+    polr(as.factor(outcome) ~ explanatory, Hess=T), type = "html",
+                      title =  table_title,
+                      notes.append =  FALSE, 
+                      notes =  c("<sup>&sstarf;</sup>p<0.1; <sup>&sstarf;&sstarf;</sup>p<0.05; <sup>&sstarf;&sstarf;&sstarf;</sup>p<0.01"))
+
+}
+
+# Confidence Interval for mean = sample mean + Z-value for confidence level(sample st. dev/sqrt(number of elements in sample))
+
+Mean.SD_CI <- function(x, cat_var, num_var, weight_var){
+  cat_var <- enquo(cat_var)
+  num_var <- enquo(num_var)
+  weight_var <- enquo(weight_var)
+
+  Mean.SD_CI_table <- x %>%
+    group_by(!!cat_var) %>%
+    summarize(Group_weight = round(sum(!!weight_var),0),
+              Weighted_percent = (round(Group_weight/sum(x$hh_wt_2019),4)),
+              Weighted_avg = round(weighted.mean(!!num_var, !!weight_var),2),
+              sd = round(sd(!!num_var),2),
+              se = round(sd/sqrt(n()),2),
+              CI_90 = round(z*(sd/sqrt(n())),2),
+              CI_95 = round(z_95*(sd/sqrt(n())),2),
+              n=n())
+    
+  Mean.SD_CI_temp<- dplyr::select(Mean.SD_CI_table, -c(n))
+  
+  # return(Mean.SD_CI_temp)
+  return(Mean.SD_CI_table)
+}
+
+# adding commas to numbers - thousand separator 
+mycomma <- function(digits = 0) {
+      formatter("span", x ~ comma(x, digits = digits)
+      )
+    }
+
+# rounding function applied to categorical columns 
+my.render.cat <- function(x) {
+    c("", sapply(stats.default(x), function(y) with(y,
+        sprintf("%d (%.0f%%)", FREQ, PCT))))}
+
+# Statistical assumptions for margins of error
+p_MOE <- 0.5
+z <- 1.645 #90% CI
+z_95 <- 1.96 #95% CI
+missing_codes <- c('Missing: Technical Error', 'Missing: Non-response', 
+                   'Missing: Skip logic', 'Children or missing', 'Prefer not to answer',
+                   'Missing')
+```
+
+```{r read in and set up data}
+#### Read in Data ####
+#where you are running your R code
+wrkdir <- "C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis"
+
+
+#where you want to output tables
+file_loc <- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/outputs'
+
+sql.trip.query <- paste("SELECT hhincome_detailed, race_category, person_dim_id, mode_simple,
+                        survey_year, o_purpose, d_purpose, trip_wt_2019 
+                        FROM HHSurvey.v_trips_2017_2019")
+
+trips <- read.dt(sql.trip.query, 'sqlquery')
+trips_2019 <- trips %>% filter(survey_year==2019)
+
+sql.person.query <- paste("SELECT employment, hhincome_detailed, hhincome_broad, race_category, person_dim_id, gender, age, age_category, education, vehicle_count,commute_auto_time,commute_auto_Distance, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5, workplace, survey_year, sample_county, work_county,telecommute_freq, hh_wt_2019 FROM HHSurvey.v_persons_2017_2019")
+
+persons<-read.dt(sql.person.query, 'sqlquery')
+persons_2019 <- persons  %>% filter(survey_year==2019)
+```
+\
+
+## Commuting Trips
+This analysis will focus on the commute trips of people who usually work outside the home. 
+
+* **What is the share of trips made for "commuting"?**
+
+Commuting will be defined as the trips where one of the trip ends is a regular workplace - based on the survey logic, the origin or destination purpose is 'Went to primary workplace'
+```{r, include=FALSE}
+## SURVEY
+survey_trips <- nrow(trips_2019) # 72,855
+
+# filter to commute trips made by people who work outside the home usually
+commute_trips <- trips_2019 %>%
+  filter(o_purpose=='Went to primary workplace' | d_purpose=='Went to primary workplace')
+
+survey_commute_trips <- nrow(commute_trips) # 14,501
+
+survey_commute_trips/survey_trips #0.199
+
+## WEIGHTED
+trips_total <- sum(trips_2019$trip_wt_2019) #17,813,956
+
+trips_commute <- trips_2019 %>% 
+  filter(o_purpose=='Went to primary workplace' | d_purpose=='Went to primary workplace') %>%
+  summarize(commute_trips=sum(trip_wt_2019)) 
+
+trips_commute <- commute_trips %>% 
+  summarize(weighted_commute_trips=sum(trip_wt_2019))
+# 4,189,078	
+
+trips_commute/trips_total # 24%
+```
+Based on the total number of trips (72,855) documented as part of the 2019 survey results, 20% (14,501) were recorded as being commute trips. When trip weights are taken into consideration, **24%** of the trips in the region are for commuting. 
+\
+\
+This value reflects a slightly different finding compared to the 2017 National Household Travel Survey (NHTS). In ["Summary of Travel Trends"](https://nhts.ornl.gov/assets/2017_nhts_summary_travel_trends.pdf) Table 5c (left) shows that approximately 17% of average annual person trips are to travel to or from work (546 out of 3,140). 
+\
+\
+Table 6c (right) shows that households annually make an average of 450 vehicle trips to/from work out of the total 1,865 trips for all purposes, or 24%.
+\
+```{r, include=FALSE, fig.show="hold", out.width="50%"}
+knitr::include_graphics("C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/PersonTrips.PNG")
+knitr::include_graphics("C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/VehicleTrips.PNG")
+```
+\
+
+## Defining Commuters
+This subset of the respondents are based on the following survey questions: 
+
+* **"Primary type of employment?"** 
+* **"Please answer for your primary jobs where you work the most hours per week"**
+    + "Usual work location?"
+\
+
+For this analysis, commuters are those with: 
+
+1. full-time or part-time paid employment or those who identified as self-employed with workplaces.  
+2. workplaces that are not at home  
+3. commute distances less than 200 miles
+\
+\
+
+```{r}
+workers <- persons_2019 %>% 
+  filter(employment=='Employed full time (35+ hours/week, paid)'|
+           employment=='Employed part time (fewer than 35 hours/week, paid)'|
+           employment=='Self-employed')
+
+# work_loc_type <- workers %>% 
+#   group_by(workplace) %>%
+#   summarize(Sample_size=n(),
+#             Weighted_2019=sum(hh_wt_2019)) %>%
+#   mutate(Weighted_Percent=(round(Weighted_2019/sum(workers$hh_wt_2019),4)*100))
+
+# get workers who don't work at home all the time with commute distances less than 200 miles
+# remove outliers
+not_home_workers <- workers %>% 
+  filter(workplace!='At home (telecommute or self-employed with home office)') %>%
+  filter(commute_auto_Distance<200)
+
+# table1(~employment|workplace, data=not_home_workers,
+#        render.categorical=my.render.cat)
+
+table_employment <- not_home_workers %>%
+  group_by(employment) %>%
+  summarize(n=n(),
+            Weighted_2019=round(sum(hh_wt_2019))) %>%
+  mutate(Weighted_Percent=(round(Weighted_2019/sum(not_home_workers$hh_wt_2019),4)))
+
+formattable(table_employment,
+            list(area(col=c(2:NCOL(table_employment)))~mycomma(digits=0),
+                 Weighted_Percent=percent),
+            align=c("l", "c", "c", "c"),
+            col.names=c("Employment", "Sample Size", "2019 Estimate", "2019 Percent"))
+
+table_workplace <- not_home_workers %>%
+  group_by(workplace) %>%
+  summarize(n=n(),
+            Weighted_2019=round(sum(hh_wt_2019))) %>%
+  mutate(Weighted_Percent=(round(Weighted_2019/sum(not_home_workers$hh_wt_2019),4)))
+
+formattable(table_workplace,
+            list(area(col=c(2:NCOL(table_employment)))~mycomma(digits=0),
+                 Weighted_Percent=percent),
+            align=c("l", "c", "c", "c"),
+            col.names=c("Workplace", "Sample Size", "2019 Estimate", "2019 Percent"))
+```
+\
+Out of a total 5,711 people who responded to the 2019 travel survey, **2,704** are individuals employed outside of the home who commute with automobile commutes of less than 200 miles. These individuals represent approximately 39% of the people in the region. The commute distance limit was intended to remove outliers.
+\
+\
+
+## General commute statistics
+### Methodology
+
+The main question we will be attempting to answer is:  
+<span style="color:#91268F">**How does the distance or commute time from home to your primary workplace vary by income and race?**</span> 
+\
+\
+Commute travel times and distances were found using the google distance matrix api (https://developers.google.com/maps/documentation/distance-matrix/overview).  Survey respondents reported home locations and work locations for all household workers.  Google travel time and distance data were pulled from the api given these locations, assuming an 8 am travel time in April of 2019.
+\
+\
+
+### **Commute distance**
+```{r}
+mean_dist<-weighted.mean(not_home_workers$commute_auto_Distance,
+                         w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+
+# hist(not_home_workers$commute_auto_Distance, main="Histogram of Commute Distance (miles)")
+
+ggplot(not_home_workers, aes(x=commute_auto_Distance, weight=hh_wt_2019)) + 
+  geom_histogram(fill="#00A7A0", binwidth=2)+xlim(c(0, 50)) +
+  geom_vline(xintercept=mean_dist) +
+  labs(title="Distribution of 2019 Commute Distances (from the HTS)",
+      x ="Commute Distance (miles)", y = "Number of Workers (Region)")
+```
+\
+_The vertical line at x=**13.97 miles** represents the mean distance traveled by workers_
+\
+\
+
+*Share of workers in the region with auto commutes*
+```{r}
+not_home_workers <- not_home_workers %>%
+  mutate(dist_bins = case_when(commute_auto_Distance<3 ~ "<3 miles (very short)",
+                               commute_auto_Distance>=3 &
+                                 commute_auto_Distance<10 ~ "3-10 miles (short)",
+                               commute_auto_Distance>=10 &
+                                 commute_auto_Distance<20 ~ "10-20 miles (average)",
+                               commute_auto_Distance>=20 &
+                                 commute_auto_Distance<50 ~ "20-50 miles (long)",
+                               commute_auto_Distance>=50 ~ "50+ miles (very long)"))
+
+not_home_workers$dist_bins <- factor(not_home_workers$dist_bins,
+                               levels=c("<3 miles (very short)","3-10 miles (short)","10-20 miles (average)",
+                                        "20-50 miles (long)","50+ miles (very long)"))
+
+distance_workers <- not_home_workers %>%
+  group_by(dist_bins) %>%
+  summarise(HouseholdWeight=round(sum(hh_wt_2019)),
+            WeightedPercent=round(HouseholdWeight/sum(not_home_workers$hh_wt_2019),4),
+            WeightedAvg=round(weighted.mean(commute_auto_Distance,
+                         w=hh_wt_2019,na.rm=TRUE),2),
+            min=min(commute_auto_Distance), 
+            max=max(commute_auto_Distance),
+            SampleSize=n(),
+            SamplePercent=round(SampleSize/nrow(not_home_workers),4))
+
+formattable(distance_workers,
+            list(area(col=c(2, 5:6))~mycomma(digits=0),
+                 WeightedPercent=percent,
+                 SamplePercent=percent),
+            align=c("l", rep("c", NCOL(distance_workers))),
+            col.names=c("Distance", "2019 Estimate", "2019 Percent", "2019 Average", "Minimum", "Maximum", "Sample Size", "Sample Percent"))
+```
+\
+\
+
+#### 1. Income
+```{r}
+# reorder detailed income categories
+not_home_workers$hhincome_detailed <- factor(not_home_workers$hhincome_detailed,
+                                             levels=c("Under $10,000",
+                                                      "$10,000-$24,999",
+                                                      "$25,000-$34,999",
+                                                      "$35,000-$49,999",
+                                                      "$50,000-$74,999",
+                                                      "$75,000-$99,999",
+                                                      "$100,000-$149,999",
+                                                      "$150,000-$199,999",
+                                                      "$200,000-$249,999",
+                                                      "$250,000 or more",
+                                                      "Prefer not to answer"))
+```
+Lower income workers tend to have shorter commutes.  For example, workers with incomes between $10,000 and $24,999 have commutes that are about 7 miles, whereas workers with incomes between $75,000 and $99,999 have commutes that are about 15 miles. The average travel distance to work is highest for workers in the $150,000-$199,999 income bracket - about 18 miles - with those in higher income brackets having shorter commutes about 15 miles.
+\
+\
+
+*The average commuting distance (miles) by income*
+```{r distance income with sample CI}
+dist_income_stats <- Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_Distance, hh_wt_2019)
+
+formattable(dist_income_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(dist_income_stats))),
+            col.names=c("Income", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+
+```{r}
+avg_dist_by_inc<-not_home_workers %>%
+  group_by(hhincome_detailed) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_inc, aes(x=hhincome_detailed, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+      x ="Income Categories", y = "Average Commute Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_income_stats$Weighted_avg-dist_income_stats$CI_95, 
+                    ymax=dist_income_stats$Weighted_avg+dist_income_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### 2. Race
+```{r}
+# reorder race categories
+not_home_workers$race_category <- 
+  factor(not_home_workers$race_category,
+         levels=c("African American",
+                  "Asian",
+                  "Hispanic",
+                  "White Only",
+                  "Other",
+                  "Missing"))
+```
+People who identify as White Only have the farthest commutes (15 miles). The margins of error for African American and Hispanic groups are relatively large due to the small sample sizes. 
+\
+
+*The average commuting distance by race*
+```{r dist race with sample CI}
+dist_race_stats <- Mean.SD_CI(not_home_workers, race_category, commute_auto_Distance, hh_wt_2019)
+
+formattable(dist_race_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(dist_race_stats))),
+            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+
+```{r}
+avg_dist_by_race<-not_home_workers %>%
+  group_by(race_category) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_race, aes(x=race_category, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+      x ="Race Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$CI_95, 
+                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+##### Aggregated Race
+Because of small sample sizes, some of the respondents have been aggregated.
+\
+\
+
+<span style="color:#486CAB">**African American, Hispanic, and Other**</span>  
+For this analysis, respondents who identified as African American, Hispanic, and Other were aggregated. 
+```{r}
+# reorder race categories
+not_home_workers$race_category <- as.character(not_home_workers$race_category)
+not_home_workers <- not_home_workers %>%
+  mutate(race_agg_2 = case_when(race_category=="African American" |
+                                  race_category=="Hispanic" |
+                                  race_category=="Other" ~ "Other POC",
+                                race_category=="Asian" ~ "Asian POC",
+                                TRUE~.$race_category))
+
+not_home_workers$race_agg_2 <- factor(not_home_workers$race_agg_2,
+                                      levels=c("Asian POC",
+                                               "Other POC",
+                                               "White Only",
+                                               "Missing"))
+```
+People who identify as African American, Hispanic, or Other have shorter commutes (11 miles), while White Only individuals have longer commutes (15 minutes).
+
+The margin of error for the Other POC group is distinct from respondents identifying as Asian or White Only.
+\
+\
+
+*The average commuting distance by race*
+```{r dist race_2 with sample CI}
+dist_race_stats <- Mean.SD_CI(not_home_workers, race_agg_2, commute_auto_Distance, hh_wt_2019)
+
+formattable(dist_race_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(dist_race_stats))),
+            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+
+```{r}
+avg_dist_by_race<-not_home_workers %>%
+  group_by(race_agg_2) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_race, aes(x=race_agg_2, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+      x ="Race Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$CI_95, 
+                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+#### 3. Gender
+```{r, include=FALSE, eval=FALSE}
+# reorder gender categories
+not_home_workers$gender <- 
+  factor(not_home_workers$gender,
+         levels=c("Female",
+                  "Male",
+                  "Another",
+                  "Prefer not to answer")
+```
+People who identify as male have the farthest commute (15 miles). Females have shorter commutes (13 miles), and people of another gender or who prefer not to answer do not have enough samples to draw a statistical conclusion. 
+\
+
+*The average commuting distance by gender*
+```{r dist gender with sample CI}
+dist_gender_stats <- Mean.SD_CI(not_home_workers, gender, commute_auto_Distance, hh_wt_2019)
+
+formattable(dist_gender_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(dist_gender_stats))),
+            col.names=c("Gender", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+\
+
+Because of the small sample sizes for respondents identifying as Another or choosing not to answer, these respondents were removed from the graph:
+\
+\
+```{r}
+avg_dist_by_gender<-not_home_workers %>%
+  select(gender, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender)
+
+temp <- avg_dist_by_gender %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Gender",
+       x ="Gender Categories", 
+       y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+
+```{r, include=FALSE, eval=FALSE}
+avg_dist_by_gender<-not_home_workers %>%
+  group_by(gender) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_gender, aes(x=gender, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Gender",
+      x ="Gender Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_gender_stats$Weighted_avg-dist_gender_stats$CI_95, 
+                    ymax=dist_gender_stats$Weighted_avg+dist_gender_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+### **Commute duration**
+```{r}
+mean_time<-weighted.mean(not_home_workers$commute_auto_time,
+                         w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+
+# hist(not_home_workers$commute_auto_time, main="Histogram of Commute Duration (minutes)")
+
+ggplot(not_home_workers, aes(x=commute_auto_time, weight=hh_wt_2019)) + 
+  geom_histogram(fill="#00A7A0", binwidth=5)+xlim(c(0, 200))+
+  scale_x_continuous(breaks=seq(0,200,5))+
+  geom_vline(xintercept=mean_time)+
+  labs(title="Distribution of 2019 Commute Times (from the HTS)",
+       x ="Commute Times (minutes)", y = "Number of Workers (Region)")
+```
+\
+_The vertical line at x=**29.30 minutes** represents the mean commute duration for workers_
+\
+\
+
+*Share of workers with auto commutes*
+```{r}
+not_home_workers <- not_home_workers %>%
+  mutate(time_bins = case_when(commute_auto_time<10 ~ "<10 minutes",
+                               commute_auto_time>=10 &
+                                 commute_auto_time<20 ~ "10-20 minutes",
+                               commute_auto_time>=20 &
+                                 commute_auto_time<30 ~ "20-30 minutes",
+                               commute_auto_time>=30 &
+                                 commute_auto_time<45 ~ "30-45 minutes",
+                               commute_auto_time>=45 &
+                                 commute_auto_time<60 ~ "45-60 minutes",
+                               commute_auto_time>=60 ~ "60+ minutes"))
+
+time_table <- not_home_workers %>%
+  group_by(time_bins) %>%
+  summarise(HouseholdWeight=round(sum(hh_wt_2019)),
+            WeightedPercent=(round(HouseholdWeight/sum(not_home_workers$hh_wt_2019),4)),
+            WeightedAvg=round(weighted.mean(commute_auto_time,
+                         w=hh_wt_2019,na.rm=TRUE),2),
+            min=min(commute_auto_time), 
+            max=max(commute_auto_time),
+            SampleSize=n(),
+            SamplePercent=round(SampleSize/nrow(not_home_workers),4))
+
+formattable(time_table,
+            list(area(col=c(2, 5:6))~mycomma(digits=0),
+                 WeightedPercent=percent,
+                 SamplePercent=percent),
+            align=c("l", rep("c", NCOL(time_table))),
+            col.names=c("Time", "2019 Estimate", "2019 Percent", "2019 Average", "Minimum", "Maximum", "Sample Size", "Sample Percent"))
+```
+\
+\
+
+#### 1. Income
+The time spent commuting to work increases with income until $75,000, when it stays relatively consistent at aroudn 33 minutes. The average commuting time to work for people in households with incomes between $10,000 and $24,999 is 20 minutes. The average time to work for people in households with incomes between $75,000-$99,999 is approximately 65% longer.
+\
+\
+
+*The average commuting duration by income*
+```{r time income with sample CI}
+time_income_stats <- Mean.SD_CI(not_home_workers, hhincome_detailed, commute_auto_time, hh_wt_2019)
+
+formattable(time_income_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(time_income_stats))),
+            col.names=c("Income", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+
+```{r}
+avg_time_by_inc<-not_home_workers %>% 
+  group_by(hhincome_detailed) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            WeightedPercent=round((HouseholdWeight/sum(HouseholdWeight))*100,2),
+            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
+
+ggplot(avg_time_by_inc, aes(x=hhincome_detailed, y=avg_weighted_time)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Travel Time by Income",
+      x ="Income Categories", y = "Average Commute Time (minutes)") +
+  geom_errorbar(aes(ymin=time_income_stats$Weighted_avg-time_income_stats$CI_95, 
+                    ymax=time_income_stats$Weighted_avg+time_income_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### 2. Race
+People who identify Other have the shortest commutes at about 18 minutes. African American, Asian, Hispanic, and White Only workers all have commutes around 30 minutes long. Although African Americans appear to have slightly shorter commutes, the margin of error is larger because of the small sample size.
+\
+
+*The average commuting duration by race*
+```{r time race with sample CI}
+not_home_workers$race_category <- factor(not_home_workers$race_category,
+                                        levels = c("African American",
+                                                   "Asian",
+                                                   "Hispanic",
+                                                   "White Only",
+                                                   "Other",
+                                                   "Missing"))
+
+time_race_stats <- Mean.SD_CI(not_home_workers, race_category, commute_auto_time, hh_wt_2019)
+
+formattable(time_race_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(time_race_stats))),
+            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+
+```{r}
+avg_time_by_race<-not_home_workers %>%
+  group_by(race_category) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
+
+ggplot(avg_time_by_race, aes(x=race_category, y=avg_weighted_time)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Time by Race",
+      x ="Race Categories", y = "Average Commute Time (minutes)") +
+  geom_errorbar(aes(ymin=time_race_stats$Weighted_avg-time_race_stats$CI_95, 
+                    ymax=time_race_stats$Weighted_avg+time_race_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+##### Aggregated Race
+Because of small sample sizes, some of the respondents have been aggregated.
+\
+\
+
+<span style="color:#486CAB">**African American, Hispanic, and Other**</span>  
+For this analysis, respondents who identified as African American, Hispanic, and Other were aggregated. 
+
+People who are categorized as Other POC (African American, Hispanic, or Other) have shorter commutes (24 minutes), while Asian POC and White Only individuals have longer commutes (around 30 minutes).
+
+The margin of error for the Other POC group is distinct from respondents identifying as Asian or White Only.
+\
+
+*The average commuting distance by race*  
+```{r time race_2 with sample CI}
+time_race_stats <- Mean.SD_CI(not_home_workers, race_agg_2, commute_auto_time, hh_wt_2019)
+
+formattable(time_race_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(time_race_stats))),
+            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+
+```{r}
+avg_time_by_race<-not_home_workers %>%
+  group_by(race_agg_2) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_time=round(weighted.mean(commute_auto_time,hh_wt_2019),2))
+
+ggplot(avg_time_by_race, aes(x=race_agg_2, y=avg_weighted_time)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Time by Race",
+      x ="Race Categories", y = "Average Commute Time (minutes)") +
+  geom_errorbar(aes(ymin=time_race_stats$Weighted_avg-time_race_stats$CI_95, 
+                    ymax=time_race_stats$Weighted_avg+time_race_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+#### 3. Gender
+```{r, include=FALSE, eval=FALSE}
+# reorder gender categories
+not_home_workers$gender <- 
+  factor(not_home_workers$gender,
+         levels=c("Female",
+                  "Male",
+                  "Another",
+                  "Prefer not to answer")
+```
+People who identify as male have the longest commutes (31 minutes). Females have shorter commutes (27 minutes), and people of another gender or who prefer not answer do not have enough samples to draw a statistical conclusion. 
+\
+
+*The average commuting distance by gender*
+```{r time gender with sample CI}
+time_gender_stats <- Mean.SD_CI(not_home_workers, gender, commute_auto_time, hh_wt_2019)
+
+formattable(time_gender_stats,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(time_gender_stats))),
+            col.names=c("Gender", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+```
+\
+
+Because of the small sample sizes for respondents identifying as Another or choosing not to answer, these respondents were removed from the graph:
+\
+\
+```{r}
+avg_time_by_gender<-not_home_workers %>%
+  select(gender, commute_auto_time, hh_wt_2019) %>%
+  group_by(gender)
+
+temp <- avg_time_by_gender %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_time_by_gender))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_time_by_gender$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_time, hh_wt_2019),2),
+              sd = round(sd(commute_auto_time),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Time by Gender",
+       x ="Gender Categories", 
+       y = "Average Commute Time (minutes)") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+
+## Trends in Travel Time
+The following table uses ACS data
+```{r}
+# Data components
+Counties <- c("King", "Kitsap", "Pierce", "Snohomish", "Region")
+years <- c(1980,1990,2000,2010,2018)
+c <- rep(Counties,5)
+y <- rep(years, each=5)
+y_1980 <- c(23.0,25.0,21.4,23.5,22.9)
+y_1990 <- c(24.2,25.1,24.0,25.4,24.4)
+y_2000 <- c(25.3,31.0,27.4,28.5,26.7)
+y_2010 <- c(26.1,29.2,27.7,28.2,27.0)
+y_2018 <- c(30.2,30.0,33.7,33.3,31.5)
+
+# Create table
+trend_table <- cbind(Counties, y_1980, y_1990, y_2000, y_2010, y_2018)
+
+# Format table
+trend_table %>% 
+  kable(format = "html",align = c('l',rep(('c'),5))) %>%
+  kable_styling("bordered",full_width = F, position = "left") %>% 
+  column_spec(1, bold=TRUE) %>%
+  row_spec(5, italic=TRUE)
+```
+
+Travel time to work has increased in our region since 1980 from about 23 minutes to 32 minutes in 2018.
+\
+\
+
+```{r}
+# Set up data frame
+trend_data <- data.frame ( 
+   County = c,
+   time_m = c(y_1980, y_1990, y_2000, y_2010, y_2018),
+   year = y)
+
+# Reorder legend counties
+trend_data$County <- factor(trend_data$County, levels=Counties)
+
+# Plot
+trend_data %>%
+  ggplot(aes(x=year, y=time_m, group=County, color=County)) +
+  geom_point() +
+  geom_line() +
+  labs(x = "Year",
+       y = "Travel Time to Work (minutes)",
+       group="Counties",
+       title = "Average Commute Travel Time by Year") +
+  scale_x_continuous(limits = c(1975, 2020),breaks=years) +
+  scale_y_continuous(limits=c(0,35), minor_breaks = 5)
+```
+\
+\
+
+
+
+## Research: Multiple Variables
+
+### **Commute Distance: Race and Gender**
+
+#### All Race Categories
+```{r}
+# commute distance: gender and race
+not_home_workers$race_category <- factor(not_home_workers$race_category,
+                                         levels = c("African American",
+                                                    "Asian",
+                                                    "Hispanic",
+                                                    "White Only",
+                                                    "Other",
+                                                    "Missing"))
+
+avg_dist_by_gender_race<-not_home_workers %>%
+  select(gender, race_category, race_agg_2, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender, race_category, race_agg_2)
+```
+
+```{r}
+temp <- avg_dist_by_gender_race %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  group_by(gender, race_category) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=race_category, y=Weighted_avg, fill=gender)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+       x ="Race Categories", 
+       y = "Average Commute Distance (miles)",
+       fill = "Gender") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### Aggregated Race Categories
+Respondents who identified as African American, Hispanic, or Other were aggregated.
+```{r}
+temp <- avg_dist_by_gender_race %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  group_by(gender, race_agg_2) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=race_agg_2, y=Weighted_avg, fill=gender)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+       x ="Race Categories", 
+       y = "Average Commute Distance (miles)",
+       fill = "Gender") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+### **Commute Distance: Income and Race**
+
+#### Broad Income
+##### All Race Categories  
+For this analysis, broader income categories were used for easier visualization. The respondents who chose "Prefer not to answer" when asked for income were removed from this analysis.
+```{r}
+# commute distance: income and race
+# unique(persons_2019$hhincome_broad)
+not_home_workers$hhincome_broad <- factor(not_home_workers$hhincome_broad,
+                                          levels=c("Under $25,000",
+                                                   "$25,000-$49,999",
+                                                   "$50,000-$74,999",
+                                                   "$75,000-$99,999",
+                                                   "$100,000 or more"))
+
+avg_dist_by_income_race<-not_home_workers %>%
+  select(hhincome_broad, race_category,race_agg_2, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(hhincome_broad, race_category, race_agg_2)
+```
+
+```{r}
+temp <- avg_dist_by_income_race %>%
+  filter(hhincome_broad!="Prefer not to answer") %>%
+  group_by(hhincome_broad, race_category) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_income_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_income_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=hhincome_broad, y=Weighted_avg, fill=race_category)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x ="Income Categories", 
+       y = "Average Commute Distance (miles)",
+       fill = "Race") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+##### Aggregated Race Categories
+Respondents who identified as African American, Hispanic, or Other were aggregated.
+```{r}
+temp <- avg_dist_by_income_race %>%
+  filter(hhincome_broad!="Prefer not to answer") %>%
+  group_by(hhincome_broad, race_agg_2) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_income_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_income_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=hhincome_broad, y=Weighted_avg, fill=race_agg_2)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x ="Income Categories", 
+       y = "Average Commute Distance (miles)",
+       fill = "Aggregated Race") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### Aggregated Income
+##### All Race Categories  
+For this analysis, income categories are aggregated. The respondents who chose "Prefer not to answer" when asked for income were removed from this analysis.
+```{r}
+# commute distance: income and race
+not_home_workers$hhincome_broad <- as.character(not_home_workers$hhincome_broad)
+
+not_home_workers <- not_home_workers %>%
+  mutate(income_agg1=case_when(hhincome_broad=="Under $25,000" |
+                                 hhincome_broad=="$25,000-$49,999" ~ "<$50k",
+                               hhincome_broad=="$50,000-$74,999" |
+                                 hhincome_broad=="$75,000-$99,999" ~ "$50-100k",
+                               hhincome_broad=="$100,000 or more" ~ ">$100k",
+                               TRUE~.$hhincome_broad))
+
+not_home_workers$income_agg1 <- factor(not_home_workers$income_agg1,
+                                       levels = c("<$50k",
+                                                  "$50-100k",
+                                                  ">$100k"))
+
+avg_dist_by_income_race<-not_home_workers %>%
+  select(income_agg1, race_category, race_agg_2, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(income_agg1, race_category, race_agg_2)
+```
+
+```{r}
+temp <- avg_dist_by_income_race %>%
+  filter(income_agg1!="Prefer not to answer") %>%
+  group_by(income_agg1, race_category) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_income_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_income_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=race_category, y=Weighted_avg, fill=income_agg1)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x = "Race", 
+       y = "Average Commute Distance (miles)",
+       fill = "Aggregated Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+##### Aggregated Race Categories
+Respondents who identified as African American, Hispanic, or Other were aggregated.
+```{r}
+temp <- avg_dist_by_income_race %>%
+  filter(income_agg1!="Prefer not to answer") %>%
+  group_by(income_agg1, race_agg_2) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_income_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_income_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=race_agg_2, y=Weighted_avg, fill=income_agg1)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x = "Aggregated Race", 
+       y = "Average Commute Distance (miles)",
+       fill = "Aggregated Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### Further Aggregated Income
+##### All Race Categories  
+For this analysis, income categories are furtheraggregated. The respondents who chose "Prefer not to answer" when asked for income were removed from this analysis.
+```{r}
+# commute distance: income and race
+not_home_workers <- not_home_workers %>%
+  mutate(income_agg2=case_when(hhincome_broad=="Under $25,000" |
+                                 hhincome_broad=="$25,000-$49,999" |
+                                 hhincome_broad=="$50,000-$74,999" |
+                                 hhincome_broad=="$75,000-$99,999" ~ "<$100k",
+                               hhincome_broad=="$100,000 or more" ~ ">$100k",
+                               TRUE~.$hhincome_broad))
+
+not_home_workers$income_agg2 <- factor(not_home_workers$income_agg2,
+                                       levels = c("<$100k",
+                                                  ">$100k"))
+
+avg_dist_by_income_race<-not_home_workers %>%
+  select(income_agg2, race_category, race_agg_2, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(income_agg2, race_category, race_agg_2)
+```
+
+```{r}
+temp <- avg_dist_by_income_race %>%
+  filter(income_agg2!="Prefer not to answer") %>%
+  group_by(income_agg2, race_category) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_income_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_income_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=race_category, y=Weighted_avg, fill=income_agg2)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x = "Race", 
+       y = "Average Commute Distance (miles)",
+       fill = "Aggregated Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+##### Aggregated Race Categories
+Respondents who identified as African American, Hispanic, or Other were aggregated.
+```{r}
+temp <- avg_dist_by_income_race %>%
+  filter(income_agg2!="Prefer not to answer") %>%
+  group_by(income_agg2, race_agg_2) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_income_race))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_income_race$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=race_agg_2, y=Weighted_avg, fill=income_agg2)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x = "Aggregated Race", 
+       y = "Average Commute Distance (miles)",
+       fill = "Aggregated Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+### **Commute Distance: Income and Gender**
+#### Broad Income
+```{r}
+# commute distance: income and gender
+not_home_workers$hhincome_broad <- factor(not_home_workers$hhincome_broad,
+                                          levels=c("Under $25,000",
+                                                   "$25,000-$49,999",
+                                                   "$50,000-$74,999",
+                                                   "$75,000-$99,999",
+                                                   "$100,000 or more"))
+avg_dist_by_gender_income<-not_home_workers %>%
+  select(gender, hhincome_broad, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender, hhincome_broad)
+
+temp <- avg_dist_by_gender_income %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  filter(hhincome_broad!="Prefer not to answer") %>%
+  group_by(gender, hhincome_broad) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender_income))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender_income$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg, fill=hhincome_broad)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x = "Gender", 
+       y = "Average Commute Distance (miles)",
+       fill = "Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### Aggregated Income
+```{r}
+avg_dist_by_gender_income<-not_home_workers %>%
+  select(gender, income_agg1, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender, income_agg1)
+
+temp <- avg_dist_by_gender_income %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  filter(income_agg1!="Prefer not to answer") %>%
+  group_by(gender, income_agg1) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender_income))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender_income$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg, fill=income_agg1)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x = "Gender", 
+       y = "Average Commute Distance (miles)",
+       fill = "Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### Further Aggregated Income
+```{r}
+avg_dist_by_gender_income<-not_home_workers %>%
+  select(gender, income_agg2, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender, income_agg2)
+
+temp <- avg_dist_by_gender_income %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  filter(income_agg2!="Prefer not to answer") %>%
+  group_by(gender, income_agg2) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender_income))*100,2),
+              Group_weight = round(sum(hh_wt_2019),0),
+              Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender_income$hh_wt_2019),4)*100),
+              Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+              sd = round(sd(commute_auto_Distance),3),
+              se = round(sd/sqrt(n),3),
+              CI_90 = round(z*(sd/sqrt(n)),3),
+              CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg, fill=income_agg2)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Income",
+       x ="Gender", 
+       y = "Average Commute Distance (miles)",
+       fill =  "Income Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+\
+
+
+## Background: Sample
+5,711 people responded to the 2019 survey and provided their employment status and workplace.
+\
+\
+
+### Employment Status
+The following table shows the distribution of respondents' employment status.
+```{r}
+persons_2019$employment <- factor(persons_2019$employment,
+                                 levels=c("Employed full time (35+ hours/week, paid)",
+                                          "Employed part time (fewer than 35 hours/week, paid)", 
+                                          "Self-employed",
+                                          "Unpaid volunteer or intern",
+                                          "Homemaker",
+                                          "Retired",
+                                          "Not currently employed",
+                                          "Missing: Skip logic"))
+
+# employment_stats<-persons_2019 %>%
+#   filter(employment!="Missing: Skip logic") %>%
+#   group_by(employment) %>%
+#   summarize(sample_size=n(),
+#             HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
+#   mutate(Percent=(sample_size/sum(sample_size))*100)
+
+# create_table_one_var_simp('employment', persons_2019, 'person')
+
+table_employment <- persons_2019 %>%
+  filter(employment!="Missing: Skip logic") %>%
+  group_by(employment) %>%
+  summarize(n=n(),
+            Weighted_2019=round(sum(hh_wt_2019))) %>%
+  mutate(Weighted_Percent=(round(Weighted_2019/sum(persons_2019$hh_wt_2019),4)))
+
+formattable(table_employment,
+            list(area(col=c(2:NCOL(table_employment)))~mycomma(digits=0),
+                 Weighted_Percent=percent),
+            align=c("l", "c", "c", "c"),
+            col.names=c("Employment", "Sample Size", "2019 Estimate", "2019 Percent"))
+```
+\
+
+### Workplace
+The following table shows where workers go for work.
+```{r}
+persons_2019$workplace <- factor(persons_2019$workplace,
+                                 levels=c("At home (telecommute or self-employed with home office)",
+                                          "Drives for a living (e.g., bus driver, salesperson)", 
+                                          "Usually the same location (outside home)",
+                                          "Workplace regularly varies (different offices or jobsites)",
+                                          "Missing: Skip logic"))
+  
+# workplace_stats<-persons_2019 %>%
+#   filter(workplace!="Missing: Skip logic") %>%
+#   group_by(workplace) %>%
+#   summarize(sample_size=n(),
+#             HouseholdWeight = round(sum(hh_wt_2019),0)) %>%
+#   mutate(Percent=(sample_size/sum(sample_size))*100)
+
+# create_table_one_var_simp('workplace', persons_2019, 'person')
+
+table_workplace <- persons_2019 %>%
+  filter(workplace!="Missing: Skip logic") %>%
+  group_by(workplace) %>%
+  summarize(n=n(),
+            Weighted_2019=round(sum(hh_wt_2019))) %>%
+  mutate(Weighted_Percent=(round(Weighted_2019/sum(persons_2019$hh_wt_2019),4)))
+
+formattable(table_workplace,
+            list(area(col=c(2:NCOL(table_employment)))~mycomma(digits=0),
+                 Weighted_Percent=percent),
+            align=c("l", "c", "c", "c"),
+            col.names=c("Workplace", "Sample Size", "2019 Estimate", "2019 Percent"))
+
+```
