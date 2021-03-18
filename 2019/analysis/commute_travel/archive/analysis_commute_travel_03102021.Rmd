@@ -12,7 +12,7 @@ output:
   pdf_document: default
 ---
 
-This report presents preliminary findings for commuting trends based on the Household Travel Survey (2017 and 2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
+This report presents preliminary findings for commuting trends based on the Household Travel Survey (2019), a survey conducted every other year to determine travel patterns for individuals living within PSRC's four-county jurisdiction.
 
 ```{r global-options, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, 
@@ -236,6 +236,18 @@ trips_commute/trips_total # 24%
 Based on the total number of trips (72,855) documented as part of the 2019 survey results, 20% (14,501) were recorded as being commute trips. When trip weights are taken into consideration, **24%** of the trips in the region are for commuting. 
 \
 \
+This value reflects a slightly different finding compared to the 2017 National Household Travel Survey (NHTS). In "Summary of Travel Trends" (https://nhts.ornl.gov/assets/2017_nhts_summary_travel_trends.pdf), Table 5c (left) shows that approximately 17% of average annual person trips are to travel to or from work (546 out of 3,140). 
+\
+\
+Table 6c (right) shows that households annually make an average of 450 vehicle trips to/from work out of the total 1,865 trips for all purposes, or 24%.
+\
+\
+```{r, fig.show="hold", out.width="50%"}
+knitr::include_graphics("C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/PersonTrips.PNG")
+knitr::include_graphics("C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/VehicleTrips.PNG")
+```
+\
+\
 
 ## Defining Commuters
 This subset of the respondents are based on the following survey questions: 
@@ -298,7 +310,7 @@ The following statistics uses the fields `commute_auto_Distance` and `commute_au
 The main question we will be attempting to answer is: **How does the distance or commute time from home to your primary workplace vary by income and race?**
 \
 \
-Commute travel times and distances were found using the google distance matrix api (https://developers.google.com/maps/documentation/distance-matrix/overview).  Survey respondents reported home locations and work locations for all household workers.  Google travel time and distance data were pulled from the api given these locations, assuming an 8 am travel time in April of 2019..
+Commute travel times and distances were found using the google distance matrix api (https://developers.google.com/maps/documentation/distance-matrix/overview).  Survey respondents reported home locations and work locations for all household workers.  Google travel time and distance data were pulled from the api given these locations, assuming an 8 am travel time in April of 2019.
 \
 \
 
@@ -453,12 +465,13 @@ For this analysis, respondents who identified as African American and Hispanic w
 not_home_workers$race_category <- as.character(not_home_workers$race_category)
 not_home_workers <- not_home_workers %>%
   mutate(race_agg_1 = case_when(race_category=="African American" |
-                                  race_category=="Hispanic" ~ "POC",
+                                  race_category=="Hispanic" ~ "Non-Asian POC",
+                                race_category=="Asian" ~ "Asian POC",
                                 TRUE~.$race_category))
 
 not_home_workers$race_agg_1 <- factor(not_home_workers$race_agg_1,
-                                      levels=c("Asian",
-                                               "POC",
+                                      levels=c("Asian POC",
+                                               "Non-Asian POC",
                                                "White Only",
                                                "Other",
                                                "Missing"))
@@ -503,12 +516,13 @@ not_home_workers$race_category <- as.character(not_home_workers$race_category)
 not_home_workers <- not_home_workers %>%
   mutate(race_agg_2 = case_when(race_category=="African American" |
                                   race_category=="Hispanic" |
-                                  race_category=="Other" ~ "POC",
+                                  race_category=="Other" ~ "Non-Asian POC",
+                                race_category=="Asian" ~ "Asian POC",
                                 TRUE~.$race_category))
 
 not_home_workers$race_agg_2 <- factor(not_home_workers$race_agg_2,
-                                      levels=c("Asian",
-                                               "POC",
+                                      levels=c("Asian POC",
+                                               "Non-Asian POC",
                                                "White Only",
                                                "Other",
                                                "Missing"))
