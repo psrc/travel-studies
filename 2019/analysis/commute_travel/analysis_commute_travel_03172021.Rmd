@@ -34,6 +34,8 @@ library(knitr)
 library(kableExtra)
 library(summarytools)
 library(formattable)
+library(ggpubr) #boxplots
+library(car) #Levene's test
 ```
 
 ```{r functions, include=FALSE}
@@ -944,7 +946,7 @@ avg_dist_by_gender_race<-not_home_workers %>%
 ```
 
 ```{r}
-temp <- avg_dist_by_gender_race %>%
+temp_gender_race <- avg_dist_by_gender_race %>%
   filter(gender=="Female" | gender=="Male") %>%
   group_by(gender, race_category) %>%
   summarize(n=n(),
@@ -957,7 +959,7 @@ temp <- avg_dist_by_gender_race %>%
               CI_90 = round(z*(sd/sqrt(n)),3),
               CI_95 = round(z_95*(sd/sqrt(n)),3))
 
-ggplot(temp, aes(x=race_category, y=Weighted_avg, fill=gender)) + 
+ggplot(temp_gender_race, aes(x=race_category, y=Weighted_avg, fill=gender)) + 
   geom_bar(position="dodge", stat="identity") +
   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
   labs(title="Average Auto Commute Distance by Race",
@@ -968,9 +970,164 @@ ggplot(temp, aes(x=race_category, y=Weighted_avg, fill=gender)) +
                     ymax=Weighted_avg+CI_95), 
                 width=.2,
                 position=position_dodge(.9))
+
+ggplot(temp_gender_race, aes(x=gender, y=Weighted_avg, fill=race_category)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Gender",
+       x ="Gender", 
+       y = "Average Commute Distance (miles)",
+       fill = "Race Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
 ```
 \
 \
+\
+
+##### <span style="color:#8CC63E">Comparing the differences</span>
+To test if the differences between the genders are statistically different for each race category, [reference](https://stats.libretexts.org/Bookshelves/Introductory_Statistics/Book%3A_Introductory_Statistics_(Shafer_and_Zhang)/09%3A_Two-Sample_Problems/9.01%3A_Comparison_of_Two_Population_Means-_Large_Independent_Samples).
+\
+
+I. [**Two-Way ANOVA test in R**](http://www.sthda.com/english/wiki/two-way-anova-test-in-r)    
+This test is used to simultaneously evaluate the effect of two grouping variables (or factors) on a response variable.   
+```{r, include=FALSE}
+# set up data
+race_gender_test <- not_home_workers %>%
+  dplyr::select(gender, race_category, commute_auto_Distance) %>%
+  dplyr::filter(gender=="Female" | gender=="Male")
+
+# check structure
+str(race_gender_test)
+head(race_gender_test)
+# set gender as factor
+race_gender_test$gender <- as.factor(race_gender_test$gender)
+table(race_gender_test$gender,
+      race_gender_test$race_category)
+ggpubr::ggboxplot(race_gender_test, 
+          x = "race_category", 
+          y = "commute_auto_Distance",
+          color = "gender",
+          palette = c("#00AFBB", "#E7B800"),
+          xlab="Race",
+          ylab="Average Auto Commute Distance (miles)")
+```
+
+```{r}
+# compute two-way ANOVA test
+res.aov2 <- aov(commute_auto_Distance ~ gender + race_category, data = race_gender_test)
+summary(res.aov2)
+
+# # two-way ANOVA test with interaction effect
+# res.aov3 <- aov(commute_auto_Distance ~ gender * race_category, data = race_gender_test)
+# summary(res.aov3)
+```
+The p-values of gender and race are statistically significant (p<0.001 and p<0.1, respectively).
+\
+\
+
+**Tukey HSD (Honest Significant Differences)**    
+The Tukey HSD performs multiple pairwise-comparisons between the means of groups. The gender variable doesn't need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.
+```{r}
+TukeyHSD(res.aov2, which="race_category")
+```
+Based on the results, the only pairwise comparison that is significant is between the White Only and Asian POC groups, with an adjusted p-value < 0.05
+\
+\
+
+**Check ANOVA assumptions: test validity**  
+Homogeneity of variances (Levene's test)
+```{r}
+# to test homogeneity of variances
+levene_race_gender <- leveneTest(commute_auto_Distance ~ gender*race_category, data=race_gender_test)
+levene_race_gender
+```
+The p-value is less than the significance value of 0.05, which means that there is evidence to suggest that the variance across groups is statistically significantly different.
+\
+\
+
+Normality Assumption (Shapiro-Wilk test)  
+The Shapiro-Wilk tests whether the data are normally distributed. 
+```{r}
+# plot(res.aov2, 2)
+
+# extract the residuals
+aov_residuals <- residuals(object=res.aov2)
+# run Shapiro-Wilk test
+shapiro.test(x=aov_residuals)
+```
+The Shapiro-Wilk test p-value is less than 0.05, meaning that the data are not normally distributed. 
+\
+\
+\
+II. [**Unpaired Two-Samples T-test in R**](http://www.sthda.com/english/wiki/wiki.php?id_contents=7600)    
+
+Overall Process:  
+
+1. F-test to compare two variances
+2. T-test (or Welch test) to compare the means of two unrelated groups of samples
+\
+
+<span style="color:#F05A28">*White Only*</span>
+
+1. F-test
+```{r}
+# set up 
+comp_gender_white <- not_home_workers %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  filter(race_category=="White Only") %>% 
+  select(gender, commute_auto_Distance)
+
+# test variance
+var.test(commute_auto_Distance~gender,
+       data=comp_gender_white)
+```
+The p-value of the F-test is less than the significance level alpha=0.05, so there is a significant difference between the variances of the two sets of data. This means that we cannot use the classic t-test (which assumes equality of the two variances) and must instead use the Welch t-test (which is an adaptation of t-test, used when the two samples have unequal variances).
+\
+
+2. Welch t-test
+```{r}
+Welch_gender_white <- t.test(commute_auto_Distance~gender,
+       data=comp_gender_white)
+Welch_gender_white
+Welch_gender_white_p <- Welch_gender_white$p.value
+Welch_gender_white_meandif <- abs(Welch_gender_white$estimate[1]-Welch_gender_white$estimate[2])
+```
+The mean auto commute distance for White Only identifying females and males is 8.92 miles and 10.34 miles, respectively. The 95% confidence interval of the difference in mean distance is between 0.46 and 2.37 miles. The difference is statistically significant.  
+\
+\
+<span style="color:#F05A28">*Asian POC*</span>
+
+1. F-test
+```{r}
+# set up 
+comp_gender_asian <- not_home_workers %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  filter(race_category=="Asian") %>% 
+  select(gender, commute_auto_Distance)
+
+# test variance
+var.test(commute_auto_Distance~gender,
+       data=comp_gender_asian)
+```
+The p-value of the F-test is greater than the significance level alpha=0.05, so there is no significant difference between the variances of the two sets of data. This means that we can use the classic t-test (which assumes equality of the two variances).
+\
+
+2. T-test Test
+```{r}
+T_gender_asian <- t.test(commute_auto_Distance~gender,
+       data=comp_gender_asian,
+       var.equal=TRUE)
+T_gender_asian
+T_gender_asian_p <- T_gender_asian$p.value
+T_gender_asian_meandif <- abs(T_gender_asian$estimate[1]-T_gender_asian$estimate[2])
+```
+The mean auto commute distance for Asian-identifying females and males is 7.14 miles and 8.59 miles, respectively. The 95% confidence interval of the difference in mean distance is between 0.33 and 3.24 miles. The difference is NOT statistically significant.
+\
+\
+
 
 #### Aggregated Race Categories
 Respondents who identified as African American, Hispanic, or Other were aggregated.
@@ -999,7 +1156,141 @@ ggplot(temp, aes(x=race_agg_2, y=Weighted_avg, fill=gender)) +
                     ymax=Weighted_avg+CI_95), 
                 width=.2,
                 position=position_dodge(.9))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg, fill=race_agg_2)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Gender",
+       x ="Gender", 
+       y = "Average Commute Distance (miles)",
+       fill = "Race Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
 ```
+\
+\
+\
+
+##### <span style="color:#8CC63E">Comparing the differences</span>
+To test if the differences between the genders are statistically different for each race category, [reference](https://stats.libretexts.org/Bookshelves/Introductory_Statistics/Book%3A_Introductory_Statistics_(Shafer_and_Zhang)/09%3A_Two-Sample_Problems/9.01%3A_Comparison_of_Two_Population_Means-_Large_Independent_Samples).
+\
+
+I. [**Two-Way ANOVA test in R**](http://www.sthda.com/english/wiki/two-way-anova-test-in-r)    
+This test is used to simultaneously evaluate the effect of two grouping variables (or factors) on a response variable.   
+```{r, include=FALSE}
+# set up data
+raceagg_gender_test <- not_home_workers %>%
+  dplyr::select(gender, race_agg_2, commute_auto_Distance) %>%
+  dplyr::filter(gender=="Female" | gender=="Male")
+
+# check structure
+str(raceagg_gender_test)
+head(raceagg_gender_test)
+# set gender as factor
+raceagg_gender_test$gender <- as.factor(raceagg_gender_test$gender)
+table(raceagg_gender_test$gender,
+      raceagg_gender_test$race_agg_2)
+ggpubr::ggboxplot(raceagg_gender_test, 
+          x = "race_agg_2", 
+          y = "commute_auto_Distance",
+          color = "gender",
+          palette = c("#00AFBB", "#E7B800"),
+          xlab="Aggregated Race",
+          ylab="Average Auto Commute Distance (miles)")
+```
+
+```{r}
+# compute two-way ANOVA test
+res.aov3 <- aov(commute_auto_Distance ~ gender + race_agg_2, data = raceagg_gender_test)
+summary(res.aov3)
+
+# # two-way ANOVA test with interaction effect
+# res.aov3 <- aov(commute_auto_Distance ~ gender * race_category, data = race_gender_test)
+# summary(res.aov3)
+```
+The p-values of gender and race are statistically significant (p<0.001 and p<0.05, respectively).
+\
+\
+
+**Tukey HSD (Honest Significant Differences)**    
+The Tukey HSD performs multiple pairwise-comparisons between the means of groups. The gender variable doesn't need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.
+```{r}
+TukeyHSD(res.aov3, which="race_agg_2")
+```
+Based on the results, the only pairwise comparison that is significant is between the White Only and Asian POC groups, with an adjusted p-value < 0.05
+\
+\
+
+**Check ANOVA assumptions: test validity**  
+Homogeneity of variances (Levene's test)
+```{r}
+# to test homogeneity of variances
+levene_race2_gender <- leveneTest(commute_auto_Distance ~ gender*race_agg_2, data=raceagg_gender_test)
+levene_race2_gender
+```
+The p-value is less than the significance value of 0.05, which means that there is evidence to suggest that the variance across groups is statistically significantly different.
+\
+\
+
+Normality Assumption (Shapiro-Wilk test)  
+The Shapiro-Wilk tests whether the data are normally distributed. 
+```{r}
+# plot(res.aov2, 2)
+
+# extract the residuals
+aov_residuals <- residuals(object=res.aov3)
+# run Shapiro-Wilk test
+shapiro.test(x=aov_residuals)
+```
+The Shapiro-Wilk test p-value is less than 0.05, meaning that the data are not normally distributed. 
+\
+\
+\
+II. [**Unpaired Two-Samples T-test in R**](http://www.sthda.com/english/wiki/wiki.php?id_contents=7600)    
+
+Overall Process:  
+
+1. F-test to compare two variances
+2. T-test (or Welch test) to compare the means of two unrelated groups of samples
+\
+\
+
+<span style="color:#F05A28">*White Only*</span> (from above)  
+The difference in mean auto commute distance for White Only-identifying females and males is statistically significant.
+\
+\
+<span style="color:#F05A28">*Asian POC*</span> (from above)  
+The difference in mean auto commute distance for Asian-identifying females and males is NOT statistically significant.
+\
+\
+<span style="color:#F05A28">*Other POC*</span>
+
+1. F-test
+```{r}
+# set up 
+comp_gender_other2 <- not_home_workers %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  filter(race_agg_2=="Other POC") %>% 
+  select(gender, commute_auto_Distance)
+
+# test variance
+var.test(commute_auto_Distance~gender,
+       data=comp_gender_other2)
+```
+The p-value of the F-test is less than the significance level alpha=0.05, so there is a significant difference between the variances of the two sets of data. This means that we cannot use the classic t-test (which assumes equality of the two variances) and must instead use the Welch t-test (which is an adaptation of t-test, used when the two samples have unequal variances).
+\
+
+2. Welch t-test
+```{r}
+Welch_gender_other2 <- t.test(commute_auto_Distance~gender,
+       data=comp_gender_other2)
+Welch_gender_other2
+Welch_gender_other2_p <- Welch_gender_other2$p.value
+Welch_gender_other2_meandif <- abs(Welch_gender_other2$estimate[1]-Welch_gender_other2$estimate[2])
+```
+The mean auto commute distance for African American-, Hispanic-, or Other-identifying females and males is 8.24 miles and 9.71 miles, respectively. The 95% confidence interval of the difference in mean distance is between 0.62 and 3.57 miles. The difference is NOT statistically significant.
 \
 \
 
