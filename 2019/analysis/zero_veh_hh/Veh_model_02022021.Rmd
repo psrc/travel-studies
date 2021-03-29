@@ -1954,7 +1954,15 @@ person_and_household$rent_own_simp <- factor(person_and_household$rent_own_simp,
 # table(person_and_household$rent_own_simp)
 table1(~rent_own_simp, data=person_and_household, render.categorical=my.render.cat)
 ```
-
+\
+\
+**Vehicle count by housing tenure - survey sample**
+```{r}
+table1(~rent_own_simp|vehicle_group, data=person_and_household)
+```
+\
+\
+**Vehicle count by housing tenure - region (weighted)**
 ```{r tenure : MOE setup, include=FALSE}
 # User defined variables on each analysis:
 # this is the weight for summing in your analysis
@@ -1991,7 +1999,9 @@ cross_table_w_MOE<-merge(cross_table, sample_size_MOE, by=group_cat)
 ```{r tenure : vehicle ownership MOE}
 cross_table_w_MOE
 ```
-
+\
+\
+**Survey Responses**  
 ```{r tenure vehicle ownership plot}
 # xtabs(~vehicle_group + hh_vehcount_rentown, data = person_and_household)
 hh_vehcount_rentown <- person_and_household %>%
@@ -2005,6 +2015,24 @@ ggplot(data = hh_vehcount_rentown, aes(x=rent_own_simp, y=n, fill= vehicle_group
   theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
   labs(x = "Household Tenure", 
        y = "Survey Responses", 
+       fill = "Vehicle Count",
+       title = "Vehicle Count by Household Tenure")
+```
+\
+\
+**Region (weighted)**  
+```{r tenure vehicle ownership plot - weighted}
+hh_vehcount_rentown <- person_and_household %>%
+  filter(!is.na(rent_own_simp)) %>%
+  group_by(rent_own_simp,vehicle_group) %>%
+  summarise(n=n(), HouseholdWeight = sum(hh_wt_combined))
+# hh_vehcount_rentown
+
+ggplot(data = hh_vehcount_rentown, aes(x=rent_own_simp, y=HouseholdWeight, fill= vehicle_group)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)) +
+  labs(x = "Household Tenure", 
+       y = "Region (weighted)", 
        fill = "Vehicle Count",
        title = "Vehicle Count by Household Tenure")
 ```
