@@ -23,7 +23,12 @@ working_dir = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions'
 os.chdir(working_dir)
 
 # Geographic files
-parcel_file_dir = r'R:\e2projects_two\SoundCast\Inputs\lodes\alpha_lodes\2014\landuse\parcels_urbansim.txt'
+# We use the latest land use file for workers and student placement, to find nearest parcel with jobs/school
+parcel_file_dir = r'R:\e2projects_two\SoundCast\Inputs\dev\landuse\2018\vers2_july2020\parcels_urbansim.txt'
+# Hana produces another file that reports residential units and buildings per parcel
+# to ensure that households are placed on parcels that actually have housing
+parcel_res_units_file = r'C:\Users\bnichols\travel-studies\2017\daysim_conversions\parcels_for_hh_survey.csv'
+
 taz_dir = r'W:\geodata\forecast\taz2010.shp'
 
 person_file_dir = r'J:\Projects\Surveys\HHTravel\Survey2019\Data\PSRC_2019_HTS_RSG_Final_Deliverable\2_Person.csv'
@@ -143,24 +148,24 @@ def locate_person_parcels(person, parcel_df, df_taz):
         # Tier 2: for locations that are over 1 mile (5280 feet) from lat/lng, 
         # place them in parcel with >0 education or service employees (could be daycare or specialized school, etc. without students listed)
 
-        if varname == 'school_loc':
-            hh_max_dist = 5280
-            gdf_far = gdf[gdf[varname+'_parcel_distance'] > hh_max_dist]
-            _dist, _ix = locate_parcel(parcel_df[parcel_df['total_students'] > 0], 
-                                       df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
-            gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
-            gdf_far[varname+'_parcel_distance'] = _dist
-            gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
+        #if varname == 'school_loc':
+        #    hh_max_dist = 5280
+        #    gdf_far = gdf[gdf[varname+'_parcel_distance'] > hh_max_dist]
+        #    _dist, _ix = locate_parcel(parcel_df[parcel_df['total_students'] > 0], 
+        #                               df=gdf_far, xcoord_col=varname+'_lng_fips_4601', ycoord_col=varname+'_lat_fips_4601')
+        #    gdf_far[varname+'_parcel'] = parcel_df.iloc[_ix].parcelid.values
+        #    gdf_far[varname+'_parcel_distance'] = _dist
+        #    gdf_far[varname+'_taz'] = gdf_far['TAZ'].astype('int')
 
-            # Add this new distance to the original gdf
-            gdf.loc[gdf_far.index,varname+'_parcel_original'] = gdf.loc[gdf_far.index,varname+'_parcel']
-            gdf.loc[gdf_far.index,varname+'_parcel_distance_original'] = gdf.loc[gdf_far.index,varname+'_parcel_distance']
-            gdf.loc[gdf_far.index,varname+'_parcel'] = gdf_far[varname+'_parcel']
-            gdf.loc[gdf_far.index,varname+'_parcel_distance'] = gdf_far[varname+'_parcel_distance']
-            gdf['distance_flag'] = 0
-            gdf.loc[gdf_far.index,varname+'distance_flag'] = 1
+        #    # Add this new distance to the original gdf
+        #    gdf.loc[gdf_far.index,varname+'_parcel_original'] = gdf.loc[gdf_far.index,varname+'_parcel']
+        #    gdf.loc[gdf_far.index,varname+'_parcel_distance_original'] = gdf.loc[gdf_far.index,varname+'_parcel_distance']
+        #    gdf.loc[gdf_far.index,varname+'_parcel'] = gdf_far[varname+'_parcel']
+        #    gdf.loc[gdf_far.index,varname+'_parcel_distance'] = gdf_far[varname+'_parcel_distance']
+        #    gdf['distance_flag'] = 0
+        #    gdf.loc[gdf_far.index,varname+'distance_flag'] = 1
 
-            gdf_cols += [varname+'_parcel_distance_original',varname+'_parcel_original']
+        #    gdf_cols += [varname+'_parcel_distance_original',varname+'_parcel_original']
 
         # Join the gdf dataframe to the person df
         person_results = person_results.merge(gdf[gdf_cols], how='left', on=['hhno','pno'])
@@ -199,13 +204,13 @@ def locate_hh_parcels(hh, parcel_df, df_taz):
     
          # Current Home Location
         'var_name': 'final_home',
-        'parcel_filter': (parcel_df['hh_p'] > 0),
+        'parcel_filter': (parcel_df['residential_units'] > 0),
         'hh_filter': (-hh['final_home_lat'].isnull())
         },
         {
         # Previous Home Location
         'var_name': 'prev_home',
-        'parcel_filter': (parcel_df['hh_p'] > 0),
+        'parcel_filter': (parcel_df['residential_units'] > 0),
         'hh_filter': (-hh['prev_home_lat'].isnull())
         }
         ]    
@@ -393,6 +398,9 @@ def main():
 
     # Load parcel data
     parcel_df = pd.read_csv(parcel_file_dir, delim_whitespace=True)
+    # Join parcel residential unit information (produced by Hana) for household placement
+    parcel_res_df = pd.read_csv(parcel_res_units_file, usecols=['parcel_id','residential_units','number_of_buildings'])
+    parcel_df = parcel_df.merge(parcel_res_df, left_on='parcelid', right_on='parcel_id', how='left')
     
     # Load TAZ shapefile
     df_taz = gpd.read_file(taz_dir)
@@ -407,47 +415,47 @@ def main():
     # Process household records
     ##################################################
     
-    #hh_new = locate_hh_parcels(hh_original.copy(), parcel_df, df_taz)
+    hh_new = locate_hh_parcels(hh_original.copy(), parcel_df, df_taz)
 
-    ## add the original lat/lng fields back
-    ## hh_new = hh_new.merge(hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
+    # add the original lat/lng fields back
+    # hh_new = hh_new.merge(hh_original[['hhid','final_home_lat','final_home_lng']], on='hhid')
 
-    ## Write to file
-    #hh_new.to_csv(os.path.join(orig_format_output_dir,'1_household.csv'), index=False)
+    # Write to file
+    hh_new.to_csv(os.path.join(orig_format_output_dir,'1_household.csv'), index=False)
 
     ###################################################
     ## Process person records
     ###################################################
 
-    ## Join original person records to daysim-formatted records to get xy coordinates
-    #person_daysim = pd.read_csv(person_daysim_dir)
-    ## drop the personid from person_daysim because it's calculated differently
-    #person_daysim.drop(['personid'], axis=1, inplace=True)
-    #_person = person_daysim.merge(person_original[['hhid','pernum','personid','school_loc_lat','school_loc_lng',
-    #                                              'work_lat','work_lng','prev_work_lat','prev_work_lng','workplace']], 
-    #                                               left_on=['hhno','pno'], right_on=['hhid','pernum'], how='left')
+    # Join original person records to daysim-formatted records to get xy coordinates
+    person_daysim = pd.read_csv(person_daysim_dir)
+    # drop the personid from person_daysim because it's calculated differently
+    person_daysim.drop(['personid'], axis=1, inplace=True)
+    _person = person_daysim.merge(person_original[['hhid','pernum','personid','school_loc_lat','school_loc_lng',
+                                                  'work_lat','work_lng','prev_work_lat','prev_work_lng','workplace']], 
+                                                   left_on=['hhno','pno'], right_on=['hhid','pernum'], how='left')
 
-    ## Merge with household records to get school/work lat and long, to filter people who home school and work at home
-    #_person = pd.merge(_person, hh_new[['hhid','final_home_lat','final_home_lng', 'final_home_parcel']], on='hhid')
+    # Merge with household records to get school/work lat and long, to filter people who home school and work at home
+    _person = pd.merge(_person, hh_new[['hhid','final_home_lat','final_home_lng', 'final_home_parcel','final_home_taz']], on='hhid')
 
-    ## Add parcel location for current and previous school and workplace location
-    #person, person_daysim = locate_person_parcels(_person, parcel_df, df_taz)
+    # Add parcel location for current and previous school and workplace location
+    person, person_daysim = locate_person_parcels(_person, parcel_df, df_taz)
 
-    ## For people that work from home, assign work parcel as household parcel
-    ## Join this person file back to original person file to get workplace
-    #person.loc[person['workplace'] == 3, 'work_parcel'] = person['final_home_parcel']
-    #person.loc[person['workplace'] == 3, 'work_taz'] = person['final_home_taz']
+    # For people that work from home, assign work parcel as household parcel
+    # Join this person file back to original person file to get workplace
+    person.loc[person['workplace'] == 3, 'work_parcel'] = person['final_home_parcel']
+    person.loc[person['workplace'] == 3, 'work_taz'] = person['final_home_taz']
 
-    #person_loc_fields = ['school_loc_parcel','school_loc_taz', 'work_parcel','work_taz','prev_work_parcel','prev_work_taz',
-    #                     'school_loc_parcel_distance','work_parcel_distance','prev_work_parcel_distance']
+    person_loc_fields = ['school_loc_parcel','school_loc_taz', 'work_parcel','work_taz','prev_work_parcel','prev_work_taz',
+                         'school_loc_parcel_distance','work_parcel_distance','prev_work_parcel_distance']
 
-    ## Join selected fields back to the original person file
-    #person_orig_update = person_original.merge(person[person_loc_fields+['personid']], on='personid', how='left')
-    #person_orig_update[person_loc_fields] = person_orig_update[person_loc_fields].fillna(-1).astype('int')
+    # Join selected fields back to the original person file
+    person_orig_update = person_original.merge(person[person_loc_fields+['personid']], on='personid', how='left')
+    person_orig_update[person_loc_fields] = person_orig_update[person_loc_fields].fillna(-1).astype('int')
 
 
-    ## Write to file
-    #person_orig_update.to_csv(os.path.join(orig_format_output_dir,'2_person.csv'), index=False)
+    # Write to file
+    person_orig_update.to_csv(os.path.join(orig_format_output_dir,'2_person.csv'), index=False)
     
     ##################################################
     # Process trip records
