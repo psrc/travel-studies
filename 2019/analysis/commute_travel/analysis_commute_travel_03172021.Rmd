@@ -244,10 +244,10 @@ trips_commute/trips_total # 24%
 Based on the total number of trips (72,855) documented as part of the 2019 survey results, 20% (14,501) were recorded as being commute trips. When trip weights are taken into consideration, **24%** of the trips in the region are for commuting. 
 \
 \
-This value reflects a slightly different finding compared to the 2017 National Household Travel Survey (NHTS). In ["Summary of Travel Trends"](https://nhts.ornl.gov/assets/2017_nhts_summary_travel_trends.pdf) Table 5c (left) shows that approximately 17% of average annual person trips are to travel to or from work (546 out of 3,140). 
+This value reflects a slightly different finding compared to the 2017 National Household Travel Survey (NHTS). In ["Summary of Travel Trends"](https://nhts.ornl.gov/assets/2017_nhts_summary_travel_trends.pdf) Based on Table 5c, approximately 17% of average annual person trips are to travel to or from work (546 out of 3,140). These trips include those taken on the weekends, defined by the [2009 NHTS documentation](https://nhts.ornl.gov/2009/pub/Weekday%20Travel%20FAQ.pdf) as "travel began at 6pm on Friday and ran through Saturday and all day Sunday." 
 \
 \
-Table 6c (right) shows that households annually make an average of 450 vehicle trips to/from work out of the total 1,865 trips for all purposes, or 24%.
+Based on Table 6c, households annually make an average of 450 vehicle trips to/from work out of the total 1,865 trips for all purposes, or 24%.
 \
 ```{r, include=FALSE, fig.show="hold", out.width="50%"}
 knitr::include_graphics("C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/PersonTrips.PNG")
@@ -870,7 +870,7 @@ ggplot(temp, aes(x=gender, y=Weighted_avg)) +
 
 
 ## Trends in Travel Time
-The following table uses ACS data
+The data in following table is from ACS
 ```{r}
 # Data components
 Counties <- c("King", "Kitsap", "Pierce", "Snohomish", "Region")
@@ -887,9 +887,11 @@ y_2018 <- c(30.2,30.0,33.7,33.3,31.5)
 trend_table <- cbind(Counties, y_1980, y_1990, y_2000, y_2010, y_2018)
 
 # Format table
-trend_table %>% 
-  kable(format = "html",align = c('l',rep(('c'),5))) %>%
-  kable_styling("bordered",full_width = F, position = "left") %>% 
+kable(trend_table,
+      col.names=c("Counties","1980","1990","2000","2010","2018"),
+      align="lccccc",
+      digits=2) %>%
+  kable_styling("bordered",full_width = F, position = "left") %>%
   column_spec(1, bold=TRUE) %>%
   row_spec(5, italic=TRUE)
 ```
