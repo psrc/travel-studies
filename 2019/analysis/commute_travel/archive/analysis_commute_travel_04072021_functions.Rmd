@@ -34,7 +34,7 @@ library(knitr)
 library(kableExtra)
 library(summarytools)
 library(formattable)
-library(ggpubr) #boxplots
+# library(ggpubr) #boxplots
 library(car) #Levene's test
 library(broom) #anova, p-values
 ```
@@ -81,10 +81,19 @@ Mean.SD_CI <- function(x, cat_var, num_var, weight_var){
               CI_95 = round(z_95*(sd/sqrt(n())),2),
               n=n())
     
+  # to remove sample size column from table
   Mean.SD_CI_temp<- dplyr::select(Mean.SD_CI_table, -c(n))
-  
   # return(Mean.SD_CI_temp)
-  return(Mean.SD_CI_table)
+  
+  # to include sample size column in table
+  # return(Mean.SD_CI_table)
+  
+  # create formatted output table
+  formattable(Mean.SD_CI_table,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(Mean.SD_CI_table))),
+            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
 }
 
 
@@ -157,7 +166,8 @@ The three variables of interest include: commute distance, race, and gender.
 ### 1. Commute distance
 ```{r}
 mean_dist<-weighted.mean(not_home_workers$commute_auto_Distance,
-                         w=not_home_workers$hh_wt_2019,na.rm=TRUE)
+                         w=not_home_workers$hh_wt_2019,
+                         na.rm=TRUE)
 
 ggplot(not_home_workers, aes(x=commute_auto_Distance, weight=hh_wt_2019)) + 
   geom_histogram(fill="#00A7A0", binwidth=2)+xlim(c(0, 50)) +
@@ -186,12 +196,7 @@ People who identify as White Only have the farthest commutes (15 miles). The mar
 *The average commuting distance by race*
 ```{r dist race with sample CI}
 dist_race_stats <- Mean.SD_CI(not_home_workers, race_category, commute_auto_Distance, hh_wt_2019)
-
-formattable(dist_race_stats,
-            list(area(col=c(2,9))~mycomma(digits=0),
-                 Weighted_percent=percent),
-            align=c("l", rep("c", NCOL(dist_race_stats))),
-            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+dist_race_stats
 ```
 
 ```{r}
@@ -247,12 +252,7 @@ The margin of error for the Other POC group is distinct from respondents identif
 *The average commuting distance by race*
 ```{r dist race_2 with sample CI}
 dist_race_stats <- Mean.SD_CI(not_home_workers, race_agg_2, commute_auto_Distance, hh_wt_2019)
-
-formattable(dist_race_stats,
-            list(area(col=c(2,9))~mycomma(digits=0),
-                 Weighted_percent=percent),
-            align=c("l", rep("c", NCOL(dist_race_stats))),
-            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+dist_race_stats
 ```
 
 ```{r}
@@ -293,12 +293,7 @@ People who identify as male have the farthest commute (15 miles). Females have s
 *The average commuting distance by gender*
 ```{r dist gender with sample CI}
 dist_gender_stats <- Mean.SD_CI(not_home_workers, gender, commute_auto_Distance, hh_wt_2019)
-
-formattable(dist_gender_stats,
-            list(area(col=c(2,9))~mycomma(digits=0),
-                 Weighted_percent=percent),
-            align=c("l", rep("c", NCOL(dist_gender_stats))),
-            col.names=c("Gender", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+dist_gender_stats
 ```
 \
 

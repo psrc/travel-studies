@@ -11,7 +11,7 @@
 
 <meta name="author" content="Suzanne Childress &amp; Mary Richards" />
 
-<meta name="date" content="2021-04-07" />
+<meta name="date" content="2021-04-08" />
 
 <title>Statistical Analysis Functions</title>
 
@@ -2794,7 +2794,7 @@ div.tocify {
 <h1 class="title toc-ignore">Statistical Analysis Functions</h1>
 <h3 class="subtitle">Example: comparing commuting patterns by gender and race</h3>
 <h4 class="author">Suzanne Childress &amp; Mary Richards</h4>
-<h4 class="date">April 07, 2021</h4>
+<h4 class="date">April 08, 2021</h4>
 
 </div>
 
@@ -3227,7 +3227,7 @@ Missing
 <thead>
 <tr>
 <th style="text-align:left;">
-Gender
+Race
 </th>
 <th style="text-align:center;">
 2019 Estimate
@@ -3400,18 +3400,25 @@ Prefer not to answer
 <br />
 </p>
 <div id="i.-two-way-anova-test-in-r" class="section level4">
-<h4>I. <a href="http://www.sthda.com/english/wiki/two-way-anova-test-in-r"><strong>Two-Way ANOVA test in R</strong></a></h4>
-<p>An ANOVA (Analysis of Variance) test is used to evaluate the effect of two grouping variables (or factors) on a response variable.<br />
+<h4>I. <strong>Two-Way ANOVA test in R</strong></h4>
+<p><a href="http://www.sthda.com/english/wiki/two-way-anova-test-in-r">(reference)</a><br />
+An ANOVA (Analysis of Variance) test is used to evaluate the effect of two grouping variables (or factors) on a response variable.<br />
 <br />
 </p>
-<pre><code>## [1] &quot;The p-value for variable1 is statistically significant (p&lt;0.05) and should be tested further using the Tukey HSD.&quot;
+<pre><code>##               Df Sum Sq Mean Sq F value   Pr(&gt;F)    
+## variable1      1   1235  1235.3  11.886 0.000574 ***
+## variable2      5   1068   213.7   2.056 0.068067 .  
+## Residuals   2654 275834   103.9                     
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## [1] &quot;The p-value for variable1 is statistically significant (p&lt;0.05) and should be tested further using the Tukey HSD.&quot;
 ## [1] &quot;The p-value for variable2 is statistically significant (p&lt;0.10) and could be tested further using the Tukey HSD.&quot;</code></pre>
 <p><br />
 </p>
 <div id="tukey-hsd" class="section level5">
 <h5>Tukey HSD</h5>
 <p>The Tukey HSD (Honest Significant Differences) performs multiple pairwise-comparisons between the means of groups. The gender variable doesn’t need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.</p>
-<pre><code>## [1] &quot;The Tukey Test results for variable1&quot;
+<pre><code>## [1] &quot;The Tukey HSD Test results for variable1&quot;
 ##   Tukey multiple comparisons of means
 ##     95% family-wise confidence level
 ## 
@@ -3421,8 +3428,8 @@ Prefer not to answer
 ##                 diff      lwr      upr     p adj
 ## Male-Female 1.363123 0.587832 2.138414 0.0005744
 ## 
-## [1] &quot;Based on the output, the difference between &#39;Male-Female&#39; is significant.&quot;
-## [1] &quot;The Tukey Test results for variable2&quot;
+## [1] &quot;The difference between:Male-Female is statistically significant (p&lt;0.05)&quot;
+## [1] &quot;The Tukey HSD Test results for variable2&quot;
 ##   Tukey multiple comparisons of means
 ##     95% family-wise confidence level
 ## 
@@ -3446,24 +3453,25 @@ Prefer not to answer
 ## Missing-White Only          -0.8675026 -3.5340343 1.799029 0.9394363
 ## Missing-Other               -0.5086935 -4.2426006 3.225213 0.9988582
 ## 
-## [1] &quot;Based on the output, the difference between &#39;White Only-Asian&#39; is significant.&quot;</code></pre>
+## [1] &quot;The difference between:White Only-Asian is statistically significant (p&lt;0.05)&quot;</code></pre>
 <p><br />
 <br />
 </p>
 </div>
-<div id="check-anova-assumptions-test-validity" class="section level5">
-<h5>Check ANOVA assumptions: test validity</h5>
+<div id="test-anova-assumptions" class="section level5">
+<h5>Test ANOVA assumptions</h5>
 <p>Although the ANOVA test reveals significance, it is important to test the two of the main assumptions: homogeneity of variances (homoscedasticity) and normality.<br />
 </p>
-<ol style="list-style-type: decimal">
-<li>Homogeneity of variances (Levene’s test)</li>
-</ol>
+<div id="levenes-test" class="section level6">
+<h6>1. Levene’s test</h6>
+<p>Levene’s test is used to verify the assumption that the variances are equal across groups or samples.</p>
 <pre><code>## [1] &quot;The p-value is statistically significant (p&lt;0.05), which means that the variance among the  groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances.&quot;</code></pre>
 <p><br />
 </p>
-<ol start="2" style="list-style-type: decimal">
-<li>Normally distributed (Shapiro-Wilk test)</li>
-</ol>
+</div>
+<div id="shapiro-wilk-test" class="section level6">
+<h6>2. Shapiro-Wilk test</h6>
+<p>The Shapiro-Wilk test is used to verify the assumption that the data are normally distributed.</p>
 <pre><code>## [1] &quot;The p-value is statistically significant (p&lt;0.05), which means that the data are not normally distributed - the null hypothesis that the data are normally distributed is rejected.&quot;</code></pre>
 <p><br />
 <strong>Because both of these assumptions are violated the results from the ANOVA may be incorrect and the conclusions are not statistically valid.</strong><br />
@@ -3473,9 +3481,11 @@ One way to solve this could be to aggregate the groups and retest them to determ
 </p>
 </div>
 </div>
+</div>
 <div id="ii.-unpaired-two-samples-t-test-in-r" class="section level4">
-<h4>II. <a href="http://www.sthda.com/english/wiki/wiki.php?id_contents=7600"><strong>Unpaired Two-Samples T-test in R</strong></a></h4>
-<p>The analysis described below provides an additional way to determine statistical significant differences between different groups.</p>
+<h4>II. <strong>Unpaired Two-Samples T-test in R</strong></h4>
+<p><a href="http://www.sthda.com/english/wiki/wiki.php?id_contents=7600">(reference)</a><br />
+The analysis described below provides an additional way to determine statistical significant differences between different groups.</p>
 <p>Overall Process:</p>
 <ol style="list-style-type: decimal">
 <li>F-test to test for differences in variances of <strong>two</strong> groups -
