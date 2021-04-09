@@ -91,7 +91,7 @@ Mean.SD_CI <- function(df, cat_var, num_var, weight_var){
             list(area(col=c(2,9))~mycomma(digits=0),
                  Weighted_percent=percent),
             align=c("l", rep("c", NCOL(Mean.SD_CI_table))),
-            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+            col.names=c("Variable", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
 }
 
 
