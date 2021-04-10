@@ -79,7 +79,7 @@ Mean.SD_CI <- function(df, cat_var, num_var, weight_var){
               CI_95 = round(z_95*(sd/sqrt(n())),2),
               n=n())
     
-  # to remove sample size column from table
+  # return(Mean.SD_CI_temp)
   Mean.SD_CI_temp<- dplyr::select(Mean.SD_CI_table, -c(n))
   # return(Mean.SD_CI_temp)
   
@@ -87,11 +87,14 @@ Mean.SD_CI <- function(df, cat_var, num_var, weight_var){
   # return(Mean.SD_CI_table)
   
   # create formatted output table
-  formattable(Mean.SD_CI_table,
-            list(area(col=c(2,9))~mycomma(digits=0),
-                 Weighted_percent=percent),
-            align=c("l", rep("c", NCOL(Mean.SD_CI_table))),
-            col.names=c("Variable", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+  table.formattable <<- formattable(Mean.SD_CI_table,
+                                   list(area(col=c(2,9))~mycomma(digits=0),
+                                        Weighted_percent=percent),
+                                   align=c("l", rep("c", NCOL(Mean.SD_CI_table))),
+                                   col.names=c("Variable", "2019 Estimate", 
+                                               "2019 Percent", "2019 Average", 
+                                               "SD", "SE", "CI 90%", "CI 95%", 
+                                               "Sample Size"))
 }
 
 
@@ -710,3 +713,8 @@ T.test.check(comp_gender_asian, #data frame
              "commute_auto_Distance", #dependent variable
              "gender") #variable with 2 levels
 ```
+\
+\
+\
+
+ <a href="#top">Back to top</a>
