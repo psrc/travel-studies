@@ -3415,6 +3415,13 @@ An ANOVA (Analysis of Variance) test is used to evaluate the effect of two group
 ## [1] &quot;The p-value for variable2 is statistically significant (p&lt;0.10) and could be tested further using the Tukey HSD.&quot;</code></pre>
 <p><br />
 </p>
+<p><em>The post-hoc tests (Tukey HSD and Levene’s test) require that the explanatory variables are categorical, not quantitative.</em> If variables are quantitative there are two options:</p>
+<ul>
+<li>Change the variable into a categorical one</li>
+<li>Use techniques for exploring relationships between quantitative variables<br />
+<br />
+</li>
+</ul>
 <div id="tukey-hsd" class="section level5">
 <h5>Tukey HSD</h5>
 <p>The Tukey HSD (Honest Significant Differences) performs multiple pairwise-comparisons between the means of groups. The gender variable doesn’t need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.</p>
@@ -3428,7 +3435,7 @@ An ANOVA (Analysis of Variance) test is used to evaluate the effect of two group
 ##                 diff      lwr      upr     p adj
 ## Male-Female 1.363123 0.587832 2.138414 0.0005744
 ## 
-## [1] &quot;The difference between:Male-Female is statistically significant (p&lt;0.05)&quot;
+## [1] &quot;The difference between: Male-Female is statistically significant (p&lt;0.05)&quot;
 ## [1] &quot;The Tukey HSD Test results for variable2&quot;
 ##   Tukey multiple comparisons of means
 ##     95% family-wise confidence level
@@ -3453,7 +3460,7 @@ An ANOVA (Analysis of Variance) test is used to evaluate the effect of two group
 ## Missing-White Only          -0.8675026 -3.5340343 1.799029 0.9394363
 ## Missing-Other               -0.5086935 -4.2426006 3.225213 0.9988582
 ## 
-## [1] &quot;The difference between:White Only-Asian is statistically significant (p&lt;0.05)&quot;</code></pre>
+## [1] &quot;The difference between: White Only-Asian is statistically significant (p&lt;0.05)&quot;</code></pre>
 <p><br />
 <br />
 </p>
@@ -3465,7 +3472,7 @@ An ANOVA (Analysis of Variance) test is used to evaluate the effect of two group
 <div id="levenes-test" class="section level6">
 <h6>1. Levene’s test</h6>
 <p>Levene’s test is used to verify the assumption that the variances are equal across groups or samples.</p>
-<pre><code>## [1] &quot;The p-value is statistically significant (p&lt;0.05), which means that the variance among the  groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances.&quot;</code></pre>
+<pre><code>## [1] &quot;The p-value is statistically significant (p&lt;0.05), which means that the variance among the groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances.&quot;</code></pre>
 <p><br />
 </p>
 </div>
@@ -3535,7 +3542,7 @@ The analysis described below provides an additional way to determine statistical
 ## mean in group Female   mean in group Male 
 ##             8.921716            10.335703 
 ## 
-## [1] &quot;Based on these results, the p-value is statistically significant (p&lt;0.01), which means that there is a significant difference between the variances of these two groups&quot;</code></pre>
+## [1] &quot;Based on these results, the p-value is statistically significant (p&lt;0.01), which means that there is a significant difference between these two groups&quot;</code></pre>
 <p><br />
 <br />
 <span style="color:#F05A28"><em>Asian POC</em> group</span></p>
@@ -3574,6 +3581,7 @@ The analysis described below provides an additional way to determine statistical
 ## 
 ## [1] &quot;Based on these results, there is no significant difference between the two groups.&quot;</code></pre>
 <p><br />
+<br />
 <br />
 </p>
 <p><a href="#top">Back to top</a></p>

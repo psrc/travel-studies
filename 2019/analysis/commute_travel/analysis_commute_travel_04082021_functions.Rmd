@@ -159,9 +159,9 @@ TukeyHSD.test <- function(num_variables){
     
     for(i in 1:(nrow(p_val))){
       if(p_val[i,1] < 0.05){
-        print(paste0("The difference between:",sig_test$contrast[i]," is statistically significant (p<0.05)"))
+        print(paste0("The difference between: ",sig_test$contrast[i]," is statistically significant (p<0.05)"))
         } else if(p_val[i,1] < 0.10){
-          print(paste0("The difference between:",sig_test$constrast[i]," is statistically significant (p<0.10)"))
+          print(paste0("The difference between: ",sig_test$constrast[i]," is statistically significant (p<0.10)"))
           } else {NULL}
   }
   }
@@ -184,7 +184,7 @@ levene.check <- function(df_name, dependent, var1, var2){
   # results
   for(i in 1:(nrow(levene.pvalue)-1)){
     if(levene.pvalue[1,1]< 0.05){
-      print(paste0("The p-value is statistically significant (p<0.05), which means that the variance among the  groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances."))
+      print(paste0("The p-value is statistically significant (p<0.05), which means that the variance among the groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances."))
       } else if (levene.pvalue[1,1]>= 0.05){
         print(paste0("The p-value is not statistically significant, which means that the variance among the groups is equal."))
         } else {NULL}
@@ -245,9 +245,9 @@ Welch.test.check <- function(df_name, dependent, var1){
   
   # generate message about next steps
   if(Welch.pvalue< 0.01){
-    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between the variances of these two groups"))
+    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between these two groups"))
     } else if (Welch.pvalue< 0.05){
-      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between the variances of these two groups"))
+      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between these two groups"))
     } else if (Welch.pvalue>= 0.05){
       print(paste0("Based on these results, there is no significant difference between the two groups."))
     } else {NULL}
@@ -269,9 +269,9 @@ T.test.check <- function(df_name, dependent, var1){
   
   # generate message about next steps
   if(Ttest.pvalue< 0.01){
-    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between the variances of these two groups"))
+    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between these two groups"))
     } else if (Ttest.pvalue< 0.05){
-      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between the variances of these two groups"))
+      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between these two groups"))
     } else if (Ttest.pvalue>= 0.05){
       print(paste0("Based on these results, there is no significant difference between the two groups."))
     } else {NULL}
@@ -581,7 +581,7 @@ The following section provides a workflow to test if group means are statistical
 
 #### I. **Two-Way ANOVA test in R**  
 [(reference)](http://www.sthda.com/english/wiki/two-way-anova-test-in-r)     
-An ANOVA (Analysis of Variance) test is used to evaluate the effect of two grouping variables (or factors) on a response variable.
+An ANOVA (Analysis of Variance) test is used to evaluate the effect of two grouping variables (or factors) on a response variable. 
 \
 \
 
@@ -599,6 +599,13 @@ anova.gender.race <- anova.test(race_gender_test, #data frame
                                 "gender", #variable 1
                                 "race_category") #variable 2
 ```
+\
+
+*The post-hoc tests (Tukey HSD and Levene's test) require that the explanatory variables are categorical, not quantitative.* If variables are quantitative there are two options:
+
++ Change the variable into a categorical one
++ Use techniques for exploring relationships between quantitative variables
+\
 \
 
 ##### Tukey HSD   
