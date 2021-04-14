@@ -1,6 +1,6 @@
 ---
 title: "Statistical Analysis Functions"
-subtitle: "Example: comparing commuting patterns by gender and race"
+subtitle: "<span style='font-size: 23px'>Example: comparing commuting patterns by sociodemographic characteristics</stlye>"
 author: "Suzanne Childress & Mary Richards"
 date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: 
@@ -37,254 +37,15 @@ library(car) #Levene's test
 library(broom) #anova, p-values
 ```
 
-```{r functions, include=FALSE}
-# connecting to Elmer
-db.connect <- function() {
-  elmer_connection <- dbConnect(odbc(),
-                                driver = "SQL Server",
-                                server = "AWS-PROD-SQL\\Sockeye",
-                                database = "Elmer",
-                                trusted_connection = "yes"
-  )
-}
-
-
-# a function to read tables and queries from Elmer
-read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
-  elmer_connection <- db.connect()
-  if (type == 'table_name') {
-    dtelm <- dbReadTable(elmer_connection, SQL(astring))
-  } else {
-    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
-  }
-  dbDisconnect(elmer_connection)
-  dtelm
-}
-
-
-# Confidence Interval for mean = sample mean + Z-value for confidence level(sample st. dev/sqrt(number of elements in sample))
-Mean.SD_CI <- function(df, cat_var, num_var, weight_var){
-  cat_var <- enquo(cat_var)
-  num_var <- enquo(num_var)
-  weight_var <- enquo(weight_var)
-
-  Mean.SD_CI_table <- df %>%
-    group_by(!!cat_var) %>%
-    summarize(Group_weight = round(sum(!!weight_var),0),
-              Weighted_percent = (round(Group_weight/sum(df$hh_wt_2019),4)),
-              Weighted_avg = round(weighted.mean(!!num_var, !!weight_var),2),
-              sd = round(sd(!!num_var),2),
-              se = round(sd/sqrt(n()),2),
-              CI_90 = round(z*(sd/sqrt(n())),2),
-              CI_95 = round(z_95*(sd/sqrt(n())),2),
-              n=n())
-    
-  # return(Mean.SD_CI_temp)
-  Mean.SD_CI_temp<- dplyr::select(Mean.SD_CI_table, -c(n))
-  # return(Mean.SD_CI_temp)
-  
-  # to include sample size column in table
-  # return(Mean.SD_CI_table)
-  
-  # create formatted output table
-  table.formattable <<- formattable(Mean.SD_CI_table,
-                                   list(area(col=c(2,9))~mycomma(digits=0),
-                                        Weighted_percent=percent),
-                                   align=c("l", rep("c", NCOL(Mean.SD_CI_table))),
-                                   col.names=c("Variable", "2019 Estimate", 
-                                               "2019 Percent", "2019 Average", 
-                                               "SD", "SE", "CI 90%", "CI 95%", 
-                                               "Sample Size"))
-}
-
-
-# adding commas to numbers - thousand separator 
-mycomma <- function(digits = 0) {
-      formatter("span", x ~ comma(x, digits = digits)
-      )
-    }
-
-
-# Statistical assumptions for margins of error
-p_MOE <- 0.5
-z <- 1.645 #90% CI
-z_95 <- 1.96 #95% CI
-
-
-
-# ANALYSIS FUNCTIONS ---------------
-#  1) Two-way ANOVA test function
-anova.test <- function(df_name, dependent, var1, var2) {
-  # defining the objects
-  dependent <- df_name[dependent]
-  variable1 <- df_name[var1]
-  variable2 <- df_name[var2]
-  df <- data.frame(dependent=unlist(dependent),
-                   variable1=unlist(variable1),
-                   variable2=unlist(variable2))
-  
-  # generating ANOVA statistics
-  ANOVA.output <<- aov(dependent~variable1+variable2, data=df)
-  ANOVA_summary <- summary(ANOVA.output)
-  print(ANOVA_summary)
-  
-  # convert output summary into data.frame to get p-values
-  summaries <<- df %>%
-    do(tidy(aov(dependent~variable1+variable2, data=df)))
-  # print(summaries)
-  
-  # generate message about next steps
-  for(i in 1:(nrow(summaries)-1)){
-    if(summaries[i,6] < 0.05){
-      print(paste0("The p-value for ",summaries[i,1], " is statistically significant (p<0.05) and should be tested further using the Tukey HSD."))
-      } else if (summaries[i,6] < 0.10){
-        print(paste0("The p-value for ", summaries[i,1], " is statistically significant (p<0.10) and could be tested further using the Tukey HSD."))
-        } else if (summaries[i,6] > 0.1){
-        print(paste0("The p-value for ",summaries[i,1], " is not statistically significant and does not require further analysis."))
-        } else {NULL}
-    }
-}
-
-
-# 1a) Tukey HSD test function
-TukeyHSD.test <- function(num_variables){
-  for (i in 1:(num_variables)){
-    Tukey_test <- TukeyHSD(ANOVA.output, which=paste0("variable",i))
-    result<-data.frame(Tukey_test[paste0("variable",i)])
-    p_val <- result[paste0("variable",i,".p.adj")]
-    
-    sig_test <- as.data.frame(tidy(Tukey_test))
-    print(paste0("The Tukey HSD Test results for ", sig_test$term[1]))
-    print(Tukey_test)
-    
-    for(i in 1:(nrow(p_val))){
-      if(p_val[i,1] < 0.05){
-        print(paste0("The difference between: ",sig_test$contrast[i]," is statistically significant (p<0.05)"))
-        } else if(p_val[i,1] < 0.10){
-          print(paste0("The difference between: ",sig_test$constrast[i]," is statistically significant (p<0.10)"))
-          } else {NULL}
-  }
-  }
-}
-
-# 1b) Levene's test function (homogeneity of variances)
-levene.check <- function(df_name, dependent, var1, var2){
-  # defining the objects
-  dependent <- df_name[dependent]
-  variable1 <- df_name[var1]
-  variable2 <- df_name[var2]
-  df <- data.frame(dependent=unlist(dependent),
-                   variable1=unlist(variable1),
-                   variable2=unlist(variable2))
-  
-  # generating statistic
-  levene.output <<- leveneTest(dependent~variable1*variable2, data=df)
-  levene.pvalue <- as.data.frame(levene.output$`Pr(>F)`)
-  
-  # results
-  for(i in 1:(nrow(levene.pvalue)-1)){
-    if(levene.pvalue[1,1]< 0.05){
-      print(paste0("The p-value is statistically significant (p<0.05), which means that the variance among the groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances."))
-      } else if (levene.pvalue[1,1]>= 0.05){
-        print(paste0("The p-value is not statistically significant, which means that the variance among the groups is equal."))
-        } else {NULL}
-    }
-  }
-
-
-# 1c) Shapiro Wilk test function (distribution)
-shapiro.wilk.check <- function(){
-  # extract the residuals using output from ANOVA
-  anova_residuals <- residuals(object=ANOVA.output)
-  # run Shapiro-Wilk test
-  test <- shapiro.test(x=anova_residuals)
-  shapiro.pvalue <- test$p.value
-  
-  # results
-  if(shapiro.pvalue< 0.05){
-    print(paste0("The p-value is statistically significant (p<0.05), which means that the data are not normally distributed - the null hypothesis that the data are normally distributed is rejected."))
-    } else if (shapiro.pvalue>= 0.05){
-      print(paste0("The p-value is not statistically significant, which means that there is a normal distribution."))
-      } else {NULL}
-}
-
-
-# 2) F-test function (determining variances for t-test)
-F.test.check <- function(df_name, dependent, var1){
-  # defining the objects
-  dependent <- df_name[dependent]
-  variable1 <- df_name[var1]
-  df <- data.frame(dependent=unlist(dependent),
-                   variable1=unlist(variable1))
-  
-  # generating statistic
-  Fstats <- var.test(dependent~variable1, data=df)
-  print(Fstats)
-  F.pvalue <- Fstats$p.value
-  
-  # generate message about next steps
-  if(F.pvalue< 0.05){
-    print(paste0("The p-value is statistically significant (p<0.05), which means that there is a significant difference between the variances of the two sets of data. This means that we cannot use the classic t-test (which assumes equality of the two variances) and must instead use the Welch t-test (which is an adaptated t-test, used when the two samples have unequal variances)."))
-    } else if (F.pvalue>= 0.05){
-      print(paste0("The p-value is not statistically significant, which means that there is no significant differene between the variances of the two sets of data. This means that we can apply the classic t-test to compare the means of the different groups."))
-    } else {NULL}
-}
-
-# 2a) Welch Test (comparing means)
-Welch.test.check <- function(df_name, dependent, var1){
-  # defining the objects
-  dependent <- df_name[dependent]
-  variable1 <- df_name[var1]
-  df <- data.frame(dependent=unlist(dependent),
-                   variable1=unlist(variable1))
-  
-  # generating statistic
-  Welchstats <- t.test(dependent~variable1, data=df)
-  print(Welchstats)
-  Welch.pvalue <- Welchstats$p.value
-  
-  # generate message about next steps
-  if(Welch.pvalue< 0.01){
-    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between these two groups"))
-    } else if (Welch.pvalue< 0.05){
-      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between these two groups"))
-    } else if (Welch.pvalue>= 0.05){
-      print(paste0("Based on these results, there is no significant difference between the two groups."))
-    } else {NULL}
-}
-
-
-# 2b) Classic t-test (comparing means)
-T.test.check <- function(df_name, dependent, var1){
-  # defining the objects
-  dependent <- df_name[dependent]
-  variable1 <- df_name[var1]
-  df <- data.frame(dependent=unlist(dependent),
-                   variable1=unlist(variable1))
-  
-  # generating statistic
-  Tteststats <- t.test(dependent~variable1, data=df, var.equal=TRUE)
-  print(Tteststats)
-  Ttest.pvalue <- Tteststats$p.value
-  
-  # generate message about next steps
-  if(Ttest.pvalue< 0.01){
-    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between these two groups"))
-    } else if (Ttest.pvalue< 0.05){
-      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between these two groups"))
-    } else if (Ttest.pvalue>= 0.05){
-      print(paste0("Based on these results, there is no significant difference between the two groups."))
-    } else {NULL}
-  }
-```
-
 ```{r read in and set up data}
 #### Read in Data ####
-#where you are running your R code
+# where you are running your R code
 wrkdir <- "C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis"
 
+# functions
+source("statistical_analysis_functions.R")
 
-#where you want to output tables
+# where you want to output tables
 file_loc <- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/outputs'
 
 sql.trip.query <- paste("SELECT hhincome_detailed, race_category, person_dim_id, mode_simple,
@@ -294,7 +55,7 @@ sql.trip.query <- paste("SELECT hhincome_detailed, race_category, person_dim_id,
 trips <- read.dt(sql.trip.query, 'sqlquery')
 trips_2019 <- trips %>% filter(survey_year==2019)
 
-sql.person.query <- paste("SELECT employment, hhincome_detailed, hhincome_broad, race_category, person_dim_id, gender, age, age_category, education, vehicle_count,commute_auto_time,commute_auto_Distance, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5, workplace, survey_year, sample_county, work_county,telecommute_freq, hh_wt_2019 FROM HHSurvey.v_persons_2017_2019")
+sql.person.query <- paste("SELECT employment, hhincome_detailed, hhincome_broad, hhsize, race_category, person_dim_id, gender, age, age_category, education, vehicle_count, rent_own, commute_auto_time,commute_auto_Distance, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5, workplace, survey_year, sample_county, work_county,telecommute_freq, hh_wt_2019 FROM HHSurvey.v_persons_2017_2019")
 
 persons<-read.dt(sql.person.query, 'sqlquery')
 persons_2019 <- persons  %>% filter(survey_year==2019)
@@ -325,7 +86,6 @@ not_home_workers <- workers %>%
   filter(workplace!='At home (telecommute or self-employed with home office)') %>%
   filter(commute_auto_Distance<200)
 ```
-\
 \
 
 ## Descriptives: Individual Variables
@@ -515,6 +275,7 @@ Commute distance will be the dependent variable in this analysis and the two ind
 \
 
 ### <span style="color:#8CC63E">Visually comparing the differences</span>
+Because there are two independent variables, these comparisons can be formatted differently:
 ```{r}
 # commute distance: gender and race
 not_home_workers$race_category <- factor(not_home_workers$race_category,
@@ -575,7 +336,7 @@ ggplot(temp_gender_race, aes(x=gender, y=Weighted_avg, fill=race_category)) +
 \
 
 ### <span style="color:#8CC63E">Statistically comparing the differences</span>
-The following section provides a workflow to test if group means are statistically different. In this example, the independent variables, or the ways in which respondents will be grouped is by their identified gender and race. The dependent variable is commute distance by automobile  [(reference)](https://stats.libretexts.org/Bookshelves/Introductory_Statistics/Book%3A_Introductory_Statistics_(Shafer_and_Zhang)/09%3A_Two-Sample_Problems/9.01%3A_Comparison_of_Two_Population_Means-_Large_Independent_Samples).
+The following section provides a workflow to test if group means are statistically different. In this example, the independent variables, or the ways in which respondents will be grouped is by their identified gender and race. The dependent variable is commute distance by automobile  [(Reference: Comparing two population means)](https://stats.libretexts.org/Bookshelves/Introductory_Statistics/Book%3A_Introductory_Statistics_(Shafer_and_Zhang)/09%3A_Two-Sample_Problems/9.01%3A_Comparison_of_Two_Population_Means-_Large_Independent_Samples).
 \
 \
 
@@ -601,7 +362,8 @@ anova.gender.race <- anova.test(race_gender_test, #data frame
 ```
 \
 
-*The post-hoc tests (Tukey HSD and Levene's test) require that the explanatory variables are categorical, not quantitative.* If variables are quantitative there are two options:
+_The post-hoc tests (Tukey HSD and Levene's test) require that the explanatory variables are **categorical**, not quantitative._  
+If variables are quantitative there are two options:
 
 + Change the variable into a categorical one
 + Use techniques for exploring relationships between quantitative variables
@@ -609,10 +371,10 @@ anova.gender.race <- anova.test(race_gender_test, #data frame
 \
 
 ##### Tukey HSD   
-The Tukey HSD (Honest Significant Differences) performs multiple pairwise-comparisons between the means of groups. The gender variable doesn't need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.
+The Tukey HSD (Honest Significant Differences) performs multiple pairwise-comparisons between the means of groups.
 ```{r}
 # use Two-way ANOVA function
-TukeyHSD.test(2) # input is the number of variables
+TukeyHSD.test()
 ```
 \
 \
@@ -724,4 +486,119 @@ T.test.check(comp_gender_asian, #data frame
 \
 \
 
- <a href="#top">Back to top</a>
+<a href="#top">Back to top</a>
+\
+\
+
+ 
+## *An Additional Example*
+Using the same functions to analyze a different set of variables
+\
+
+**To compare commute distance, household size, and household income**  
+\
+
+#### ANOVA
+```{r}
+# set up data frame with independent and dependent variables of interest
+not_home_workers <- not_home_workers %>%
+  mutate(hhsize_simp = case_when(hhsize =="5 people" |
+                                   hhsize =="6 people" |
+                                   hhsize =="7 people" |
+                                   hhsize =="8 people" |
+                                   hhsize =="9 people" ~ "5+ people",
+                                 TRUE~.$hhsize))
+
+hhsize_income_test <- not_home_workers %>%
+  dplyr::select(hhincome_broad, hhsize_simp, commute_auto_Distance)
+```
+
+```{r}
+# use Two-way ANOVA function with input variables
+anova.size.income <- anova.test(hhsize_income_test,
+                                "commute_auto_Distance", 
+                                "hhsize_simp", 
+                                "hhincome_broad")
+```
+\
+
+##### Tukey HSD   
+The Tukey HSD (Honest Significant Differences) performs multiple pairwise-comparisons between the means of groups. The gender variable doesn't need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.
+\
+
+As stated above: *The post-hoc tests (Tukey HSD and Levene's test) require that the explanatory variables are categorical, not quantitative.*
+```{r}
+# use Two-way ANOVA function, input is the number of variables
+TukeyHSD.test()
+```
+\
+\
+
+##### Test ANOVA assumptions   
+Although the ANOVA test reveals significance, it is important to test the two of the main assumptions: homogeneity of variances (homoscedasticity) and normality.
+\
+
+###### 1. Levene's test
+Levene's test is used to verify the assumption that the variances are equal across groups or samples.
+```{r}
+# use Levene's test function with input variables - same as ANOVA
+levene.check(hhsize_income_test,
+             "commute_auto_Distance",
+             "hhsize_simp",
+             "hhincome_broad")
+```
+\
+
+###### 2. Shapiro-Wilk test 
+The Shapiro-Wilk test is used to verify the assumption that the data are normally distributed. 
+```{r}
+# use Shapiro-wilk function, outputs from ANOVA serve as inputs in function
+shapiro.wilk.check()
+```
+\
+**Because both of these assumptions are violated the results from the ANOVA may be incorrect and the conclusions are not statistically valid.**
+\
+\
+
+#### Unpaired Two-Samples T-test in R
+**To compare commute distance between housing tenure (rent vs. own) and household size (2+ people)**  
+
+##### 1. F-test
+```{r}
+# set up data
+not_home_workers <- not_home_workers %>%
+  mutate(hhsize_simp = case_when(hhsize =="1 person"~ 1,
+                                 hhsize =="2 people" |
+                                   hhsize =="3 people" |
+                                   hhsize =="4 people" |
+                                   hhsize =="5 people" |
+                                   hhsize =="6 people" |
+                                   hhsize =="7 people" |
+                                   hhsize =="8 people" |
+                                   hhsize =="9 people" ~ 2))
+
+comp_tenure_hhsize2 <- not_home_workers %>%
+  dplyr::filter(rent_own=="Own/paying mortgage" | rent_own=="Rent") %>%
+  dplyr::filter(hhsize_simp==2) %>% 
+  dplyr::select(rent_own,  commute_auto_time)
+```
+
+```{r}
+# test variance with input variables
+F.test.check(comp_tenure_hhsize2, 
+             "commute_auto_time", 
+             "rent_own")
+```
+\
+
+##### 2. Welch t-test
+```{r}
+# use Welch test function with input variables
+Welch.test.check(comp_tenure_hhsize2,
+                 "commute_auto_time",
+                 "rent_own")
+```
+\
+\
+
+<a href="#top">Back to top</a>
