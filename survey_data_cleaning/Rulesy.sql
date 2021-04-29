@@ -724,41 +724,25 @@ GO
 /* STEP 3.  Rule-based individual field revisions */
 
 	-- Revise travelers count to reflect passengers (lazy response?)
-		with membercounts (tripid, membercount)
-		as (
+		WITH membercounts (tripid, membercount)
+		AS (
 			select tripid, count(member) 
-			from (
-				SELECT tripid, hhmember1 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember2 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember3 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember4 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember5 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember6 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember7 as member
-				FROM HHSurvey.trip 
-				union all
-				SELECT tripid, hhmember8 as member
-				FROM HHSurvey.trip 
-			) as members
+			from (		  SELECT tripid, hhmember1 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember2 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember3 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember4 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember5 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember6 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember7 AS member FROM HHSurvey.trip 
+				union all SELECT tripid, hhmember8 AS member FROM HHSurvey.trip 
+			) AS members
 			where member not in (select flag_value from HHSurvey.NullFlags)
 			group by tripid
 		)
 		update t
 		set t.travelers_hh = membercounts.membercount
 		from membercounts
-			join HHSurvey.trip as t ON t.tripid = membercounts.tripid
+			join HHSurvey.trip AS t ON t.tripid = membercounts.tripid
 		where t.travelers_hh <> membercounts.membercount 
 			or t.travelers_hh is null
 			or t.travelers_hh in (select flag_value from HHSurvey.NullFlags);
@@ -771,7 +755,9 @@ GO
 	
 	-- Purpose corrections 
 
+
 		--Origin purpose assignment	
+
 		 -- to 'home' (should be largest share of cases)
 		UPDATE t
 		SET 	t.o_purpose   = 1,
@@ -799,6 +785,19 @@ GO
 				AND t.origin_geog.STDistance(p.work_geog) < 300;
 
 		--Destination purpose		
+
+			-- parameterized procedure to reduce duplication
+			DROP PROCEDURE IF EXISTS HHSurvey.destname_purpose_revision;
+			GO
+
+			CREATE PROCEDURE HHSurvey.destname_purpose_revision (@purpose int = NULL, @pattern nvarchar(50) = NULL)
+			AS UPDATE t 
+			SET t.d_purpose = @purpose, t.revision_code = CONCAT(t.revision_code,'5,') 
+				FROM HHSurvey.trip AS t 
+					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
+				WHERE vl.label = 'Other purpose'
+					AND HHSurvey.RgxFind(t.dest_name,@pattern,1) = 1;
+			GO
 
 		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates;
 		GO
@@ -976,100 +975,20 @@ GO
 					AND t.dest_is_work IS NULL
 					AND t.dest_name = 'WORK'
 
-			UPDATE t  
-				SET t.d_purpose = 30, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'(grocery|costco|safeway|trader ?joe)',1) = 1				
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 30, @pattern = '(grocery|costco|safeway|trader ?joe)';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 32, @pattern = '\b(store)\b';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 33, @pattern = '\b(bank|gas|post ?office|library|barber|hair)\b';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 34, @pattern = '(doctor|dentist|hospital|medical|health)';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 50, @pattern = '(coffee|cafe|starbucks|lunch)';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 51, @pattern = 'dog.*(walk|park)';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 51, @pattern = '(walk|park).*dog';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 51, @pattern = '\bwalk$';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 51, @pattern = '\bgym$';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 53, @pattern = 'casino';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 54, @pattern = '(church|volunteer)';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 60, @pattern = '\b(bus|transit|ferry|airport|station)\b';
 
-			UPDATE t  
-				SET t.d_purpose = 32, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'\b(store)\b',1) = 1	
-
-			UPDATE t  
-				SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'\b(bank|gas|post ?office|library|barber|hair)\b',1) = 1				
-
-			UPDATE t  
-				SET t.d_purpose = 33, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'(bank|gas|post ?office|library)',1) = 1		
-
-			UPDATE t  
-				SET t.d_purpose = 34, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'(doctor|dentist|hospital|medical|health)',1) = 1	
-
-			UPDATE t  
-				SET t.d_purpose = 50, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'(coffee|cafe|starbucks|lunch)',1) = 1		
-
-			UPDATE t  
-				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'dog',1) = 1 
-					AND HHSurvey.RgxFind(t.dest_name,'(walk|park)',1) = 1
-
-			UPDATE t  
-				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'\bwalk$',1) = 1	
-
-			UPDATE t  
-				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'\bgym$',1) = 1						
-
-			UPDATE t  
-				SET t.d_purpose = 51, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'park',1) = 1 
-					AND HHSurvey.RgxFind(t.dest_name,'(parking|ride)',1) = 0;
-
-			UPDATE t  
-				SET t.d_purpose = 53, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'casino',1) = 1;
-
-			UPDATE t  
-				SET t.d_purpose = 54, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'(church|volunteer)',1) = 1;
-
-			UPDATE t  
-				SET t.d_purpose = 60, t.revision_code = CONCAT(t.revision_code,'5,') 
-				FROM HHSurvey.trip AS t 
-					join HHSurvey.fnVariableLookup('d_purpose') as vl ON t.d_purpose = vl.code
-				WHERE vl.label = 'Other purpose'
-					AND HHSurvey.RgxFind(t.dest_name,'\b(bus|transit|ferry|airport|station)\b',1) = 1;  
-
-		UPDATE t  --update origin purpose for the next trip when the destination purpose has been changed
+			UPDATE t
 			SET t.o_purpose = t_prev.d_purpose
 			FROM HHSurvey.Trip AS t 
 				JOIN HHSurvey.Trip AS t_prev ON t.personid = t_prev.personid AND t.tripnum -1 = t_prev.tripnum 
@@ -1169,24 +1088,24 @@ GO
 				transit_lines 	= CONCAT_WS(',',ti_wndw.transit_line_1, ti_wndw.transit_line_2, ti_wndw.transit_line_3, ti_wndw.transit_line_4, ti_wndw.transit_line_5, ti_wndw.transit_line_6)
 		*/
 		UPDATE HHSurvey.trip
-				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_acc) 		  THEN trip.mode_acc 		ELSE NULL END AS nvarchar), '') +
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_1)		 	  THEN trip.mode_1 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_2)			  THEN trip.mode_2 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_3) 		  THEN trip.mode_3 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_4) 		  THEN trip.mode_4 			ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_egr		ELSE NULL END AS nvarchar), ''), 1, 1, ''),
+				SET modes = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_acc) 		  THEN trip.mode_acc 		 ELSE NULL END AS nvarchar), '') +
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_1)		 	  THEN trip.mode_1 			 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_2)			  THEN trip.mode_2 			 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_3) 		  THEN trip.mode_3 			 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_4) 		  THEN trip.mode_4 			 ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.mode_egr) 		  THEN trip.mode_egr		 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
 		  transit_systems = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_1) THEN trip.transit_system_1 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_2) THEN trip.transit_system_2 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_3) THEN trip.transit_system_3 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_4) THEN trip.transit_system_4 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_5) THEN trip.transit_system_5 ELSE NULL END AS nvarchar), '') + 
 									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_system_6) THEN trip.transit_system_6 ELSE NULL END AS nvarchar), ''), 1, 1, ''),
-			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_1)	  THEN trip.transit_line_1  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_2)   THEN trip.transit_line_2  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_3)   THEN trip.transit_line_3  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_4)   THEN trip.transit_line_4  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_5)   THEN trip.transit_line_5  	ELSE NULL END AS nvarchar), '') + 
-									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6  	ELSE NULL END AS nvarchar), ''), 1, 1, '');							
+			transit_lines = STUFF(	COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_1)	  THEN trip.transit_line_1   ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_2)   THEN trip.transit_line_2   ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_3)   THEN trip.transit_line_3   ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_4)   THEN trip.transit_line_4   ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_5)   THEN trip.transit_line_5   ELSE NULL END AS nvarchar), '') + 
+									COALESCE(',' + CAST(CASE WHEN NOT EXISTS (SELECT 1 FROM HHSurvey.NullFlags AS nf WHERE nf.flag_value = trip.transit_line_6)   THEN trip.transit_line_6   ELSE NULL END AS nvarchar), ''), 1, 1, '');							
 
 		-- remove component records into separate table, starting w/ 2nd component (i.e., first is left in trip table).  The criteria here determine which get considered components.
 		DROP TABLE IF EXISTS HHSurvey.trip_ingredients_done;
