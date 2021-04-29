@@ -1639,68 +1639,68 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 /* STEP 7. Revise travel times (and where necessary, mode) */  
 	
 	/* Change departure or arrival times for records that would qualify for 'excessive speed' flag, using external Google Distance Matrix API */
-	/* Need to update this section when API data call mechanism is automated, otherwise API data must be saved in table HHSurvey.ApiTravelTime (recid, mode1_minutes, auto_minutes, distance)
 
 		-- Revise departure, and if necessary, arrival times and mode
         -- Preference to reported mode if travel time matches the available window; if not, drive time is considered as an alternative for trips under 7hrs
-		WITH 		
-		cte AS
-		(SELECT t.recid, att.auto_minutes, att.mode1_minutes, att.distance, t.depart_time_timestamp, t.arrival_time_timestamp,
-		  DATEDIFF(Second, t.depart_time_timestamp, t.arrival_time_timestamp)/60.00         AS reported_duration,
-		  DATEDIFF(Second, prev_t.arrival_time_timestamp, t.arrival_time_timestamp)/60.0 -1 AS half_window,
-		  DATEDIFF(Second, t.depart_time_timestamp, next_t.depart_time_timestamp)/60.0 -2   AS full_window,
-		  DATEADD(Second, round(-60 * att.mode1_minutes, 0), t.arrival_time_timestamp)          AS adj_depart_mode1_d,
-          DATEADD(Second, 60, prev_t.arrival_time_timestamp)                                    AS adj_both_mode1_d,
-          DATEADD(Second, round(60 * att.mode1_minutes, 0) + 1, prev_t.arrival_time_timestamp)  AS adj_both_mode1_a,          
-		  DATEADD(Second, round(-60 * att.auto_minutes, 0), t.arrival_time_timestamp)          AS adj_depart_auto_d,
-          DATEADD(Second, 60, prev_t.arrival_time_timestamp)                                    AS adj_both_auto_d,
-          DATEADD(Second, round(60 * att.auto_minutes, 0) + 1, prev_t.arrival_time_timestamp)  AS adj_both_auto_a	  
-		  FROM HHSurvey.Trip AS t JOIN HHSurvey.ApiTravelTime AS att ON t.recid = att.recid
-		  	LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
-			LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
-		WHERE ((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
-					OR 	(EXISTS (SELECT 1 FROM HHSurvey.bikemodes WHERE bikemodes.mode_id = t.mode_1) AND t.speed_mph > 40)
-					OR	(EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
-					OR	(EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
-					OR 	(t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140)))          -- qualifies for 'excessive speed' flag		
-		), cte_choice AS (
-		SELECT cte.recid, 
-			CASE 
-            WHEN cte.mode1_minutes < cte.half_window 														-- mode_1 fits the window for adjusting only departure time
-				AND DATEDIFF(Day, DATEADD(Hour, 3, cte.adj_depart_mode1_d), cte.arrival_time_timestamp) = 0	    -- walk doesn't cross 3am boundary
-			THEN 'adj_depart_mode1'	
-			WHEN cte.mode1_minutes < cte.full_window 															-- mode_1 fits the travel window between prior and next trips
-				AND DATEDIFF(Day, cte.adj_both_auto_d, DATEADD(Hour, 3, cte.adj_both_auto_a)) = 0				-- walk doesn't cross 3am boundary
-			THEN 'adj_both_mode1'	
-            WHEN cte.auto_minutes < cte.half_window AND cte.auto_minutes < 420							    -- drive fits the window for adjusting only departure time
-			    AND ABS(cte.mode1_minutes - cte.auto_minutes) > 20                                              -- difference is substantial
-                AND ABS(cte.auto_minutes - cte.reported_duration) < 5 				                            --  drive matches reported time
-		    THEN 'adj_depart_auto'
-			WHEN cte.auto_minutes < cte.full_window AND cte.auto_minutes < 420    							-- drive fits the travel window between prior and next trips
-			    AND ABS(cte.mode1_minutes - cte.auto_minutes) > 20                                              -- difference is substantial
-                AND ABS(cte.auto_minutes - cte.reported_duration) < 5 				                            -- drive matches reported time
-			THEN 'adj_both_auto'
-			ELSE 'fail' END AS adjustcase
-			FROM cte)	
-		UPDATE t
-		SET t.mode_1 = CASE WHEN cte_choice.adjustcase LIKE '%auto' THEN 16 ELSE t.mode_1 END,
-			t.trip_path_distance = cte.distance,
-			t.revision_code = CASE WHEN cte_choice.adjustcase LIKE '%auto' THEN CONCAT(t.revision_code, '13,')
-								   WHEN cte_choice.adjustcase LIKE '%mode1'  THEN CONCAT(t.revision_code, '12,') 
-								   ELSE t.revision_code END,
-			t.depart_time_timestamp  = CASE WHEN cte_choice.adjustcase = 'adj_depart_mode1'  THEN cte.adj_depart_mode1_d
-                                            WHEN cte_choice.adjustcase = 'adj_both_mode1'    THEN cte.adj_both_mode1_d
-                                            WHEN cte_choice.adjustcase = 'adj_depart_auto'  THEN cte.adj_depart_auto_d
-                                            WHEN cte_choice.adjustcase = 'adj_both_auto'    THEN cte.adj_both_auto_d
-											ELSE t.depart_time_timestamp END,
-			t.arrival_time_timestamp = CASE WHEN cte_choice.adjustcase = 'adj_both_mode1'    THEN cte.adj_both_mode1_a
-                                            WHEN cte_choice.adjustcase = 'adj_both_auto'    THEN cte.adj_both_auto_a
-											ELSE t.arrival_time_timestamp END
-		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_choice ON t.recid = cte_choice.recid
-        WHERE cte_choice.adjustcase <> 'fail';
+		DROP TABLE IF EXISTS tmpApiMiMin;
 		GO
-		*/
 
+		WITH cte AS (SELECT t.recid, t.origin_geog, t.dest_geog, t.trip_path_distance, CONCAT(t.revision_code, '12,') AS revision_code,
+			prev_t.arrival_time_timestamp AS prev_arrival, t.depart_time_timestamp AS depart, t.arrival_time_timestamp AS arrival, next_t.depart_time_timestamp AS next_depart, 
+			CASE WHEN EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) THEN 'walking' 
+				 WHEN EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) THEN 'transit' ELSE 'driving' END as query_mode,
+		FROM HHSurvey.Trip AS t
+				LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
+				LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
+			WHERE ((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
+			    OR (EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
+			    OR (EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
+			    OR (t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140))))        -- qualifies for 'excessive speed' flag	
+		SELECT cte.*, Elmer.dbo.route_mi_min(cte.origin_geog.STX,cte.origin_geog.STY,cte.dest_geog.STX,cte.dest_geog.STY,cte.query_mode,'[INSERT BING KEY HERE]') AS api_result, 
+				0.0000000 AS tmiles, 0.000 AS tminutes, 0 AS adj
+		INTO tmpApiMiMin FROM cte;
+
+		UPDATE tmpApiMiMin SET tmiles = Elmer.dbo.rgx_replace(api_result,'^(.*),\d','$1',1), 
+		                     tminutes = Elmer.dbo.rgx_replace(api_result,'\d,(.*)$','$1',1);
+
+		UPDATE tmpApiMiMin
+			SET trip_path_distance = tmiles, adj = 1,
+			depart  = DATEADD(Second, round(-60 * tminutes, 0), arrival)
+			WHERE DATEDIFF(Second, prev_arrival, arrival)/60.0 -1 > tminutes AND adj = 0							--fits the window to adjust departure only	
+			  AND (query_mode <> 'walking' 
+			  OR DATEDIFF(Day, DATEADD(Hour, 3, DATEADD(Second, round(-60 * tminutes, 0), arrival)), arrival) = 0); 			 --walk doesn't cross 3am boundary		
+
+		UPDATE tmpApiMiMin
+			SET trip_path_distance = tmiles, adj = 2,
+			depart  = DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 - tminutes * 30), prev_arrival), 
+			arrival =  DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 60), prev_arrival) 
+			WHERE (DATEDIFF(Second, prev_arrival, next_depart)/60.0 -2) > tminutes AND adj = 0			                	  --fits the maximum travel window
+			  AND (query_mode <> 'walking' 
+			  OR DATEDIFF(Day, DATEADD(Hour, 3, 
+			  	  DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 - tminutes * 30), prev_arrival)), 
+				   DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 60), prev_arrival)) = 0;     --walk doesn't cross 3am boundary	
+		
+		UPDATE tmpApiMiMin
+			SET adj = -1, revision_code = CONCAT(t.revision_code, '13,'), 											          --where walk doesn't fit, try driving
+			tminutes = Elmer.dbo.rgx_replace(Elmer.dbo.route_mi_min(cte.origin_geog.STX,cte.origin_geog.STY,cte.dest_geog.STX,cte.dest_geog.STY,'driving','[INSERT BING KEY HERE]'),'\d,(.*)$','$1',1)
+			WHERE query_mode = 'walking' AND adj = 0 AND DATEDIFF(Minute, depart, arrival)/60 < 7;
+
+		UPDATE tmpApiMiMin
+			SET adj = 3
+			WHERE adj = -1 																		   	                	 	   --only potential mode recodes
+			  AND ABS(DATEDIFF(Second, depart, arrival)/60 - tminutes) < 5;													   --drive matches reported time 
+
+		UPDATE t																											   --carry out the update for relevant records
+			SET t.trip_path_distance = amm.trip_path_distance, 
+			    t.revision_code = amm.revision_code, 
+				t.depart_time_timestamp = amm.depart, 
+				t.arrival_time_timestamp = amm.arrival,
+				t.mode_1 = CASE WHEN amm.adj = 3 THEN 16 ELSE t.mode1 END
+			FROM HHSurvey.Trip AS t JOIN tmpApiMiMin AS amm ON t.recid = amm.recid
+			WHERE amm.adj > 0;
+				
+		/*DROP TABLE HHSurvey.tmpApiMiMin;*/																					  --clean up	
+		GO
 
 /* STEP 8. Flag inconsistencies */
 /*	as additional error patterns behind these flags are identified, rules to address them can be added to Step 3 or elsewhere in Rulesy as makes sense.*/
