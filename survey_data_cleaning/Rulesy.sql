@@ -1,12 +1,6 @@
-/*	Load and clean raw hh survey data via rules -- a.k.a. "Rulesy"
-	Export meant to feed Angela's interactive review tool
-
-	Required CLR regex functions coded here as RgxFind, RgxExtract, RgxReplace
-	--see https://www.codeproject.com/Articles/19502/A-T-SQL-Regular-Expression-Library-for-SQL-Server
-	
-
-
-*/
+-- -------------------------------------------------------
+/* Load and clean raw hh survey data -- a.k.a. "Rulesy" */
+-- -------------------------------------------------------
 
 /* STEP 0. 	Settings and steps independent of data tables.  */
 
@@ -66,7 +60,6 @@ GO
 /* STEP 1. 	Load data and create geography fields and indexes  */
 	--	Due to field import difficulties, the trip table is imported in two steps--a loosely typed table, then queried using CAST into a tightly typed table.
 	-- 	Bulk insert isn't working right now because locations and permissions won't allow it.  For now, manually import household, persons tables via microsoft.import extension (wizard)
-
 
 		DROP TABLE IF EXISTS HHSurvey.Trip;
 		GO
@@ -390,7 +383,6 @@ GO
 				LEFT JOIN dbo.location_names_082119 as l ON t.tripid = l.tripid
 			ORDER BY tripid;
 		GO
-
 
 		ALTER TABLE HHSurvey.Trip --additional destination address fields
 			ADD origin_geog 	GEOGRAPHY NULL,
@@ -723,7 +715,7 @@ GO
 
 /* STEP 3.  Rule-based individual field revisions */
 
-	-- Revise travelers count to reflect passengers (lazy response?)
+	--A. Revise travelers count to reflect passengers (lazy response?)
 		WITH membercounts (tripid, membercount)
 		AS (
 			select tripid, count(member) 
@@ -753,10 +745,7 @@ GO
 			WHERE t.travelers_total < t.travelers_hh	
 				or t.travelers_total in (select flag_value from HHSurvey.NullFlags);
 	
-	-- Purpose corrections 
-
-
-		--Origin purpose assignment	
+	--B. Origin purpose assignment	
 
 		 -- to 'home' (should be largest share of cases)
 		UPDATE t
@@ -784,7 +773,7 @@ GO
 				AND (vl.label = 'Other purpose' OR vl.label like 'Missing%')
 				AND t.origin_geog.STDistance(p.work_geog) < 300;
 
-		--Destination purpose		
+	--C. Destination purpose		
 
 			-- parameterized procedure to reduce duplication
 			DROP PROCEDURE IF EXISTS HHSurvey.destname_purpose_revision;
@@ -1025,25 +1014,25 @@ GO
 				JOIN HHSurvey.trip AS ref_t ON cte.referent_recid = ref_t.recid AND cte.referent = ref_t.personid
 			WHERE t.d_purpose = -9998 AND t.mode_1 = -9998;
 
-	--if the same person has been to the purpose-missing location at other times and provided a consistent purpose for those trips, use it again
+		--if the same person has been to the purpose-missing location at other times and provided a consistent purpose for those trips, use it again
 		WITH cte AS (SELECT t1.personid, t1.recid, t2.d_purpose 
 						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t1.d_purpose = vl.code AND vl.label LIKE 'Missing%'
 						JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON t2.d_purpose = v2.code AND v2.label NOT LIKE 'Missing%' 
 						WHERE t1.dest_geog.STDistance(t2.dest_geog) < 50
 						GROUP BY t1.personid, t1.recid, t2.d_purpose),
-			 cte_filter AS (SELECT cte.personid, cte.recid, count(*) AS instances FROM cte GROUP BY cte.personid, cte.recid HAVING count(*) = 1)
+			cte_filter AS (SELECT cte.personid, cte.recid, count(*) AS instances FROM cte GROUP BY cte.personid, cte.recid HAVING count(*) = 1)
 		UPDATE t 
 			SET t.d_purpose = cte.d_purpose,
 				t.revision_code = CONCAT(t.revision_code,'5b,') 
 			FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid JOIN cte_filter ON t.recid = cte_filter.recid;
 
-	--if anyone has been to the purpose-missing location at other times and all visitors provided a consistent purpose for those trips, use it again
+		--if anyone has been to the purpose-missing location at other times and all visitors provided a consistent purpose for those trips, use it again
 		WITH cte AS (SELECT t1.recid, t2.d_purpose 
 						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('d_purpose') as vl ON t1.d_purpose = vl.code AND vl.label LIKE 'Missing%'
 						JOIN HHSurvey.Trip AS t2 ON t1.dest_geog.STDistance(t2.dest_geog) < 50 JOIN HHSurvey.fnVariableLookup('d_purpose') as v2 ON t2.d_purpose = v2.code AND v2.label NOT LIKE 'Missing%'
 						WHERE t2.d_purpose NOT IN (1,10) 
 						GROUP BY t1.recid, t2.d_purpose),
-			 cte_filter AS (SELECT cte.recid, count(*) AS instances FROM cte GROUP BY cte.recid HAVING count(*) = 1)
+			cte_filter AS (SELECT cte.recid, count(*) AS instances FROM cte GROUP BY cte.recid HAVING count(*) = 1)
 		UPDATE t 
 			SET t.d_purpose = cte.d_purpose,
 				t.revision_code = CONCAT(t.revision_code,'5c,') 
@@ -1054,13 +1043,10 @@ GO
 		GO
 		EXECUTE HHSurvey.d_purpose_updates;
 
+	/* Placeholder for imputing missing purpose via the Elmer.dbo.loc_recognize function; relevant primarily for rMove */
 
-	/* for rMoves records that don't report mode or purpose */
-
-
-
-	--impute mode (if not specified) for cases on the spectrum ends of speed + distance: 
-		-- -- slow, short trips are walk; long, fast trips are airplane.  Other modes can't be easily assumed.
+	--D. impute mode (if not specified) for cases on the spectrum ends of speed + distance: 
+		-- slow, short trips are walk; long, fast trips are airplane.  Other modes can't be easily assumed.
 		UPDATE t 
 		SET t.mode_1 = 31, t.revision_code = CONCAT(t.revision_code,'7,')	
 		FROM HHSurvey.trip AS t 
@@ -1074,8 +1060,6 @@ GO
 		WHERE (t.mode_1 IS NULL or t.mode_1 in (select flag_value from HHSurvey.NullFlags)) 
 			AND t.trip_path_distance < 0.6 
 			AND t.speed_mph < 5;
-
-	/* Add other field-specific corrections here as rules are discovered */
 		
 /* STEP 4.	Trip linking */
 
@@ -1216,7 +1200,7 @@ GO
 			SET ti.trip_link = -1 * ti.trip_link
 			FROM #trip_ingredient AS ti JOIN cte2 ON cte2.personid = ti.personid AND cte2.trip_link = ti.trip_link;
 
-SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #trip_ingredient GROUP BY CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END
+		SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #trip_ingredient GROUP BY CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END
 
 
 		DROP PROCEDURE IF EXISTS HHSurvey.link_trips;
@@ -1368,8 +1352,6 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 		OUTPUT deleted.* INTO HHSurvey.trip_ingredients_done_2 --HHSurvey.trip_ingredients_done
 		WHERE #trip_ingredient.trip_link > 0;
 
-
-
 /* STEP 5.	Mode number standardization, including access and egress characterization */
 
 		--eliminate repeated values for modes, transit_systems, and transit_lines
@@ -1484,7 +1466,6 @@ SELECT CASE WHEN trip_link > 1 THEN 'queued' ELSE 'removed' END, count(*) FROM #
 		EXECUTE HHSurvey.link_trips;
 			 
 /* STEP 6. Harmonize trips where possible: add trips for non-reporting cotravelers, missing trips between destinations, and remove duplicates  */
-
 
 	--Insert trips for those who were reported as a passenger by another traveler but did not report the trip themselves (may deserve scrutiny--tight criteria result in few records being generated)
 
