@@ -1654,12 +1654,12 @@ GO
 		UPDATE tmpApiMiMin
 			SET trip_path_distance = tmiles, adj = 2,
 			depart  = DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 - tminutes * 30), prev_arrival), 
-			arrival =  DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 60), prev_arrival) 
+			arrival =  DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 30), prev_arrival) 
 			WHERE (DATEDIFF(Second, prev_arrival, next_depart)/60.0 -2) > tminutes AND adj = 0			                	  --fits the maximum travel window
 			  AND (query_mode <> 'walking' 
 			  OR DATEDIFF(Day, DATEADD(Hour, 3, 
 			  	  DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 - tminutes * 30), prev_arrival)), 
-				   DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 60), prev_arrival)) = 0;     --walk doesn't cross 3am boundary	
+				   DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 30), prev_arrival)) = 0);     --walk doesn't cross 3am boundary	
 		
 		UPDATE tmpApiMiMin
 			SET adj = -1, revision_code = CONCAT(t.revision_code, '13,'), 											          --where walk doesn't fit, try driving
