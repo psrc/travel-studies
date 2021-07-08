@@ -1800,6 +1800,10 @@ GO
 				FROM trip_ref as t JOIN HHSurvey.person AS p ON p.personid = t.personid
 				WHERE p.license = 3 AND  t.driver = 1
 
+			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum, 									  'driver, no-drive mode' AS error_flag
+				FROM trip_ref as t
+				WHERE t.mode_1 NOT IN (SELECT mode_id FROM automodes) AND  t.driver = 1
+
 			UNION ALL SELECT  t.recid,  t.personid,  t.tripnum, 							 		 'non-worker + work trip' AS error_flag
 				FROM trip_ref AS t JOIN HHSurvey.person AS p ON p.personid= t.personid
 				WHERE p.employment > 4 AND  t.d_purpose in(10,11,14)
