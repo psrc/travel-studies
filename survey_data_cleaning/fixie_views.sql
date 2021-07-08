@@ -172,13 +172,13 @@ GO
 
 -- Person-level views for FixieUI Main forms, separated by staff so as to avoid editing conflicts
 
-	DROP VIEW IF EXISTS HHSurvey.Person_Neil
-		DROP VIEW IF EXISTS HHSurvey.person_Alex
-		DROP VIEW IF EXISTS HHSurvey.person_Ben
-		DROP VIEW IF EXISTS HHSurvey.person_Grant
+	DROP VIEW IF EXISTS HHSurvey.Person_Mary
+		DROP VIEW IF EXISTS HHSurvey.person_Abdi
+		DROP VIEW IF EXISTS HHSurvey.person_Parastoo
+		DROP VIEW IF EXISTS HHSurvey.person_Polina
 		DROP VIEW IF EXISTS HHSurvey.Person_Mike
 		GO
-
+/*
 		--alternate view for Mike
 		CREATE VIEW HHSurvey.person_Mike WITH SCHEMABINDING AS
 		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
@@ -186,10 +186,10 @@ GO
 			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode 
-		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx JOIN HHSurvey.Trip AS t ON tefx.recid = t.recid WHERE p.personid = tefx.personid AND tefx.error_flag IN('time overlap','long dwell'));
-		--p.personid IN(19103829102,19104719802,19103653401,19103798201,19100322701,19103943301,19100834102,19102358401,19104973303);
+		WHERE --Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx JOIN HHSurvey.Trip AS t ON tefx.recid = t.recid WHERE p.personid = tefx.personid AND tefx.error_flag IN('time overlap','long dwell'));
+		p.personid IN(19101581902,19101888901,19102296902,19102536303,19103463902);
 		GO  
-	/*
+	
 		CREATE VIEW HHSurvey.person_Grant WITH SCHEMABINDING AS
 		SELECT TOP 50 PERCENT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
@@ -198,32 +198,55 @@ GO
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('ends day, not home'))
 			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid);
-		GO
-
-		CREATE VIEW HHSurvey.person_Ben WITH SCHEMABINDING AS
-		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
-			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
-			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
-			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('ends day, not home'))
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Grant AS pa WHERE pa.personid = p.personid);
-		GO
-
-		CREATE VIEW HHSurvey.person_Alex WITH SCHEMABINDING AS
-		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
-			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
-			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
-			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
-		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('ends day, not home'))
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Grant AS pa WHERE pa.personid = p.personid);
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Ben AS pb WHERE pb.personid = p.personid);
 		GO */
 
-		CREATE VIEW HHSurvey.person_Neil WITH SCHEMABINDING AS
+		
+		--alternate view for Mike
+		CREATE VIEW HHSurvey.person_Mike WITH SCHEMABINDING AS
+		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode 
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'PUDO, no +/- travelers')
+			AND Exists(SELECT 1 FROM HHSurvey.pudo_explain AS pe WHERE pe.personid = p.personid AND pe.theory = 'PUDOee, should have non-PUDO purpose');
+		GO  
+
+		CREATE VIEW HHSurvey.person_Polina WITH SCHEMABINDING AS
+		SELECT TOP 50 PERCENT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'PUDO, no +/- travelers')
+			AND Exists(SELECT 1 FROM HHSurvey.pudo_explain AS pe WHERE pe.personid = p.personid AND pe.theory = 'Rulesy-inserted trip (after)');
+		GO
+
+		CREATE VIEW HHSurvey.person_Parastoo WITH SCHEMABINDING AS
+		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'PUDO, no +/- travelers')
+		AND Exists (SELECT 1 FROM HHSurvey.pudo_explain AS pe WHERE p.personid = pe.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS pa WHERE pa.personid = p.personid);
+		GO 
+
+		CREATE VIEW HHSurvey.person_Abdi WITH SCHEMABINDING AS
+		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('PUDO, no +/- travelers'))
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS pa WHERE pa.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS pb WHERE pb.personid = p.personid);
+		GO
+
+		CREATE VIEW HHSurvey.person_Mary WITH SCHEMABINDING AS
 		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
 			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
 			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
@@ -232,7 +255,7 @@ GO
 		WHERE NOT Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND (tef.error_flag LIKE 'missing % trip link'))
 			AND Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid)
 			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
-		--	AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Alex AS pa WHERE pa.personid = p.personid) 
-		--	AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Grant AS pg WHERE pg.personid = p.personid)
-		--	AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Ben AS pb WHERE pb.personid = p.personid);
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS pa WHERE pa.personid = p.personid) 
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS pg WHERE pg.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Abdi AS pb WHERE pb.personid = p.personid);
 		GO
