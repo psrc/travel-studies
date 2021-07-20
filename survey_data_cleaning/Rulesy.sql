@@ -1911,6 +1911,7 @@ GO
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
 			FROM error_flag_compilation AS efc
 			WHERE NOT EXISTS (SELECT 1 FROM trip_ref AS t_active WHERE efc.recid = t_active.recid AND t_active.psrc_resolved = 1)
+			AND efc.personid = (CASE WHEN @target_personid IS NULL THEN efc.personid ELSE @target_personid END)
 			GROUP BY efc.recid, efc.personid, efc.tripnum, efc.error_flag;
 
 		DROP TABLE IF EXISTS #dayends;
