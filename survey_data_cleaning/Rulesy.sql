@@ -111,11 +111,11 @@ GO
 			[travelers_nonhh] [int] NOT NULL,
 			[travelers_total] [int] NOT NULL,
 			[origin_purpose] [int] NULL,
-			[o_purpose_other] [nvarchar](255) NULL,
-			o_purp_cat int null,
+		--	[origin_purpose_other] [nvarchar](255) NULL,
+			[origin_purpose_cat] int null,
 			[dest_purpose] [int] NULL,
-			[d_purpose_other] nvarchar(255) null,
-			[d_purp_cat] int null,
+		--	[d_purpose_other] nvarchar(255) null,
+			[dest_purpose_cat] int null,
 			[mode_1] smallint NOT NULL,
 			[mode_2] smallint NULL,
 			[mode_3] smallint NULL,
@@ -218,9 +218,9 @@ GO
 			,[travelers_nonhh]
 			,[travelers_total]
 			,[origin_purpose]
-			,[o_purpose_other]
+		--	,[origin_purpose_other]
 			,[dest_purpose]
-			,[d_purpose_other]
+		--	,[dest_purpose_other]
 			,[mode_1]
 			,[mode_2]
 			,[mode_3]
@@ -266,7 +266,7 @@ GO
 			,[nonproxy_derived_trip]
 			,[quality_flag]
 			,analyst_split_loop
-			,d_purp_cat
+			,dest_purpose_cat
 			,mode_type
 			,o_purp_cat
 			,user_added
@@ -325,7 +325,7 @@ GO
 			,[origin_purpose]
 			,[o_purpose_other]
 			,[dest_purpose]
-			,[d_purpose_other]
+		--	,[d_purpose_other]
 			,cast([mode_1] as smallint)
 			,cast([mode_2] as smallint)
 			,cast([mode_3] as smallint)
@@ -371,7 +371,7 @@ GO
 			,cast([nonproxy_derived_trip] as bit)
 			,[Quality_flag]
 			,analyst_split_loop
-			,d_purp_cat
+			,dest_purpose_cat
 			,mode_type
 			,o_purp_cat
 			,user_added
@@ -414,7 +414,7 @@ GO
 		--ALTER TABLE HHSurvey.Trip ADD CONSTRAINT PK_recid PRIMARY KEY CLUSTERED (recid) WITH FILLFACTOR=80;
 		CREATE INDEX person_idx ON HHSurvey.Trip (personid ASC);
 		CREATE INDEX tripnum_idx ON HHSurvey.Trip (tripnum ASC);
-		CREATE INDEX d_purpose_idx ON HHSurvey.Trip (dest_purpose);
+		CREATE INDEX dest_purpose_idx ON HHSurvey.Trip (dest_purpose);
 		CREATE INDEX travelers_total_idx ON HHSurvey.Trip(travelers_total);
 		GO 
 
@@ -788,9 +788,9 @@ GO
 					AND HHSurvey.RgxFind(t.dest_name,@pattern,1) = 1;
 			GO
 
-		DROP PROCEDURE IF EXISTS HHSurvey.d_purpose_updates;
+		DROP PROCEDURE IF EXISTS HHSurvey.dest_purpose_updates;
 		GO
-		CREATE PROCEDURE HHSurvey.d_purpose_updates AS 
+		CREATE PROCEDURE HHSurvey.dest_purpose_updates AS 
 		BEGIN
 			
 			UPDATE t--Classify home destinations; criteria plus 300m proximity to household home location
@@ -1041,7 +1041,7 @@ GO
 
 		END
 		GO
-		EXECUTE HHSurvey.d_purpose_updates;
+		EXECUTE HHSurvey.dest_purpose_updates;
 
 	/* Placeholder for imputing missing purpose via the Elmer.dbo.loc_recognize function; relevant primarily for rMove */
 
@@ -1537,7 +1537,7 @@ GO
 	DROP TABLE HHSurvey.silent_passenger_trip;
 
 	EXECUTE HHSurvey.tripnum_update; --after adding records, we need to renumber them consecutively
-	EXECUTE HHSurvey.d_purpose_updates;  --running these again to apply to linked trips, JIC
+	EXECUTE HHSurvey.dest_purpose_updates;  --running these again to apply to linked trips, JIC
 
 	--recode driver flag when mistakenly applied to passengers and a hh driver is present
 	UPDATE t

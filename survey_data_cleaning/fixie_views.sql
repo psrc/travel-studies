@@ -1,6 +1,6 @@
 /* Defines the Views necessary to operate FixieUI  */
 
-USE HouseholdTravelSurvey2019
+USE hhts_cleaning
 GO
 
 	DROP VIEW IF EXISTS HHSurvey.data2fixie;  --The primary subform view in FixieUI
@@ -42,7 +42,7 @@ GO
 						COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember8) THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
 						COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember9) THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 
 							1, 1, '')) END AS cotravelers,
-				CONCAT(t1.o_purpose, '-',tpo.purpose) AS o_purpose, t1.dest_name, CONCAT(t1.d_purpose, '-',tpd.purpose) AS d_purpose, 
+				CONCAT(t1.origin_purpose, '-',tpo.purpose) AS origin_purpose, t1.dest_name, CONCAT(t1.dest_purpose, '-',tpd.purpose) AS dest_purpose, 
 				CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, CASE WHEN t2.recid IS NULL 
 										THEN DATETIME2FROMPARTS(DATEPART(year,t1.arrival_time_timestamp),DATEPART(month,t1.arrival_time_timestamp),DATEPART(day,t1.arrival_time_timestamp),3,0,0,0,0) 
 										ELSE t2.depart_time_timestamp END) % 60)),2),'m') AS duration_at_dest,
@@ -56,8 +56,8 @@ GO
 			LEFT JOIN HHSurvey.trip_mode AS m3 ON t1.mode_3=m3.mode_id
 			LEFT JOIN HHSurvey.trip_mode AS m4 ON t1.mode_4=m4.mode_id
 			LEFT JOIN HHSurvey.trip_mode AS me ON t1.mode_egr=me.mode_id
-			LEFT JOIN HHSurvey.trip_purpose AS tpo ON t1.o_purpose=tpo.purpose_id
-			LEFT JOIN HHSurvey.trip_purpose AS tpd ON t1.d_purpose=tpd.purpose_id;
+			LEFT JOIN HHSurvey.trip_purpose AS tpo ON t1.origin_purpose=tpo.purpose_id
+			LEFT JOIN HHSurvey.trip_purpose AS tpd ON t1.dest_purpose=tpd.purpose_id;
 	GO
 
 	DROP VIEW IF EXISTS HHSurvey.pass2trip;  --View used to edit the trip table (since direct connection isn't possible)
@@ -75,10 +75,10 @@ GO
 				,[dayofweek]
 				,[hhgroup]
 				,[copied_trip]
-				,[completed_at]
+		/*		,[completed_at]
 				,[revised_at]
 				,[revised_count]
-				,[svy_complete]
+		*/		,[svy_complete]
 				,[depart_time_mam]
 				,[depart_time_hhmm]
 				,[depart_time_timestamp]
@@ -106,24 +106,24 @@ GO
 				,[travelers_hh]
 				,[travelers_nonhh]
 				,[travelers_total]
-				,[o_purpose]
-				,[d_purpose]
+				,[origin_purpose]
+				,[dest_purpose]
 				,[mode_1]
-				,[mode_2]
+		/*		,[mode_2]
 				,[mode_3]
 				,[mode_4]
 				,[driver]
-				,[pool_start]
+		*/		,[pool_start]
 				,[change_vehicles]
-				,[park_ride_area_start]
+		/*		,[park_ride_area_start]
 				,[park_ride_area_end]
 				,[park_ride_lot_start]
 				,[park_ride_lot_end]
-				,[toll]
+		*/		,[toll]
 				,[toll_pay]
-				,[taxi_type]
+		--		,[taxi_type]
 				,[taxi_pay]
-				,[bus_type]
+		/*		,[bus_type]
 				,[bus_pay]
 				,[bus_cost_dk]
 				,[ferry_type]
@@ -132,9 +132,9 @@ GO
 				,[air_type]
 				,[air_pay]
 				,[airfare_cost_dk]
-				,[mode_acc]
+		*/		,[mode_acc]
 				,[mode_egr]
-				,[park]
+		/*		,[park]
 				,[park_type]
 				,[park_pay]
 				,[transit_system_1]
@@ -149,7 +149,7 @@ GO
 				,[transit_line_4]
 				,[transit_line_5]
 				,[transit_line_6]
-				,[speed_mph]
+		*/		,[speed_mph]
 				,[psrc_comment]
 				,[psrc_resolved]
 	FROM HHSurvey.Trip;
