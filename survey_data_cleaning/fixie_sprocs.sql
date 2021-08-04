@@ -1,6 +1,6 @@
 /* Procedures triggered or executed via pass-through queries in FixieUI  */
 
-USE HouseholdTravelSurvey2019
+USE hhts_cleaning
 GO
 
 	-- DELETIONS:
@@ -23,7 +23,7 @@ GO
 				@recid_list nvarchar(255) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
 			AS BEGIN
 			SET NOCOUNT ON; 
-			SELECT CAST(HHSurvey.TRIM(value) AS int) AS recid INTO #recid_list 
+			SELECT CAST(Elmer.dbo.TRIM(value) AS int) AS recid INTO #recid_list 
 				FROM STRING_SPLIT(@recid_list, ',')
 				WHERE RTRIM(value) <> '';
 			
@@ -88,11 +88,11 @@ GO
 						,daynum
 						,dayofweek
 						,hhgroup
-						,copied_trip
+					/*	,copied_trip
 						,completed_at
 						,revised_at
 						,revised_count
-						,svy_complete
+					*/	,svy_complete
 						,depart_time_mam
 						,depart_time_hhmm
 						,depart_time_timestamp
@@ -108,7 +108,7 @@ GO
 						,trip_path_distance
 						,google_duration
 						,reported_duration
-						,travel_time
+					--	,travel_time
 						,hhmember1
 						,hhmember2
 						,hhmember3
@@ -202,11 +202,11 @@ GO
 						,daynum
 						,dayofweek
 						,hhgroup
-						,copied_trip
+					/*	,copied_trip
 						,completed_at
 						,revised_at
 						,revised_count
-						,svy_complete
+					*/	,svy_complete
 						,depart_time_mam
 						,depart_time_hhmm
 						,depart_time_timestamp
@@ -222,7 +222,7 @@ GO
 						,trip_path_distance
 						,google_duration
 						,reported_duration
-						,travel_time
+					--	,travel_time
 						,hhmember1
 						,hhmember2
 						,hhmember3
@@ -327,7 +327,7 @@ GO
 
 	--SPLIT TRIP USING TRACE DATA
 		/*	Also shortens too-long trips when intermediate stop distance is short */
-		
+		/*	NOT CURRENTLY USING TRACES FOR 2021 dataset
 			DROP PROCEDURE IF EXISTS HHSurvey.split_trip_from_traces;
 			GO
 			CREATE PROCEDURE HHSurvey.split_trip_from_traces
@@ -408,7 +408,7 @@ GO
 			EXECUTE HHSurvey.generate_error_flags @split_personid;
 
 			END
-	
+	*/
 	--ADD TRIP, details optional
 		/*	Generates a blank trip, or populates a trip with the information from another trip */
 
@@ -420,11 +420,11 @@ GO
 		IF @target_recid IS NOT NULL 
 			BEGIN
 			INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, data_source, psrc_inserted,
-				dest_lat, dest_lng, dest_name, origin_lat, origin_lng, depart_time_timestamp, arrival_time_timestamp, travel_time, trip_path_distance,
-				dest_purpose, d_purp_cat, modes, mode_acc, mode_1, mode_2, mode_3, mode_4, mode_egr, travelers_hh, travelers_nonhh, travelers_total)
+				dest_lat, dest_lng, dest_name, origin_lat, origin_lng, depart_time_timestamp, arrival_time_timestamp, /*travel_time,*/ trip_path_distance,
+				dest_purpose, dest_purpose_cat, modes, mode_acc, mode_1, /*mode_2, mode_3, mode_4, */mode_egr, travelers_hh, travelers_nonhh, travelers_total)
 			SELECT p.hhid, p.personid, p.pernum, p.hhgroup, t.data_source, 1,
-				t.dest_lat, t.dest_lng, t.dest_name, t.origin_lat, t.origin_lng, t.depart_time_timestamp, t.arrival_time_timestamp, t.travel_time, t.trip_path_distance,
-				t.dest_purpose, t.d_purp_cat, t.modes, t.mode_acc, t.mode_1, t.mode_2, t.mode_3, t.mode_4, t.mode_egr, t.travelers_hh, t.travelers_nonhh, t.travelers_total
+				t.dest_lat, t.dest_lng, t.dest_name, t.origin_lat, t.origin_lng, t.depart_time_timestamp, t.arrival_time_timestamp, /*t.travel_time,*/ t.trip_path_distance,
+				t.dest_purpose, t.dest_purpose_cat, t.modes, t.mode_acc, t.mode_1, /*mode_2, mode_3, mode_4, */t.mode_egr, t.travelers_hh, t.travelers_nonhh, t.travelers_total
 			FROM HHSurvey.Person AS p CROSS JOIN HHSurvey.Trip AS t WHERE p.personid = @target_personid AND t.recid = @target_recid;
 			END
 		ELSE
@@ -448,11 +448,11 @@ GO
 		DROP TABLE IF EXISTS HHSurvey.ApiHomeTravel;
 
 		SELECT t.recid, h.home_lat, h.home_lng, t.dest_lat AS origin_lat, t.dest_lng AS origin_lng, 
-			CAST(HHSurvey.RgxReplace(t.psrc_comment,'ADD RETURN HOME( \d?\d):\d\d.*',LTRIM('$1'),1) AS int) AS hh,
-			CAST(RIGHT(HHSurvey.RgxExtract(t.psrc_comment,':\d\d',1),2) AS int) AS mm,
+			CAST(Elmer.dbo.rgx_replace(t.psrc_comment,'ADD RETURN HOME( \d?\d):\d\d.*',LTRIM('$1'),1) AS int) AS hh,
+			CAST(RIGHT(Elmer.dbo.rgx_extract(t.psrc_comment,':\d\d',1),2) AS int) AS mm,
 			CAST(0 AS decimal(8,4)) AS travel_duration, CAST(0 AS decimal(8,4)) AS travel_distance --HERE NEED API steps to return travel time and distance
 		INTO HHSurvey.ApiHomeTravel
-		FROM HHSurvey.Trip AS t JOIN HHSurvey.Household AS h ON t.hhid = h.hhid WHERE HHSurvey.RgxFind(t.psrc_comment,'ADD RETURN HOME \d?\d:\d\d',1) = 1;
+		FROM HHSurvey.Trip AS t JOIN HHSurvey.Household AS h ON t.hhid = h.hhid WHERE Elmer.dbo.rgx_find(t.psrc_comment,'ADD RETURN HOME \d?\d:\d\d',1) = 1;
 
 		INSERT INTO	HHSurvey.Trip (hhid, personid, pernum, hhgroup, data_source, psrc_inserted,
 				dest_lat, dest_lng, dest_name, origin_lat, origin_lng, depart_time_timestamp, arrival_time_timestamp, travel_time, trip_path_distance,
@@ -466,13 +466,13 @@ GO
 			FROM HHSurvey.Trip AS t JOIN HHSurvey.ApiHomeTravel AS aht ON t.recid = aht.recid;
 
 		UPDATE t 
-			SET t.psrc_comment = HHSurvey.RgxReplace(t.psrc_comment, 'ADD RETURN HOME \d?\d:\d\d','',1) 
+			SET t.psrc_comment = Elmer.dbo.rgx_replace(t.psrc_comment, 'ADD RETURN HOME \d?\d:\d\d','',1) 
 			FROM HHSurvey.Trip AS t JOIN HHSurvey.ApiHomeTravel AS aht ON t.recid = aht.recid;
 		UPDATE nxt
 		 	SET nxt.origin_purpose = 1, nxt.origin_lat = aht.home_lat, nxt.origin_lng = aht.home_lng
 			FROM HHSurvey.Trip AS t JOIN HHSurvey.Trip AS nxt ON t.personid = nxt.personid AND t.tripnum + 1 = nxt.tripnum JOIN HHSurvey.ApiHomeTravel AS aht ON t.recid = aht.recid;
 		END
-		GO;
+		GO
 
 	--Generate GUI recordset to show activity of other household members
 
@@ -522,7 +522,7 @@ GO
 		GO
 
 	--Generate GUI recordset showing traces for the specified trip
-
+	/* NOT USING TRACES IN 2021
 		DROP PROCEDURE IF EXISTS HHSurvey.trace_this_trip;
 		GO
 		CREATE PROCEDURE HHSurvey.trace_this_trip
@@ -568,7 +568,7 @@ GO
 		ORDER BY tid.tripnum ASC;
 		END
 		GO
-
+	*/
 	--Generate GUI recordset showing linked trip ingredients
 
 		DROP PROCEDURE IF EXISTS HHSurvey.link_trip_click;
@@ -579,9 +579,9 @@ GO
 			AS BEGIN
 		SET NOCOUNT OFF;
 		DECLARE @recid_list nvarchar(255) = NULL
-		IF (SELECT HHSurvey.RgxFind(HHSurvey.TRIM(t.psrc_comment),'^(\d+,?)+$',1) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid) = 1
+		IF (SELECT Elmer.dbo.rgx_find(Elmer.dbo.TRIM(t.psrc_comment),'^(\d+,?)+$',1) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid) = 1
 			BEGIN
-			SELECT @recid_list = (SELECT HHSurvey.TRIM(t.psrc_comment) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid)
+			SELECT @recid_list = (SELECT Elmer.dbo.TRIM(t.psrc_comment) FROM HHSurvey.Trip AS t WHERE t.recid = @ref_recid)
 			EXECUTE HHSurvey.link_trip_via_id @recid_list;
 			SELECT @recid_list = NULL, @ref_recid = NULL
 			END

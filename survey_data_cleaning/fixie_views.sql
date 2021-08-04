@@ -10,11 +10,11 @@ GO
 	SELECT t1.recid, t1.personid, t1.hhid, t1.pernum, t1.hhgroup, CASE WHEN EXISTS (SELECT 1 FROM HHSurvey.Trip WHERE Trip.psrc_comment IS NOT NULL AND t1.personid = Trip.personid) THEN 1 ELSE 0 END AS Elevated, 0 AS Seattle,
 			t1.tripnum, 
 			STUFF(	COALESCE(',' + CAST(ma.mode_desc AS nvarchar), '') + 
-					COALESCE(',' + CAST(m1.mode_desc AS nvarchar), '') + 
+				/*	COALESCE(',' + CAST(m1.mode_desc AS nvarchar), '') + 
 					COALESCE(',' + CAST(m2.mode_desc AS nvarchar), '') + 
 					COALESCE(',' + CAST(m3.mode_desc AS nvarchar), '') + 
 					COALESCE(',' + CAST(m4.mode_desc AS nvarchar), '') +
-					COALESCE(',' + CAST(me.mode_desc AS nvarchar), ''), 1, 1, '') AS modes_desc,
+				*/	COALESCE(',' + CAST(me.mode_desc AS nvarchar), ''), 1, 1, '') AS modes_desc,
 			t1.daynum,	 
 			FORMAT(t1.depart_time_timestamp,N'hh\:mm tt','en-US') AS depart_dhm,
 			FORMAT(t1.arrival_time_timestamp,N'hh\:mm tt','en-US') AS arrive_dhm,
@@ -42,7 +42,7 @@ GO
 						COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember8) THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
 						COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember9) THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 
 							1, 1, '')) END AS cotravelers,
-				CONCAT(t1.origin_purpose, '-',tpo.purpose) AS origin_purpose, t1.dest_name, CONCAT(t1.dest_purpose, '-',tpd.purpose) AS dest_purpose, 
+				CONCAT(t1.origin_purpose, '-',tpo.purpose) AS o_purpose, t1.dest_name, CONCAT(t1.dest_purpose, '-',tpd.purpose) AS d_purpose, 
 				CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, CASE WHEN t2.recid IS NULL 
 										THEN DATETIME2FROMPARTS(DATEPART(year,t1.arrival_time_timestamp),DATEPART(month,t1.arrival_time_timestamp),DATEPART(day,t1.arrival_time_timestamp),3,0,0,0,0) 
 										ELSE t2.depart_time_timestamp END) % 60)),2),'m') AS duration_at_dest,
@@ -52,10 +52,10 @@ GO
 		FROM HHSurvey.trip AS t1 LEFT JOIN HHSurvey.trip as t2 ON t1.personid = t2.personid AND (t1.tripnum+1) = t2.tripnum
 			LEFT JOIN HHSurvey.trip_mode AS ma ON t1.mode_acc=ma.mode_id
 			LEFT JOIN HHSurvey.trip_mode AS m1 ON t1.mode_1=m1.mode_id
-			LEFT JOIN HHSurvey.trip_mode AS m2 ON t1.mode_2=m2.mode_id
+		/*	LEFT JOIN HHSurvey.trip_mode AS m2 ON t1.mode_2=m2.mode_id
 			LEFT JOIN HHSurvey.trip_mode AS m3 ON t1.mode_3=m3.mode_id
 			LEFT JOIN HHSurvey.trip_mode AS m4 ON t1.mode_4=m4.mode_id
-			LEFT JOIN HHSurvey.trip_mode AS me ON t1.mode_egr=me.mode_id
+		*/	LEFT JOIN HHSurvey.trip_mode AS me ON t1.mode_egr=me.mode_id
 			LEFT JOIN HHSurvey.trip_purpose AS tpo ON t1.origin_purpose=tpo.purpose_id
 			LEFT JOIN HHSurvey.trip_purpose AS tpd ON t1.dest_purpose=tpd.purpose_id;
 	GO
@@ -106,8 +106,8 @@ GO
 				,[travelers_hh]
 				,[travelers_nonhh]
 				,[travelers_total]
-				,[origin_purpose]
-				,[dest_purpose]
+				,[origin_purpose] AS o_purpose
+				,[dest_purpose] AS d_purpose
 				,[mode_1]
 		/*		,[mode_2]
 				,[mode_3]
@@ -208,8 +208,7 @@ GO
 			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode 
-		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'PUDO, no +/- travelers')
-			AND Exists(SELECT 1 FROM HHSurvey.pudo_explain AS pe WHERE pe.personid = p.personid AND pe.theory = 'PUDOee, should have non-PUDO purpose');
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('non-student + school trip','non-worker + work trip','unlicensed driver'));
 		GO  
 
 		CREATE VIEW HHSurvey.person_Polina WITH SCHEMABINDING AS
@@ -219,7 +218,7 @@ GO
 			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
 		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'PUDO, no +/- travelers')
-			AND Exists(SELECT 1 FROM HHSurvey.pudo_explain AS pe WHERE pe.personid = p.personid AND pe.theory = 'Rulesy-inserted trip (after)');
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS p1 WHERE p1.personid = p.personid);
 		GO
 
 		CREATE VIEW HHSurvey.person_Parastoo WITH SCHEMABINDING AS
@@ -228,10 +227,9 @@ GO
 			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'PUDO, no +/- travelers')
-		AND Exists (SELECT 1 FROM HHSurvey.pudo_explain AS pe WHERE p.personid = pe.personid)
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
-		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS pa WHERE pa.personid = p.personid);
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag = 'purpose at odds w/ dest')
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS p1 WHERE p1.personid = p.personid)
+		AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS p2 WHERE p2.personid = p.personid);
 		GO 
 
 		CREATE VIEW HHSurvey.person_Abdi WITH SCHEMABINDING AS
@@ -240,10 +238,10 @@ GO
 			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('PUDO, no +/- travelers'))
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS pa WHERE pa.personid = p.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS pb WHERE pb.personid = p.personid);
+		WHERE Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid AND tefx.error_flag IN('ends day, not home','too long at dest','starts, not from home'))
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS p1 WHERE p1.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS p2 WHERE p2.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS p3 WHERE p3.personid = p.personid);
 		GO
 
 		CREATE VIEW HHSurvey.person_Mary WITH SCHEMABINDING AS
@@ -252,10 +250,25 @@ GO
 			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
 			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
 		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
-		WHERE NOT Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND (tef.error_flag LIKE 'missing % trip link'))
+		WHERE NOT Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('excessive speed','too slow'))
 			AND Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS pm WHERE pm.personid = p.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS pa WHERE pa.personid = p.personid) 
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS pg WHERE pg.personid = p.personid)
-			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Abdi AS pb WHERE pb.personid = p.personid);
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS p1 WHERE p1.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS p2 WHERE p2.personid = p.personid) 
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS p3 WHERE p3.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Abdi AS p4 WHERE p4.personid = p.personid);
+		GO
+
+		CREATE VIEW HHSurvey.person_Grant WITH SCHEMABINDING AS
+		SELECT p.personid, p.hhid AS hhid, p.pernum, ac.agedesc AS Age, 
+			CASE WHEN p.worker  = 0 THEN 'No' ELSE 'Yes' END AS Works, 
+			CASE WHEN p.student = 1 THEN 'No' WHEN student = 2 THEN 'PT' WHEN p.student = 3 THEN 'FT' ELSE 'No' END AS Studies, 
+			CASE WHEN p.hhgroup = 1 THEN 'rMove' WHEN p.hhgroup = 2 THEN 'rSurvey' ELSE 'n/a' END AS HHGroup
+		FROM HHSurvey.person AS p INNER JOIN HHSurvey.AgeCategories AS ac ON p.age = ac.agecode
+		WHERE NOT Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tef WHERE tef.personid = p.personid AND tef.error_flag IN('same dest as prior','missing trip link','change mode purpose'))
+			AND Exists (SELECT 1 FROM HHSurvey.trip_error_flags AS tefx WHERE p.personid = tefx.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mike AS p1 WHERE p1.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Polina AS p2 WHERE p2.personid = p.personid) 
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Parastoo AS p3 WHERE p3.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Abdi AS p4 WHERE p4.personid = p.personid)
+			AND NOT EXISTS (SELECT 1 FROM HHSurvey.person_Mary AS p5 WHERE p5.personid = p.personid);
 		GO
