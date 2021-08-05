@@ -42,7 +42,7 @@ GO
 						COALESCE(',' + CASE WHEN t1.hhmember8 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember8) THEN RIGHT(CAST(t1.hhmember8 AS nvarchar),2) ELSE NULL END, '') + 
 						COALESCE(',' + CASE WHEN t1.hhmember9 <> t1.personid AND NOT EXISTS (SELECT flag_value from HHSurvey.NullFlags WHERE flag_value = t1.hhmember9) THEN RIGHT(CAST(t1.hhmember9 AS nvarchar),2) ELSE NULL END, ''), 
 							1, 1, '')) END AS cotravelers,
-				CONCAT(t1.origin_purpose, '-',tpo.purpose) AS o_purpose, t1.dest_name, CONCAT(t1.dest_purpose, '-',tpd.purpose) AS d_purpose, 
+				CONCAT(t1.origin_purpose, '-',tpo.purpose) AS origin_purpose, t1.dest_name, CONCAT(t1.dest_purpose, '-',tpd.purpose) AS dest_purpose, 
 				CONCAT(CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, t2.depart_time_timestamp) / 60)),'h',RIGHT('00'+CONVERT(varchar(30), (DATEDIFF(mi, t1.arrival_time_timestamp, CASE WHEN t2.recid IS NULL 
 										THEN DATETIME2FROMPARTS(DATEPART(year,t1.arrival_time_timestamp),DATEPART(month,t1.arrival_time_timestamp),DATEPART(day,t1.arrival_time_timestamp),3,0,0,0,0) 
 										ELSE t2.depart_time_timestamp END) % 60)),2),'m') AS duration_at_dest,
@@ -106,8 +106,8 @@ GO
 				,[travelers_hh]
 				,[travelers_nonhh]
 				,[travelers_total]
-				,[origin_purpose] AS o_purpose
-				,[dest_purpose] AS d_purpose
+				,[origin_purpose]
+				,[dest_purpose]
 				,[mode_1]
 		/*		,[mode_2]
 				,[mode_3]
