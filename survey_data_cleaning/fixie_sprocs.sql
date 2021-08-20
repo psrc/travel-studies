@@ -487,19 +487,22 @@ GO
 		WITH cte AS (SELECT max(recid) AS max_recid FROM HHSurvey.Trip)	
 		UPDATE ta
 			SET new_recid = (cte.max_recid + ta.rownum),
-				api_miles = CAST(Elmer.dbo.rgx_replace(api_result,'^(.*),.*','$1',1) AS float), 
-		        api_minutes = CAST(Elmer.dbo.rgx_replace(api_result,'.*,(.*)$','$1',1) AS float)
+				api_miles = CAST(Elmer.dbo.rgx_replace(api_response,'^(.*),.*','$1',1) AS float), 
+		        api_minutes = CAST(Elmer.dbo.rgx_replace(api_response,'.*,(.*)$','$1',1) AS float)
 			FROM tmpApi2Home AS ta JOIN cte ON 1=1;		
 
-		WITH cte AS (SELECT max(recid) AS max_recid FROM HHSurvey.Trip)
-		INSERT INTO	HHSurvey.Trip (recid, hhid, personid, pernum, hhgroup, [data_source], psrc_inserted,
+		SET IDENTITY_INSERT hhts_cleaning.HHSurvey.Trip ON;
+
+		INSERT INTO	HHSurvey.Trip (recid, hhid, personid, pernum, hhgroup, [data_source], psrc_inserted, tripnum,
 				dest_lat, dest_lng, dest_name, origin_lat, origin_lng, depart_time_timestamp, arrival_time_timestamp, trip_path_distance,
 				dest_purpose, mode_1, travelers_hh, travelers_nonhh, travelers_total)
-		SELECT  ta.new_recid AS recid, ta.hhid, ta.personid, ta.pernum, ta.hhgroup, ta.[data_source], 1,
+		SELECT  ta.new_recid AS recid, ta.hhid, ta.personid, ta.pernum, ta.hhgroup, ta.[data_source], 1, 0,
 				ta.home_geog.Lat, ta.home_geog.Long, 'HOME', ta.origin_geog.Lat, ta.origin_geog.Long, depart_time_timestamp, 
 				DATEADD(Minute, ROUND(ta.api_minutes,0), ta.depart_time_timestamp) AS arrival_time_timestamp,
 				ta.api_miles, 1 AS dest_purpose, ta.mode_1, ta.travelers_hh, ta.travelers_nonhh, ta.travelers_total
 			FROM tmpApi2Home AS ta;
+
+		SET IDENTITY_INSERT hhts_cleaning.HHSurvey.Trip OFF;
 
 		UPDATE t 
 			SET t.psrc_comment = Elmer.dbo.rgx_replace(t.psrc_comment, 'ADD RETURN HOME \d?\d:\d\d','',1) 
@@ -509,6 +512,7 @@ GO
 			FROM HHSurvey.Trip AS t JOIN HHSurvey.Trip AS nxt ON t.personid = nxt.personid AND t.tripnum + 1 = nxt.tripnum JOIN tmpApi2Home AS ta ON t.recid = ta.new_recid;
 
 		EXECUTE HHSurvey.recalculate_after_edit;
+		EXECUTE HHSurvey.tripnum_update
 		EXECUTE HHSurvey.generate_error_flags;	
 		END
 		GO
