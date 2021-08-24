@@ -1029,8 +1029,8 @@ GO
 
 		--if the same person has been to the purpose-missing location at other times and provided a consistent purpose for those trips, use it again
 		WITH cte AS (SELECT t1.personid, t1.recid, t2.dest_purpose 
-						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('dest_purpose') as vl ON t1.dest_purpose = vl.code AND vl.label LIKE 'Missing%'
-						JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid JOIN HHSurvey.fnVariableLookup('dest_purpose') as v2 ON t2.dest_purpose = v2.code AND v2.label NOT LIKE 'Missing%' 
+						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('dest_purpose') as vl ON t1.dest_purpose = vl.code AND (vl.label LIKE 'Missing%' OR vl.label='Other purpose')
+						JOIN HHSurvey.Trip AS t2 ON t1.personid = t2.personid JOIN HHSurvey.fnVariableLookup('dest_purpose') as v2 ON t2.dest_purpose = v2.code AND v2.label NOT LIKE 'Missing%' AND vl.label<>'Other purpose'
 						WHERE t1.dest_geog.STDistance(t2.dest_geog) < 50
 						GROUP BY t1.personid, t1.recid, t2.dest_purpose),
 			cte_filter AS (SELECT cte.personid, cte.recid, count(*) AS instances FROM cte GROUP BY cte.personid, cte.recid HAVING count(*) = 1)
@@ -1041,8 +1041,8 @@ GO
 
 		--if anyone has been to the purpose-missing location at other times and all visitors provided a consistent purpose for those trips, use it again
 		WITH cte AS (SELECT t1.recid, t2.dest_purpose 
-						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('dest_purpose') as vl ON t1.dest_purpose = vl.code AND vl.label LIKE 'Missing%'
-						JOIN HHSurvey.Trip AS t2 ON t1.dest_geog.STDistance(t2.dest_geog) < 50 JOIN HHSurvey.fnVariableLookup('dest_purpose') as v2 ON t2.dest_purpose = v2.code AND v2.label NOT LIKE 'Missing%'
+						FROM HHSurvey.Trip AS t1 JOIN HHSurvey.fnVariableLookup('dest_purpose') as vl ON t1.dest_purpose = vl.code AND (vl.label LIKE 'Missing%' OR vl.label='Other purpose')
+						JOIN HHSurvey.Trip AS t2 ON t1.dest_geog.STDistance(t2.dest_geog) < 50 JOIN HHSurvey.fnVariableLookup('dest_purpose') as v2 ON t2.dest_purpose = v2.code AND v2.label NOT LIKE 'Missing%' AND vl.label<>'Other purpose'
 						WHERE t2.dest_purpose NOT IN (1,10) 
 						GROUP BY t1.recid, t2.dest_purpose),
 			cte_filter AS (SELECT cte.recid, count(*) AS instances FROM cte GROUP BY cte.recid HAVING count(*) = 1)
@@ -1286,7 +1286,7 @@ GO
 					WHERE ti1.personid = ti_wndw.personid AND ti1.trip_link = ti_wndw.trip_link
 					GROUP BY ti1.modes
 					ORDER BY ti_wndw.personid DESC, ti_wndw.tripnum DESC
-					FOR XML PATH('')), 1, 1, NULL) AS modes,	
+					FOR XML PATH('')), 1, 1, NULL) AS modes/*,	
 				--STRING_AGG(ti2.transit_systems,',') OVER (PARTITION BY ti_wnd.trip_link ORDER BY ti_wndw.tripnum ASC) AS transit_systems, -- This can be used once we upgrade from MSSQL16
 				STUFF(
 					(SELECT ',' + ti2.transit_systems
@@ -1302,7 +1302,7 @@ GO
 					WHERE ti3.personid = ti_wndw.personid AND ti3.trip_link = ti_wndw.trip_link
 					GROUP BY ti3.transit_lines
 					ORDER BY ti_wndw.personid DESC, ti_wndw.tripnum DESC
-					FOR XML PATH('')), 1, 1, NULL) AS transit_lines	
+					FOR XML PATH('')), 1, 1, NULL) AS transit_lines	*/
 			FROM #trip_ingredient as ti_wndw WHERE ti_wndw.trip_link > 0 )
 		SELECT cte_wndw.*, cte_agg.* INTO #linked_trips
 			FROM cte_wndw JOIN cte_agg ON cte_wndw.personid2 = cte_agg.personid AND cte_wndw.trip_link2 = cte_agg.trip_link;
@@ -1322,7 +1322,7 @@ GO
 			SET t.dest_purpose 		= lt.dest_purpose * (CASE WHEN lt.dest_purpose IN(-97,-60) THEN -1 ELSE 1 END),	
 				t.dest_name 		= lt.dest_name,		
 			--	t.transit_systems	= lt.transit_systems,
-				t.transit_lines		= lt.transit_lines,
+			--	t.transit_lines		= lt.transit_lines,
 				t.modes				= lt.modes,
 				t.dest_is_home		= lt.dest_is_home,					
 				t.dest_is_work		= lt.dest_is_work,
@@ -1357,14 +1357,14 @@ GO
 				t.park_ride_lot_end		= lt.park_ride_lot_end, 		t.bus_type		= lt.bus_type, 	
 																		t.ferry_type	= lt.ferry_type, 
 																		t.air_type		= lt.air_type,*/
-				t.psrc_comment = 'Re-standardize modes', 	
+				--t.psrc_comment = 'Re-standardize modes', 	
 				t.revision_code = CONCAT(t.revision_code, '8,')
 			FROM HHSurvey.Trip AS t JOIN #linked_trips AS lt ON t.personid = lt.personid AND t.tripnum = lt.trip_link;
 
 		--move the ingredients to another named table so this procedure can be re-run as sproc during manual cleaning
 
 		DELETE FROM #trip_ingredient
-		OUTPUT deleted.* INTO HHSurvey.trip_ingredients_done_2 --HHSurvey.trip_ingredients_done
+		OUTPUT deleted.* INTO HHSurvey.trip_ingredients_done
 		WHERE #trip_ingredient.trip_link > 0;
 
 /* STEP 5.	Mode number standardization, including access and egress characterization */
@@ -1431,26 +1431,26 @@ GO
 			WHERE EXISTS (SELECT 1 FROM STRING_SPLIT(t2.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.automodes))
 			AND NOT EXISTS (SELECT 1 FROM STRING_SPLIT(t2.modes,',') WHERE VALUE IN(SELECT mode_id FROM HHSurvey.transitmodes)))
 		UPDATE t
-			SET mode_1 = (SELECT Match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY)/*,
-				mode_2 = (SELECT Match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				mode_3 = (SELECT Match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				mode_4 = (SELECT Match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)*/
+			SET mode_1 = (SELECT match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY match_index OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY)/*,
+				mode_2 = (SELECT match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY match_index OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				mode_3 = (SELECT match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY match_index OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				mode_4 = (SELECT match FROM Elmer.dbo.rgx_matches(cte.mode_reduced,'\b\d+\b',1) ORDER BY match_index OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY)*/
 		FROM HHSurvey.Trip AS t JOIN cte ON t.recid = cte.recid AND EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =t.personid AND lt.trip_link = t.tripnum);
 
 /*		-- Populate transit_system and transit_line fields with the revised concatenated data 		
         UPDATE t
-        	SET t.transit_system_1	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_2	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_3	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_4	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_5	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_system_6	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_1	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_2	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_3	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_4	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_5	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
-				t.transit_line_6	= (SELECT Match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY MatchIndex OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY)
+        	SET t.transit_system_1	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY match_index OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_2	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY match_index OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_3	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY match_index OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_4	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY match_index OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_5	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY match_index OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_system_6	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_systems,	'\b\d+\b',1) ORDER BY match_index OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_1	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY match_index OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_2	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY match_index OFFSET 1 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_3	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY match_index OFFSET 2 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_4	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY match_index OFFSET 3 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_5	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY match_index OFFSET 4 ROWS FETCH NEXT 1 ROWS ONLY),
+				t.transit_line_6	= (SELECT match FROM Elmer.dbo.rgx_matches(t.transit_lines,	'\b\d+\b',1) ORDER BY match_index OFFSET 5 ROWS FETCH NEXT 1 ROWS ONLY)
 			FROM HHSurvey.Trip AS t WHERE EXISTS (SELECT 1 FROM #linked_trips AS lt WHERE lt.personid =t.personid AND lt.trip_link = t.tripnum);*/
 
 		UPDATE HHSurvey.Trip SET mode_acc = 995 WHERE mode_acc IS NULL;
@@ -1604,7 +1604,7 @@ GO
 				   CAST(LEFT(mi_min_result, CHARINDEX(mi_min_result,',')-1) AS float) AS distance, 
 				   ROUND(CAST(RIGHT(mi_min_result,LEN(mi_min_result)-CHARINDEX(mi_min_result,',')) AS float),0) AS mode1_minutes
 			FROM HHSurvey.cte_ref
-			WHERE CHARINDEX(mi_min_result,',')>1)--,		
+			WHERE CHARINDEX(mi_min_result,',')>1),		
 	cte AS (SELECT cte_ref.recid, cte_ref.travelers_hh, cte_ref.travelers_nonhh, cte_ref.travelers_total, cte_ref.revision_code,
 			DATEADD(Minute, ((DATEDIFF(Second, cte_ref.travelwindow_start, cte_ref.travelwindow_end) / 60 - aml.mode1_minutes) / 2), cte_ref.travelwindow_start) AS depart_time_timestamp,
 			aml.mode1_minutes AS travel_minutes, aml.distance
@@ -1657,23 +1657,44 @@ GO
 		DROP TABLE IF EXISTS tmpApiMiMin;
 		GO
 
+		CREATE TABLE [dbo].[tmpApiMiMin](
+			recid int NOT NULL,
+			origin_geog geography NULL,
+			dest_geog geography NULL,
+			trip_path_distance float NULL,
+			revision_code nvarchar(50) NOT NULL,
+			prev_arrival datetime2(7) NULL,
+			depart datetime2(7) NULL,
+			arrival datetime2(7) NULL,
+			next_depart datetime2(7) NULL,
+			query_mode varchar(7) NOT NULL,
+			api_result nvarchar(max) NULL,
+			tmiles float NOT NULL,
+			tminutes float NOT NULL,
+			adj int NOT NULL
+		)
+		GO
+
 		WITH cte AS (SELECT t.recid, t.origin_geog, t.dest_geog, t.trip_path_distance, CONCAT(t.revision_code, '12,') AS revision_code,
 			prev_t.arrival_time_timestamp AS prev_arrival, t.depart_time_timestamp AS depart, t.arrival_time_timestamp AS arrival, next_t.depart_time_timestamp AS next_depart, 
 			CASE WHEN EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) THEN 'walking' 
-				 WHEN EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) THEN 'transit' ELSE 'driving' END as query_mode
+				 --WHEN EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) THEN 'transit' 
+				 ELSE 'driving' END as query_mode
 		FROM HHSurvey.Trip AS t
 				LEFT JOIN HHSurvey.Trip AS prev_t ON t.personid = prev_t.personid AND t.tripnum -1 = prev_t.tripnum
 				LEFT JOIN HHSurvey.Trip AS next_t ON t.personid = next_t.personid AND t.tripnum +1 = next_t.tripnum
 			WHERE ((EXISTS (SELECT 1 FROM HHSurvey.walkmodes WHERE walkmodes.mode_id = t.mode_1) AND t.speed_mph > 20)
 			    OR (EXISTS (SELECT 1 FROM HHSurvey.automodes WHERE automodes.mode_id = t.mode_1) AND t.speed_mph > 85)	
-			    OR (EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
-			    OR (t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140))))        -- qualifies for 'excessive speed' flag	
+			   -- OR (EXISTS (SELECT 1 FROM HHSurvey.transitmodes WHERE transitmodes.mode_id = t.mode_1) AND t.mode_1 <> 31 AND t.speed_mph > 60)	
+			    OR (t.speed_mph > 600 AND (t.origin_lng between 116.95 AND 140) AND (t.dest_lng between 116.95 AND 140))) )       -- qualifies for 'excessive speed' flag	 AND t.recid < 1000
+		INSERT INTO tmpApiMiMin(recid, origin_geog, dest_geog, trip_path_distance, revision_code, prev_arrival, depart, arrival, next_depart, query_mode, api_result, tmiles, tminutes, adj)
 		SELECT cte.*, Elmer.dbo.route_mi_min(cte.origin_geog.Long, cte.origin_geog.Lat, cte.dest_geog.Long, cte.dest_geog.Lat, cte.query_mode,'[INSERT BING KEY HERE]') AS api_result, 
 				0.0000000 AS tmiles, 0.000 AS tminutes, 0 AS adj
-		INTO tmpApiMiMin FROM cte;
+		FROM cte
+		WHERE cte.origin_geog.Long <1 AND cte.origin_geog.Lat >1 AND cte.dest_geog.Long <1 AND cte.dest_geog.Lat >1; 
 
-		UPDATE tmpApiMiMin SET tmiles = Elmer.dbo.rgx_replace(api_result,'^(.*),\d','$1',1), 
-		                     tminutes = Elmer.dbo.rgx_replace(api_result,'\d,(.*)$','$1',1);
+		UPDATE tmpApiMiMin SET tmiles = CAST(Elmer.dbo.rgx_replace(api_result,'^(.*),.*','$1',1) AS float), 
+		                     tminutes = CAST(Elmer.dbo.rgx_replace(api_result,'.*,(.*)$','$1',1) AS float);
 
 		UPDATE tmpApiMiMin
 			SET trip_path_distance = tmiles, adj = 1,
@@ -1693,8 +1714,8 @@ GO
 				   DATEADD(Second, (DATEDIFF(Second, prev_arrival, next_depart)/2 + tminutes * 30), prev_arrival)) = 0);     --walk doesn't cross 3am boundary	
 		
 		UPDATE tmpApiMiMin
-			SET adj = -1, revision_code = CONCAT(t.revision_code, '13,'), 											          --where walk doesn't fit, try driving
-			tminutes = Elmer.dbo.rgx_replace(Elmer.dbo.route_mi_min(cte.origin_geog.Long, cte.origin_geog.Lat, cte.dest_geog.Long, cte.dest_geog.Lat,'driving','[INSERT BING KEY HERE]'),'\d,(.*)$','$1',1)
+			SET adj = -1, revision_code = CONCAT(revision_code, '13,'), 											          --where walk doesn't fit, try driving
+			tminutes = CAST(Elmer.dbo.rgx_replace(Elmer.dbo.route_mi_min(origin_geog.Long, origin_geog.Lat, dest_geog.Long, dest_geog.Lat,'driving','AmXTWUc52YYqvdSlHNGUEAe3RH1TvtcECyH6RGZm7q2vhzv9JzOm1GaY9TKW47lF'),'.*,(.*)$','$1',1) AS float)
 			WHERE query_mode = 'walking' AND adj = 0 AND DATEDIFF(Minute, depart, arrival)/60 < 7;
 
 		UPDATE tmpApiMiMin
