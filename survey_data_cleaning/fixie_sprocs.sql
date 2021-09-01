@@ -19,6 +19,8 @@ GO
 
 			DROP PROCEDURE IF EXISTS HHSurvey.link_trip_via_id;
 			GO
+			USE hhts_cleaning;
+			GO
 			CREATE PROCEDURE HHSurvey.link_trip_via_id
 				@recid_list nvarchar(255) NULL --Parameter necessary to have passed: comma-separated recids to be linked (not limited to two)
 			AS BEGIN
@@ -419,10 +421,10 @@ GO
 		AS BEGIN
 		IF @target_recid IS NOT NULL 
 			BEGIN
-			INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, data_source, psrc_inserted,
+			INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, data_source, psrc_inserted, tripnum,
 				dest_lat, dest_lng, dest_name, origin_lat, origin_lng, depart_time_timestamp, arrival_time_timestamp, /*travel_time,*/ trip_path_distance,
 				dest_purpose, dest_purpose_cat, modes, mode_acc, mode_1, /*mode_2, mode_3, mode_4, */mode_egr, travelers_hh, travelers_nonhh, travelers_total)
-			SELECT p.hhid, p.personid, p.pernum, p.hhgroup, t.data_source, 1,
+			SELECT p.hhid, p.personid, p.pernum, p.hhgroup, t.data_source, 1, 0,
 				t.dest_lat, t.dest_lng, t.dest_name, t.origin_lat, t.origin_lng, t.depart_time_timestamp, t.arrival_time_timestamp, /*t.travel_time,*/ t.trip_path_distance,
 				t.dest_purpose, t.dest_purpose_cat, t.modes, t.mode_acc, t.mode_1, /*mode_2, mode_3, mode_4, */t.mode_egr, t.travelers_hh, t.travelers_nonhh, t.travelers_total
 			FROM HHSurvey.Person AS p CROSS JOIN HHSurvey.Trip AS t WHERE p.personid = @target_personid AND t.recid = @target_recid;
@@ -433,8 +435,45 @@ GO
 			SELECT p.hhid, p.personid, p.pernum, p.hhgroup, 1
 			FROM HHSurvey.Person AS p WHERE p.personid = @target_personid;
 			END
+
 		EXECUTE HHSurvey.recalculate_after_edit @target_personid;
 		EXECUTE HHSurvey.generate_error_flags @target_personid;
+		END
+
+	--ADD REVERSE TRIP
+
+		DROP PROCEDURE IF EXISTS HHSurvey.insert_reverse_trip;
+		GO
+		CREATE PROCEDURE HHSurvey.insert_reverse_trip
+			@target_recid int, @starttime nvarchar(5)
+		AS BEGIN
+		IF @target_recid IS NOT NULL 
+			BEGIN
+
+			DECLARE @target_personid decimal(19,0) = NULL;
+			SET @target_personid = (SELECT x.personid FROM HHSurvey.Trip AS x WHERE x.recid=@target_recid);
+
+			WITH cte AS (SELECT DATETIME2FROMPARTS(YEAR(t0.arrival_time_timestamp), 
+			   					  MONTH(t0.arrival_time_timestamp), 
+								  DAY(t0.arrival_time_timestamp), 
+								  CAST(Elmer.dbo.rgx_replace(@starttime,'(\d?\d):\d\d',LTRIM('$1'),1) AS int), 
+								  CAST(RIGHT(Elmer.dbo.rgx_replace(@starttime,':(\d\d)$',LTRIM('$1'),1),2) AS int), 0 ,0 ,0) AS depart_time_timestamp,
+								DATEDIFF(minute, t0.depart_time_timestamp, t0.arrival_time_timestamp) AS travel_time_elapsed,
+								t0.personid, t0.recid 
+							FROM HHSurvey.Trip AS t0 WHERE t0.recid=@target_recid)
+			INSERT INTO HHSurvey.Trip (hhid, personid, pernum, hhgroup, data_source, psrc_inserted, tripnum,
+				dest_lat, dest_lng, dest_name, origin_lat, origin_lng, origin_name, depart_time_timestamp, arrival_time_timestamp, /*travel_time,*/ trip_path_distance,
+				dest_purpose, dest_purpose_cat, origin_purpose, origin_purpose_cat, modes, mode_acc, mode_1, /*mode_2, mode_3, mode_4, */mode_egr, travelers_hh, travelers_nonhh, travelers_total)
+			SELECT t.hhid, t.personid, t.pernum, t.hhgroup, t.data_source, 1, 0,
+				t.origin_lat, t.origin_lng, t.origin_name, t.dest_lat, t.dest_lng, t.dest_name,
+				cte.depart_time_timestamp, DATEADD(minute, cte.travel_time_elapsed, cte.depart_time_timestamp) AS arrival_time_timestamp,
+				 /*t.travel_time,*/ t.trip_path_distance,
+				t.origin_purpose, t.origin_purpose_cat, t.dest_purpose, t.dest_purpose_cat, t.modes, t.mode_acc, t.mode_1, /*mode_2, mode_3, mode_4, */t.mode_egr, t.travelers_hh, t.travelers_nonhh, t.travelers_total
+			FROM HHSurvey.Trip AS t JOIN cte ON t.recid=cte.recid;
+
+			EXECUTE HHSurvey.recalculate_after_edit @target_personid;
+			EXECUTE HHSurvey.generate_error_flags @target_personid;
+			END
 		END
 
 	--ADD RETURN HOME TRIP
@@ -469,7 +508,7 @@ GO
 		INSERT INTO tmpApi2Home(init_recid, hhid, personid, pernum, hhgroup, [data_source], api_response, mode_1, depart_time_timestamp, origin_geog, home_geog, travelers_hh, travelers_nonhh, travelers_total)
 		SELECT t.recid AS init_recid, t.hhid, t.personid, t.pernum, t.hhgroup, t.[data_source],
 			   Elmer.dbo.route_mi_min(t.dest_geog.Long, t.dest_geog.Lat, h.home_geog.Long, h.home_geog.Lat, 
-			   						  CASE WHEN p.age <5 AND t.dest_purpose=6 AND t.dest_geog.STDistance(h.home_geog) < 1500 THEN 'walking' ELSE 'driving' END,'[INSERT BING KEY HERE]') AS api_response,
+			   						  CASE WHEN p.age <5 AND t.dest_purpose=6 AND t.dest_geog.STDistance(h.home_geog) < 1500 THEN 'walking' ELSE 'driving' END,'AlrP-dw5WRAoOohAABv5EhKtvgp_plo8hnfBM-FJsfvi9UdFCe0AdqT7oURMTGLC') AS api_response,
 			   CASE WHEN p.age <5 AND t.dest_purpose=6 AND t.dest_geog.STDistance(h.home_geog) < 1500 THEN 1 ELSE 16 END	AS mode_1, 
 			   DATETIME2FROMPARTS(YEAR(t.arrival_time_timestamp), 
 			   					  MONTH(t.arrival_time_timestamp), 
@@ -482,7 +521,7 @@ GO
 			   t.travelers_nonhh,
 			   t.travelers_total
 			FROM HHSurvey.Trip AS t JOIN HHSurvey.Household AS h ON t.hhid=h.hhid JOIN HHSurvey.Person AS p ON t.personid=p.personid
-			WHERE t.psrc_comment LIKE 'ADD RETURN HOME%';
+			WHERE Elmer.dbo.rgx_find(t.psrc_comment, 'ADD RETURN HOME \d?\d:\d\d',1) =1;
 
 		WITH cte AS (SELECT max(recid) AS max_recid FROM HHSurvey.Trip)	
 		UPDATE ta
