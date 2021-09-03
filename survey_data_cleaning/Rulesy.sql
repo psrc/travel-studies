@@ -977,7 +977,7 @@ GO
 					AND t.dest_is_work IS NULL
 					AND t.dest_name = 'WORK';
 
-			EXECUTE HHSurvey.destname_purpose_revision @purpose = 30, @pattern = '(grocery|costco|safeway|trader ?joe)';
+			EXECUTE HHSurvey.destname_purpose_revision @purpose = 30, @pattern = '(grocery|costco|safeway|trader ?joe|qfc)';
 			EXECUTE HHSurvey.destname_purpose_revision @purpose = 32, @pattern = '\b(store)\b';
 			EXECUTE HHSurvey.destname_purpose_revision @purpose = 33, @pattern = '\b(bank|gas|post ?office|library|barber|hair)\b';
 			EXECUTE HHSurvey.destname_purpose_revision @purpose = 34, @pattern = '(doctor|dentist|hospital|medical|health)';
@@ -1127,7 +1127,7 @@ GO
 			AND trip.dest_is_work IS NULL																			-- destination of preceding leg isn't work
 			AND trip.travelers_total = next_trip.travelers_total	 												-- traveler # the same								
 			AND (trip.mode_1<>next_trip.mode_1 
-				OR (trip.mode_1 = next_trip.mode_1 AND EXISTS (SELECT trip.mode_1 FROM HHSurvey.transitmodes)))		--either change modes or switch transit lines
+				OR (trip.mode_1 = next_trip.mode_1 AND EXISTS (SELECT 1 FROM HHSurvey.transitmodes AS tm WHERE tm.mode_id=trip.mode_1 )))		--either change modes or switch transit lines
 			AND ((tvl.label LIKE 'Transferred to another mode of transporation%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 30) -- change modes under 30min dwell
 				  OR (trip.dest_purpose = next_trip.dest_purpose AND ntvl.label NOT LIKE 'Dropped off/picked up someone%' AND DATEDIFF(Minute, trip.arrival_time_timestamp, next_trip.depart_time_timestamp) < 15)  -- other non-PUDO purposes if identical, under 15min dwell
 				);
@@ -1601,8 +1601,8 @@ GO
 			JOIN HHSurvey.Household AS h ON t.hhid = h.hhid
 			WHERE ABS(t.dest_geog.STDistance(nxt.origin_geog)) > 500),
 	aml AS (SELECT recid, 
-				   CAST(LEFT(mi_min_result, CHARINDEX(mi_min_result,',')-1) AS float) AS distance, 
-				   ROUND(CAST(RIGHT(mi_min_result,LEN(mi_min_result)-CHARINDEX(mi_min_result,',')) AS float),0) AS mode1_minutes
+				   CAST(LEFT(mi_min_result, CHARINDEX(',',mi_min_result,)-1) AS float) AS distance, 
+				   ROUND(CAST(RIGHT(mi_min_result,LEN(mi_min_result)-CHARINDEX(',',mi_min_result,)) AS float),0) AS mode1_minutes
 			FROM HHSurvey.cte_ref
 			WHERE CHARINDEX(mi_min_result,',')>1),		
 	cte AS (SELECT cte_ref.recid, cte_ref.travelers_hh, cte_ref.travelers_nonhh, cte_ref.travelers_total, cte_ref.revision_code,
@@ -1936,7 +1936,7 @@ GO
 						  	 CASE WHEN t.hhmember7 <> t_next.hhmember7 THEN 1 ELSE 0 END +
 						  	 CASE WHEN t.hhmember8 <> t_next.hhmember8 THEN 1 ELSE 0 END) > 1
 
-			UNION ALL SELECT t.recid, t.personid, t.tripnum,					  				 	    	   'too long at dest' AS error_flag
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,					  				 	    	   'too long at dest?' AS error_flag
 				FROM trip_ref AS t JOIN HHSurvey.Trip AS t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum
 					WHERE   (t.dest_purpose IN(6,10,11,14)    		
 						AND DATEDIFF(Minute, t.arrival_time_timestamp, 
@@ -1952,12 +1952,22 @@ GO
 						AND DATEDIFF(Minute, t.arrival_time_timestamp, 
 						   		CASE WHEN t_next.recid IS NULL 
 									 THEN DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp),DATEPART(month, t.arrival_time_timestamp),DATEPART(day, t.arrival_time_timestamp),3,0,0,0,0) 
-									 ELSE t_next.depart_time_timestamp END) > 480)  
+									 ELSE t_next.depart_time_timestamp END) > 480)
+					 	OR  (t.dest_purpose =9 	
+						AND DATEDIFF(Minute, t.arrival_time_timestamp, 
+						   		CASE WHEN t_next.recid IS NULL 
+									 THEN DATETIME2FROMPARTS(DATEPART(year, t.arrival_time_timestamp),DATEPART(month, t.arrival_time_timestamp),DATEPART(day, t.arrival_time_timestamp),3,0,0,0,0) 
+									 ELSE t_next.depart_time_timestamp END) > 35)    
 
 			UNION ALL SELECT t.recid, t.personid, t.tripnum, 		  				   		          'non-student + school trip' AS error_flag
 				FROM trip_ref AS t JOIN HHSurvey.Trip as t_next ON t.personid = t_next.personid AND t.tripnum + 1 = t_next.tripnum JOIN HHSurvey.person ON t.personid=person.personid 					
 				WHERE t.dest_purpose = 6		
-					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4)
+					AND (person.student NOT IN(2,3,4) OR person.student IS NULL) AND person.age > 4
+
+			UNION ALL SELECT t.recid, t.personid, t.tripnum,										  'Too early?' AS error_flag
+				FROM  trip_ref AS t 
+				WHERE t.dest_purpose IN(6,30,32,34,50,52,53,54,56) AND Elmer.dbo.rgx_find(t.dest_name,'(gas|texaco|7 ?-?11|ampm|chevron|arco|shell|starbucks|casino)',1) =0
+				AND DATEPART(hour, t.depart_time_timestamp) BETWEEN 2 AND 5)
 
 		INSERT INTO HHSurvey.trip_error_flags (recid, personid, tripnum, error_flag)
 			SELECT efc.recid, efc.personid, efc.tripnum, efc.error_flag 
