@@ -84,7 +84,10 @@
 
 --Generate 'execute sproc' for elevate comments
 
-		SELECT t.recid, nxt.recid, CONCAT('EXECUTE HHSurvey.link_trip_via_id ''',Elmer.dbo.rgx_replace(t.psrc_comment,'LINK ','',1),'''; GO') FROM HHSurvey.Trip AS t JOIN HHSurvey.Trip AS nxt ON t.personid = nxt.personid AND t.tripnum + 1 = nxt.tripnum WHERE (t.psrc_comment LIKE 'LINK%' OR t.psrc_comment LIKE '[1-9]%[[1-9]') --GROUP BY t.personid, t.psrc_comment ORDER BY t.psrc_comment;
+		SELECT CONCAT('EXECUTE HHSurvey.link_trip_via_id ''',Elmer.dbo.rgx_replace(t.psrc_comment,'LINK ','',1),'''; GO') FROM HHSurvey.Trip AS t WHERE (/*t.psrc_comment LIKE 'LINK%' OR */t.psrc_comment LIKE '[1-9]%[[1-9]') --GROUP BY t.personid, t.psrc_comment ORDER BY t.psrc_comment;
+
+		SELECT CONCAT('EXECUTE HHSurvey.insert_new_trip ''',Elmer.dbo.rgx_replace(t.psrc_comment,'INSERT TRIP ','',1),'''; GO') FROM HHSurvey.Trip AS t WHERE (t.psrc_comment LIKE 'INSERT TRIP [1-9]%') --GROUP BY t.personid, t.psrc_comment ORDER BY t.psrc_comment;
+
 
 		SELECT CONCAT('EXECUTE HHSurvey.split_trip_from_traces ', t.Recid,'; GO') FROM HHSurvey.Trip AS t WHERE t.psrc_comment LIKE 'SPLIT TRIP FROM TRACES%' AND Elmer.dbo.rgx_find(t.psrc_comment,'(loop|link)',1) <> 1 --GROUP BY t.Recid ORDER BY t.Recid;
 
@@ -98,7 +101,9 @@
 
 --Remove days marked as invalid
 
-	/*	WITH cte AS (SELECT personid, daynum FROM HHSurvey.Trip WHERE psrc_comment LIKE 'Invalid%')
+SELECT TOP 0 * INTO HHSurvey.trip_invalid FROM HHSurvey.Trip UNION ALL SELECT TOP 0 * FROM HHSurvey.Trip;
+
+	/*	WITH cte AS (SELECT personid, daynum FROM HHSurvey.Trip WHERE psrc_comment LIKE 'INVALID%')
 		DELETE FROM HHSurvey.Trip
 		OUTPUT deleted.* INTO HHSurvey.trip_invalid
 		WHERE EXISTS (SELECT 1 FROM cte WHERE trip.personid = cte.personid AND trip.daynum = cte.daynum);*/
@@ -132,3 +137,26 @@
 			SET t.travel_time = t.reported_duration
 			FROM HHSurvey.Trip AS t LEFT JOIN dbo.hts_trip AS t0 ON t0.tripid = t.tripid
 			WHERE (t.reported_duration <> t0.reported_duration OR t.travel_time = 0 OR t.travel_time IS NULL) AND t.hhgroup = 1 AND t.reported_duration > 0;*/
+
+--Update trip_path_distance calculation for edited records where the coords were edited but distance wasn't
+WITH cte AS (SELECT t.recid, 
+	Elmer.dbo.route_mi_min(t.origin_lng, t.origin_lat, t.dest_lng, t.dest_lat, CASE WHEN t.mode_1=1 THEN 'walking' ELSE 'driving' END,'[BING KEY HERE]') AS mi_min_result
+	--INTO dbo.tmpTPD1
+	FROM HHSurvey.Trip AS t JOIN dbo.hts_trip AS t0 ON t.tripid=t0.tripid
+	WHERE t.trip_path_distance > 0 AND NOT EXISTS (SELECT 1 FROM dbo.tmpTPD AS tz WHERE tz.recid=t.recid) 
+		AND (ABS(t.dest_lat-t0.dest_lat) + ABS(t.dest_lng-t0.dest_lng) + ABS(t.origin_lat-t0.origin_lat) +  ABS(t.origin_lng-t0.origin_lng)) > 0.001 
+		AND ABS(t.trip_path_distance-t0.trip_path_distance) < 0.01
+		AND t.origin_lng BETWEEN -125 AND -116 AND t.dest_lng BETWEEN -125 AND -115 
+		AND t.origin_lat BETWEEN 44 and 50 AND t.dest_lat BETWEEN 44 AND 50)
+UPDATE tu 
+	SET tu.trip_path_distance = CAST(LEFT(cte.mi_min_result, CHARINDEX(',',cte.mi_min_result)-1) AS float)
+	FROM HHSurvey.Trip AS tu JOIN cte ON tu.recid=cte.recid WHERE cte.mi_min_result<>'0,0';
+
+--Update trip_path_distance calculation where absent
+WITH cte AS (SELECT t.recid, Elmer.dbo.route_mi_min(t.origin_lng, t.origin_lat, t.dest_lng, t.dest_lat, CASE WHEN t.mode_1=1 THEN 'walking' ELSE 'driving' END,'[BING KEY HERE]') AS mi_min_result
+FROM HHSurvey.Trip AS t
+WHERE (t.trip_path_distance IS NULL OR t.trip_path_distance=0) AND t.origin_lng BETWEEN -125 AND -116 AND t.dest_lng BETWEEN -125 AND -115 
+AND t.origin_lat BETWEEN 44 and 50 AND t.dest_lat BETWEEN 44 AND 50 AND recid BETWEEN 8001 AND 20000)
+UPDATE tu 
+	SET tu.trip_path_distance = CAST(LEFT(cte.mi_min_result, CHARINDEX(',', cte.mi_min_result)-1) AS float)
+	FROM HHSurvey.Trip AS tu JOIN cte ON tu.recid=cte.recid WHERE cte.mi_min_result<>'0,0';
