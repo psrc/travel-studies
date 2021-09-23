@@ -624,7 +624,7 @@ GO
 				where TABLE_NAME = @TableName 
 					and ORDINAL_POSITION > @field 
 					and TABLE_SCHEMA = @SchemaName
-					and data_type <> 'geography'
+					and data_type NOT IN('geography','geometry')
 
 		        select @bit = (@field - 1 )% 8 + 1
 
