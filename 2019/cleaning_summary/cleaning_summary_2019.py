@@ -4,24 +4,24 @@ import pyodbc
 
 # File names and directories
 
-#sql_conn = pyodbc.connect('DRIVER={SQL Server}; SERVER=AWS-PROD-SQL\COHO;DATABASE=Sandbox;trusted_connection=true')
-#trip_table_name = "HHSurvey.Tripx"
-#trip  = pd.read_sql('SELECT * FROM '+trip_table_name, con = sql_conn)
+sql_conn = pyodbc.connect('DRIVER={SQL Server}; SERVER=AWS-PROD-SQL\SOCKEYE;DATABASE=Elmer;trusted_connection=true')
+trip_table_name = "HHSurvey.trips_2017_2019"
+trip  = pd.read_sql('SELECT * FROM '+trip_table_name, con = sql_conn)
 
 survey_2017_dir = 'C:/Users/SChildress/Documents/GitHub/travel-studies/2019/cleaning_summary/'
 
 ##uncleaned
 #trip = pd.read_csv(r'J:\Projects\Surveys\HHTravel\Survey2017\Data\Cleaning Process\5-Tripx.csv')
 #cleaned
-trip = pd.read_excel(r'J:\Projects\Surveys\HHTravel\Survey2017\Data\Export\Version 1\Restricted\In-house\2017-internal1-R-5-trip-revised.xlsx',skiprows=1)
-codebook_file_name = 'PSRC2019_Codebook_Draft.xlsx'
+#trip = pd.read_excel(r'J:\Projects\Surveys\HHTravel\Survey2017\Data\Export\Version 1\Restricted\In-house\2017-internal1-R-5-trip-revised.xlsx',skiprows=1)
+codebook_file_name = 'PSRC_HTS_Codebook_080219.xlsx'
 codebook_values_name = 'Values'
 codebook_null_values_name = 'Null Values'
 codebook_variables_name = 'Data Overview'
 codebook_
 mode_lookup_f = r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\cleaning_summary\transit_simple.xlsx'
 purpose_lookup_f = r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\cleaning_summary\destination_simple.xlsx'
-output_file_loc = r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\cleaning_summary\survey_cleaning_summary.xlsx'
+output_file_loc = r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\cleaning_summary\denormalized_table_summary.xlsx'
 
 
 def code_sov(trip):
@@ -68,11 +68,11 @@ if __name__ == "__main__":
         codebook_null_values['variable'] = the_variable
         codebook_values= codebook_values.append(codebook_null_values)
 
-    labeled_codebook = pd.merge(codebook_variables, codebook_values, left_on = 'Variable', right_on= 'variable')
+    labeled_codebook = pd.merge(codebook_variables, codebook_values, left_on = 'variable', right_on= 'variable')
     trip_df = lookup_names(trip, labeled_codebook)
 
-    #trip_detail = pd.merge(trip_df, purpose_lookup, how= 'left', on = 'Destination purpose')
-    trip_detail = pd.merge(trip_detail, mode_lookup, how ='left', on = 'Primary Mode')
+   # trip_detail = pd.merge(trip_df, purpose_lookup, how= 'left', on = 'Destination purpose')
+    trip_detail = pd.merge(trip_ddf, mode_lookup, how ='left', on = 'Primary Mode')
     trip_detail = code_sov(trip_detail)
 
     trip_detail['ones'] = 1
