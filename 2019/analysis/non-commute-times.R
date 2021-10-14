@@ -42,6 +42,7 @@ avg_non_work_time_race<-non_work_trips %>% group_by(person_of_color)%>%
   summarise(avg_trip_length=weighted.mean(trip_path_distance, trip_wt_combined, na.rm=TRUE),
             avg_trip_time = weighted.mean(google_duration, trip_wt_combined, na.rm=TRUE))
 
+write.table(avg_non_work_time_race, "clipboard", sep="\t")
 
 avg_non_work_time_seattle<-non_work_trips %>% group_by(seattle_home)%>% 
   summarise(avg_trip_length=weighted.mean(trip_path_distance, trip_wt_combined, na.rm=TRUE),
@@ -59,13 +60,14 @@ avg_non_work_time_mode<-non_work_trips %>% group_by(mode_simple)%>%
 non_work_income_mode<-cross_tab_categorical(non_work_trips, 'hhincome_broad', 'mode_simple', 'trip_wt_combined')
 write.table(non_work_income_mode, "clipboard", sep="\t")
 
-
-non_work_income_seattle<-cross_tab_categorical(non_work_trips, 'hhincome_broad', 'seattle_home', 'trip_wt_combined')
 write.table(non_work_income_seattle, "clipboard", sep="\t")
 
+non_work_income_seattle<-cross_tab_categorical(non_work_trips, 'hhincome_broad', 'seattle_home', 'trip_wt_combined')
+
+non_work_income_mode<-cross_tab_categorical(non_work_trips, 'hhincome_broad', 'mode_simple', 'trip_wt_combined')
+write.table(non_work_income_mode, "clipboard", sep="\t")
 
 non_work_race_mode<-cross_tab_categorical(non_work_trips, 'person_of_color', 'mode_simple', 'trip_wt_combined')
 write.table(non_work_race_mode, "clipboard", sep="\t")
 
-non_work_race_seattle<-cross_tab_categorical(non_work_trips, 'person_of_color', 'seattle_home', 'trip_wt_combined')
-write.table(non_work_income_seattle, "clipboard", sep="\t")
+
