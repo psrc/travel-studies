@@ -18,8 +18,8 @@ import random
 commute_time_day = '2019-03-26T09:00:00-08:00'
 time_unit = 'minute'
 distanceUnit = 'mile'
-key_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\summary\bing_key.txt'
-output_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2019\summary\commute_times.csv'
+key_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2021\summary\bing_key.txt'
+output_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2021\summary\commute_times_2021_based_on_2019tt.csv'
 
 
 def construct_url(row, mode, commute_time_day, time_unit, api_key, lat_name, long_name):
@@ -62,13 +62,6 @@ def get_times(hh_person, mode,purpose):
         count=0
 
         for index, row in hh_person.iterrows():
-            if count>=3152:
-                if count % 200 == 0:
-                    how_long =random.randint(1, 100)
-                    time.sleep(how_long)
-                elif count % 500 == 0:
-                    print('Waiting...'+str(how_long))
-                    time.sleep(how_long)
                 lat_name = purpose +"_"+ "LAT"
                 long_name = purpose+ "_"+"LNG"
                 time_url = construct_url(row, mode, commute_time_day, time_unit, api_key,lat_name, long_name)
@@ -79,23 +72,23 @@ def get_times(hh_person, mode,purpose):
                     result = json.loads(r)
                     result_df=pd.io.json.json_normalize(result['resourceSets'],record_path=['resources','results'])
                     results_w_ids = pd.concat([result_df.reset_index(drop=True), pd.DataFrame(row).transpose().reset_index(drop=True)], axis=1)
-                    if count==3152:
+                    if count==0:
                         time_results= results_w_ids
                     else:
                          time_results = pd.concat([time_results, results_w_ids])
-                    
                     print(str(count))
                 except Exception as e:
                     print(str(e))
-                    time_results.to_csv(output_file)
+                    results_w_ids.to_csv(output_file)
                     break
-            count = count+1
+                count=count+1
+
         return time_results
 
 api_key = open(key_file).read()
 
 # read in households and persons data from sql server
-sql_conn = pyodbc.connect('DRIVER={SQL Server}; SERVER=AWS-PROD-SQL\COHO;DATABASE=HouseholdTravelSurvey2019;trusted_connection=true')
+sql_conn = pyodbc.connect('DRIVER={SQL Server}; SERVER=AWS-PROD-SQL\Sockeye;DATABASE=hhts_cleaning;trusted_connection=true')
 
 person_table_name = "HHSurvey.Person"
 person_work  = pd.read_sql('SELECT HHID, PERSONID,WORK_LAT, WORK_LNG FROM '+person_table_name + ' WHERE WORK_LAT IS NOT NULL', con = sql_conn)

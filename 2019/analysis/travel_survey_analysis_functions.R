@@ -22,7 +22,7 @@ missing_codes <- c('Missing: Technical Error', 'Missing: Non-response',
 
 # connecting to Elmer
 db.connect <- function() {
-  elmer_connection <- dbConnect(odbc(),
+  elmer_connection <- DBI::dbConnect(odbc(),
                                 driver = "SQL Server",
                                 server = "AWS-PROD-SQL\\Sockeye",
                                 database = "Elmer",
