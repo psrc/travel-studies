@@ -120,10 +120,10 @@ for (i in 1:nrow(days)){
 telework_day = days_telecom %>% 
   mutate(
     telework_cat = case_when(
-      (as.numeric(upd_telework_time) > 0 & as.numeric(upd_telework_time) <= 60)  ~ "Part-time",
-      (as.numeric(upd_telework_time) > 60 & as.numeric(upd_telework_time) < 360) ~ "Part-time",
+      (as.numeric(upd_telework_time) > 0 & as.numeric(upd_telework_time) <= 60)  ~ "NotFulltime",
+      (as.numeric(upd_telework_time) > 60 & as.numeric(upd_telework_time) < 360) ~ "NotFulltime",
       as.numeric(upd_telework_time) >= 360 & as.numeric(upd_telework_time) <= 720 ~ "Full-time or greater",
-      TRUE ~"No telework"
+      TRUE ~"NotFulltime"
     ))
 ```
 
@@ -320,8 +320,7 @@ person_day_dist_d$distornot<- with(person_day_dist_d,ifelse(logcardist==0, 0, 1)
 person_day_has_dist<-person_day_dist_d%>% filter(logcardist>0)
 ```
 ```{r}
- xvar <- names(person_day_dist_d)[!(names(person_day_dist_d) %in% c('tot_car_dist', 'distornot', 'logcardist'))]
- 
+ xvar <- c('employment','student','hhincome_broad','license_group','transit_pass','transit_qt_milehome','transit_qt_milework','delivery','dayofweek','survey_year.y','telework_cat','college','vehicle_group','race_category')
   for(xvar1 in xvar ){
  # 
  #   count_yesnodist<-person_day_dist_d %>%
