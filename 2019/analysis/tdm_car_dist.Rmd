@@ -269,23 +269,23 @@ person_day_dist_d$race_category[person_day_dist_d$race_category=='Asian'] <- 'As
 
 person_day_dist_d$race_category[person_day_dist_d$race_category=='White Only'] <- 'AsianorWhite'
 
-person_day_dist_d$flextime <- 'MissingOrDontKnow'
-person_day_dist_d$flextime[person_day_dist_d$benefits_1=='Not offered'] <- 'Not offered'
+person_day_dist_d$flextime <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$flextime[person_day_dist_d$benefits_1=='Not offered'] <- 'MissingOrDontKnowNot offered'
 person_day_dist_d$flextime[person_day_dist_d$benefits_1=='Offered, but I don\'t use'] <- 'Offered'
 person_day_dist_d$flextime[person_day_dist_d$benefits_1== 'Offered, and I use'] <- 'Offered'
 
-person_day_dist_d$compressed <- 'MissingOrDontKnow'
-person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Not offered'] <- 'Not offered'
+person_day_dist_d$compressed <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Not offered'] <- 'MissingOrDontKnowNot offered'
 person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Offered, but I don\'t use'] <- 'Offered'
 person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Offered, and I use'] <- 'Offered'
 
-person_day_dist_d$transit_pass <- 'MissingOrDontKnow'
-person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Not offered'] <- 'Not offered'
+person_day_dist_d$transit_pass <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Not offered'] <- 'MissingOrDontKnowNot offered'
 person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Offered, but I don\'t use'] <- 'Offered'
 person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Offered, and I use'] <- 'Offered'
 
-person_day_dist_d$othersubsidy <- 'MissingOrDontKnow'
-person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Not offered'] <- 'Not offered'
+person_day_dist_d$othersubsidy <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Not offered'] <- 'MissingOrDontKnowNot offered'
 person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Offered, but I don\'t use'] <- 'Offered'
 person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Offered, and I use'] <- 'Offered'
 
@@ -339,24 +339,24 @@ person_day_dist_d%>%filter(logcardist==0)%>%summarise(n=n())
 ```
 
 
+https://seananderson.ca/2014/05/18/gamma-hurdle/
 
 
 
 
 ```{r, echo=FALSE}
-
 # binomial model for whether the worker travels by car or not:
 
 
-fit_car_or_not<- glm(distornot~numchildren+numworkers+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+college+vehicle_group+race_category,data = person_day_dist_d, family=binomial() )
+fit_car_or_not<- glm(distornot~numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+car_share+vehicle_group+race_category,data = person_day_dist_d, family=binomial() )
                                                              
 summ(fit_car_or_not)
 #stage two a linear model (with the dependent variable log transformed) for workers that have a distance
+```
 
 
-
-
-fit_car<-lm(logcardist~     numchildren+numworkers+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+college+vehicle_group+race_category,data = person_day_has_dist)
+```{r, echo=FALSE}
+fit_car<-lm(logcardist~     numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+vehicle_group+car_share+race_category,data = person_day_has_dist)
 
 summ(fit_car)
 
@@ -368,3 +368,9 @@ summ(fit_car)
         
 
 ```
+
+```{r}
+ggplot(person_day_dist_d, aes(x=log(1+pprichr2home/100)))+geom_histogram(position="dodge")
+ggplot(person_day_dist_d, aes(x=log(1+pprichr2work/100)))+geom_histogram(position="dodge")
+```
+
