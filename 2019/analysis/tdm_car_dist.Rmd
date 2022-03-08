@@ -356,21 +356,27 @@ summ(fit_car_or_not)
 
 
 ```{r, echo=FALSE}
+```
+
+
+```{r, echo=FALSE}
 fit_car<-lm(logcardist~     numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+vehicle_group+car_share+race_category,data = person_day_has_dist)
 
 summ(fit_car)
+```
 
 
-
-
-
-
-        
-
+```{r, echo=FALSE}
 ```
 
 ```{r}
 ggplot(person_day_dist_d, aes(x=log(1+pprichr2home/100)))+geom_histogram(position="dodge")
 ggplot(person_day_dist_d, aes(x=log(1+pprichr2work/100)))+geom_histogram(position="dodge")
+```
+
+```{r}
+fit_car<-lm(logcardist~     numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+vehicle_group+car_share+race_category,data = person_day_dist_d)
+
+summ(fit_car)
 ```
 
