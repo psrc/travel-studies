@@ -5,10 +5,9 @@ date: "`r format(Sys.time(), '%B %d, %Y')`"
 output:
   html_document:
     df_print: paged
-    toc: TRUE
+    toc: yes
     toc_depth: 6
-    toc_float: TRUE
-
+    toc_float: yes
   pdf_document: default
   word_document: default
 ---
@@ -20,9 +19,11 @@ knitr::opts_chunk$set(echo=FALSE,
                       message=FALSE) # formatting
 ```
 
+
+
 This report compares models that are built using 2021 household travel survey data delivered by RSG on August 2 and the same data after cleaning by PSRC team.
 
-```{r Libraries, include=FALSE}
+```{r libraries, include=FALSE}
 #Load functions script
 #source("travel_survey_analysis_functions.R")
 library(ggplot2)
@@ -31,7 +32,7 @@ library(pander)
 library(reshape2)
 library(table1)
 library(knitr)
-library(kableExtra)
+#library(kableExtra)
 library(odbc)
 library(DBI)
 library(data.table)
@@ -40,8 +41,11 @@ library(mlogit)
 library(dfidx)
 library(stargazer)
 library(rmarkdown)
-library('htmlTable')
+library(htmlTable)
+#library(flextable)
 ```
+
+
 
 ```{r, message=FALSE}
 
@@ -145,7 +149,8 @@ df_cleaned<-merge(df,hhs, by = "hhid", all.x = T, all.y = F)
 remove(trips,persons,hhs)
 ```
 
-## 1. Commute Mode Choice Model
+
+
 
 
 ```{r, message=FALSE}
@@ -237,12 +242,12 @@ remove(trips,persons,hhs)
 ```
 
 ```{r, message=FALSE}
+
 ## Changing labels
 df_cleaned$mode_1<-ifelse(df_cleaned$mode_1 == 1,"Walk",(ifelse(df_cleaned$mode_1 == 2, "Bike",ifelse(df_cleaned$mode_1 %in%  c(3:16,33,34), "Car",ifelse(df_cleaned$mode_1 %in% c(21,22,26,32,36,37), "Other","Transit")))))
 
 
 df_raw$mode_1<-ifelse(df_raw$mode_1 == 1,"Walk",(ifelse(df_raw$mode_1 == 2, "Bike",ifelse(df_raw$mode_1 %in%  c(3:16,33,34), "Car",ifelse(df_raw$mode_1  %in% c(21,22,26,32,36,37), "Other","Transit")))))
-
 
 df_cleaned$age <- dplyr::recode(df_cleaned$age, '1' = "Under 5 years old", '2' = "5-11 years", '3' = "12-15 years", '4' = "16-17 years", '5' = "18-24 years", '6' = "25-34 years", '7' = "35-44 years", '8' = "45-54 years", '9' = "55-64 years", '10' = "65-74 years", '11' = "75-84 years", '12' = "85 years or older")
 
@@ -279,6 +284,8 @@ df_raw$hhincome_detailed <- ordered(df_raw$hhincome_detailed, levels = c("Under 
 
 ```
 
+## 1. Commute Mode Choice Model
+
 I extracted commute trips starting from home and ending at work/work related destination from cleaned and raw version of 2021 HHTS. For this analysis I only used one trip per person.
 
 ```{r, message=FALSE}
@@ -291,6 +298,7 @@ personids<-unique(commute$personid)
 commute_sh <- commute[1,]
 commute_sh[,] <- NA
 
+## giving priority to "Work" trips (not "work-related")
 for (i in personids){
   links <- commute[commute$personid == i,]
   
@@ -372,6 +380,12 @@ choice_data_cleaned<-dfidx(commute_cleaned, shape = "wide", choice = c("mode_1")
 
 choice_data_raw<-dfidx(commute_raw, shape = "wide", choice = c("mode_1"),idnames = c(NA, "alt"), idx = list(c("tripid")))
 
+choice_data_cleaned$alt <- factor(choice_data_cleaned$alt, levels = c("Car", "Bike", "Walk", "Transit","Other"))
+
+choice_data_raw$alt <- factor(choice_data_raw$alt, levels = c("Car", "Bike", "Walk", "Transit","Other"))
+
+
+
 ```
 
 ```{r, message=FALSE}
@@ -395,15 +409,45 @@ ncommute_raw$dest_purpose_cat1 <- factor(ncommute_raw$dest_purpose_cat1,
                                                      levels = c("Home", "School", "Escort", "Shop", "Meal",
                                                                 "Social/Recreation", "Errand/Other","Change mode"))     
 
+
 choice_data_cleaned_ncommute<-dfidx(ncommute_cleaned, shape = "wide", choice = c("mode_1"),idnames = c(NA, "alt"), idx = list(c("recid")))
 
 choice_data_raw_ncommute<-dfidx(ncommute_raw, shape = "wide", choice = c("mode_1"),idnames = c(NA, "alt"), idx = list(c("tripid")))
 
 
+
+choice_data_cleaned_ncommute$alt <- factor(choice_data_cleaned_ncommute$alt, levels = c("Car", "Bike", "Walk", "Transit","Other"))
+
+choice_data_raw_ncommute$alt <- factor(choice_data_raw_ncommute$alt, levels = c("Car", "Bike", "Walk", "Transit","Other"))
+
+
 ```
+
+
+
+```{r}
+mod_cleaned <- commute_cleaned %>% count(mode_1, sort = TRUE)
+
+mod_raw <- commute_raw %>% count(mode_1, sort = TRUE)
+
+mod_sum <- merge(mod_cleaned,mod_raw, by = c("mode_1"),all = T)
+
+mod_sum$n.x<- ifelse(is.na(mod_sum$n.x),0,mod_sum$n.x)
+
+names(mod_sum) <- c("Mode", paste0("Cleand data (N = ",sum(mod_sum$n.x),")"),paste0("Raw data (N = ",sum(mod_sum$n.y),")"))
+
+#mod_sum<-rbind(mod_sum,c("Total", sum(mod_sum$`Cleand data`),sum(mod_sum$`Raw data`)))
+
+htmlTable(mod_sum, caption = 'Number of Observations per Mode', rownames = FALSE,
+          ## padding to cells: top side bottom
+          css.cell = 'padding: 0px 10px 0px;')
+
+```
+
+
 ### 1.1 Vehicle count
 
-Number of vehicles in the household is a significant variable for choosing car. Higher number of cars in the household it is more likely to choose car as a commute mode. This variable is significant in both models. _R^2^_ is slightly higher in the model with cleaned data.
+The number of vehicles in the household is a significant variable for all the modes relative car. It is more likely for people to choose car as a commute mode if there are more cars available to them. This variable is significant in both models. _R^2^_ is slightly higher in the model with cleaned data.
 ```{r mylatextable_vehiclecount, results = "asis"}
 
 
@@ -429,11 +473,11 @@ m_cleaned <- mlogit(mode_1 ~  0| vehicle_count  | 0, choice_data_cleaned)
 
 m_raw <- mlogit(mode_1 ~  0|vehicle_count | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other"), digits = 2)
 
 ```
 ### 1.2 Trip distance
-Trip distance is almost statistically significant for all modes except for transit relative bike. As distance increases, travelers are more likely to choose car or other modes and less likely to choose walking relative to biking. The effect of distance on choosing biking or transit is similar with no statistically significant difference. Two models are pretty close. We see that effect of distance on other modes is significant on 1 percent level in the model with raw data compared to 5 percent level in the model with cleaned data. _R^2^_ is slightly higher in the model with raw data.
+Trip distance is almost statistically significant for all modes except for other. As distance increases, travelers are more likely to choose car over walk, bike, and transit.  The two models are pretty close and _R^2^_ is about the same in both of the models.
 
 ```{r mylatextable_dist, results = "asis"}
 dist_cleaned <- commute_cleaned %>% group_by(mode_1) %>%  summarise(
@@ -458,19 +502,20 @@ htmlTable(dist_sum, cgroup = 'Statistic', n.cgroup = 9, caption = 'Summary of Co
           ## padding to cells: top side bottom
           css.cell = 'padding: 0px 10px 0px;')
 
-#stargazer(dist_sum, header=FALSE, type = "html", summary=FALSE, rownames = FALSE, digits = 2,  column.sep.width = "3pt", font.size = "small")
+#stargazer(dist_sum, header=FALSE, type = 'html', summary=FALSE, rownames = FALSE, digits = 2,  column.sep.width = "3pt", font.size = "small")
 
 m_cleaned <- mlogit(mode_1 ~  0| trip_path_distance  | 0, choice_data_cleaned)
 
 m_raw <- mlogit(mode_1 ~  0|trip_path_distance  | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other"), digits = 2)
 
 
 ```
 ### 1.3 Age
 
-None of the age groups are statistically significant in this model.
+The reference age group is 25-34 years, and compared to this group, individuals in age categories between 35 and 64 are less likely to choose walking over car. There are several age categories in this model that have few observations, and as a result, the standard error is too high for them.
+
 ```{r mylatextable_ageonly, results = "asis"}
 age1<-commute_cleaned %>% count(age) %>% group_by(age)
 age2<-commute_raw %>% count(age) %>% group_by(age)
@@ -503,18 +548,22 @@ htmlTable(age_n, caption = 'Number of Observations per Mode and Age', rownames =
           ## padding to cells: top side bottom
           css.cell = 'padding: 0px 10px 0px;')
 
+choice_data_cleaned$age <- factor(choice_data_cleaned$age, levels = c("25-34 years", "16-17 years", "18-24 years",  "35-44 years", "45-54 years", "55-64 years",  "65-74 years", "75-84 years"))
+
+choice_data_raw$age <- factor(choice_data_raw$age, levels = c("25-34 years", "12-15 years", "16-17 years", "18-24 years",  "35-44 years", "45-54 years", "55-64 years",  "65-74 years", "75-84 years"))
+
 m_cleaned <- mlogit(mode_1 ~  0| age | 0, choice_data_cleaned)
 
 
 m_raw <- mlogit(mode_1 ~  0| age | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other"), digits = 2)
 
 ```
 
 ### 1.4 Race
 
-The only race category that is statistically significant is "other". People how identified their race as "other" are less likely to drive to work compared to other races and this is consistent in both models. In the raw data and cleaned data model, white travelers are less likely to use transit as their mode of commute.
+Individuals who identify as white are less likely to use transit relative to other modes compared to non-white individuals. Individuals who identified their race as Other (people who didn’t choose any of the available race options) are more likely to choose bike over car.
 
 ```{r mylatextable_raceonly, results = "asis"}
 
@@ -598,14 +647,14 @@ m_cleaned <- mlogit(mode_1 ~  0|  race_afam + race_aiak + race_asian + race_hapi
 
 m_raw <- mlogit(mode_1 ~  0| race_afam + race_aiak + race_asian + race_hapi + race_hisp + race_white + race_other | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk","African American or Black:Car", "African American or Black:Other", "African American or Black:Transit", "African American or Black:Walk", "American Indian or Alaska Native:Car", "American Indian or Alaska Native:Other", "American Indian or Alaska Native:Transit", "American Indian or Alaska Native:Walk", "Asian:Car", "Asian:Other", "Asian:Transit", "Asian:Walk", "Native Hawaiian or Pacific Islander:Car", "Native Hawaiian or Pacific Islander:Other", "Native Hawaiian or Pacific Islander:Transit", "Native Hawaiian or Pacific Islander:Walk", "Hispanic:Car",  "Hispanic:Other",  "Hispanic:Transit",  "Hispanic:Walk", "White:Car", "White:Other", "White:Transit", "White:Walk", "Other:Car", "Other:Other",  "Other:Transit",  "Other:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other","African American or Black:Bike", "African American or Black:Walk", "African American or Black:Transit", "African American or Black:Other", "American Indian or Alaska Native:Bike", "American Indian or Alaska Native:Walk", "American Indian or Alaska Native:Transit", "American Indian or Alaska Native:Other", "Asian:Bike", "Asian:Walk", "Asian:Transit", "Asian:Other", "Native Hawaiian or Pacific Islander:Bike", "Native Hawaiian or Pacific Islander:Walk", "Native Hawaiian or Pacific Islander:Transit", "Native Hawaiian or Pacific Islander:Other", "Hispanic:Bike",  "Hispanic:Walk",  "Hispanic:Transit",  "Hispanic:Other", "White:Bike", "White:Walk", "White:Transit", "White:Other", "Other:Bike", "Other:Walk",  "Other:Transit",  "Other:Other"), digits = 2)
 
 ```
 
 
 ### 1.5 Gender
 
-Being male is statistically significant when choosing transit. Male are less likely to choose transit for commute relative to females. Observations for non-binary, another and unlisted were too few.
+We found that individuals who identify as male are more likely to use bike than other genders in the cleaned data model (significant at the 10 percent level).
 
 ```{r mylatextable_genderonly, results = "asis"}
 gen1<-commute_cleaned %>% count(gender) %>% group_by(gender)
@@ -642,14 +691,13 @@ m_cleaned <- mlogit(mode_1 ~  0| male | 0, choice_data_cleaned)
 
 m_raw <- mlogit(mode_1 ~  0| male | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk", "Male:Car", "Male:Other", "Male:Transit", "Male:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other", "Male:Bike", "Male:Walk", "Male:Transit", "Male:Other"), digits = 2)
 
 ```
 
 ### 1.6 Income
 
-Tried several different category structures. None of them turned out as significant.
-
+Individuals whose household income is below \$75,000 are more likely to use transit for work trips than other modes. 
 
 ```{r mylatextable_incomeonly, results = "asis"}
 
@@ -661,7 +709,7 @@ names(inc_n)<- c("Income", "n (cleaned data)", "n (raw data)")
 inc_n<-inc_n[order(inc_n$Income),]
 
 
-#stargazer(inc_n,  type = "html", summary=FALSE, rownames = FALSE)
+#stargazer(inc_n,  type = 'html', summary=FALSE, rownames = FALSE)
 
 htmlTable(inc_n, caption = 'Income', rownames = FALSE,
           ## padding to cells: top side bottom
@@ -672,20 +720,21 @@ m_cleaned <- mlogit(mode_1 ~  0| hhincome_detailed | 0, choice_data_cleaned)
 
 m_raw <- mlogit(mode_1 ~  0| hhincome_detailed | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk","Prefer not to answer:Car","Prefer not to answer:Other","Prefer not to answer:Transit","Prefer not to answer:Walk","Under $75,000:Car","Under $75,000:Other","Under $75,000:Transit","Under $75,000:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other","Prefer not to answer:Bike","Prefer not to answer:Walk","Prefer not to answer:Transit","Prefer not to answer:Other","Under $75,000:Bike","Under $75,000:Walk","Under $75,000:Transit","Under $75,000:Other"), digits = 2)
 
 ```
 
 ### 1.7 Significant variables only
 
-When I added dummy variables both for race white and other, none of them were significant. Therefore, I dropped other race and kept white dummy variable.
+Including some of the significant variables from the previous models:
+
 ```{r, results = "asis"}
 
 m_cleaned <- mlogit(mode_1 ~  0|male + trip_path_distance + vehicle_count + race_white | 0, choice_data_cleaned)
 
 m_raw <- mlogit(mode_1 ~  0| male + trip_path_distance + vehicle_count + race_white | 0, choice_data_raw)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk", "Male:Car", "Male:Other", "Male:Transit", "Male:Walk", "Trip distance:Car", "Trip distance:Other", "Trip distance:Transit", "Trip distance:Walk", "Vehicle count:Car", "Vehicle count:Other", "Vehicle count:Transit", "Vehicle count:Walk", "White:Car", "White:Other", "White:Transit", "White:Walk"))
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other", "Male:Bike", "Male:Walk", "Male:Transit", "Male:Other", "Trip distance:Bike", "Trip distance:Walk", "Trip distance:Transit", "Trip distance:Other", "Vehicle count:Bike", "Vehicle count:Walk", "Vehicle count:Transit", "Vehicle count:Other", "White:Bike", "White:Walk", "White:Transit", "White:Other"))
 
 freq_cleaned<-as.data.frame(m_cleaned$freq/dim(commute_cleaned)[1])
 freq_cleaned$Freq<-round(freq_cleaned$Freq,4)
@@ -719,8 +768,8 @@ odd_ratios <- cbind(round(exp(coefficients(m_cleaned)),2),round(exp(coefficients
 
 
 colnames(odd_ratios) <- c("Cleand data","Raw data")
-rownames(odd_ratios)[5:16] <- c("Male:Car","Male:Other","Male:Transit","Male:Walk", "Trip distance:Car", "Trip distance:Other", "Trip distance:Transit", "Trip distance:Walk", "Vehicle count:Car", "Vehicle count:Other", "Vehicle count:Transit", "Vehicle count:Walk")
-rownames(odd_ratios)[17:20] <- c("White:Car","White:Other","White:Transit","White:Walk")
+rownames(odd_ratios)[5:16] <- c("Male:Bike","Male:Walk","Male:Transit","Male:Other", "Trip distance:Bike", "Trip distance:Walk", "Trip distance:Transit", "Trip distance:Other", "Vehicle count:Bike", "Vehicle count:Walk", "Vehicle count:Transit", "Vehicle count:Other")
+rownames(odd_ratios)[17:20] <- c("White:Bike","White:Walk","White:Transit","White:Other")
 
 htmlTable(odd_ratios, caption = 'Odd Ratios', rownames = FALSE,
           ## padding to cells: top side bottom
@@ -730,9 +779,29 @@ htmlTable(odd_ratios, caption = 'Odd Ratios', rownames = FALSE,
 ## 2. Non-commute Mode Choice Model
 
 
+```{r}
+mod_cleaned <- ncommute_cleaned %>% count(mode_1, sort = TRUE)
+
+mod_raw <- ncommute_raw %>% count(mode_1, sort = TRUE)
+
+mod_sum <- merge(mod_cleaned,mod_raw, by = c("mode_1"),all = T)
+
+mod_sum$n.x<- ifelse(is.na(mod_sum$n.x),0,mod_sum$n.x)
+
+names(mod_sum) <- c("Mode", paste0("Cleand data (N = ",sum(mod_sum$n.x),")"),paste0("Raw data (N = ",sum(mod_sum$n.y),")"))
+
+#mode_sum<-rbind(mod_sum,c("Total", sum(mod_sum$`Cleand data`),sum(mod_sum$`Raw data`)))
+
+htmlTable(mod_sum, caption = 'Number of Observations per Mode', rownames = FALSE,
+          ## padding to cells: top side bottom
+          css.cell = 'padding: 0px 10px 0px;')
+          
+```
+
 ### 2.1 Vehicle count
 
-Number of vehicles in the household is a significant variable for choosing car, transit, and other mode relative to bike. Higher number of cars in the household increases the likelihood of choosing choose car and decreases the likelihood of choosing transit and other modes as a non-commute mode. This variable is significant in both models.
+Number of vehicles in the household is a significant variable for choosing bike, walk, transit, and other mode relative to car. Higher number of cars in the household increases the likelihood of choosing choose car over all other modes as a non-commute mode. Both models are consistent.
+
 ```{r mylatextable_vehiclecount_cn, results = "asis"}
 
 ncommute_cleaned$vehicle_count_cat <- as.character(ifelse(ncommute_cleaned$vehicle_count >= 3, "3 or more", ncommute_cleaned$vehicle_count))
@@ -757,13 +826,13 @@ m_cleaned <- mlogit(mode_1 ~  0| vehicle_count  | 0, choice_data_cleaned_ncommut
 
 m_raw <- mlogit(mode_1 ~  0|vehicle_count | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other"), digits = 2)
 
 ```
 
 
 ### 2.2 Trip distance
-Trip distance is statistically significant for all modes relative to bike. As distance increases, travelers are more likely to choose car, transit or other modes and less likely to choose walking relative to biking. _R^2^_ is slightly higher in the model with raw data.
+In the cleaned model, trip distance is statistically significant for all modes relative to car except other. Thus, as distance increases, travelers are more likely to choose car over biking and walking. However, the coefficient for transit is small but positive, which means that as travel distance increases, people prefer transit slightly more than car. For the uncleaned model, travel distance coefficient for bike is not statistically significant but it is significant for other. _R^2^_ is higher in the model with cleaned data.
 
 ```{r mylatextable_dist_cn, results = "asis"}
 dist_cleaned <- ncommute_cleaned %>% group_by(mode_1) %>%  summarise(
@@ -789,19 +858,19 @@ htmlTable(dist_sum, cgroup = 'Statistic', n.cgroup = 9, caption = 'Summary of No
           ## padding to cells: top side bottom
           css.cell = 'padding: 0px 10px 0px;')
 
-#stargazer(dist_sum, header=FALSE, type = "html", summary=FALSE, rownames = FALSE, digits = 2,  column.sep.width = "3pt", font.size = "small")
+#stargazer(dist_sum, header=FALSE, type = 'html', summary=FALSE, rownames = FALSE, digits = 2,  column.sep.width = "3pt", font.size = "small")
 
 m_cleaned <- mlogit(mode_1 ~  0| trip_path_distance  | 0, choice_data_cleaned_ncommute)
 
 m_raw <- mlogit(mode_1 ~  0|trip_path_distance  | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other"), digits = 2)
 
 
 ```
 ### 2.3 Age
 
-None of the age groups are statistically significant in this model.
+The reference age group is 25-34 years. Walking is significant for all the age groups and they all tend to choose car over walk compared to the reference age group of 25-35.
 ```{r mylatextable_ageonly_cn, results = "asis"}
 age1<-ncommute_cleaned %>% count(age) %>% group_by(age)
 age2<-ncommute_raw %>% count(age) %>% group_by(age)
@@ -827,19 +896,28 @@ htmlTable(age_n, caption = 'Number of Observations per Mode and Age group', rown
           ## padding to cells: top side bottom
           css.cell = 'padding: 0px 10px 0px;')
 
+choice_data_cleaned_ncommute$age <- factor(choice_data_cleaned_ncommute$age, levels = c("25-34 years", "Under 5 years old", "5-11 years", "12-15 years", "16-17 years", "18-24 years", "35-44 years", "45-54 years", "55-64 years",  "65-74 years", "75-84 years", "85 years or older"))
+
+choice_data_raw_ncommute$age <- factor(choice_data_raw_ncommute$age, levels = c("25-34 years", "Under 5 years old", "5-11 years", "12-15 years", "16-17 years", "18-24 years", "35-44 years", "45-54 years", "55-64 years",  "65-74 years", "75-84 years", "85 years or older"))
 
 m_cleaned <- mlogit(mode_1 ~  0| age | 0, choice_data_cleaned_ncommute)
 
 
 m_raw <- mlogit(mode_1 ~  0| age | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other"), digits = 2)
 
 ```
 
 ### 2.4 Race
 
-Both Hispanics and Whites are less likely to choose car, walk, transit, and other modes relative to bike compared to non-Hispanics, and non-whites respectively.
+*	Identifying as African American or Black increases the likelihood of choosing transit over.
+* Individuals who identify themselves as Asian are more likely to choose walking or other modes relative to cars.
+* Individuals who identify as Native Hawaiian or Pacific Islander are less likely to choose walking over car.
+* Individuals who identify as Hispanic are more likely to choose bike over car and less likely to choose transit over car.
+* Individuals who identify as white are more likely to choose bike and walk over car and less likely to choose transit over car.
+* Individuals who selected other as their race are more likely to choose bike, and use other modes relative to car.
+
 ```{r mylatextable_raceonly_cn, results = "asis"}
 
 
@@ -930,14 +1008,14 @@ m_cleaned <- mlogit(mode_1 ~  0|  race_afam + race_aiak + race_asian + race_hapi
 
 m_raw <- mlogit(mode_1 ~  0| race_afam + race_aiak + race_asian + race_hapi + race_hisp + race_white + race_other | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk","African American or Black:Car", "African American or Black:Other", "African American or Black:Transit", "African American or Black:Walk", "American Indian or Alaska Native:Car", "American Indian or Alaska Native:Other", "American Indian or Alaska Native:Transit", "American Indian or Alaska Native:Walk", "Asian:Car", "Asian:Other", "Asian:Transit", "Asian:Walk", "Native Hawaiian or Pacific Islander:Car", "Native Hawaiian or Pacific Islander:Other", "Native Hawaiian or Pacific Islander:Transit", "Native Hawaiian or Pacific Islander:Walk", "Hispanic:Car",  "Hispanic:Other",  "Hispanic:Transit",  "Hispanic:Walk", "White:Car", "White:Other", "White:Transit", "White:Walk", "Other:Car", "Other:Other",  "Other:Transit",  "Other:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other","African American or Black:Bike", "African American or Black:Walk", "African American or Black:Transit", "African American or Black:Other", "American Indian or Alaska Native:Bike", "American Indian or Alaska Native:Walk", "American Indian or Alaska Native:Transit", "American Indian or Alaska Native:Other", "Asian:Bike", "Asian:Walk", "Asian:Transit", "Asian:Other", "Native Hawaiian or Pacific Islander:Bike", "Native Hawaiian or Pacific Islander:Walk", "Native Hawaiian or Pacific Islander:Transit", "Native Hawaiian or Pacific Islander:Other", "Hispanic:Bike",  "Hispanic:Walk",  "Hispanic:Transit",  "Hispanic:Other", "White:Bike", "White:Walk", "White:Transit", "White:Other", "Other:Bike", "Other:Walk",  "Other:Transit",  "Other:Other"), digits = 2)
 
 ```
 
 
 ### 2.5 Gender
 
-Being male is statistically significant when choosing car, transit, walk and other relative bikes compared to bikes. Male are more likely to choose bikes for non-commute trips relative to females. Observations for non-binary, another and unlisted were too few.
+Individuals who identify as male are more likely to use bike, walk, and transit than other genders.
 
 ```{r mylatextable_genderonly_cn, results = "asis"}
 gen1<-ncommute_cleaned %>% count(gender) %>% group_by(gender)
@@ -974,13 +1052,13 @@ m_cleaned <- mlogit(mode_1 ~  0| male | 0, choice_data_cleaned_ncommute)
 
 m_raw <- mlogit(mode_1 ~  0| male | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk", "Male:Car", "Male:Other", "Male:Transit", "Male:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other", "Male:Bike", "Male:Walk", "Male:Transit", "Male:Other"), digits = 2)
 
 ```
 
 ### 2.6 Income
 
-Households with income under \$75,000 are more likely to choose transit and other modes relative to bike compared to households with income higher than \$75,000.
+Individuals whose income is under \$75,000 are more likely to choose transit and other modes relative to car compared to individuals whose income is over \$75,000.
 
 
 ```{r mylatextable_incomeonly_cn, results = "asis"}
@@ -993,7 +1071,7 @@ names(inc_n)<- c("Income", "n (cleaned data)", "n (raw data)")
 inc_n<-inc_n[order(inc_n$Income),]
 
 
-#stargazer(inc_n,  type = "html", summary=FALSE, rownames = FALSE)
+#stargazer(inc_n,  type = 'html', summary=FALSE, rownames = FALSE)
 
 htmlTable(inc_n, caption = 'Income', rownames = FALSE,
           ## padding to cells: top side bottom
@@ -1020,14 +1098,21 @@ m_cleaned <- mlogit(mode_1 ~  0| hhincome_detailed | 0, choice_data_cleaned_ncom
 
 m_raw <- mlogit(mode_1 ~  0| hhincome_detailed | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk","Prefer not to answer:Car","Prefer not to answer:Other","Prefer not to answer:Transit","Prefer not to answer:Walk","Under $75,000:Car","Under $75,000:Other","Under $75,000:Transit","Under $75,000:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other","Prefer not to answer:Bike","Prefer not to answer:Walk","Prefer not to answer:Transit","Prefer not to answer:Other","Under $75,000:Bike","Under $75,000:Walk","Under $75,000:Transit","Under $75,000:Other"), digits = 2)
 
 ```
 
 
 ### 2.7 Trip Purpose
 
-Reference purpose category is "Home".
+Reference purpose category is "Home". 
+*	Individuals are less likely to walk to school compared to driving relative to trips ending at home.
+*	For escort trips people are more likely to use car rather than any other modes compared to home trips.
+*	People are less likely to bike or walk for shopping.
+*	People are less likely to walk for getting a meal compared to going home relative to using a car.
+*	People are more likely to bike and walk for social/recreation purposes than going home compared to car.
+*	People are less likely to walk for errand purposes.
+
 
 ```{r mylatextable_purposeonly_cn, results = "asis"}
 mod_dest_cleaned <- ncommute_cleaned %>% count(mode_1, dest_purpose_cat1, sort = TRUE)
@@ -1052,7 +1137,7 @@ m_raw <- mlogit(mode_1 ~  0| dest_purpose_cat1 | 0, choice_data_raw_ncommute)
 
 # If model specification changes, covariate labels need to be updated
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk", "School:Car","School:Other","School:Transit","School:Walk","Escort:Car","Escort:Other","Escort:Transit","Escort:Walk", "Shop:Car","Shop:Other","Shop:Transit","Shop:Walk","Meal:Car","Meal:Other","Meal:Transit","Meal:Walk", "Social/Recreation:Car","Social/Recreation:Other","Social/Recreation:Transit","Social/Recreation:Walk", "Errand/Other:Car","Errand/Other:Other","Errand/Other:Transit","Errand/Other:Walk","Change mode:Car","Change mode:Other","Change mode:Transit","Change mode:Walk"), digits = 2)
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other", "School:Bike","School:Walk","School:Transit","School:Other","Escort:Bike","Escort:Walk","Escort:Transit","Escort:Other","Shop:Bike","Shop:Walk","Shop:Transit","Shop:Other","Meal:Bike","Meal:Walk","Meal:Transit","Meal:Other","Social/Recreation:Bike","Social/Recreation:Walk","Social/Recreation:Transit","Social/Recreation:Other","Errand/Other:Bike","Errand/Other:Walk","Errand/Other:Transit","Errand/Other:Other","Change mode:Bike","Change mode:Walk","Change mode:Transit","Change mode:Other"), digits = 2)
 
 ```
 
@@ -1066,7 +1151,7 @@ m_cleaned <- mlogit(mode_1 ~  0|male + trip_path_distance + vehicle_count + race
 
 m_raw <- mlogit(mode_1 ~  0| male + trip_path_distance + vehicle_count + race_white + race_hisp | 0, choice_data_raw_ncommute)
 
-stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = "html", column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Car", "ASC:Other", "ASC:Transit", "ASC:Walk", "Male:Car", "Male:Other", "Male:Transit", "Male:Walk", "Trip distance:Car", "Trip distance:Other", "Trip distance:Transit", "Trip distance:Walk", "Vehicle count:Car", "Vehicle count:Other", "Vehicle count:Transit", "Vehicle count:Walk", "White:Car", "White:Other", "White:Transit", "White:Walk", "Hispanic:Car", "Hispanic:Other", "Hispanic:Transit", "Hispanic:Walk"))
+stargazer(m_cleaned, m_raw, title="Results", align=TRUE, type = 'html', column.labels = c("Cleaned data", "Raw data"), style = "qje", covariate.labels = c("ASC:Bike", "ASC:Walk", "ASC:Transit", "ASC:Other", "Male:Bike", "Male:Walk", "Male:Transit", "Male:Other", "Trip distance:Bike", "Trip distance:Walk", "Trip distance:Transit", "Trip distance:Other", "Vehicle count:Bike", "Vehicle count:Walk", "Vehicle count:Transit", "Vehicle count:Other", "White:Bike", "White:Walk", "White:Transit", "White:Other", "Hispanic:Bike", "Hispanic:Other", "Hispanic:Transit", "Hispanic:Walk"))
 
 
 freq_cleaned<-as.data.frame(m_cleaned$freq/dim(ncommute_cleaned)[1])
@@ -1101,8 +1186,8 @@ odd_ratios <- cbind(round(exp(coefficients(m_cleaned)),2),round(exp(coefficients
 
 
 colnames(odd_ratios) <- c("Cleand data","Raw data")
-rownames(odd_ratios)[5:16] <- c("Male:Car","Male:Other","Male:Transit","Male:Walk", "Trip distance:Car", "Trip distance:Other", "Trip distance:Transit", "Trip distance:Walk", "Vehicle count:Car", "Vehicle count:Other", "Vehicle count:Transit", "Vehicle count:Walk")
-rownames(odd_ratios)[17:24] <- c("White:Car","White:Other","White:Transit","White:Walk","Hispanic:Car","Hispanic:Other","Hispanic:Transit","Hispanic:Walk")
+rownames(odd_ratios)[5:16] <- c("Male:Bike","Male:Walk","Male:Transit","Male:Other", "Trip distance:Bike", "Trip distance:Walk", "Trip distance:Transit", "Trip distance:Other", "Vehicle count:Bike", "Vehicle count:Walk", "Vehicle count:Transit", "Vehicle count:Other")
+rownames(odd_ratios)[17:24] <- c("White:Bike","White:Walk","White:Transit","White:Other","Hispanic:Bike","Hispanic:Walk","Hispanic:Transit","Hispanic:Other")
 
 htmlTable(odd_ratios, caption = 'Odd Ratios', rownames = FALSE,
           ## padding to cells: top side bottom

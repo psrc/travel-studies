@@ -711,7 +711,8 @@ GO
 										THEN  t.trip_path_distance / (CAST(DATEDIFF_BIG (second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/3600) 
 										ELSE 0 END,
 			t.reported_duration	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,
-			--t.travel_time 	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,  -- for edited records, this should be the accepted travel duration			   	
+			--t.travel_time 	= CAST(DATEDIFF(second, t.depart_time_timestamp, t.arrival_time_timestamp) AS numeric)/60,  -- for edited records, this should be the accepted travel duration
+			t.traveldate        = CAST(DATEADD(hour, 3, t.depart_time_timestamp) AS date),			   	
 			t.dayofweek 		= DATEPART(dw, DATEADD(hour, 3, t.depart_time_timestamp)),
 			t.dest_geog = geography::STGeomFromText('POINT(' + CAST(t.dest_lng AS VARCHAR(20)) + ' ' + CAST(t.dest_lat AS VARCHAR(20)) + ')', 4326), 
 			t.origin_geog  = geography::STGeomFromText('POINT(' + CAST(t.origin_lng AS VARCHAR(20)) + ' ' + CAST(t.origin_lat AS VARCHAR(20)) + ')', 4326) 
@@ -740,6 +741,10 @@ GO
 				union all SELECT tripid, hhmember6 AS member FROM HHSurvey.Trip 
 				union all SELECT tripid, hhmember7 AS member FROM HHSurvey.Trip 
 				union all SELECT tripid, hhmember8 AS member FROM HHSurvey.Trip 
+				union all SELECT tripid, hhmember9 AS member FROM HHSurvey.Trip 
+				union all SELECT tripid, hhmember10 AS member FROM HHSurvey.Trip 
+				union all SELECT tripid, hhmember11 AS member FROM HHSurvey.Trip 
+				union all SELECT tripid, hhmember12 AS member FROM HHSurvey.Trip 
 			) AS members
 			where member not in (select flag_value from HHSurvey.NullFlags)
 			group by tripid
@@ -748,7 +753,7 @@ GO
 		set t.travelers_hh = membercounts.membercount
 		from membercounts
 			join HHSurvey.Trip AS t ON t.tripid = membercounts.tripid
-		where t.travelers_hh <> membercounts.membercount 
+		where t.travelers_hh > membercounts.membercount 
 			or t.travelers_hh is null
 			or t.travelers_hh in (select flag_value from HHSurvey.NullFlags);
 		
