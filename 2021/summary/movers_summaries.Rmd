@@ -1,0 +1,233 @@
+---
+title: "movers_why_2021"
+author: "suzanne"
+date: "3/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Recent Movers in 2021
+
+This document looks at why people in moved who answered the survey in 2021. We will group the data into how long ago they moved to try to understand pre and post covid.
+
+To lookup variable names the codebook is here: J:\Projects\Surveys\HHTravel\Survey2021\\Data\\Combined_Codebook_2021_With_Weights.xlsx
+
+We will use the psrc.travesurvey package, documentation is here: <https://psrc.github.io/psrc.travelsurvey/articles/calculate_hhts_summaries.html>
+
+Code is here: <https://github.com/psrc/psrc.travelsurvey>
+
+First, let's understand the universe of respondents on the movers question.
+
+
+```{r get_started}
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(data.table)
+library(tidyr)
+
+res_dur_2019<-get_hhts(dyear=2019, level="h", vars="res_dur")
+res_dur_2019_counts<- hhts_count(df=res_dur_2019, group_vars='res_dur')
+
+
+res_dur_2021<-get_hhts(dyear=2021, level="h", vars="res_dur")
+res_dur_2021_counts<- hhts_count(df=res_dur_2021, group_vars='res_dur')
+
+res_dur_2019_2021_counts<-merge(res_dur_2019_counts, res_dur_2021_counts, by='res_dur', suffixes =c('2019', '2021'))
+
+
+
+write.table(res_dur_2019_2021_counts, "clipboard", sep="\t", row.names=FALSE)
+
+res_dur_2019_2021_counts
+
+```
+Differences are generally within MOE across 2019, 2021 surveys. Looks like maybe more in the "less than a year" category but can't tell.
+
+We're really most interested in the movers in the past year vs 1 and 2 years, or 2 and 3 years ago.
+
+```{r moved_recently}
+hhs_2021<-get_hhts(dyear=2021, level="h", vars=c("res_dur",
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk",
+"res_factors_cultural",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify"
+))
+
+
+
+vars_to_summarize<-c(
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk",
+"res_factors_cultural",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c(x, "res_dur"))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
+
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))
+
+write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
+
+```
+
+```{r}
+hhs_2019<-get_hhts(dyear=2019, level="h", vars=c("res_dur",
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk",
+"res_factors_cultural",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify"
+))
+
+
+
+vars_to_summarize<-c(
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk",
+"res_factors_cultural",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c(x, "res_dur"))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
+
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))
+
+write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
+```
+
+
+
+```{r get_started}
+
+displaced_hh_2019<-get_hhts(dyear=c(2017,2019), level="h", vars="res_factors_displaced")
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='res_factors_displaced')
+
+
+displaced_hh_2021<-get_hhts(dyear=2021, level="h", vars="res_factors_displaced")
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='res_factors_displaced')
+
+
+
+displaced_2017_2019<-merge(displaced_hh_2019_counts, displaced_hh_2021_counts, by='res_factors_displaced', suffixes =c('2019', '2021'))
+
+write.table(displaced_hh_2021_counts, "clipboard", sep="\t", row.names=FALSE)
+displaced_2017_2019
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+library(psrc.travelsurvey)
+library(dplyr)
+carshare_hh_2019<-get_hhts(dyear=2019, level="h", vars="car_share")
+carshare_hh_2019_counts<- hhts_count(df=carshare_hh_2019, group_vars='car_share')
+```
+
+
+```{r pressure, echo=FALSE}
+hhs_2021 <- get_hhts(dyear=2021, level="h", vars=c("res_dur", unlist(vars_to_summarize)) %>%
+    mutate(covid_mover=factor(case_when(res_dur=="Less than a year" ~1, !is.na(res_dur) ~0)))
+df <- list()
+df <- lapply(my_vars, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c(x, "covid_mover"))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[1]) %>% relocate(var_name)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
