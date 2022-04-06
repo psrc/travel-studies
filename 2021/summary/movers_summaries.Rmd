@@ -49,6 +49,8 @@ Differences are generally within MOE across 2019, 2021 surveys. Looks like maybe
 
 We're really most interested in the movers in the past year vs 1 and 2 years, or 2 and 3 years ago.
 
+Why moved to current residence
+
 ```{r moved_recently}
 hhs_2021<-get_hhts(dyear=2021, level="h", vars=c("res_dur",
 "res_factors_30min",
@@ -59,23 +61,8 @@ hhs_2021<-get_hhts(dyear=2021, level="h", vars=c("res_dur",
 "res_factors_space",
 "res_factors_transit",
 "res_factors_walk",
-"res_factors_cultural",
-"prev_res_factors_housing_cost",
-"prev_res_factors_income_change",
-"prev_res_factors_community_change",
-"prev_res_factors_hh_size",
-"prev_res_factors_more_space",
-"prev_res_factors_less_space",
-"prev_res_factors_employment",
-"prev_res_factors_covid_flexibility",
-"prev_res_factors_school",
-"prev_res_factors_crime",
-"prev_res_factors_covid_health",
-"prev_res_factors_quality",
-"prev_res_factors_forced",
-"prev_res_factors_no_answer",
-"prev_res_factors_other",
-"prev_res_factors_specify"
+"res_factors_cultural"
+
 ))
 
 
@@ -89,23 +76,7 @@ vars_to_summarize<-c(
 "res_factors_space",
 "res_factors_transit",
 "res_factors_walk",
-"res_factors_cultural",
-"prev_res_factors_housing_cost",
-"prev_res_factors_income_change",
-"prev_res_factors_community_change",
-"prev_res_factors_hh_size",
-"prev_res_factors_more_space",
-"prev_res_factors_less_space",
-"prev_res_factors_employment",
-"prev_res_factors_covid_flexibility",
-"prev_res_factors_school",
-"prev_res_factors_crime",
-"prev_res_factors_covid_health",
-"prev_res_factors_quality",
-"prev_res_factors_forced",
-"prev_res_factors_no_answer",
-"prev_res_factors_other",
-"prev_res_factors_specify")
+"res_factors_cultural")
 
 
 
@@ -114,7 +85,7 @@ mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,gr
     lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
     rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
 
-mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%filter(var_value=='Very important')%>%select(var_value,var_name,'res_durLess than a year')
 
 write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
 
@@ -129,8 +100,40 @@ hhs_2019<-get_hhts(dyear=2019, level="h", vars=c("res_dur",
 "res_factors_school",
 "res_factors_space",
 "res_factors_transit",
-"res_factors_walk",
-"res_factors_cultural",
+"res_factors_walk"
+))
+
+
+
+vars_to_summarize<-c(
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c(x, "res_dur"))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
+
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%filter(var_value=='Very important')%>%select(var_value,var_name,'res_durLess than a year')
+
+write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
+
+```
+
+Why did you move from previous residence
+
+
+
+```{r prev-2021}
+hhs_2019<-get_hhts(dyear=2019, level="h", vars=c("res_dur",
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
 "prev_res_factors_community_change",
@@ -147,20 +150,12 @@ hhs_2019<-get_hhts(dyear=2019, level="h", vars=c("res_dur",
 "prev_res_factors_no_answer",
 "prev_res_factors_other",
 "prev_res_factors_specify"
+
 ))
 
 
 
 vars_to_summarize<-c(
-"res_factors_30min",
-"res_factors_afford",
-"res_factors_closefam",
-"res_factors_hwy",
-"res_factors_school",
-"res_factors_space",
-"res_factors_transit",
-"res_factors_walk",
-"res_factors_cultural",
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
 "prev_res_factors_community_change",
@@ -183,11 +178,68 @@ vars_to_summarize<-c(
 mover_sum<- list()
 mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c(x, "res_dur"))) %>%
     lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
-    rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
+    rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')%>%drop_na()
 
-mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%select(var_value,var_name,'res_durLess than a year')%>%filter(var_value=='Selected')
 
 write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
+
+
+
+```
+
+```{r prev-2021}
+hhs_2021<-get_hhts(dyear=2021, level="h", vars=c("res_dur",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify"
+
+))
+
+
+
+vars_to_summarize<-c(
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c(x, "res_dur"))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')%>%drop_na()
+
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%select(var_value,var_name,'res_durLess than a year')%>%filter(var_value=='Selected')
+
+write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
+
 ```
 
 
