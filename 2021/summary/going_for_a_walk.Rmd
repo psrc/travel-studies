@@ -24,6 +24,8 @@ library(dplyr)
 library(stringr)
 library(data.table)
 library(tidyr)
+library(ggplot2)
+
 
 #get data items and weights, put into srvyr format
 #filter for people who do not answer the question, children, non-respondent
@@ -51,12 +53,12 @@ walk_2019_2021_counts<-merge(walk_2019_counts, walk_2021_counts, by='mode_freq_3
 
 
 write.table(walk_2019_2021_counts, "clipboard", sep="\t", row.names=FALSE)
+walk_2019_2021_counts
 ```
 
 
-```{r get_started}
-library(ggplot2)
-library(data.table)
+```{r plot_data}
+
 
 walk_2019_counts$survey_year=2019
 walk_2021_counts$survey_year=2021
@@ -64,5 +66,5 @@ walk_2019_2021_counts_long<-rbind(walk_2019_counts,walk_2021_counts)%>%filter(mo
 
 p<-ggplot(walk_2019_2021_counts_long, aes(x=as.factor(survey_year), y=share, fill=as.factor(mode_freq_3))) +
   geom_bar(stat="identity", position="stack")+coord_flip()
-
+p
 ```

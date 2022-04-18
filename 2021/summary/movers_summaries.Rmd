@@ -85,8 +85,7 @@ mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,gr
     lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
     rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
 
-mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%filter(var_value=='Very important'| var_value=="Somewhat important")%>%select(var_value,var_name,'res_durLess than a year')
-
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%filter(var_value=='Very important'| var_value=="Somewhat important")%>%select(var_value,var_name,'res_durLess than a year')%>%pivot_wider(names_from=c(var_value), values_from='res_durLess than a year')
 write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
 
 ```
@@ -122,7 +121,7 @@ mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,gr
     lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
     rename(var_value=colnames(.)[1]) %>% relocate(var_name)%>%filter(res_dur!='Total')
 
-mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%filter(var_value=='Very important'|| var_value=="Somewhat important")%>%select(var_value,var_name,'res_durLess than a year')
+mover_shares<-mover_sum%>% select(var_name, var_value, res_dur, count)%>%pivot_wider(names_from=c(res_dur), values_from=count,names_prefix='res_dur') %>%group_by(var_name)%>%mutate(across(starts_with("res_dur"),~ .x/sum(.x)))%>%filter(var_value=='Very important'| var_value=="Somewhat important")%>%select(var_value,var_name,'res_durLess than a year')%>%pivot_wider(names_from=c(var_value), values_from='res_durLess than a year')
 
 write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
 
@@ -245,41 +244,18 @@ write.table(mover_shares, "clipboard", sep="\t", row.names=FALSE)
 
 
 ```{r get_started}
-
-displaced_hh_2019<-get_hhts(dyear=c(2017,2019), level="h", vars="res_factors_displaced")
-displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='res_factors_displaced')
-
-
-displaced_hh_2021<-get_hhts(dyear=2021, level="h", vars="res_factors_displaced")
-displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='res_factors_displaced')
+# get res_dur
+displaced_hh_2019<-get_hhts(dyear=c(2017,2019), level="h", vars=c("res_factors_displaced", 'res_dur'))
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('res_factors_displaced', 'res_dur'))%>%filter(res_dur=='Less than a year' & (res_factors_displaced=='Displaced' | res_factors_displaced== 'Not Displaced'))
 
 
+displaced_hh_2021<-get_hhts(dyear=2021, level="h", vars=c("res_factors_displaced", 'res_dur'))
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('res_factors_displaced', 'res_dur'))%>%filter(res_dur=='Less than a year' & (res_factors_displaced=='Displaced' | res_factors_displaced== 'Not Displaced'))
 
-displaced_2017_2019<-merge(displaced_hh_2019_counts, displaced_hh_2021_counts, by='res_factors_displaced', suffixes =c('2019', '2021'))
 
-write.table(displaced_hh_2021_counts, "clipboard", sep="\t", row.names=FALSE)
+
+displaced_2019_2021<-merge(displaced_hh_2019_counts, displaced_hh_2021_counts, by=c('res_factors_displaced', 'res_dur'), suffixes =c('2019', '2021'))
+
+write.table(displaced_2019_2021, "clipboard", sep="\t", row.names=FALSE)
 displaced_2017_2019
 ```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-library(psrc.travelsurvey)
-library(dplyr)
-carshare_hh_2019<-get_hhts(dyear=2019, level="h", vars="car_share")
-carshare_hh_2019_counts<- hhts_count(df=carshare_hh_2019, group_vars='car_share')
-```
-
-
-```{r pressure, echo=FALSE}
-hhs_2021 <- get_hhts(dyear=2021, level="h", vars=c("res_dur", unlist(vars_to_summarize)) %>%
-    mutate(covid_mover=factor(case_when(res_dur=="Less than a year" ~1, !is.na(res_dur) ~0)))
-df <- list()
-df <- lapply(my_vars, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c(x, "covid_mover"))) %>%
-    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[1])}) %>% rbindlist(use.names=FALSE) %>% 
-    rename(var_value=colnames(.)[1]) %>% relocate(var_name)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
