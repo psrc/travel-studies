@@ -36,14 +36,18 @@ age != '12-15 years' &
 age !='16-17 years'
 )
 
-#look at totals and counts that include nonresponse
    
 walk_2019_counts<- hhts_count(df=walk_2019, group_vars="mode_freq_3")
-#recalculate shares after removing non-response
 
 
-#get data items and filter out people who didn't answer the question, children, nonresponse
-walk_2021<-get_hhts(dyear=2021, level="p", vars="mode_freq_3")
+
+
+walk_2021<-get_hhts(dyear=2021, level="p", vars=c("mode_freq_3","age"))%>% 
+filter(age !='Under 5 years old' &
+age !='5-11 years' &
+age != '12-15 years' &
+age !='16-17 years'
+)
 walk_2021_counts<- hhts_count(df=walk_2021, group_vars="mode_freq_3")
 
 walk_2019_2021_counts<-merge(walk_2019_counts, walk_2021_counts, by='mode_freq_3', suffixes =c('2019', '2021'))
