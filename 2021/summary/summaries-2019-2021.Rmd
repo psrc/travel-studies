@@ -1,0 +1,263 @@
+---
+title: "Summaries 2019 v 2021"
+author: "Christy"
+date: "4/21/2022"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(psrc.travelsurvey)
+library(tidyverse)
+library(ggiraph)
+```
+
+## Gender by Telecommute Frequency
+
+Not quite apples-to-apples comparison because the question for `telecommute_freq` was different across years.
+
+- 2019: How frequently do you telecommute?
+  - includes 'per month' answers
+- 2021: How frequently did you telecommute in the past week?
+
+Values for `Gender` is also different. 2021 introduced 'Non-Binary' and combined 'Not listed here / prefer not to answer'.
+```{r gender process, include=FALSE, eval=FALSE}
+
+vars_01 <- c('sample_source', 'employment', 'jobs_count', 'employment_pre_covid', 'workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')
+
+# vars_01 <- c('sample_source', 'workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')
+
+# generate summary
+wrkr_2021 <- get_hhts(dyear = 2021, 
+                      level = 'p', 
+                      vars = vars_01) %>%
+  filter(age_category != 'Under 18 years') %>% 
+  filter(worker != 'No jobs') %>% 
+  filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*"))))
+
+gen_tc_freq_2021 <- hhts_count(wrkr_2021, group_vars = c('gender', 'telecommute_freq'))
+
+# explore where workplace | telecommute_freq are NA
+group_cols <- colnames(wrkr_2021)[!(colnames(wrkr_2021) %in% str_subset(colnames(wrkr_2021), '.*weight.*'))]
+
+df_na <- wrkr_2021 %>% 
+  distinct(across(group_cols)) %>% 
+  filter(is.na(telecommute_freq) | is.na(workplace))
+```
+
+```{r gender, eval=TRUE}
+
+vars_02 <- c('workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')
+
+# 2019: How frequently do you telecommute?
+wrkr_2019 <- get_hhts(dyear = 2019, 
+                      level = 'p', 
+                      vars = vars_02) %>%
+  filter(age_category != 'Under 18 years') %>%
+  filter(worker != 'No jobs') %>%
+  filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*")))) %>% 
+  mutate(tc_freq_group = case_when(telecommute_freq %in% c('1 day a week', '2 days a week') ~ '1-2 days',
+                                   telecommute_freq %in% c('3 days a week', '4 days a week') ~ '3-4 days',
+                                   telecommute_freq %in% c('5 days a week', '6-7 days a week') ~ '5+ days',
+                                   telecommute_freq %in% c('Never', 'Not applicable') ~ 'Never / None',
+                                   !is.na(telecommute_freq) ~ telecommute_freq)) %>% 
+  mutate(gender_group = case_when(gender %in% c('Prefer not to answer', 'Another') ~ 'Prefer not to answer / Another',
+                                  !is.na(gender) ~ gender))
+
+# summarise 2019 and add telecommute frequency lookup
+gen_tc_freq_2019 <- hhts_count(wrkr_2019, group_vars = c('gender_group', 'tc_freq_group')) %>%
+  mutate(period = 2019)
+        
+# distribution of telecommute_freq responses
+# ggplot() +
+#   geom_bar(data = wrkr_2019, aes(x = telecommute_freq)) +
+#   theme(axis.text.x = element_text(angle = 45,
+#                                    h =1,
+#                                    size = 8)) +
+#   labs(y = 'sample size',
+#        caption = '2017/2019')
+
+# 2021: How frequently did you telecommute in the past week?
+wrkr_2021 <- get_hhts(dyear = 2021, 
+                      level = 'p', 
+                      vars = vars_02) %>%
+  filter(age_category != 'Under 18 years') %>% 
+  filter(worker != 'No jobs') %>% 
+  filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*")))) %>% 
+  drop_na(any_of(c('workplace', 'telecommute_freq'))) %>% 
+  mutate(gender_group = case_when(gender %in% c('Not listed here / prefer not to answer', 'Non-Binary') ~ 'Prefer not to answer / Another',
+                                  !is.na(gender) ~ gender))
+
+gen_tc_freq_2021 <- hhts_count(wrkr_2021, group_vars = c('gender_group', 'telecommute_freq')) %>% 
+  mutate(period = 2021) %>% 
+  rename(tc_freq_group = telecommute_freq)
+
+# merge dfs
+gen_tc_freq <- bind_rows(gen_tc_freq_2019, gen_tc_freq_2021) %>% 
+  mutate(period = as.factor(period))
+
+plot.title <- 'Gender and Telecommute Frequency'
+plot.caption <- '2019, 2021 Household Travel Survey'
+
+gridline.color <- '#ededed'
+background.color <- 'white'
+
+df <- gen_tc_freq %>% 
+  filter(tc_freq_group != 'Total') 
+
+g <- ggplot() +
+  geom_col_interactive(data = df, 
+           aes(x = tc_freq_group, 
+               y = share, 
+               fill = period,
+               tooltip = paste0(period, ': ', round(share*100, 0), '%')),
+           position = 'dodge') +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+  theme(axis.text.x = element_text(hjust = 1,
+                                   angle = 45,
+                                   # vjust = 1,
+                                   size = 6),
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = 'bottom',
+        legend.title = element_blank(),
+        panel.background = element_rect(fill = background.color),
+        panel.grid.major.y = element_line(color = gridline.color),
+        panel.grid.minor.y = element_line(color = gridline.color),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        plot.caption = element_text(size=5)
+        ) +
+  labs(x = NULL,
+       y = NULL,
+       title = plot.title,
+       caption = plot.caption) +
+  facet_wrap(vars(gender_group))
+
+girafe(ggobj = g)
+```
+
+```{r gender test}
+# count_na_dplyr <- wrkr_2021 %>%
+#   select(everything()) %>%  
+#   summarise_all(funs(sum(is.na(.)))) %>% 
+#   pivot_longer(cols = everything(),
+#                names_to = 'variable',
+#                values_to = 'count_na')
+# 
+# count_na <- wrkr2021 %>% map(~sum(is.na(.))) %>% unlist() %>% as.data.frame() 
+
+```
+
+## Race Category by Mode 1
+
+```{r race, eval=FALSE}
+
+# hh_race_category # combined_adult_weight
+# mode_1 # Primary mode, combined_adult_trip_weight
+# mode_simple #
+
+# r_vars <- c('hh_race_category', 'mode_1')
+r_vars <- c('race_eth_broad', 'mode_1')
+r_m1_2019 <- get_hhts(dyear = 2019,
+                      level = 't',
+                      vars = r_vars)
+
+r_m1_sum_2019 <- hhts_count(r_m1_2019, 
+                            spec_wgt = 'trip_weight_2017_2019_v2021_adult',
+                            group_vars = r_vars)
+
+r_m1_2021 <- get_hhts(dyear = 2021,
+                      level = 't',
+                      vars = r_vars)
+
+r_m1_sum_2021<- hhts_count(r_m1_2021, 
+                            spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
+                            group_vars = r_vars)
+
+# group mode_1 values?
+# m1_19 <- data.frame(m1_2019 = unique(r_m1_sum_2019$mode_1), key = unique(r_m1_sum_2019$mode_1))
+# m1_21 <- data.frame(m1_2021 = unique(r_m1_sum_2021$mode_1), key = unique(r_m1_sum_2021$mode_1))
+# 
+# m1_comp <- full_join(m1_19, m1_21, m1_21, by = 'key')
+```
+
+
+## Detailed Household Income by Trip Path Distance 
+
+```{r income, eval=TRUE}
+# hhincome_detailed # abs_hh_weight
+# trip_path_distance # Bing-estimated trip distance (miles), combined_adult_trip_weight
+
+i_vars <- c('hhincome_detailed', 'trip_path_distance')
+
+inc_dist_2019 <- get_hhts(dyear = 2019,
+         level = 't',
+         vars = i_vars)
+
+inc_dist_sum_2019 <- hhts_mean(inc_dist_2019,
+                                stat_var = 'trip_weight_2017_2019_v2021_adult',
+                                spec_wgt = 'trip_weight_2017_2019_v2021_adult',
+                                group_vars = c('hhincome_detailed'))
+
+inc_levels <- c("Under $10,000" ,"$10,000-$24,999","$25,000-$34,999","$35,000-$49,999",
+                "$50,000-$74,999", "$75,000-$99,999", "$100,000-$149,999", "$150,000-$199,999",
+                "$200,000-$249,999", "$250,000 or more", "Prefer not to answer", "Total")
+
+id_19 <- inc_dist_sum_2019 %>% 
+  rename(mean = ends_with('mean'), moe = ends_with('moe')) %>% 
+  mutate(hhincome_detailed = factor(hhincome_detailed, levels = inc_levels),
+         lower = mean - moe,
+         upper = mean + moe,
+         year = 2019)
+
+inc_dist_2021 <- get_hhts(dyear = 2021,
+         level = 't',
+         vars = i_vars)
+
+inc_dist_sum_2021 <- hhts_mean(inc_dist_2021,
+                                stat_var = 'trip_weight_2021_ABS_Panel_adult',
+                                spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
+                                group_vars = c('hhincome_detailed'))
+
+id_21 <- inc_dist_sum_2021 %>% 
+  rename(mean = ends_with('mean'), moe = ends_with('moe')) %>% 
+  mutate(hhincome_detailed = factor(hhincome_detailed, levels = inc_levels),
+         lower = mean - moe,
+         upper = mean + moe,
+         year = 2021)
+
+id_1921 <- bind_rows(id_19, id_21) %>% 
+  mutate(year = as.factor(year))
+```
+
+```{r income plot}
+
+ggplot(id_1921, aes(x = hhincome_detailed, y = mean, fill = year)) +
+  geom_col(position = position_dodge(width=.9)) +
+  geom_linerange(aes(ymin = lower,
+                    ymax = upper),
+                 # width = 0.2,
+                 position = position_dodge(width=.9)) +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(labels = scales::label_comma()) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45,
+                                   hjust = 1,
+                                   size = 8)) +
+  labs(x = NULL,
+       y = 'Mean Miles',
+       fill = NULL,
+       title = 'Detailed Household Income by Trip Path Distance')
+ 
+
+```
+
