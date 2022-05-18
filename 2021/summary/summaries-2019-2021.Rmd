@@ -17,6 +17,7 @@ library(psrc.travelsurvey)
 library(tidyverse)
 library(ggiraph)
 
+# global variables
 survey_a <- list(survey = '2017_2019', label = '2017/2019')
 # survey_a <- list(survey = '2019', label = '2019')
 survey_b <- list(survey = '2021', label = '2021')
@@ -81,6 +82,8 @@ wrkr_2019 <- get_hhts(survey = survey_a$survey,
                                    telecommute_freq %in% c('5 days a week', '6-7 days a week') ~ '5+ days',
                                    telecommute_freq %in% c('Never', 'Not applicable') ~ 'Never / None',
                                    !is.na(telecommute_freq) ~ telecommute_freq)) %>% 
+  mutate(tc_freq_group_simple = case_when(tc_freq_group %in% str_subset(unique(.data$tc_freq_group), '.*days$')~ 'Telecommuted at least once per week', 
+                                          !is.na(tc_freq_group) ~ tc_freq_group)) %>% 
   mutate(gender_group = case_when(gender %in% c('Prefer not to answer', 'Another') ~ 'Prefer not to answer / Another',
                                   !is.na(gender) ~ gender)) %>% 
   filter(!(telecommute_freq %in% str_subset(unique(telecommute_freq), '.*month(ly)*$')))
@@ -88,6 +91,10 @@ wrkr_2019 <- get_hhts(survey = survey_a$survey,
 # summarise 2019 and add telecommute frequency lookup
 gen_tc_freq_2019 <- hhts_count(wrkr_2019, group_vars = c('gender_group', 'tc_freq_group')) %>%
   mutate(period = survey_a$label)
+
+gen_tc_freq_2019_simple <- hhts_count(wrkr_2019, group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+  mutate(period = survey_a$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
 
 # 2021: How frequently did you telecommute in the past week?
 wrkr_2021 <- get_hhts(survey = survey_b$survey, 
@@ -97,6 +104,8 @@ wrkr_2021 <- get_hhts(survey = survey_b$survey,
   filter(worker != 'No jobs') %>% 
   filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*")))) %>% 
   drop_na(any_of(c('workplace', 'telecommute_freq'))) %>% 
+  mutate(tc_freq_group_simple = case_when(telecommute_freq %in% str_subset(unique(.data$telecommute_freq), '.*days$')~ 'Telecommuted at least once per week', 
+                                          !is.na(telecommute_freq) ~ telecommute_freq)) %>% 
   mutate(gender_group = case_when(gender %in% c('Not listed here / prefer not to answer', 'Non-Binary') ~ 'Prefer not to answer / Another',
                                   !is.na(gender) ~ gender))
 
@@ -105,57 +114,85 @@ gen_tc_freq_2021 <- hhts_count(wrkr_2021, group_vars = c('gender_group', 'teleco
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = telecommute_freq)
 
+gen_tc_freq_2021_simple <- hhts_count(wrkr_2021, group_vars = c('gender_group', 'tc_freq_group_simple')) %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
 # merge dfs
 gen_tc_freq <- bind_rows(gen_tc_freq_2019, gen_tc_freq_2021) %>% 
   mutate(period = as.factor(period))
 
+gen_tc_freq_simple <- bind_rows(gen_tc_freq_2019_simple, gen_tc_freq_2021_simple) %>% 
+  mutate(period = as.factor(period))
+
 ## plot ----
+
 plot.title <- 'Gender and Telecommute Frequency'
+plot.subtitle <- 'Times per week'
 plot.source <- paste0('Source: ', survey_a$label,', ', survey_b$label, ' ', 'Household Travel Survey')
 plot.caption <- paste0(plot.source,"\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size")
 plot.facet.labels <- c('Female' = 'Female', 'Male' = 'Male', 'Prefer not to answer / Another' = 'Prefer not to answer / Another*')                       
+
 df <- gen_tc_freq %>% 
   filter(tc_freq_group != 'Total') %>% 
   mutate(upper = share + share_moe,
          lower = share - share_moe)
 
-g <- ggplot(df,  
-            aes(x = tc_freq_group, 
-                y = share, 
-                fill = period,
-                tooltip = paste0(tc_freq_group, ' ', period, ': ', round(share*100, 0), '%'))) +
-  geom_col_interactive(position = position_dodge(width=.9)) +
-  geom_linerange(aes(ymin = lower,
-                     ymax = upper),
-                 position = position_dodge(width=.9)) +
-  scale_fill_brewer(palette = "Paired") +
-  scale_y_continuous(labels = scales::label_percent()) +
-  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
-  theme(axis.text.x = element_text(hjust = .5,
-                                   vjust = 1.2,
-                                   angle = 45,
-                                   size = 6),
-        axis.ticks.x = element_blank(),
-        axis.ticks.y = element_blank(),
-        legend.position = 'bottom',
-        legend.title = element_blank(),
-        panel.background = element_rect(fill = background.color),
-        panel.grid.major.y = element_line(color = gridline.color),
-        panel.grid.minor.y = element_line(color = gridline.color),
-        panel.grid.major.x = element_blank(),
-        panel.grid.minor.x = element_blank(),
-        plot.caption = element_text(size=5)
-        ) +
-  labs(x = NULL,
-       y = NULL,
-       title = plot.title,
-       caption = plot.caption) +
-  facet_wrap(vars(gender_group), labeller = labeller(gender_group = plot.facet.labels))
+df_simple <- gen_tc_freq_simple %>% 
+  filter(tc_freq_group != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe,
+         tc_freq_group = factor(tc_freq_group, levels = c('Telecommuted at least once per week', 'Never / None')))
 
-girafe(ggobj = g)
+```
 
-# 2019, 2021 (27, 39...25, 38)
-# 2017/19, 2021 (19, 39...24, 38)
+```{r gender function}
+
+gender_tcf <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
+  g <- ggplot(table,  
+              aes(x = tc_freq_group, 
+                  y = share, 
+                  fill = period,
+                  tooltip = paste0(tc_freq_group, ' ', period, ': ', round(share*100, 0), '%'))) +
+    geom_col_interactive(position = position_dodge(width=.9)) +
+    geom_linerange(aes(ymin = lower,
+                       ymax = upper),
+                   position = position_dodge(width=.9)) +
+    scale_fill_brewer(palette = "Paired") +
+    scale_y_continuous(labels = scales::label_percent()) +
+    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+    theme(axis.text.x = element_text(hjust = hjust,
+                                     vjust = vjust,
+                                     angle = angle,
+                                     size = 6),
+          axis.ticks.x = element_blank(),
+          axis.ticks.y = element_blank(),
+          legend.position = 'bottom',
+          legend.title = element_blank(),
+          panel.background = element_rect(fill = background.color),
+          panel.grid.major.y = element_line(color = gridline.color),
+          panel.grid.minor.y = element_line(color = gridline.color),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.caption = element_text(size=5)
+          ) +
+    labs(x = NULL,
+         y = NULL,
+         title = plot.title,
+         subtitle = plot.subtitle,
+         caption = plot.caption) +
+    facet_wrap(vars(gender_group), labeller = labeller(gender_group = plot.facet.labels))
+  
+  girafe(ggobj = g)
+}
+```
+
+```{r gender plot all}
+gender_tcf(df, hjust = .5, vjust = 0, angle = 0)
+```
+
+```{r gender plot simple}
+gender_tcf(df_simple, hjust = .5, vjust = 0, angle = 0)
 ```
 
 ## Race Category by Mode 1
