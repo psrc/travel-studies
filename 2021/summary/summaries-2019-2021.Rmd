@@ -103,7 +103,7 @@ wrkr_2021 <- get_hhts(survey = survey_b$survey,
   filter(age_category != 'Under 18 years') %>% 
   filter(worker != 'No jobs') %>% 
   filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*")))) %>% 
-  drop_na(any_of(c('workplace', 'telecommute_freq'))) %>% 
+  drop_na(any_of(c('workplace', 'telecommute_freq'))) %>%
   mutate(tc_freq_group_simple = case_when(telecommute_freq %in% str_subset(unique(.data$telecommute_freq), '.*days$')~ 'Telecommuted at least once per week', 
                                           !is.na(telecommute_freq) ~ telecommute_freq)) %>% 
   mutate(gender_group = case_when(gender %in% c('Not listed here / prefer not to answer', 'Non-Binary') ~ 'Prefer not to answer / Another',
@@ -146,7 +146,7 @@ df_simple <- gen_tc_freq_simple %>%
 
 ```
 
-```{r gender function}
+```{r gender plot function}
 
 gender_tcf <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
   g <- ggplot(table,  
@@ -195,38 +195,122 @@ gender_tcf(df, hjust = .5, vjust = 0, angle = 0)
 gender_tcf(df_simple, hjust = .5, vjust = 0, angle = 0)
 ```
 
-## Race Category by Mode 1
+- Telecommuting increased between 2019 and 2021 across all major gender groups, but more females are telecommuting at least once a week.
 
-```{r race, eval=FALSE}
+## Race Categories by Mode
+
+```{r race, eval=TRUE}
 
 # hh_race_category # combined_adult_weight
 # mode_1 # Primary mode, combined_adult_trip_weight
-# mode_simple #
+# mode_simple
 
-# r_vars <- c('hh_race_category', 'mode_1')
-r_vars <- c('race_eth_broad', 'mode_1')
-r_m1_2019 <- get_hhts(dyear = 2019,
+r_vars <- c('race_eth_broad', 'mode_simple')
+
+# summarise 2019
+r_m1_2019 <- get_hhts(survey = survey_a$survey,
                       level = 't',
-                      vars = r_vars)
+                      vars = r_vars) %>% 
+   mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+                                          !is.na(race_eth_broad) ~ race_eth_broad))
 
 r_m1_sum_2019 <- hhts_count(r_m1_2019, 
-                            spec_wgt = 'trip_weight_2017_2019_v2021_adult',
-                            group_vars = r_vars)
+                            group_vars = r_vars) %>% 
+  mutate(period = survey_a$label)
 
-r_m1_2021 <- get_hhts(dyear = 2021,
+r_m1_sum_2019_simple <- hhts_count(r_m1_2019, 
+                            group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
+  mutate(period = survey_a$label) %>% 
+  rename(race_eth_broad = race_eth_broad_group)
+
+# summarise 2021
+r_m1_2021 <- get_hhts(survey = survey_b$survey,
                       level = 't',
-                      vars = r_vars)
+                      vars = r_vars) %>% 
+   mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+                                          !is.na(race_eth_broad) ~ race_eth_broad))
 
-r_m1_sum_2021<- hhts_count(r_m1_2021, 
-                            spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
-                            group_vars = r_vars)
+r_m1_sum_2021 <- hhts_count(r_m1_2021, 
+                           spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
+                           group_vars = r_vars) %>% 
+  mutate(period = survey_b$label)
 
-# group mode_1 values?
-# m1_19 <- data.frame(m1_2019 = unique(r_m1_sum_2019$mode_1), key = unique(r_m1_sum_2019$mode_1))
-# m1_21 <- data.frame(m1_2021 = unique(r_m1_sum_2021$mode_1), key = unique(r_m1_sum_2021$mode_1))
-# 
-# m1_comp <- full_join(m1_19, m1_21, m1_21, by = 'key')
+r_m1_sum_2021_simple <- hhts_count(r_m1_2021, 
+                           spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
+                           group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(race_eth_broad = race_eth_broad_group)
+
+## plot ----
+
+plot.title.rm <- 'Race/Ethnicity by Primary Mode of Transportation'
+
+rm_df <- bind_rows(r_m1_sum_2019, r_m1_sum_2021) %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe)
+
+rm_df_simple <- bind_rows(r_m1_sum_2019_simple, r_m1_sum_2021_simple) %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe,
+         race_eth_broad = factor(race_eth_broad, levels = c('Persons of Color', 'White only, non-Hispanic/Latinx', 'No Answer')))
 ```
+
+```{r race plot function}
+race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
+  r <- ggplot(table,
+              aes(x = mode_simple,
+                  y = share,
+                  fill = period,
+                  tooltip = paste0(mode_simple, ' ', period, ': ', round(share*100, 0), '%')
+              )) +
+    geom_col_interactive(position = position_dodge(width=.9)) +
+    geom_linerange(aes(ymin = lower,
+                       ymax = upper),
+                   position = position_dodge(width=.9)) +
+    scale_fill_brewer(palette = "Paired") +
+    scale_y_continuous(labels = scales::label_percent()) +
+    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+    theme(axis.text.x = element_text(hjust = hjust,
+                                     vjust = vjust,
+                                     angle = angle,
+                                     size = 6),
+          axis.ticks.x = element_blank(),
+          axis.ticks.y = element_blank(),
+          legend.position = 'bottom',
+          legend.title = element_blank(),
+          panel.background = element_rect(fill = background.color),
+          panel.grid.major.y = element_line(color = gridline.color),
+          panel.grid.minor.y = element_line(color = gridline.color),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.caption = element_text(size=5),
+          strip.text = element_text(size = 7)
+          ) +
+    labs(x = NULL,
+         y = NULL,
+         title = plot.title.rm,
+         caption = plot.source
+         ) +
+  facet_wrap(vars(race_eth_broad), labeller = labeller(race_eth_broad = label_wrap_gen(20)))
+   
+  girafe(ggobj = r)
+}
+```
+
+```{r race plot all}
+race_mode(rm_df, hjust = .5, vjust = .5, angle = 45)
+```
+
+```{r race plot simple}
+race_mode(rm_df_simple)
+```
+
+- Driving is the predominant primary mode of transportation across race and ethnicity.
+- POC saw more walking trips
+- Black/African-American (non-Hispanic/Latinx) & Hispanic or Latinx had more driving trips while other groups saw decreases in driving between the two time periods.
+- Transit trips for Asian (non-Hispanic/Latinx) remained the same.
 
 
 ## Detailed Household Income by Trip Path Distance 
@@ -268,8 +352,6 @@ inc_dist_sum_2019 <- hhts_median(inc_dist_2019,
                                 spec_wgt = 'trip_weight_2017_2019_v2021_adult',
                                 group_vars = c('hhincome_detailed')) # category (income, race, gender)
 
-
-
 id_19 <- inc_dist_sum_2019 %>% 
   rename(m = ends_with(stat), moe = ends_with('moe')) %>% 
   mutate(hhincome_detailed = factor(hhincome_detailed, levels = inc_levels),
@@ -295,28 +377,33 @@ id_21 <- inc_dist_sum_2021 %>%
          upper = m + moe,
          year = survey_b$label)
 
+## plot ----
+
+plot.title.itpd <- paste('Detailed Household Income by', str_to_title(stat), 'Trip Path Distance')
+plot.subtitle.itpd <- paste('Trips less than', tpd, 'miles')
+
 id_1921 <- bind_rows(id_19, id_21) %>% 
   mutate(year = as.factor(year))
 
-plot_subtitle_inc <- paste('Trips less than', tpd, 'miles')
+
 
 i <- ggplot(id_1921, aes(x = hhincome_detailed, 
                          y = m, 
                          fill = year,
-                         tooltip = paste0(year, ": ", m))) +
+                         tooltip = paste0(year, ": ", round(m, 1), ' miles'))) +
   geom_col_interactive(position = position_dodge(width=.9)) +
   geom_linerange(aes(ymin = lower,
                     ymax = upper),
-                 # width = 0.2,
                  position = position_dodge(width=.9)) +
   scale_fill_brewer(palette = "Paired") +
   scale_y_continuous(labels = scales::label_comma()) +
   theme(axis.text.x = element_text(angle = 45,
                                    hjust = 1,
-                                   size = 8),
+                                   size = 6),
         axis.ticks.x = element_blank(),
         axis.ticks.y = element_blank(),
         legend.title = element_blank(),
+        legend.position = 'bottom',
         panel.background = element_rect(fill = background.color),
         panel.grid.major.y = element_line(color = gridline.color),
         panel.grid.minor.y = element_line(color = gridline.color),
@@ -324,10 +411,11 @@ i <- ggplot(id_1921, aes(x = hhincome_detailed,
         panel.grid.minor.x = element_blank(),
         plot.caption = element_text(size=5)) +
   labs(x = NULL,
-       y = str_to_title(paste(stat, 'Miles')),
+       y = 'Miles',
        fill = NULL,
-       title = 'Detailed Household Income by Trip Path Distance',
-       subtitle = plot_subtitle_inc)
+       title = plot.title.itpd,
+       caption = plot.source,
+       subtitle = plot.subtitle.itpd)
 
 girafe(ggobj = i)
 
