@@ -12,7 +12,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r global, warning=FALSE, message=FALSE}
+```{r global, warning=FALSE, message=FALSE, echo=FALSE}
 library(psrc.travelsurvey)
 library(tidyverse)
 library(ggiraph)
@@ -24,6 +24,8 @@ survey_b <- list(survey = '2021', label = '2021')
 
 gridline.color <- '#ededed'
 background.color <- 'white'
+
+plot.source <- paste0('Source: ', survey_a$label,', ', survey_b$label, ' ', 'Household Travel Survey')
 ```
 
 
@@ -49,7 +51,7 @@ vars_01 <- c('sample_source', 'employment', 'jobs_count', 'employment_pre_covid'
 # vars_01 <- c('sample_source', 'workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')
 
 # generate summary
-wrkr_2021 <- get_hhts(dyear = 2021, 
+wrkr_2021 <- get_hhts(survey = 2021, 
                       level = 'p', 
                       vars = vars_01) %>%
   filter(age_category != 'Under 18 years') %>% 
@@ -89,10 +91,14 @@ wrkr_2019 <- get_hhts(survey = survey_a$survey,
   filter(!(telecommute_freq %in% str_subset(unique(telecommute_freq), '.*month(ly)*$')))
 
 # summarise 2019 and add telecommute frequency lookup
-gen_tc_freq_2019 <- hhts_count(wrkr_2019, group_vars = c('gender_group', 'tc_freq_group')) %>%
+gen_tc_freq_2019 <- hhts_count(wrkr_2019, 
+                               spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               group_vars = c('gender_group', 'tc_freq_group')) %>%
   mutate(period = survey_a$label)
 
-gen_tc_freq_2019_simple <- hhts_count(wrkr_2019, group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+gen_tc_freq_2019_simple <- hhts_count(wrkr_2019, 
+                                      spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
   mutate(period = survey_a$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
 
@@ -114,7 +120,9 @@ gen_tc_freq_2021 <- hhts_count(wrkr_2021, group_vars = c('gender_group', 'teleco
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = telecommute_freq)
 
-gen_tc_freq_2021_simple <- hhts_count(wrkr_2021, group_vars = c('gender_group', 'tc_freq_group_simple')) %>% 
+gen_tc_freq_2021_simple <- hhts_count(wrkr_2021, 
+                                      spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>% 
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
 
@@ -129,7 +137,7 @@ gen_tc_freq_simple <- bind_rows(gen_tc_freq_2019_simple, gen_tc_freq_2021_simple
 
 plot.title <- 'Gender and Telecommute Frequency'
 plot.subtitle <- 'Times per week'
-plot.source <- paste0('Source: ', survey_a$label,', ', survey_b$label, ' ', 'Household Travel Survey')
+
 plot.caption <- paste0(plot.source,"\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size")
 plot.facet.labels <- c('Female' = 'Female', 'Male' = 'Male', 'Prefer not to answer / Another' = 'Prefer not to answer / Another*')                       
 
@@ -223,6 +231,11 @@ r_m1_sum_2019_simple <- hhts_count(r_m1_2019,
   mutate(period = survey_a$label) %>% 
   rename(race_eth_broad = race_eth_broad_group)
 
+r_m1_sum_2019_nodrive <- r_m1_2019 %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
+  hhts_count(group_vars = r_vars) %>% 
+  mutate(period = survey_a$label)
+
 # summarise 2021
 r_m1_2021 <- get_hhts(survey = survey_b$survey,
                       level = 't',
@@ -231,15 +244,19 @@ r_m1_2021 <- get_hhts(survey = survey_b$survey,
                                           !is.na(race_eth_broad) ~ race_eth_broad))
 
 r_m1_sum_2021 <- hhts_count(r_m1_2021, 
-                           spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
                            group_vars = r_vars) %>% 
   mutate(period = survey_b$label)
 
 r_m1_sum_2021_simple <- hhts_count(r_m1_2021, 
-                           spec_wgt = 'trip_weight_2021_ABS_Panel_adult',
                            group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
   mutate(period = survey_b$label) %>% 
   rename(race_eth_broad = race_eth_broad_group)
+
+r_m1_sum_2021_nodrive <- r_m1_2021 %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
+  hhts_count(r_m1_2021, 
+             group_vars = r_vars) %>% 
+  mutate(period = survey_b$label)
 
 ## plot ----
 
@@ -255,10 +272,15 @@ rm_df_simple <- bind_rows(r_m1_sum_2019_simple, r_m1_sum_2021_simple) %>%
   mutate(upper = share + share_moe,
          lower = share - share_moe,
          race_eth_broad = factor(race_eth_broad, levels = c('Persons of Color', 'White only, non-Hispanic/Latinx', 'No Answer')))
+
+rm_df_nodrive <- bind_rows(r_m1_sum_2019_nodrive, r_m1_sum_2021_nodrive) %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe)
 ```
 
 ```{r race plot function}
-race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
+race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45, subtitle = NULL) {
   r <- ggplot(table,
               aes(x = mode_simple,
                   y = share,
@@ -290,6 +312,7 @@ race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
           ) +
     labs(x = NULL,
          y = NULL,
+         subtitle = subtitle,
          title = plot.title.rm,
          caption = plot.source
          ) +
@@ -307,10 +330,14 @@ race_mode(rm_df, hjust = .5, vjust = .5, angle = 45)
 race_mode(rm_df_simple)
 ```
 
+```{r race plot no drive trips}
+race_mode(rm_df_nodrive, hjust = .5, vjust = .5, angle = 45, subtitle = 'Excluding Driving Trips')
+```
+
 - Driving is the predominant primary mode of transportation across race and ethnicity.
-- POC saw more walking trips
+- POC saw slightly more walking trips
 - Black/African-American (non-Hispanic/Latinx) & Hispanic or Latinx had more driving trips while other groups saw decreases in driving between the two time periods.
-- Transit trips for Asian (non-Hispanic/Latinx) remained the same.
+- Transit trips for Asian (non-Hispanic/Latinx) dropped slightly while Black or African American (non-Hispanic/Latinx) saw a larger drop in transit trips.
 
 
 ## Detailed Household Income by Trip Path Distance 
