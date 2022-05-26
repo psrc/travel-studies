@@ -15,6 +15,20 @@ library(psrc.travelsurvey)
 library(tidyverse)
 library(ggiraph)
 ```
+```{r}
+wrkr2021 <- get_hhts(dyear = 2021, level = 'p', vars = c('sample_source', 'employment', 'jobs_count', 'employment_pre_covid', 'workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')) %>%
+  filter(age_category != 'Under 18 years') %>%
+  filter(worker != 'No jobs') %>%
+  filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*"))))
+# exclude weight columns
+group_cols <- colnames(wrkr2021)[!(colnames(wrkr2021) %in% str_subset(colnames(wrkr2021), '.*weight.*'))]
+df_na <- wrkr2021 %>%
+  distinct(across(group_cols)) %>%
+  filter(is.na(telecommute_freq) | is.na(workplace))
+
+
+
+```
 
 
 ```{r}

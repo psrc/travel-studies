@@ -1,0 +1,79 @@
+---
+title: "residential_displacement"
+author: "suzanne"
+date: "3/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Residential Displacement Analysis
+
+This document looks at residential displacement data from the 2019 and 2021 travel surveys.
+
+What share of households experienced residential displacement in 2019 and 2021?
+
+To lookup variable names the codebook is here: J:\Projects\Surveys\HHTravel\Survey2021\\Data\\Combined_Codebook_2021_With_Weights.xlsx
+
+We will use the psrc.travesurvey package, documentation is here: <https://psrc.github.io/psrc.travelsurvey/articles/calculate_hhts_summaries.html>
+
+Code is here: <https://github.com/psrc/psrc.travelsurvey>
+
+First, let's understand the universe of respondents on the displacement question.
+
+
+```{r get_started}
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+
+res_dur_2019<-get_hhts(dyear=2019, level="h", vars="res_dur")
+res_dur_2019_counts<- hhts_count(df=res_dur_2019, group_vars='res_dur')
+
+
+res_dur_2021<-get_hhts(dyear=2021, level="h", vars="res_dur")
+res_dur_2021_counts<- hhts_count(df=res_dur_2021, group_vars='res_dur')
+
+res_dur_2019_2021_counts<-merge(res_dur_2019_counts, res_dur_2021_counts, by='res_dur', suffixes =c('2019', '2021'))
+
+write.table(res_dur_2019_2021_counts, "clipboard", sep="\t", row.names=FALSE)
+
+res_dur_2019_2021_counts
+
+```
+There are many NAs on the table because only households that have moved in the past five years answered the
+
+```{r get_started}
+
+displaced_hh_2019<-get_hhts(dyear=c(2017,2019), level="h", vars="res_factors_displaced")
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='res_factors_displaced')
+
+
+displaced_hh_2021<-get_hhts(dyear=2021, level="h", vars="res_factors_displaced")
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='res_factors_displaced')
+
+
+
+displaced_2017_2019<-merge(displaced_hh_2019_counts, displaced_hh_2021_counts, by='res_factors_displaced', suffixes =c('2019', '2021'))
+
+write.table(displaced_hh_2021_counts, "clipboard", sep="\t", row.names=FALSE)
+displaced_2017_2019
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+library(psrc.travelsurvey)
+library(dplyr)
+carshare_hh_2019<-get_hhts(dyear=2019, level="h", vars="car_share")
+carshare_hh_2019_counts<- hhts_count(df=carshare_hh_2019, group_vars='car_share')
+
+write.table(carshare_hh_2019_counts, "clipboard", sep="\t", row.names=FALSE)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
