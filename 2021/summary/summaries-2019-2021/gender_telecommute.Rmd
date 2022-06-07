@@ -95,26 +95,47 @@ gen_tc_freq_2021_simple <- hhts_count(wrkr_2021,
 # 2017 single-year ----
 wrkr_2017 <- gender_tcf_get_hhts(survey_c$survey, 'p', vars_02)
 
+# summarise 2017 and add telecommute frequency lookup
+gen_tc_freq_2017 <- hhts_count(wrkr_2017, 
+                               spec_wgt = 'hh_weight_2017_v2021',
+                               group_vars = c('gender_group', 'tc_freq_group')) %>%
+  mutate(period = survey_c$label)
+
+gen_tc_freq_2017_simple <- hhts_count(wrkr_2017, 
+                                      spec_wgt = 'hh_weight_2017_v2021',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+  mutate(period = survey_c$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
 
 # 2019 single-year ----
 wrkr_2019 <- gender_tcf_get_hhts(survey_d$survey, 'p', vars_02)
 
+# summarise 2019 and add telecommute frequency lookup
+gen_tc_freq_2019 <- hhts_count(wrkr_2019, 
+                               spec_wgt = 'hh_weight_2019_v2021',
+                               group_vars = c('gender_group', 'tc_freq_group')) %>%
+  mutate(period = survey_d$label)
 
+gen_tc_freq_2019_simple <- hhts_count(wrkr_2019, 
+                                      spec_wgt = 'hh_weight_2019_v2021',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+  mutate(period = survey_d$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
 
 
 # merge dfs ----
-gen_tc_freq <- bind_rows(gen_tc_freq_1719, gen_tc_freq_2021) %>% 
+gen_tc_freq <- bind_rows(gen_tc_freq_1719, gen_tc_freq_2021, gen_tc_freq_2017, gen_tc_freq_2019) %>% 
   mutate(period = as.factor(period))
 
-gen_tc_freq_simple <- bind_rows(gen_tc_freq_1719_simple, gen_tc_freq_2021_simple) %>% 
+gen_tc_freq_simple <- bind_rows(gen_tc_freq_1719_simple, gen_tc_freq_2021_simple, gen_tc_freq_2017_simple, gen_tc_freq_2019_simple) %>% 
   mutate(period = as.factor(period))
 
 ## plot ----
 
 plot.title <- 'Gender and Telecommute Frequency'
 plot.subtitle <- 'Times per week'
-# plot.source <- paste0('Source: ', survey_a$label,', ', survey_b$label, ' ', 'Household Travel Survey')
-plot.caption <- paste0("\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size")
+plot.caption.01 <- "\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size"
+
 plot.facet.labels <- c('Female' = 'Female', 'Male' = 'Male', 'Prefer not to answer / Another' = 'Prefer not to answer / Another*')                       
 
 df <- gen_tc_freq %>% 
@@ -132,7 +153,10 @@ df_simple <- gen_tc_freq_simple %>%
 
 ```{r gender plot function}
 
-gender_tcf <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
+gender_tcf <- function(table, plot.source.year, plot.caption = plot.caption, palette, hjust = .5, vjust = 1.2, angle = 45) {
+  plot.source <- paste0('Source: ', plot.source.year,' ', 'Household Travel Survey')
+  plot.caption <- paste0(plot.source, plot.caption)
+
   g <- ggplot(table,  
               aes(x = tc_freq_group, 
                   y = share, 
@@ -142,7 +166,7 @@ gender_tcf <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
     geom_linerange(aes(ymin = lower,
                        ymax = upper),
                    position = position_dodge(width=.9)) +
-    scale_fill_brewer(palette = "Paired") +
+    scale_fill_brewer(palette = palette) +
     scale_y_continuous(labels = scales::label_percent()) +
     scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
     theme(axis.text.x = element_text(hjust = hjust,
@@ -171,12 +195,46 @@ gender_tcf <- function(table, hjust = .5, vjust = 1.2, angle = 45) {
 }
 ```
 
-```{r gender plot all}
-gender_tcf(df, hjust = .5, vjust = 0, angle = 0)
+```{r plot 2017-19 2021}
+# filter df for just 2017/19 2021
+df %>% filter(survey %in% c('2017_2019', '2021')) %>% 
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0)
 ```
 
-```{r gender plot simple}
-gender_tcf(df_simple, hjust = .5, vjust = 0, angle = 0)
+```{r plot simple 2017-19 2021}
+# filter df for just 2017/19 2021
+df_simple %>% filter(survey %in% c('2017_2019', '2021')) %>% 
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0)
 ```
 
-- Telecommuting increased between 2019 and 2021 across all major gender groups, but more females are telecommuting at least once a week.
+```{r plot 2017-19 2021 b}
+df %>%
+  filter(survey %in% c('2017_2019', '2021')) %>%
+  filter(tc_freq_group != 'Never / None') %>%
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0)
+```
+
+```{r plot simple 2017-19 2021 b}
+df_simple %>%
+  filter(survey %in% c('2017_2019', '2021')) %>%
+  filter(tc_freq_group != 'Never / None') %>%
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0)
+```
+
+```{r plot all years}
+df %>% 
+  filter(tc_freq_group != 'Never / None') %>% 
+  filter(gender_group != 'Prefer not to answer / Another') %>% 
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0)
+
+```
+
+```{r}
+plot.caption.02 <- paste0("\nExcluded 'Prefer not to Answer/Another' gender category and 'Never/None' telecommute responses.")
+df_simple %>% 
+  filter(tc_freq_group != 'Never / None') %>% 
+  filter(gender_group != 'Prefer not to answer / Another') %>% 
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.02, palette = "Set3", hjust = .5, vjust = 0, angle = 0)
+```
+
+Telecommuting increased between 2017/2019 and 2021 across all major gender groups pictured, however it's not certain that there is a significant difference in increased telecommuting between Females and Males because of overlapping Margins of Error. For those that telecommute at least once a week, there appears to be an almost fair distribution of telecommuters between 1-5 days per week in 2021 with more weight in 1-2 days for Females and 5+ days for Males.

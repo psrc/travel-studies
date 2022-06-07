@@ -1,0 +1,140 @@
+---
+title: "Race by Simple Mode"
+author: "Christy"
+date: '2022-06-06'
+output: html_document
+---
+
+## Race Categories by Mode
+
+```{r race, eval=TRUE}
+
+# hh_race_category # combined_adult_weight
+# mode_1 # Primary mode, combined_adult_trip_weight
+# mode_simple
+
+r_vars <- c('race_eth_broad', 'mode_simple')
+
+# summarise 2019
+r_m1_2019 <- get_hhts(survey = survey_a$survey,
+                      level = 't',
+                      vars = r_vars) %>% 
+   mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+                                          !is.na(race_eth_broad) ~ race_eth_broad))
+
+r_m1_sum_2019 <- hhts_count(r_m1_2019, 
+                            group_vars = r_vars) %>% 
+  mutate(period = survey_a$label)
+
+r_m1_sum_2019_simple <- hhts_count(r_m1_2019, 
+                            group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
+  mutate(period = survey_a$label) %>% 
+  rename(race_eth_broad = race_eth_broad_group)
+
+r_m1_sum_2019_nodrive <- r_m1_2019 %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
+  hhts_count(group_vars = r_vars) %>% 
+  mutate(period = survey_a$label)
+
+# summarise 2021
+r_m1_2021 <- get_hhts(survey = survey_b$survey,
+                      level = 't',
+                      vars = r_vars) %>% 
+   mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+                                          !is.na(race_eth_broad) ~ race_eth_broad))
+
+r_m1_sum_2021 <- hhts_count(r_m1_2021, 
+                           group_vars = r_vars) %>% 
+  mutate(period = survey_b$label)
+
+r_m1_sum_2021_simple <- hhts_count(r_m1_2021, 
+                           group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(race_eth_broad = race_eth_broad_group)
+
+r_m1_sum_2021_nodrive <- r_m1_2021 %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
+  hhts_count(r_m1_2021, 
+             group_vars = r_vars) %>% 
+  mutate(period = survey_b$label)
+
+## plot ----
+
+plot.title.rm <- 'Race/Ethnicity by Primary Mode of Transportation'
+
+rm_df <- bind_rows(r_m1_sum_2019, r_m1_sum_2021) %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe)
+
+rm_df_simple <- bind_rows(r_m1_sum_2019_simple, r_m1_sum_2021_simple) %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe,
+         race_eth_broad = factor(race_eth_broad, levels = c('Persons of Color', 'White only, non-Hispanic/Latinx', 'No Answer')))
+
+rm_df_nodrive <- bind_rows(r_m1_sum_2019_nodrive, r_m1_sum_2021_nodrive) %>% 
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe)
+```
+
+```{r race plot function}
+race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45, subtitle = NULL) {
+  r <- ggplot(table,
+              aes(x = mode_simple,
+                  y = share,
+                  fill = period,
+                  tooltip = paste0(mode_simple, ' ', period, ': ', round(share*100, 0), '%')
+              )) +
+    geom_col_interactive(position = position_dodge(width=.9)) +
+    geom_linerange(aes(ymin = lower,
+                       ymax = upper),
+                   position = position_dodge(width=.9)) +
+    scale_fill_brewer(palette = "Paired") +
+    scale_y_continuous(labels = scales::label_percent()) +
+    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+    theme(axis.text.x = element_text(hjust = hjust,
+                                     vjust = vjust,
+                                     angle = angle,
+                                     size = 6),
+          axis.ticks.x = element_blank(),
+          axis.ticks.y = element_blank(),
+          legend.position = 'bottom',
+          legend.title = element_blank(),
+          panel.background = element_rect(fill = background.color),
+          panel.grid.major.y = element_line(color = gridline.color),
+          panel.grid.minor.y = element_line(color = gridline.color),
+          panel.grid.major.x = element_blank(),
+          panel.grid.minor.x = element_blank(),
+          plot.caption = element_text(size=5),
+          strip.text = element_text(size = 7)
+          ) +
+    labs(x = NULL,
+         y = NULL,
+         subtitle = subtitle,
+         title = plot.title.rm,
+         caption = plot.source
+         ) +
+  facet_wrap(vars(race_eth_broad), labeller = labeller(race_eth_broad = label_wrap_gen(20)))
+   
+  girafe(ggobj = r)
+}
+```
+
+```{r race plot all}
+race_mode(rm_df, hjust = .5, vjust = .5, angle = 45)
+```
+
+```{r race plot simple}
+race_mode(rm_df_simple)
+```
+
+```{r race plot no drive trips}
+race_mode(rm_df_nodrive, hjust = .5, vjust = .5, angle = 45, subtitle = 'Excluding Driving Trips')
+```
+
+- Driving is the predominant primary mode of transportation across race and ethnicity.
+- POC saw slightly more walking trips
+- Black/African-American (non-Hispanic/Latinx) & Hispanic or Latinx had more driving trips while other groups saw decreases in driving between the two time periods.
+- Transit trips for Asian (non-Hispanic/Latinx) dropped slightly while Black or African American (non-Hispanic/Latinx) saw a larger drop in transit trips.
