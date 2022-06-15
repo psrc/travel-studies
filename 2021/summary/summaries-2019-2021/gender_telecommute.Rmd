@@ -110,6 +110,7 @@ gen_tc_freq_simple <- bind_rows(gen_tc_freq_1719_simple, gen_tc_freq_2021_simple
 ## plot ----
 
 plot.title <- 'Gender and Telecommute Frequency'
+plot.title.01 <- 'Telecommute Frequency'
 plot.subtitle <- 'Times per week'
 plot.caption.01 <- "\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size"
 
@@ -210,7 +211,7 @@ df_simple_tot <- gen_tc_freq_simple_tot %>%
 df_simple %>%
   filter(survey %in% c('2017_2019', '2021')) %>%
   filter(tc_freq_group != 'Never / None') %>%
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 ```
 
 There has been an increase of females telecommuting at least once per week in 2021 compared to pre-COVID years.
@@ -219,7 +220,7 @@ There has been an increase of females telecommuting at least once per week in 20
 df %>%
   filter(survey %in% c('2017_2019', '2021')) %>%
   filter(tc_freq_group != 'Never / None') %>%
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 ```
 
 While distribution of telecommuters are somewhat fairly distributed across the bins in 2021, there appears to be slightly more 1-2 day female telecommuters than before while for males the data skews towards more 5+ day telecommuting.
@@ -227,13 +228,13 @@ While distribution of telecommuters are somewhat fairly distributed across the b
 ```{r plot simple 2017-19 2021, include=FALSE}
 # filter df for just 2017/19 2021
 df_simple %>% filter(survey %in% c('2017_2019', '2021')) %>% 
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 ```
 
 ```{r plot 2017-19 2021, include=FALSE}
 # filter df for just 2017/19 2021
 df %>% filter(survey %in% c('2017_2019', '2021')) %>% 
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 ```
 
 
@@ -242,7 +243,7 @@ gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, p
 ```{r, echo=FALSE}
 df_simple_tot %>% 
   filter(tc_freq_group != 'Never / None') %>%
-  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
 ```
 
 For all workers, between 2017 and 2021 there is an increase in people telecommuting at least once per week.
@@ -250,20 +251,20 @@ For all workers, between 2017 and 2021 there is an increase in people telecommut
 ```{r, echo=FALSE}
 df_tot %>% 
   filter(tc_freq_group != 'Never / None') %>%
-  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
 ```
 
 For all workers, there is a definite increase in 3-4 day telecommuting in 2021 compared to pre-COVID years, but there appears to have been a larger proportion that has been telecommuting for 1-2 days.
 
-```{r plot all years}
+```{r plot all years, echo=FALSE}
 df %>% 
   filter(tc_freq_group != 'Never / None') %>% 
   filter(gender_group != 'Prefer not to answer / Another') %>% 
-  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 
 ```
 
-Between 2017 and 2021, there was a sharp increase in females telecommuting 1-2 days. 
+Between 2017 and 2021, there was a sharp increase in females telecommuting 1-2 days and an increase of males telecommuting 5+ days in 2021.While there is a significant increase in females telecommuting 3-4 days, a larger proportion of females are commuting 1-2 days. 
 
 
 ## Literature

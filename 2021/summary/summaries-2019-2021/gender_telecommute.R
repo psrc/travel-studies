@@ -72,7 +72,7 @@ my_theme <- function(hjust = .5, vjust = 1.2, angle = 45) {
   )
 }
 
-gender_tcf <- function(table, plot.source.year, plot.caption = plot.caption, palette, hjust = .5, vjust = 1.2, angle = 45, facet = FALSE) {
+gender_tcf <- function(table, plot.source.year, plot.caption = plot.caption, plot.title = plot.title, palette, hjust = .5, vjust = 1.2, angle = 45, facet = FALSE) {
   
   plot.source <- paste0('Source: ', plot.source.year,' ', 'Household Travel Survey')
   plot.caption <- paste0(plot.source, plot.caption)
