@@ -172,8 +172,9 @@ psurvey_17_simp <- psurvey_17 %>%
                                          commute_mode=="Bicycle or e-bike" |
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         is.na(commute_mode) ~ "4-No commute",
-                                         TRUE ~ "3-Other modes"))) 
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         is.na(commute_mode) ~ "5-No commute",
+                                         TRUE ~ "4-Other modes"))) 
 
 # psurvey_17_simp$transit_mode <- factor(psurvey_17_simp$transit_mode,
 #                                        levels=c("Active/micro-transit",
@@ -186,20 +187,33 @@ psurvey_17_simp <- psurvey_17 %>%
 ## Transit
 Using 'commute_mode' defined as: 'Usual way of commuting to current location/office'
 \
-*survey logic*: if workplace = fixed/varied/telework some days
+    *survey logic*: if workplace = fixed/varied/telework some days
+
+Workplace options: 
+
+* **Only one work location outside of home**
+* Work at home ONLY (telework, self-employed)
+* **Telework some days and travel to a work location some days**
+* **Work location regularly varies (different offices/jobsites)**
+* Drive/travel for work (driver, sales)
 \
 \
-Those who selected "Usually the same location (oustide home)" or "Workplace regularly varies (different offices or jobsites)" were included to understand commute modes. 
+
 ```{r}
 freq(psurvey_17$commute_mode)
-freq(psurvey_17$workplace)
+# freq(psurvey_17$workplace)
 
 # table(psurvey_17_simp$commute_mode, psurvey_17_simp$transit_mode)
-freq(psurvey_17_simp$commute_mode)
+# freq(psurvey_17_simp$commute_mode)
 freq(psurvey_17_simp$transit_mode)
 ```
 \
 \
+*Those who are categorized as 'No commute' will be removed in following work*
+```{r}
+psurvey_17_simp <- psurvey_17_simp %>% 
+  filter(transit_mode!="5-No commute")
+```
 
 ### Race
 ```{r}
