@@ -1,0 +1,1032 @@
+---
+title: "HHTS: transit ridership (2017, 2019, 2021)"
+author: "Mary Richards"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+---
+
+```{r rmarkdown setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE) # formatting
+```
+
+```{r library setup, include=FALSE}
+devtools::install_github("psrc/psrc.travelsurvey")
+
+library(tidyverse)
+# library(psrccensus)
+library(psrc.travelsurvey)
+# library(rlang) #required for psrccensus
+# library(emmeans) #required for rlang
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+
+# library(survey)
+library(summarytools) #freq
+library(table1)  #nice descriptive summary table
+library(scales) #number formatting
+library(ggpubr) #graphing - ggarrange fx
+library(forcats) #for factor releveling
+```
+
+```{r surveys}
+# global variables
+survey_a <- list(survey = '2017', label = '2017')
+survey_b <- list(survey = '2019', label = '2019')
+survey_ab <- list(survey = '2017_2019', label = '2017/2019')
+survey_c <- list(survey = '2021', label = '2021')
+```
+
+```{r functions}
+# rounding function applied to categorical columns 
+my.render.cat <- function(x) {
+    c("", sapply(stats.default(x), function(y) with(y,
+        sprintf("%d (%.0f%%)", FREQ, PCT))))}
+
+# hhts_count and prep for graphing
+count_prep_fx <- function(data, grp1, grp2) {
+  
+  hhts_count(data,
+             group_vars = c(grp1, grp2)) %>%
+    mutate(period = data$label) %>%
+    filter(!!sym(grp2)!="Total") %>% 
+    filter(!!sym(grp1)!="NA")
+}
+
+# proportion graphs
+share_plot <- function(dt, grp_var, num_var, legend_name, tbl_name){
+  
+  fill_group <- dt[[grp_var]]
+  x_axis_grp <- dt[[num_var]]
+  
+  share_plot <- ggplot(dt,
+                       aes(x=x_axis_grp,
+                           y=share,
+                           fill=fill_group)) +
+  geom_bar(stat="identity",
+           position="dodge2") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        axis.title.x = element_blank()) +
+  labs(y = "Share",
+       fill = legend_name) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                size=.5, width=.2,
+                position=position_dodge(0.9))
+  
+  annotate_figure(share_plot, top = text_grob(tbl_name, 
+               color = "blue", face = "bold", size = 14))
+}
+
+# side-by-side count and proportion graphs
+count_and_share_plot <- function(dt, grp_var, num_var, legend_name, tbl_name){
+  
+  fill_group <- dt[[grp_var]]
+  x_axis_grp <- dt[[num_var]]
+  
+  count_plot <- ggplot(dt,
+                       aes(x=x_axis_grp,
+                           y=count,
+                           fill=fill_group)) +
+  geom_bar(stat="identity",
+           position="dodge2") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        axis.title.x = element_blank()) +
+  labs(y = "Number",
+       fill = legend_name) +
+  scale_y_continuous(labels = scales::comma) +
+  geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
+                size=.5,width=.2,
+                position=position_dodge(.9))
+  
+  
+  share_plot <- ggplot(dt,
+                       aes(x=x_axis_grp,
+                           y=share,
+                           fill=fill_group)) +
+  geom_bar(stat="identity",
+           position="dodge2") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        axis.title.x = element_blank()) +
+  labs(y = "Share",
+       fill = legend_name) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                size=.5, width=.2,
+                position=position_dodge(0.9))
+  
+  autos <- ggarrange(count_plot, share_plot, 
+                     # ncol = 2, nrow = 1,
+                     common.legend = TRUE,
+                     legend = "right")
+  annotate_figure(autos, top = text_grob(tbl_name, 
+               color = "blue", face = "bold", size = 14))
+}
+```
+
+# Introduction
+The work presented in this document contains analysis of transit ridership in relation to auto ownership and geography. The analysis includes 2021 data and utilizes PSRC's R package, [psrc.travelsurvey](https://psrc.github.io/psrc.travelsurvey/index.html).
+
+* **Has commuting by transit changed with COVID-19?**
+  + Who uses transit? Have there been shifts over time?
+* **How does vehicle ownership influence transit commuting use over time?**
+
+```{r variables}
+all_vars_p <- c("commute_mode",
+                "workplace",
+                # "personid",
+                "race_category",
+                "race_eth_broad",
+                # "hhid",
+                "license",
+                "hhsize",
+                "numadults",
+                "numworkers",
+                "vehicle_count",
+                "hhincome_broad",
+                "hhincome_detailed",
+                "lifecycle",
+                "final_home_rgcnum",
+                "education")
+```
+
+*Filtering out children and those who do not commute* 
+```{r 2017 survey}
+psurvey_17 <- get_hhts(survey = survey_a$survey,
+                       level="p",
+                       vars=all_vars_p)
+  
+## POC/Non-POC
+psurvey_17_simp_2grp <- psurvey_17 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+
+
+## Asian POC/Non-Asian POC/White
+psurvey_17_simp_3grp <- psurvey_17 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+
+# freq(psurvey_17_simp$race_eth_broad)
+# freq(psurvey_17$commute_mode)
+# freq(psurvey_17_simp$commute_mode)
+
+# freq(psurvey_17$final_home_rgcnum)
+# freq(psurvey_17_simp$final_home_rgcnum)
+```
+
+```{r 2019 survey}
+psurvey_19 <- get_hhts(survey = survey_b$survey,
+                       level="p",
+                       vars=all_vars_p)
+  
+
+## POC/Non-POC
+psurvey_19_simp_2grp <- psurvey_19 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+
+
+## Asian POC/Non-Asian POC/White
+psurvey_19_simp_3grp <- psurvey_19 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+```
+
+```{r 2017-19 survey}
+psurvey_1719 <- get_hhts(survey = survey_ab$survey,
+                       level="p",
+                       vars=all_vars_p)
+  
+
+## POC/Non-POC
+psurvey_1719_simp_2grp <- psurvey_1719 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+
+
+## Asian POC/Non-Asian POC/White
+psurvey_1719_simp_3grp <- psurvey_1719 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+```
+
+```{r 2021 survey}
+psurvey_21 <- get_hhts(survey = survey_c$survey,
+                       level="p",
+                       vars=all_vars_p)
+  
+
+## POC/Non-POC
+psurvey_21_simp_2grp <- psurvey_21 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+
+
+## Asian POC/Non-Asian POC/White
+psurvey_21_simp_3grp <- psurvey_21 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
+                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) %>% 
+  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+                                              TRUE ~ "RGC")))
+```
+
+# Descriptive Stats: 2017
+## Transit
+Using 'commute_mode' defined as: 'Usual way of commuting to current location/office'
+\
+    *survey logic*: if workplace = fixed/varied/telework some days
+
+Workplace options: 
+
+* **Only one work location outside of home**
+* Work at home ONLY (telework, self-employed)
+* **Telework some days and travel to a work location some days**
+* **Work location regularly varies (different offices/jobsites)**
+* Drive/travel for work (driver, sales)
+\
+\
+
+```{r}
+# set year
+df <- psurvey_17
+df_simp_2 <- psurvey_17_simp_2grp
+df_simp_3 <- psurvey_17_simp_3grp
+srvy_yr <- 2017
+
+freq(df$commute_mode)
+# freq(psurvey_17$workplace)
+```
+The NAs represent those who only work at home and those who drive for their jobs.
+\
+\
+
+When the commute modes are simplified:
+```{r}
+# table(psurvey_17_simp$commute_mode, psurvey_17_simp$commute_mode)
+# freq(psurvey_17_simp$commute_mode)
+freq(df_simp_2$commute_mode)
+```
+<span style="color:#00716c">*do we count hired services/taxis as SOV?* it's currently categorized as 'other modes'</span> 
+\
+\
+
+### Race - POC/Non-POC
+```{r}
+race_com_cnt_2017 <-count_prep_fx(df_simp_2, 'race_eth_broad', 'commute_mode')
+
+# count_and_share_plot(race_com_cnt_2017, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017')
+share_plot(race_com_cnt_2017, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017')
+```
+\
+\
+
+#### Focusing on Active/Public Transit
+To look at numbers more closely
+```{r}
+active_public_cnt_2017 <- race_com_cnt_2017 %>% 
+  filter(commute_mode=="1-Active/micro-transit" |
+           commute_mode=="2-Public Transit")
+
+share_plot(active_public_cnt_2017, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017')
+```
+\
+\
+
+### Race - Asian POC/Non-Asian POC/White
+```{r}
+race_com_cnt_2017 <-count_prep_fx(df_simp_3, 'race_eth_broad', 'commute_mode')
+
+# count_and_share_plot(race_com_cnt_2017, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017')
+share_plot(race_com_cnt_2017, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017')
+```
+\
+\
+
+### Income
+```{r}
+race_com_cnt_2017 <- count_prep_fx(df_simp_2, 'hhincome_broad', 'commute_mode')
+  
+race_com_cnt_2017$hhincome_broad <- factor(race_com_cnt_2017$hhincome_broad,
+                                                 levels=c("Under $25,000",
+                                                          "$25,000-$49,999",
+                                                          "$50,000-$74,999",
+                                                          "$75,000-$99,999",
+                                                          "$100,000 or more",
+                                                          "Prefer not to answer"))
+
+share_plot(race_com_cnt_2017, 'hhincome_broad', 'commute_mode', 'Income', 'Commute Mode and Income: 2017')
+
+```
+\
+\
+
+#### Focusing on Active/Public Transit
+To look at numbers more closely
+```{r}
+active_public_cnt_2017 <- race_com_cnt_2017 %>% 
+  filter(commute_mode=="1-Active/micro-transit" |
+           commute_mode=="2-Public Transit")
+
+share_plot(active_public_cnt_2017, 'hhincome_broad', 'commute_mode', 'Income', 'Commute Mode and Income: 2017')
+```
+\
+\
+
+### Education
+```{r}
+race_com_cnt_2017 <- count_prep_fx(df_simp_2, 'education', 'commute_mode')
+
+race_com_cnt_2017$education <- factor(race_com_cnt_2017$education,
+                                                 levels=c("Less than high school",
+                                                          "High school graduate",
+                                                          "Vocational/technical training",
+                                                          "Some college",
+                                                          "Associates degree",
+                                                          "Bachelor degree",
+                                                          "Graduate/post-graduate degree"))
+
+share_plot(race_com_cnt_2017, 'education', 'commute_mode', 'Education', 'Commute Mode and Education: 2017')
+```
+\
+\
+
+#### Focusing on Active/Public Transit
+To look at numbers more closely
+```{r}
+active_public_cnt_2017 <- race_com_cnt_2017 %>% 
+  filter(commute_mode=="1-Active/micro-transit" |
+           commute_mode=="2-Public Transit")
+
+share_plot(active_public_cnt_2017, 'education', 'commute_mode', 'Education', 'Commute Mode and Education: 2017')
+```
+\
+\
+
+### Regional Growth Center - home location
+```{r}
+race_com_cnt_2017 <- count_prep_fx(df_simp_2, 'final_home_rgcnum', 'commute_mode')
+
+race_com_cnt_2017$final_home_rgcnum <- factor(race_com_cnt_2017$final_home_rgcnum,
+                                                 levels=c("RGC",
+                                                          "Not RGC"))
+
+share_plot(race_com_cnt_2017, 'final_home_rgcnum', 'commute_mode', 'Regional Growth Center', 'Commute Mode and RGC: 2017')
+```
+\
+\
+
+#### Focusing on Active/Public Transit
+To look at numbers more closely
+```{r}
+active_public_cnt_2017 <- race_com_cnt_2017 %>% 
+  filter(commute_mode=="1-Active/micro-transit" |
+           commute_mode=="2-Public Transit")
+
+share_plot(active_public_cnt_2017, 'final_home_rgcnum', 'commute_mode', 'Regional Growth Center', 'Commute Mode and RGC: 2017')
+```
+\
+\
+
+### No-vehicle households
+survey logic: vehicle_count=="0 (no vehicles)"
+```{r}
+race_com_2017_noveh_2grp <- psurvey_17_simp_2grp %>% 
+  filter(vehicle_count=="0 (no vehicles)")
+
+race_com_2017_noveh_cnt_2 <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'commute_mode')
+
+share_plot(race_com_2017_noveh_cnt_2, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017, No household vehicles')
+```
+\
+```{r}
+race_com_2017_noveh_3grp <- psurvey_17_simp_3grp %>% 
+  filter(vehicle_count=="0 (no vehicles)")
+
+race_com_2017_noveh_cnt_3 <- count_prep_fx(race_com_2017_noveh_3grp,'race_eth_broad', 'commute_mode')
+
+share_plot(race_com_2017_noveh_cnt_3, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017, No household vehicles')
+```
+\
+
+#### Demographics of no-vehicle households
+```{r}
+race_com_2017_noveh_cnt <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'hhincome_broad')
+
+race_com_2017_noveh_cnt$hhincome_broad <- factor(race_com_2017_noveh_cnt$hhincome_broad,
+                                                 levels=c("Under $25,000",
+                                                          "$25,000-$49,999",
+                                                          "$50,000-$74,999",
+                                                          "$75,000-$99,999",
+                                                          "$100,000 or more",
+                                                          "Prefer not to answer"))
+
+share_plot(race_com_2017_noveh_cnt, 'race_eth_broad', 'hhincome_broad', 'Race', 'Household income and Race: 2017, No household vehicles')
+```
+\
+
+```{r}
+race_com_2017_noveh_cnt <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'education')
+
+race_com_2017_noveh_cnt$education <- factor(race_com_2017_noveh_cnt$education,
+                                                 levels=c("Less than high school",
+                                                          "High school graduate",
+                                                          "Vocational/technical training",
+                                                          "Some college",
+                                                          "Associates degree",
+                                                          "Bachelor degree",
+                                                          "Graduate/post-graduate degree"))
+
+share_plot(race_com_2017_noveh_cnt, 'race_eth_broad', 'education', 'Race', 'Education attainment and Race: 2017, No household vehicles')
+```
+\
+\
+
+# Descriptive Stats: 2017, 2019, 2017-2019, 2021
+## Race (2 categories) and transit mode
+```{r}
+# summarize data ----
+all_transit_17 <- count_prep_fx(df_simp_2,'race_eth_broad', 'commute_mode')
+all_transit_19 <- count_prep_fx(psurvey_19_simp_2grp,'race_eth_broad', 'commute_mode')
+all_transit_1719 <- count_prep_fx(psurvey_1719_simp_2grp,'race_eth_broad', 'commute_mode')
+all_transit_21 <- count_prep_fx(psurvey_21_simp_2grp,'race_eth_broad', 'commute_mode')
+
+# merge dfs ----
+all_commute <- bind_rows(all_transit_17, 
+                         all_transit_19, 
+                         all_transit_1719, 
+                         all_transit_21) %>% 
+  mutate(period = as.factor(survey))
+
+# freq(all_commute$period)
+```
+
+```{r}
+all_commute_no_other <- all_commute %>% 
+  filter(commute_mode!="4-Other modes")
+
+ggplot(all_commute_no_other,
+       aes(x=period,
+           y=share,
+           fill=commute_mode)) +
+  geom_bar(stat="identity",
+           position="dodge2") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        axis.title.x = element_blank()) +
+  labs(y = "Share",
+       fill = "Commute modes") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                size=.5, width=.2,
+                position=position_dodge(0.9))+
+  facet_grid(cols=vars(race_eth_broad))
+```
+\
+\
+
+## Race (3 categories) and transit mode
+```{r}
+# summarize data ----
+all_transit_17 <- count_prep_fx(df_simp_3,'race_eth_broad', 'commute_mode')
+all_transit_19 <- count_prep_fx(psurvey_19_simp_3grp,'race_eth_broad', 'commute_mode')
+all_transit_1719 <- count_prep_fx(psurvey_1719_simp_3grp,'race_eth_broad', 'commute_mode')
+all_transit_21 <- count_prep_fx(psurvey_21_simp_3grp,'race_eth_broad', 'commute_mode')
+
+# merge dfs ----
+all_commute <- bind_rows(all_transit_17,
+                         all_transit_19,
+                         all_transit_1719,
+                         all_transit_21) %>%
+  mutate(period = as.factor(survey))
+
+# freq(all_commute$period)
+```
+
+```{r}
+all_commute_no_other <- all_commute %>% 
+  filter(commute_mode!="4-Other modes")
+
+ggplot(all_commute_no_other,
+       aes(x=period,
+           y=share,
+           fill=commute_mode)) +
+  geom_bar(stat="identity",
+           position="dodge2") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+        axis.title.x = element_blank()) +
+  labs(y = "Share",
+       fill = "Commute modes") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                size=.5, width=.2,
+                position=position_dodge(0.9))+
+  facet_grid(cols=vars(race_eth_broad))
+```
+\
+\
+
+# Vehicle Ownership
+## Different ways to quantify vehicle ownership
+1. **hhsize/vehicle_count** = Household size
+2. **numadults/vehicle_count** = Number of adults (18+)
+3. **numworkers/vehicle_count** = Number of workers (number of household members with 1+ jobs)
+```{r}
+race_com_2017_numveh_2 <- psurvey_17_simp_2grp %>% 
+  filter(vehicle_count!="0 (no vehicles)") %>% 
+  mutate(veh_num=case_when(vehicle_count=="10 or more vehicles" ~10,
+                           TRUE~as.numeric(vehicle_count))) %>% 
+  mutate(hhsize_num=as.numeric(substr(hhsize, 1, 1))) %>% 
+  mutate(hhsz_veh=hhsize_num/veh_num) %>% 
+  mutate(hhadults_veh=numadults/veh_num) %>% 
+  mutate(numwork_veh=numworkers/veh_num) %>% 
+  mutate(hhsz_veh_grp=case_when(hhsz_veh<1~"3-More vehicles than people",
+                                hhsz_veh==1~"2-One vehicle per person",
+                                hhsz_veh>1~"1-Fewer vehicles than people",
+                                TRUE ~ as.character(hhsz_veh))) %>% 
+  mutate(hhadults_veh_grp=case_when(hhadults_veh<1~"3-More vehicles than adults",
+                                    hhadults_veh==1~"2-One vehicle per adults",
+                                    hhadults_veh>1~"1-Fewer vehicles than adults",
+                                    TRUE ~ as.character(hhadults_veh))) %>%  
+  mutate(numwork_veh_grp=case_when(numwork_veh<1~"3-More vehicles than workers",
+                                   numwork_veh==1~"2-One vehicle per worker",
+                                   numwork_veh>1~"1-Fewer vehicles than worker",
+                                   TRUE ~ as.character(numwork_veh)))
+
+race_com_2017_numveh_3 <- psurvey_17_simp_3grp %>% 
+  filter(vehicle_count!="0 (no vehicles)") %>% 
+  mutate(veh_num=case_when(vehicle_count=="10 or more vehicles" ~10,
+                           TRUE~as.numeric(vehicle_count))) %>% 
+  mutate(hhsize_num=as.numeric(substr(hhsize, 1, 1))) %>% 
+  mutate(hhsz_veh=hhsize_num/veh_num) %>% 
+  mutate(hhadults_veh=numadults/veh_num) %>% 
+  mutate(numwork_veh=numworkers/veh_num) %>% 
+  mutate(hhsz_veh_grp=case_when(hhsz_veh<1~"3-More vehicles than people",
+                                hhsz_veh==1~"2-One vehicle per person",
+                                hhsz_veh>1~"1-Fewer vehicles than people",
+                                TRUE ~ as.character(hhsz_veh))) %>% 
+  mutate(hhadults_veh_grp=case_when(hhadults_veh<1~"3-More vehicles than adults",
+                                    hhadults_veh==1~"2-One vehicle per adults",
+                                    hhadults_veh>1~"1-Fewer vehicles than adults",
+                                    TRUE ~ as.character(hhadults_veh))) %>%  
+  mutate(numwork_veh_grp=case_when(numwork_veh<1~"3-More vehicles than workers",
+                                   numwork_veh==1~"2-One vehicle per worker",
+                                   numwork_veh>1~"1-Fewer vehicles than worker",
+                                   TRUE ~ as.character(numwork_veh)))
+# freq(race_com_2017_numveh$hhsz_veh)
+```
+\
+
+Because we're interested in commute modes, we will be focusing on the number of workers within a household
+\
+```{r}
+race_com_2017_noveh_2grp$numworkers_chr <- as.character(race_com_2017_noveh_2grp$numworkers)
+
+race_com_2017_noveh_cnt_2 <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'numworkers_chr')
+
+share_plot(race_com_2017_noveh_cnt_2, 'race_eth_broad', 'numworkers_chr', 'Race', 'Number of workers and Race (2 categories): 2017, No household vehicles')
+```
+
+```{r}
+race_com_2017_noveh_3grp$numworkers_chr <- as.character(race_com_2017_noveh_3grp$numworkers)
+
+race_com_2017_noveh_cnt_3 <- count_prep_fx(race_com_2017_noveh_3grp,'race_eth_broad', 'numworkers_chr')
+
+share_plot(race_com_2017_noveh_cnt_3, 'race_eth_broad', 'numworkers_chr', 'Race', 'Number of workers and Race (3 categories): 2017, No household vehicles')
+```
+\
+\
+
+The larger the number, the more people per vehicle in each household. Numbers less than 1 represent households with more vehicles than people. People in households without a vehicle are excluded from this analysis.
+\
+\
+
+#### 3. Number of workers
+```{r}
+hist(race_com_2017_numveh_2$numwork_veh, 
+     main="Number of household workers and vehicle ownership",
+     xlab="Workers : Vehicles",
+     breaks=23,
+     ylim=c(0,3000))
+
+race_com_2017_noveh_cnt <- count_prep_fx(race_com_2017_numveh_2,'race_eth_broad', 'numwork_veh_grp')
+
+share_plot(race_com_2017_noveh_cnt, 'race_eth_broad', 'numwork_veh_grp', 'Race', 'Household vehicles and Race: 2017, Household workers/veh')
+```
+\
+\
+
+## Regional Growth Centers (RGCs)
+```{r}
+
+```
+\
+\
+
+# Analysis
+## Transit and Household Auto Ownership
+```{r, include=FALSE, eval=FALSE}
+# retrieve data
+# hh_autos_all <- get_hhts(dyear=c(2017,2019,2021),
+#                          level="h",
+#                          vars=c("hh_race_category",
+#                                 "hhsize",
+#                                 "vehicle_count",
+#                                 "survey_year"))
+
+
+
+# Household-level data
+hh_autos <- c(2017, 2019, 2021) %>%
+  lapply(FUN=function(x) get_hhts(x, "h", 
+                                  c("survey_year",
+                                    "vehicle_count",
+                                    "hh_race_category",
+                                    "hhsize",
+                                    "numworkers", #to be able to calculate ratio
+                                    "hhincome_broad",
+                                    "lifecycle",
+                                    "numworkers", #to be able to calculate ratio
+                                    # "final_home_rgcnum",
+                                    "res_type")))
+
+hh_autos_simp <- lapply(c(2017, 2019, 2021), FUN=function(x) get_hhts(x, "h", 
+                                  c("hh_race_category",
+                                    "hhsize",
+                                    "vehicle_count",
+                                    "survey_year",
+                                    "numworkers", #to be able to calculate ratio
+                                    "hhincome_broad",
+                                    "hhincome_detailed",
+                                    "lifecycle",
+                                    "final_home_rgcnum")) %>% 
+                          mutate(vehicle_count_simp=case_when(vehicle_count== "0 (no vehicles)" ~ 0,
+                                      vehicle_count == "1" ~ 1,
+                                      vehicle_count == "2" ~ 2,
+                                      is.na(vehicle_count) ~ NA_real_,
+                                      TRUE ~ 3)))
+
+# Person-level data
+#education, license 
+
+```
+
+```{r example from Michael 4/15, include=FALSE, eval=FALSE}
+pums_1yr <- list()
+pums_1yr <- lapply(2015:2019, FUN=function(x) get_psrc_pums(1, x, "p", c("PRACE", "SCHL", "AGEP")) %>%
+               mutate(data_year=as.factor(x)) %>%
+               mutate(POCYN=case_when(
+                   PRACE=="White alone" ~ "Non-POC", 
+                   !is.na(PRACE) ~ "POC")) %>%
+               mutate(edu_simp=case_when(
+                   grepl("(Bach|Mast|Prof|Doct)", SCHL) ~ "Bachelor's degree or higher",
+                                           !is.na(SCHL) ~ "Less than a Bachelor's degree")))
+poc_edu_pums <- function(dt){
+                  temp <- filter(dt, AGEP > 24)
+                  counties <- c("King","Kitsap","Pierce","Snohomish")
+                  rs <- list()
+                  rs <- lapply(counties, FUN=function(x){
+                     ctytmp <- filter(temp, COUNTY==x)
+                     rs1 <- psrc_pums_count(ctytmp, 
+                                            group_var=c("edu_simp","POCYN"), 
+                                            incl_counties=FALSE) %>%
+                            mutate(County=unique(pull(ctytmp,COUNTY)))}) %>% rbindlist() %>%
+                            mutate(data_year=unique(pull(temp, data_year))) %>% 
+                            relocate(c("data_year", "County"))
+return(rs)
+}
+poc_edu <- lapply(pums_1yr, poc_edu_pums) %>% rbindlist()
+```
+
+#### By Race
+```{r, include=FALSE, eval=FALSE}
+# stat function
+# race_auto <- hhts_count(df=hh_autos_all,
+#                         group_vars=c("hh_race_category", 
+#                                      "vehicle_count"))
+
+cnt_fx <- function(x){
+  hhts_count(x, group_vars=c("hh_race_category","vehicle_count"))
+}
+
+race_auto <- lapply(hh_autos, cnt_fx) %>% data.table::rbindlist()
+
+# re-order number of vehicles in numerical order
+race_auto$vehicle_count <- factor(race_auto$vehicle_count,
+                                  levels=c("0 (no vehicles)", "1", 
+                                           "2", "3", "4", "5",
+                                           "6", "7", "8", "9", 
+                                           "10 or more vehicles"))
+# freq(race_auto$vehicle_count)
+```
+
+##### Survey Numbers
+```{r, include=FALSE, eval=FALSE}
+race_auto_total_nototal <- race_auto %>% 
+  filter(vehicle_count!="Total")
+
+count_and_share_plot(race_auto_total_nototal,
+                     "hh_race_category",
+                     "vehicle_count",
+                     "Household race category",
+                     "Number of Household Automobiles by Race")
+```
+
+```{r workspace, include=FALSE, eval=FALSE, echo=FALSE}
+# race_auto_plot_count <- ggplot(race_auto_total_nototal, 
+#                                aes(x=vehicle_count,
+#                                    y=count,
+#                                    fill=hh_race_category)) +
+#   geom_bar(stat="identity",
+#            position="dodge2") +
+#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+#         axis.title.x = element_blank()) +
+#   labs(y = "Number of Households",
+#        # x = "Number of vehicles",
+#        # title = "Count in Region",
+#        fill = "Household race category") +
+#   scale_y_continuous(labels = scales::comma) +
+#   geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
+#                 size=.5,width=.2,
+#                 position=position_dodge(.9))
+# 
+# # print(race_auto_plot_count)
+# 
+# race_auto_plot_share <- ggplot(race_auto_total_nototal,
+#                                aes(x=vehicle_count,
+#                                    y=share,
+#                                    fill=hh_race_category)) +
+#   geom_bar(stat="identity",
+#            position="dodge2") +
+#   theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+#         axis.title.x = element_blank()) +
+#   labs(y = "Share of Households",
+#        # x = "Number of vehicles",
+#        # title = "Proportion in Region",
+#        fill = "Household race category") +
+#   scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+#   geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+#                 size=.5, width=.2,
+#                 position=position_dodge(0.9))
+# 
+# # print(race_auto_plot_nototal)
+# 
+# 
+# autos <- ggarrange(race_auto_plot_count, race_auto_plot_share, ncol = 2, nrow = 1,
+#                    common.legend = TRUE,
+#                    legend = "bottom")
+# annotate_figure(autos, top = text_grob("Number of Household Automobiles by Race", 
+#                color = "blue", face = "bold", size = 14))
+```
+\
+\
+
+##### Simplified Vehicle Numbers
+Because the survey provides the option for people to respond with the number of household vehicles up to 10, these categories have been simplified to 4 categories: 1, 2, 3+. 
+```{r, include=FALSE, eval=FALSE}
+# hh_autos_simp <- race_auto %>%
+#   filter(vehicle_count!="Missing") %>% 
+#   mutate(vehicle_count_simp=case_when(grepl("0", vehicle_count) ~ "0",
+#                                       grepl("1", vehicle_count) ~ "1",
+#                                       grepl("2", vehicle_count) ~ "2",
+#                                       grepl("(3|4|5|6|7|8|9|10)", vehicle_count) ~ "3+",
+#                                       TRUE~ vehicle_count))
+
+hh_autos_simp <- race_auto %>%
+  # filter(vehicle_count!="Missing") %>% 
+  mutate(vehicle_count_simp=case_when(vehicle_count== "0 (no vehicles)" ~ 0,
+                                      vehicle_count == "1" ~ 1,
+                                      vehicle_count == "2" ~ 2,
+                                      is.na(vehicle_count) ~ NA_real_,
+                                      TRUE ~ 3))
+
+table1(~vehicle_count |hh_race_category,
+       data=race_auto,
+       render.categorical=my.render.cat)
+
+```
+
+```{r, include=FALSE, eval=FALSE}
+# unable to group by survey_year because of issue with variable, so requires additional steps - after retrieving the data, need to filter out by the year, then can perform the summary statistic, then rbind the tables together
+hh_autos_simp_17 <- hh_autos_simp %>% 
+  filter(survey_year==as.factor(2017))
+hh_autos_simp_19 <- hh_autos_simp %>% 
+  filter(survey_year==as.factor(2019))
+hh_autos_simp_21 <- hh_autos_simp %>% 
+  filter(survey_year==as.factor(2021))
+
+auto_num_17 <- hhts_count(hh_autos_simp_17,
+                          group_vars = c("vehicle_count_simp",
+                                         "hh_race_category")) %>% 
+  mutate(Year=2017)
+auto_num_19 <- hhts_count(hh_autos_simp_19,
+                          group_vars = c("vehicle_count_simp",
+                                         "hh_race_category")) %>% 
+  mutate(Year=2019)
+auto_num_21 <- hhts_count(hh_autos_simp_21,
+                          group_vars = c("vehicle_count_simp",
+                                         "hh_race_category")) %>% 
+  mutate(Year=2021)
+
+
+auto_num_17_21 <- rbind(auto_num_17,
+                        auto_num_19,
+                        auto_num_21)
+
+
+prop_tbl_by_auto <- auto_num_17_21 %>% 
+  filter(vehicle_count_simp != "Total") %>% 
+  filter(hh_race_category == "Total")
+
+prop_tbl_by_auto_race <- auto_num_17_21 %>% 
+  filter(vehicle_count_simp != "Total") %>% 
+  filter(hh_race_category != "Total")
+
+
+g1 <- ggplot(data=prop_tbl_by_auto, 
+             aes(x=vehicle_count_simp,
+                 y=share,
+                 fill=Year))+
+  geom_bar(stat="identity",
+             position = "dodge2") +
+    labs(x = "Number of Vehicles",
+         y = "Percent of Households",
+         fill = "Year",
+         title = paste0("Auto Ownership by Household: Year")) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                       breaks = seq(0, 1, by = .2))
+
+print(g1)
+
+g2 <- ggplot(data=prop_tbl_by_auto_race, 
+             aes(x=vehicle_count_simp,
+                 y=share,
+                 fill=hh_race_category))+
+  geom_bar(stat="identity",
+             position = "dodge2") +
+    labs(x = "Number of Vehicles",
+         y = "Percent of Households",
+         fill = "Race/ethnicity",
+         title = paste0("Auto Ownership by Household: Race/ethnicity")) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                       breaks = seq(0, 1, by = .2))
+
+print(g2)
+
+
+
+ggarrange(g1, g2, ncol = 2, nrow = 1,
+          common.legend = TRUE,
+          legend = "bottom")
+```
+
+<a href="#top">Back to top of the page</a>

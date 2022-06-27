@@ -7,56 +7,96 @@ output: html_document
 
 ## Race Categories by Mode
 
+```{r cleaning}
+vars <- c('race_eth_broad', 'mode_simple')
+
+rm_get_hhts <- function(survey, level, vars) {
+
+  df <- get_hhts(survey = survey,
+           level = level,
+           vars = vars) %>% 
+    mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+                                            !is.na(race_eth_broad) ~ race_eth_broad),
+           race_eth_broad_group2 = case_when(!(race_eth_broad %in% c("White only, non-Hispanic/Latinx", "Asian only, non-Hispanic/Latinx")) ~ 'Other', 
+                                               !is.na(race_eth_broad) ~ race_eth_broad),
+           mode_simple_group = case_when((mode_simple %in% c('Bike', 'Walk', 'Other')) ~ 'Other',
+                                         !is.na(mode_simple) ~ mode_simple)
+           )
+  
+  df_sum <- hhts_count(df, 
+                       group_vars = vars) %>% 
+    mutate(period = survey)
+
+  df_simple <- hhts_count(df,
+                          group_vars = c('race_eth_broad_group', 'mode_simple')) %>%
+    mutate(period = survey) %>%
+    rename(race_eth_broad = race_eth_broad_group)
+
+  df_nodrive <- df %>%
+    filter(is.na(mode_simple)|mode_simple != 'Drive') %>%
+    hhts_count(group_vars = vars) %>%
+    mutate(period = survey)
+
+  return(list(df, df_sum, df_simple, df_nodrive))
+}
+
+```
+
 ```{r race, eval=TRUE}
 
 # hh_race_category # combined_adult_weight
 # mode_1 # Primary mode, combined_adult_trip_weight
 # mode_simple
 
+
+
 r_vars <- c('race_eth_broad', 'mode_simple')
 
 # summarise 2019
-r_m1_2019 <- get_hhts(survey = survey_a$survey,
-                      level = 't',
-                      vars = r_vars) %>% 
-   mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
-                                          !is.na(race_eth_broad) ~ race_eth_broad))
+rm1719 <- rm_get_hhts(survey_a$survey, 't', vars)
 
-r_m1_sum_2019 <- hhts_count(r_m1_2019, 
-                            group_vars = r_vars) %>% 
-  mutate(period = survey_a$label)
-
-r_m1_sum_2019_simple <- hhts_count(r_m1_2019, 
-                            group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
-  mutate(period = survey_a$label) %>% 
-  rename(race_eth_broad = race_eth_broad_group)
-
-r_m1_sum_2019_nodrive <- r_m1_2019 %>% 
-  filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
-  hhts_count(group_vars = r_vars) %>% 
-  mutate(period = survey_a$label)
+# r_m1_2019 <- get_hhts(survey = survey_a$survey,
+#                       level = 't',
+#                       vars = r_vars) %>% 
+#    mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+#                                           !is.na(race_eth_broad) ~ race_eth_broad))
+# 
+# r_m1_sum_2019 <- hhts_count(r_m1_2019, 
+#                             group_vars = r_vars) %>% 
+#   mutate(period = survey_a$label)
+# 
+# r_m1_sum_2019_simple <- hhts_count(r_m1_2019, 
+#                             group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
+#   mutate(period = survey_a$label) %>% 
+#   rename(race_eth_broad = race_eth_broad_group)
+# 
+# r_m1_sum_2019_nodrive <- r_m1_2019 %>% 
+#   filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
+#   hhts_count(group_vars = r_vars) %>% 
+#   mutate(period = survey_a$label)
 
 # summarise 2021
-r_m1_2021 <- get_hhts(survey = survey_b$survey,
-                      level = 't',
-                      vars = r_vars) %>% 
-   mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
-                                          !is.na(race_eth_broad) ~ race_eth_broad))
-
-r_m1_sum_2021 <- hhts_count(r_m1_2021, 
-                           group_vars = r_vars) %>% 
-  mutate(period = survey_b$label)
-
-r_m1_sum_2021_simple <- hhts_count(r_m1_2021, 
-                           group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
-  mutate(period = survey_b$label) %>% 
-  rename(race_eth_broad = race_eth_broad_group)
-
-r_m1_sum_2021_nodrive <- r_m1_2021 %>% 
-  filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
-  hhts_count(r_m1_2021, 
-             group_vars = r_vars) %>% 
-  mutate(period = survey_b$label)
+rm2021 <- rm_get_hhts(survey_b$survey, 't', vars)
+# r_m1_2021 <- get_hhts(survey = survey_b$survey,
+#                       level = 't',
+#                       vars = r_vars) %>% 
+#    mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
+#                                           !is.na(race_eth_broad) ~ race_eth_broad))
+# 
+# r_m1_sum_2021 <- hhts_count(r_m1_2021, 
+#                            group_vars = r_vars) %>% 
+#   mutate(period = survey_b$label)
+# 
+# r_m1_sum_2021_simple <- hhts_count(r_m1_2021, 
+#                            group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
+#   mutate(period = survey_b$label) %>% 
+#   rename(race_eth_broad = race_eth_broad_group)
+# 
+# r_m1_sum_2021_nodrive <- r_m1_2021 %>% 
+#   filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
+#   hhts_count(r_m1_2021, 
+#              group_vars = r_vars) %>% 
+#   mutate(period = survey_b$label)
 
 ## plot ----
 
@@ -80,20 +120,7 @@ rm_df_nodrive <- bind_rows(r_m1_sum_2019_nodrive, r_m1_sum_2021_nodrive) %>%
 ```
 
 ```{r race plot function}
-race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45, subtitle = NULL) {
-  r <- ggplot(table,
-              aes(x = mode_simple,
-                  y = share,
-                  fill = period,
-                  tooltip = paste0(mode_simple, ' ', period, ': ', round(share*100, 0), '%')
-              )) +
-    geom_col_interactive(position = position_dodge(width=.9)) +
-    geom_linerange(aes(ymin = lower,
-                       ymax = upper),
-                   position = position_dodge(width=.9)) +
-    scale_fill_brewer(palette = "Paired") +
-    scale_y_continuous(labels = scales::label_percent()) +
-    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+my_theme <- function(hjust = .5, vjust = 1.2, angle = 45) {
     theme(axis.text.x = element_text(hjust = hjust,
                                      vjust = vjust,
                                      angle = angle,
@@ -109,7 +136,24 @@ race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45, subtitle = NUL
           panel.grid.minor.x = element_blank(),
           plot.caption = element_text(size=5),
           strip.text = element_text(size = 7)
-          ) +
+          )
+}
+
+race_mode <- function(table, hjust = .5, vjust = 1.2, angle = 45, subtitle = NULL) {
+  r <- ggplot(table,
+              aes(x = mode_simple,
+                  y = share,
+                  fill = period,
+                  tooltip = paste0(mode_simple, ' ', period, ': ', round(share*100, 0), '%')
+              )) +
+    geom_col_interactive(position = position_dodge(width=.9)) +
+    geom_linerange(aes(ymin = lower,
+                       ymax = upper),
+                   position = position_dodge(width=.9)) +
+    scale_fill_brewer(palette = "Paired") +
+    scale_y_continuous(labels = scales::label_percent()) +
+    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+    my_theme(hjust = hjust, vjust = vjust, angle = angle) +
     labs(x = NULL,
          y = NULL,
          subtitle = subtitle,

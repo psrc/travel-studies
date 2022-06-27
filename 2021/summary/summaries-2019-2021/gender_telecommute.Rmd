@@ -1,11 +1,27 @@
 ---
 title: "Gender by Telecommute Frequency"
 author: "Christy"
-date: '2022-05-31'
-output: html_document
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
 ---
 
-## Gender by Telecommute Frequency
+```{r, message=FALSE, warning=FALSE}
+source('gender_telecommute.R')
+```
+
+## About
+
+**gender**:
+
+- persons table
+  
+**telecommute_freq**: 
+
+- persons table
+- if workplace = fixed, varied, telecommutes some days
+
 
 Not quite apples-to-apples comparison because the question for `telecommute_freq` was different across years.
 
@@ -20,54 +36,7 @@ Values for `Gender` are also different across years. 2021 introduced 'Non-Binary
 
 Exclude 'per month' responses from 2019 survey because of the small sample size.
 
-```{r get hhts function}
-
-gender_tcf_get_hhts <- function(survey, level, vars) {
-  if(survey == '2021') {
-    wrkr <- get_hhts(survey = survey,
-                     level = level,
-                     vars = vars) %>%
-      filter(age_category != 'Under 18 years') %>%
-      filter(worker != 'No jobs') %>%
-      filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*")))) %>%
-      drop_na(any_of(c('workplace', 'telecommute_freq'))) %>%
-      mutate(tc_freq_group_simple = case_when(telecommute_freq %in% str_subset(unique(.data$telecommute_freq), '.*days$')~ 'Telecommuted at least once per week',
-                                              !is.na(telecommute_freq) ~ telecommute_freq))
-    if('gender' %in% colnames(wrkr)) {
-      wrkr <- wrkr %>% 
-         mutate(gender_group = case_when(gender %in% c('Not listed here / prefer not to answer', 'Non-Binary') ~ 'Prefer not to answer / Another',
-                                      !is.na(gender) ~ gender))
-    }
-     
-  } else {
-    wrkr <- get_hhts(survey = survey,
-                     level = level,
-                     vars = vars) %>%
-      filter(age_category != 'Under 18 years') %>%
-      filter(worker != 'No jobs') %>%
-      filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*")))) %>%
-      mutate(tc_freq_group = case_when(telecommute_freq %in% c('1 day a week', '2 days a week') ~ '1-2 days',
-                                       telecommute_freq %in% c('3 days a week', '4 days a week') ~ '3-4 days',
-                                       telecommute_freq %in% c('5 days a week', '6-7 days a week') ~ '5+ days',
-                                       telecommute_freq %in% c('Never', 'Not applicable') ~ 'Never / None',
-                                       !is.na(telecommute_freq) ~ telecommute_freq)) %>%
-      mutate(tc_freq_group_simple = case_when(tc_freq_group %in% str_subset(unique(.data$tc_freq_group), '.*days$')~ 'Telecommuted at least once per week',
-                                              !is.na(tc_freq_group) ~ tc_freq_group)) %>%
-      filter(!(telecommute_freq %in% str_subset(unique(telecommute_freq), '.*month(ly)*$')))
-    
-    if('gender' %in% colnames(wrkr)) {
-      wrkr <- wrkr %>% 
-        mutate(gender_group = case_when(gender %in% c('Prefer not to answer', 'Another') ~ 'Prefer not to answer / Another',
-                                      !is.na(gender) ~ gender))
-    }
-   
-  }
-  return(wrkr)
-}
-
-```
-
-```{r data summaries by gender, eval=TRUE}
+```{r data summaries by gender, eval=TRUE, include=FALSE}
 
 vars_02 <- c('workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')
 
@@ -141,6 +110,7 @@ gen_tc_freq_simple <- bind_rows(gen_tc_freq_1719_simple, gen_tc_freq_2021_simple
 ## plot ----
 
 plot.title <- 'Gender and Telecommute Frequency'
+plot.title.01 <- 'Telecommute Frequency'
 plot.subtitle <- 'Times per week'
 plot.caption.01 <- "\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size"
 
@@ -159,7 +129,7 @@ df_simple <- gen_tc_freq_simple %>%
 
 ```
 
-```{r data summaries combined gender}
+```{r data summaries combined gender, include=FALSE}
 
 # 2017/2019 All Genders ----
 
@@ -235,108 +205,70 @@ df_simple_tot <- gen_tc_freq_simple_tot %>%
 
 ```
 
-```{r gender plot function}
-my_theme <- function(hjust = .5, vjust = 1.2, angle = 45) {
-    theme(axis.text.x = element_text(hjust = hjust,
-                                     vjust = vjust,
-                                     angle = angle,
-                                     size = 6),
-          axis.ticks.x = element_blank(),
-          axis.ticks.y = element_blank(),
-          legend.position = 'bottom',
-          legend.title = element_blank(),
-          panel.background = element_rect(fill = background.color),
-          panel.grid.major.y = element_line(color = gridline.color),
-          panel.grid.minor.y = element_line(color = gridline.color),
-          panel.grid.major.x = element_blank(),
-          panel.grid.minor.x = element_blank(),
-          plot.caption = element_text(size=5)
-          )
-}
+## Plots
 
-gender_tcf <- function(table, plot.source.year, plot.caption = plot.caption, palette, hjust = .5, vjust = 1.2, angle = 45, facet = FALSE) {
-  
-  plot.source <- paste0('Source: ', plot.source.year,' ', 'Household Travel Survey')
-  plot.caption <- paste0(plot.source, plot.caption)
-
-  g <- ggplot(table,
-              aes(x = tc_freq_group,
-                  y = share,
-                  fill = period,
-                  tooltip = paste0(tc_freq_group, ' ', period, ': ', round(share*100, 0), '%'))) +
-    geom_col_interactive(position = position_dodge(width=.9)) +
-    geom_linerange(aes(ymin = lower,
-                       ymax = upper),
-                   position = position_dodge(width=.9)) +
-    scale_fill_brewer(palette = palette) +
-    scale_y_continuous(labels = scales::label_percent()) +
-    scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
-    labs(x = NULL,
-         y = NULL,
-         title = plot.title,
-         subtitle = plot.subtitle,
-         caption = plot.caption) +
-    my_theme(hjust = hjust, vjust = vjust, angle = angle)
-  
-  if(facet == TRUE) {
-    g <- g +
-      facet_wrap(vars(gender_group), labeller = labeller(gender_group = plot.facet.labels)) 
-  }
-
-  girafe(ggobj = g)
-}
-
-```
-
-```{r plot 2017-19 2021}
-# filter df for just 2017/19 2021
-df %>% filter(survey %in% c('2017_2019', '2021')) %>% 
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
-```
-
-```{r plot simple 2017-19 2021}
-# filter df for just 2017/19 2021
-df_simple %>% filter(survey %in% c('2017_2019', '2021')) %>% 
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
-```
-
-```{r plot 2017-19 2021 b}
-df %>%
-  filter(survey %in% c('2017_2019', '2021')) %>%
-  filter(tc_freq_group != 'Never / None') %>%
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
-```
-
-```{r plot simple 2017-19 2021 b}
+```{r plot simple 2017-19 2021 a, echo=FALSE}
 df_simple %>%
   filter(survey %in% c('2017_2019', '2021')) %>%
   filter(tc_freq_group != 'Never / None') %>%
-gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 ```
 
-```{r plot all years}
+There has been an increase of females telecommuting at least once per week in 2021 compared to pre-COVID years.
+
+```{r plot 2017-19 2021 a, echo=FALSE}
+df %>%
+  filter(survey %in% c('2017_2019', '2021')) %>%
+  filter(tc_freq_group != 'Never / None') %>%
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+While distribution of telecommuters are somewhat fairly distributed across the bins in 2021, there appears to be slightly more 1-2 day female telecommuters than before while for males the data skews towards more 5+ day telecommuting.
+
+```{r plot simple 2017-19 2021, include=FALSE}
+# filter df for just 2017/19 2021
+df_simple %>% filter(survey %in% c('2017_2019', '2021')) %>% 
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+```{r plot 2017-19 2021, include=FALSE}
+# filter df for just 2017/19 2021
+df %>% filter(survey %in% c('2017_2019', '2021')) %>% 
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+
+### All Genders
+
+```{r, echo=FALSE}
+df_simple_tot %>% 
+  filter(tc_freq_group != 'Never / None') %>%
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
+```
+
+For all workers, between 2017 and 2021 there is an increase in people telecommuting at least once per week.
+
+```{r, echo=FALSE}
+df_tot %>% 
+  filter(tc_freq_group != 'Never / None') %>%
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
+```
+
+For all workers, there is a definite increase in 3-4 day telecommuting in 2021 compared to pre-COVID years, but there appears to have been a larger proportion that has been telecommuting for 1-2 days.
+
+```{r plot all years, echo=FALSE}
 df %>% 
   filter(tc_freq_group != 'Never / None') %>% 
   filter(gender_group != 'Prefer not to answer / Another') %>% 
-  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
 
 ```
 
-```{r}
-plot.caption.02 <- paste0("\nExcluded 'Prefer not to Answer/Another' gender category and 'Never/None' telecommute responses.")
-df_simple %>% 
-  filter(tc_freq_group != 'Never / None') %>% 
-  filter(gender_group != 'Prefer not to answer / Another') %>% 
-  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.02, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
-```
+Between 2017 and 2021, there was a sharp increase in females telecommuting 1-2 days and an increase of males telecommuting 5+ days in 2021.While there is a significant increase in females telecommuting 3-4 days, a larger proportion of females are commuting 1-2 days. 
 
-```{r}
-df_simple_tot %>% 
-   gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
-```
-```{r}
-df_tot %>% 
-   gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
-```
 
-Telecommuting increased between 2017/2019 and 2021 across all major gender groups pictured, however it's not certain that there is a significant difference in increased telecommuting between Females and Males because of overlapping Margins of Error. For those that telecommute at least once a week, there appears to be an almost fair distribution of telecommuters between 1-5 days per week in 2021 with more weight in 1-2 days for Females and 5+ days for Males.
+## Literature
+
+- https://www.intereconomics.eu/contents/year/2021/number/5/article/teleworking-a-curse-or-a-blessing-for-gender-equality-and-work-life-balance.html
+  - the pandemic has hit women harder than men, and the risk of the reversal of women’s hard-won gains is real, the pandemic has also opened up new opportunities to correct structural gender inequalities
+- https://www.theurbanist.org/2020/03/11/telecommuting-surged-transit-use-lagged-among-downtown-seattle-workers-in-2019/
