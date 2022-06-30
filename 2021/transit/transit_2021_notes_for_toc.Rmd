@@ -1,0 +1,173 @@
+---
+title: "Transportation Operator Committee HHTS 2021 notes"
+output:
+  html_document:
+    df_print: paged
+---
+
+https://www.psrc.org/committee/transportation-operators-committee
+
+July 27 meeting
+
+We are gathering materials information that could be useful to the transportation operators committee
+
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(ggplot2)
+```
+
+Ashley Asmus presentation by Met Council on their 2022 transit on-board survey provides a lot of inspiration
+
+https://metrocouncil.org/Council-Meetings/Committees/Transportation-Committee/2022/March-28,-2022/info-1_TransitOnBoardSurvey_2022-03-28.aspx
+
+* Estimate of total transit trips regionally in 2019 vs 2021
+ - by access mode
+ - by geography?
+ - by income group
+ - by trip purpose
+ - by time of day
+ - by race category
+ - by age category
+ - by lifecycle
+ - by gender
+ - by worker status
+ 
+ * Overall mode share shift in 2019 vs 2021
+ - by access mode
+ - by geography?
+ - by income group
+ - by trip purpose
+ - by time of day
+ - by race category
+ - by age category
+ - by gender
+ 
+ * commute_freq_pre_covid vs commute_freq
+    - by income, race, age, gender
+ * commute_mode_pre_covid vs commute_mode
+   - by income, race, age, gender
+* telecommute_freq_pre_covid vs telecommute_freq
+  - by income, race, age, gender
+ 
+ Pull in data that might be useful
+```{r}
+transit_data_17_19<- get_hhts("2017_2019", "t", vars=c("mode_1","mode_simple", "sample_county", "hhincome_broad", 'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'gender', 'employment', 'work_county',  'lifecycle', 'mode_acc', 'dest_purpose_cat' ))
+```
+
+
+```{r}
+transit_data_21<- get_hhts("2021", "t", vars=c("mode_1","mode_simple", "sample_county", "hhincome_broad", 'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'gender', 'employment', 'work_county',  'lifecycle', 'mode_acc','dest_purpose_cat'))
+
+```
+ 
+ 
+ Start simple - What was the total estimated transit trips in 2017/2019 vs 2021?
+ 
+```{r, include=TRUE}
+trips_by_mode_17_19<-hhts_count(transit_data_17_19, group_vars='mode_simple')%>%
+  filter(mode_simple!='Total')
+trips_by_mode_21<-hhts_count(transit_data_21, group_vars='mode_simple')%>%filter(mode_simple!='Total')
+
+trips_by_mode_17_19_21<-merge(trips_by_mode_17_19, trips_by_mode_21, by='mode_simple', suffixes=c('17_19', '21'))
+trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)
+
+```
+
+```{r, include=TRUE}
+p<-ggplot(trips_by_mode, aes(x=mode_simple, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Trip Mode')+ggtitle('Trip Mode Share', 'by Survey Year')
+
+print(p)
+```
+
+```{r, include=TRUE}
+trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Bike', 'Other'))
+p<-ggplot(trips_by_mode_no_drive, aes(x=mode_simple, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Trip Mode')+ggtitle('Trip Mode Share', 'by Survey Year')
+
+print(p)
+```
+
+
+
+
+```{r}
+transit_modes<-c('Vanpool', 'Bus (public transit)',  'School bus', 'Private bus or shuttle', 'Paratransit', 'Other bus (rMove only)', 'Ferry or water taxi', 'Commuter rail (Sounder, Amtrak)', 'Other rail (e.g., streetcar)', 'Urban Rail (e.g., Link light rail, monorail)', 'Urban Rail (e.g., Link light rail, monorail, streetcar)')
+```
+
+```{r}
+transit_data_17_19_only<- get_hhts("2017_2019", "t", vars=c("mode_1","mode_simple", "sample_county", "hhincome_broad", 'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'gender', 'employment', 'work_county',  'lifecycle', 'mode_acc', 'dest_purpose_cat'))%>%filter(mode_1 %in% transit_modes)
+```
+
+
+```{r}
+transit_data_21_only<- get_hhts("2021", "t", vars=c("mode_1","mode_simple", "sample_county", "hhincome_broad", 'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'gender', 'employment', 'work_county',  'lifecycle', 'mode_acc', 'dest_purpose_cat'))%>%filter(mode_1 %in% transit_modes)
+
+```
+ 
+```{r}
+
+detailed_trips_by_mode_17_19<-hhts_count(transit_data_17_19_only, group_vars='mode_1')%>%filter(mode_1!='Total')
+detailed_trips_by_mode_21<-hhts_count(transit_data_21_only, group_vars='mode_1')%>%filter(mode_1!='Total')
+detailed_trips_by_mode<- rbind(detailed_trips_by_mode_17_19,detailed_trips_by_mode_21)
+p<-ggplot(detailed_trips_by_mode, aes(x=mode_1, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Transit Trip Mode')+ggtitle('Transit Trip Mode Share', 'by Survey Year')+ coord_flip()
+
+print(p)
+
+```
+```{r}
+
+summary_by_mode_17_19<-hhts_count(transit_data_17_19_only, group_vars=c('mode_simple', 'sample_county'))
+print(summary_by_mode_17_19)
+
+```
+
+
+Mode Share by different characteristics
+```{r}
+groupings<- c("sample_county", "hhincome_broad", 'hhincome_detailed', "age", "age_category",'race_eth_broad', 'gender', 'employment', 'work_county',  'lifecycle', 'mode_acc', 'race_category', 'dest_purpose_cat')
+for(g in groupings){
+  
+cat_name<- eval(g)
+
+transit_summs_2017_2019<-hhts_count(transit_data_17_19, group_vars=c(g,'mode_simple'), spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+  filter(cat_name!='Total') %>%
+  filter(mode_simple=='Transit')
+transit_summs_2021<-hhts_count(transit_data_21, group_vars=c(g,'mode_simple'), spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+  filter(cat_name!='Total') %>%
+  filter(mode_simple=='Transit')
+
+transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
+print(transit_summs)
+transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
+
+p<-ggplot(transit_summs_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group')
+print(p)
+}
+
+```
+Share of All TRANSIT Trips made by different characteristics
+
+```{r}
+groupings<- c("sample_county", "hhincome_broad", 'hhincome_detailed', "age", "age_category",'race_eth_broad', 'gender', 'employment', 'work_county',  'lifecycle', 'mode_acc', 'race_category', 'dest_purpose_cat')
+
+for(g in groupings){
+  cat_name<- eval(g)
+  transit_summs_2017_2019<-hhts_count(transit_data_17_19_only, group_vars=cat_name, spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total')
+  
+  transit_summs_2021<-hhts_count(transit_data_21_only, group_vars=cat_name, spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total')
+  
+  
+  transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+  write.csv(transit_summs, paste('transit_trips_share_', cat_name, '.csv'))
+  print(transit_summs)
+  transit_sums_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
+  
+  p<-ggplot(transit_sums_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Share of All Transit Trips in Each Group', 'the denominator is transit trips')
+print(p)
+}
+
+```
+ 
