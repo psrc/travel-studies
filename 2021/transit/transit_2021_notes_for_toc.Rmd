@@ -308,7 +308,7 @@ print(cat_name)
     geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
                    position=position_dodge(.9)) +scale_y_continuous(labels=scales::percent)+ xlab(g)+coord_flip()
   
-}
+
 print(p)
 }
 
