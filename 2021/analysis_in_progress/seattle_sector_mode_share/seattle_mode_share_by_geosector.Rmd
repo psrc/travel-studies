@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 request- Ariel Davis, Fehr and Peers, on Behalf of city of Seattle
 
-I’m on the consultant team that is supporting the City of Seattle with their comprehensive plan update EIS. We see that mode share data from the household travel survey is available at the citywide level online, but are looking to drill down to mode shares for the sectors shown below--which I realize may involve some additional work regarding weighting/sampling at those geographies. 
+The City of Seattle is working on the comprehensive plan update EIS. We see that mode share data from the household travel survey is available at the citywide level online, but are looking to drill down to mode shares for the sectors shown below--which I realize may involve some additional work regarding weighting/sampling at those geographies. 
 
 The City set their targets based on the mode share of all trips that start or end in a sector for the weekday PM peak period. While it would be great to get data for the breakdown of all modes, their targets are just based on SOV/non-SOV so that would be the key number we’re looking for. 
 
@@ -18,6 +18,7 @@ Other details from the call;
 looking at trip ends between sectors or with one end in a sector
 3 pm- 6 pm
 All trips
+
 
 If sample sizes are small, look all day
 
@@ -27,6 +28,10 @@ Start with SOV/Non-SOV
 see if you can get detailed modes
 
 Background document: https://www.seattle.gov/Documents/Departments/OPCD/OngoingInitiatives/SeattlesComprehensivePlan/CouncilAdopted2020.pdf
+
+The targets were developed with a mix of:
+
+2014 Household Travel Survey estimates, the regional travel demand model (circa 2015), and a tool that estimate mode share reductions based on land use density, mix of uses, proximity to transit services, parking charges, and ped/bike infrastructure
 
 ## read in shape file with geographies
 
@@ -43,6 +48,8 @@ library(RColorBrewer)
 library(lubridate)
 library(scales)
 ```
+
+
 
 Read in the Sector layer
 
@@ -64,14 +71,10 @@ drop_na(c(origin_lat, dest_lat))%>%
 mutate(mode_incl_hov = ifelse(mode_simple !='Drive', mode_simple, ifelse(travelers_total==1, 'SOV', 'HOV')))%>%
 mutate(arrival_time = format(parse_date_time(arrival_time_hhmm, '%I:%M %p'), "%H"))%>%
 mutate(depart_time = format(parse_date_time(depart_time_hhmm, '%I:%M %p'), "%H"))%>% 
-mutate(PM_Peak=ifelse(((arrival_time>=15 & arrival_time<=18)|(depart_time>=15 & depart_time<=18)), 'PM Peak', 'Not PM Peak'))
+mutate(PM_Peak=ifelse(((arrival_time>=15 & arrival_time<18)|(depart_time>=15 & depart_time<18)), 'PM Peak', 'Not PM Peak'))
 
 ```
-Overall summary of trips
-```{r}
-trips_by_mode_PM<-hhts_count(mode_geo_df, group_vars=c('mode_incl_hov', 'PM_Peak'), spec_wgt='trip_weight_2017_2019_v2021')
-trips_by_mode_PM
-```
+
 
 
 Turn the trip ends into a geographic data layer.
@@ -82,7 +85,7 @@ mode_geo_sf_dest<-mode_geo_df%>% st_as_sf(coords=c("dest_lng","dest_lat"), crs= 
 
 ```
 
-
+Read in Seattle Sectors Layer
 ```{r}
 
 sector_layer<-sector_layer%>%mutate(area=as.factor(area))
@@ -135,7 +138,7 @@ dest_sector_sea<-st_join(mode_geo_sf_dest,sector_layer, join=st_within)
 
 
 ```
-There are 66,832 trip origins in City of Seattle. 43,757 of the trips are not in the PM Peak, 23,067 are in the PM Peak.
+
 ```{r}
 origin_sector_sea<- as.data.frame(st_drop_geometry(origin_sector_sea))
 dest_sector_sea<- as.data.frame(st_drop_geometry(dest_sector_sea))
@@ -153,7 +156,7 @@ trips_by_mode_PM<-hhts_count(od_sector_sea, group_vars=c('mode_nonm', 'PM_Peak',
 # This file will have all trips labelled with the origin area, destination area, and whether or not they are in the Peak. Includes trips outside of Seattle also
 
 ```{r}
-write.csv(trips_by_mode_PM, 'trips_by_mode_all.csv')
+#write.csv(trips_by_mode_PM, 'trips_by_mode_all.csv')
 ```
 
 This analysis includes trips that originate or are destined to Seattle in the PM Peak. If the trip origin is in Seattle, it uses the origin of the trip as the Seattle trip end, otherwise it uses the destination end.
@@ -164,7 +167,7 @@ pm_trips_Seattle_origin_or_dest<-hhts_count(trips_by_mode_PM_sea, group_vars=c('
 ```
 
 ```{r}
-write.csv(pm_trips_Seattle_origin_or_dest, 'trips_by_mode_pm_seattle_od.csv')
+#write.csv(pm_trips_Seattle_origin_or_dest, 'trips_by_mode_pm_seattle_od.csv')
 ```
 
 Make a chart to see how it looks
@@ -215,9 +218,9 @@ Do not use PM Peak only because this is over-emphasizing the commute which is no
 ## Aggregate walk and bike for sample size
 
 ```{r}
-od_sector_sea_only<- od_sector_sea %>% drop_na(area)
+od_sector_sea_only<- od_sector_sea %>% drop_na(area)%>%mutate(mode_dr_not=ifelse((mode_nonm=='SOV' | mode_nonm =='HOV'), 'Drive', 'Not Drive'))
 
-all_day_trips_Seattle_origin<-hhts_count(od_sector_sea_only, group_vars=c('area', 'mode_nonm' ),spec_wgt='trip_weight_2017_2019_v2021', incl_na=FALSE)%>%filter(mode_nonm!='Total')
+all_day_trips_Seattle_origin<-hhts_count(od_sector_sea_only, group_vars=c('area', 'mode_dr_not' ),spec_wgt='trip_weight_2017_2019_v2021', incl_na=FALSE)%>%filter(mode_dr_not!='Total')
 write.csv(all_day_trips_Seattle_origin,'all_day_trips_Seattle_origin.csv')
 
 
@@ -227,6 +230,6 @@ write.csv(all_day_trips_Seattle_origin,'all_day_trips_Seattle_origin.csv')
 
 
 ```{r}
-create_facet_bar_chart(all_day_trips_Seattle_origin, w.x='mode_nonm', w.y='share', g='area', f='mode_nonm', w.scales='fixed')+theme(panel.spacing.y = unit(1, "lines"))
+create_facet_bar_chart(all_day_trips_Seattle_origin, w.x='mode_dr_not', w.y='share', g='area', f='mode_dr_not', w.scales='fixed')+theme(panel.spacing.y = unit(1, "lines"))
 ```
 
