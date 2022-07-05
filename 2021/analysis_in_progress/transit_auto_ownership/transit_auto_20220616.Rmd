@@ -155,7 +155,7 @@ all_vars_p <- c("commute_mode",
                 "hhincome_detailed",
                 "lifecycle",
                 "final_home_rgcnum",
-                # "final_home_is_rgc",
+                "final_home_is_rgc",
                 "education")
 ```
 
@@ -184,9 +184,9 @@ psurvey_17_simp_2grp <- psurvey_17 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes"))) 
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
@@ -208,9 +208,9 @@ psurvey_17_simp_3grp <- psurvey_17 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes")))  
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 
 # freq(psurvey_17_simp$race_eth_broad)
 # freq(psurvey_17$commute_mode)
@@ -245,9 +245,9 @@ psurvey_19_simp_2grp <- psurvey_19 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes"))) 
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
@@ -269,9 +269,9 @@ psurvey_19_simp_3grp <- psurvey_19 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes"))) 
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 ```
 
 ```{r 2017-19 survey}
@@ -299,9 +299,9 @@ psurvey_1719_simp_2grp <- psurvey_1719 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes")))
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
@@ -323,9 +323,9 @@ psurvey_1719_simp_3grp <- psurvey_1719 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes"))) 
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 ```
 
 ```{r 2021 survey}
@@ -353,9 +353,9 @@ psurvey_21_simp_2grp <- psurvey_21 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes")))
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
@@ -377,9 +377,9 @@ psurvey_21_simp_3grp <- psurvey_21 %>%
                                            commute_mode=="Motorcycle/moped/scooter" |
                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
                                          commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) %>% 
-  mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-                                              TRUE ~ "RGC")))
+                                         TRUE ~ "4-Other modes")))
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 ```
 
 # Descriptive Stats: 2017
@@ -516,7 +516,7 @@ share_plot(active_public_cnt_2017, 'education', 'commute_mode', 'Education', 'Co
 
 ### Regional Growth Center - home location
 ```{r}
-race_com_cnt_2017 <- count_prep_fx(df_simp_2, 'final_home_rgcnum', 'commute_mode')
+race_com_cnt_2017 <- count_prep_fx(df_simp_2, 'final_home_is_rgc', 'commute_mode')
 
 race_com_cnt_2017$final_home_rgcnum <- factor(race_com_cnt_2017$final_home_rgcnum,
                                                  levels=c("RGC",
