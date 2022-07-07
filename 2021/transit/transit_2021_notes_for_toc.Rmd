@@ -17,6 +17,70 @@ library(dplyr)
 library(ggplot2)
 library(psrcplot)
 library(forcats)
+library(odbc)
+library(DBI)
+```
+
+```{r factor function}
+factor_variable_column <- function(var, table) {
+  # This function will mutate a variable in a dataframe into a factor and set levels for ordering
+  
+  # read values_metadata table & extract levels column as vector
+  levels_col <- vars_meta %>%
+     filter(variable == var & survey_year == 2021) %>%
+     pull(levels) %>%
+     strsplit("\\|") %>%
+     unlist()
+
+   # if levels don't exist in vars_meta, use the ones below
+   if(is.null(levels_col)) {
+
+     if(var == 'hhincome_100') {
+       l <- c("Under $25,000", "$25,000-$49,999", "$50,000-$74,999", "$75,000-$99,999", "$100,000 or more", "Prefer not to answer")
+     } else if(var == 'edu_simple') {
+       l <- c("Less than Bachelors degree", "Bachelors or higher" )
+     } else if(var == 'hhsize_simple') {
+       l <- c("1 person", "2 people", "3 people", "4 or more people")
+     } else if(var == 'NoVehicles') {
+       l <- c("No Vehicles", "Has Vehicles")
+     } else if (var == 'age_grp') {
+       l <- c("18-24 years", "25-34 years", "35-44 years","45-54 years", "55-64 years","65-74 years","75 years or older")
+     } else if (var == 'gender_grp') {
+       l <- c("Female","Male","Non-binary, another, not listed/prefer not to answer", "Non-binary, another, prefer not to answer", "Not listed here / prefer not to answer")
+     } else if (var == 'work_purpose') {
+       l <- c("Not Work", "Work")
+     }
+   } else {
+     # extract levels that match the order that is in transit_summs
+     l <- intersect(levels_col, unique(table[[var]]))
+   }
+
+   # factor column using levels from variable metadata table
+   df <- table %>% mutate(!!var := factor(.data[[var]], levels = l))
+}
+```
+
+```{r Elmer variable metadata}
+# connect to Elmer
+db.connect <- function(adatabase) {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\SOCKEYE",
+                                database = adatabase,
+                                trusted_connection = "yes"
+  )
+}
+
+# read table
+read.dt <- function(adatabase, atable) {
+  elmer_connection <- db.connect(adatabase)
+  dtelm <- dbReadTable(elmer_connection, SQL(atable))
+  dbDisconnect(elmer_connection)
+  return(dtelm)
+}
+
+# read-in variable metadata table for levels
+vars_meta <- read.dt('Elmer', 'HHSurvey.variable_metadata')
 ```
 
 Ashley Asmus presentation by Met Council on their 2022 transit on-board survey provides a lot of inspiration
@@ -217,7 +281,6 @@ print(p)
 ```
 
 
-
 Group variables into meaningful categories and redo analysis
 ```{r}
 transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
@@ -233,7 +296,7 @@ transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=
   mutate(edu_simple= case_when(education=='Bachelor degree' ~ 'Bachelors or higher', 
                                education=='Graduate/Post-graduate degree' ~ 'Bachelors or higher',
                                TRUE ~ 'Less than Bachelors degree'))%>%
-  mutate(age_grp= case_when(age=='75-84 years' ~ '75 year or older', 
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
                             age == '85 or years older' ~ '75 years or older',
                             TRUE ~ age))%>%
   mutate(gender_grp= case_when(gender == 'Prefer not to answer' ~ 'Non-binary, another, prefer not to answer',
@@ -278,38 +341,50 @@ orders<-list('race_eth_broad' = sort((unique(transit_data_17_19$race_eth_broad))
 
 
 
+
 ```{r}
 
 for(i in seq(1, length(simple_groupings))){
-g<-simple_groupings[i]
-cat_name<- eval(names(g))
-
-transit_summs_2017_2019<-hhts_count(transit_data_17_19, group_vars=c(names(g),'mode_simple'), spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-  filter(cat_name!='Total') %>%
-  filter(mode_simple=='Transit')
-transit_summs_2021<-hhts_count(transit_data_21, group_vars=c(names(g),'mode_simple'), spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-  filter(cat_name!='Total') %>%
-  filter(mode_simple=='Transit')
-
-transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
-write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
-print(transit_summs)
-transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
-print(cat_name)
-
-# #if(cat_name %in% names(orders)){
-#  # print('here')
-#   p<-ggplot(transit_summs_long, aes(x=factor(get(names(g)), level=orders[g]), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_distinct_10')+
-#     geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
-#                    position=position_dodge(.9)) +scale_y_continuous(labels=scales::percent)+ xlab(g)+coord_flip()
-# }
-# else{
-   p<-ggplot(transit_summs_long, aes(x=get(names(g)), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_distinct_10')+
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
-                   position=position_dodge(.9)) +scale_y_continuous(labels=scales::percent)+ xlab(g)+coord_flip()
+  g<-simple_groupings[i]
+  cat_name<- eval(names(g))
   
+  transit_summs_2017_2019<-hhts_count(transit_data_17_19, group_vars=c(names(g),'mode_simple'), spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(mode_simple=='Transit')
+  transit_summs_2021<-hhts_count(transit_data_21, group_vars=c(names(g),'mode_simple'), spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(mode_simple=='Transit')
+  
+  transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+  # write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
+  print(transit_summs)
+  transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
+  print(cat_name)
+  
+   # factorize variable column. Adjust levels in function definition
+  transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+  
+  # #if(cat_name %in% names(orders)){
+  #  # print('here')
+  #   p<-ggplot(transit_summs_long, aes(x=factor(get(names(g)), level=orders[g]), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_distinct_10')+
+  #     geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+  #                    position=position_dodge(.9)) +scale_y_continuous(labels=scales::percent)+ xlab(g)+coord_flip()
+  # }
+  # else{
 
-print(p)
+  # plot
+  p <- ggplot(transit_summs_long, aes(x=get(names(g)), y=share, fill=survey)) +
+    geom_bar(stat='identity',position=position_dodge()) +
+    xlab(cat_name) +
+    ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group') +
+    scale_fill_discrete_psrc('psrc_distinct_10') +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+                  position=position_dodge(.9)) +
+    scale_y_continuous(labels=scales::percent) + 
+    xlab(g) +
+    coord_flip()
+  
+  print(p)
 }
 
 ```
@@ -331,6 +406,7 @@ for(g in groupings){
   write.csv(transit_summs, paste('transit_trips_share_', cat_name, '.csv'))
   print(transit_summs)
   transit_sums_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
+  
   
   p<-ggplot(transit_sums_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Share of All Transit Trips in Each Group', 'the denominator is transit trips')
 print(p)
@@ -399,16 +475,25 @@ for(g in simple_groupings){
   transit_summs_2021<-hhts_count(transit_data_21_only, group_vars=cat_name, spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
     filter(get(g)!='Total')
   
-  
   transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
   write.csv(transit_summs, paste('transit_trips_share_', cat_name, '.csv'))
   print(transit_summs)
   transit_sums_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
   
-  p<-ggplot(transit_sums_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Share of All Transit Trips in Each Group', 'the denominator is transit trips')+scale_fill_discrete_psrc('psrc_distinct_10')+
-  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
-                 position=position_dodge(.9)) +coord_flip()
-print(p)
+  # factorize variable column. Adjust levels in function definition
+  transit_sums_long <- factor_variable_column(g, transit_sums_long)
+  
+  # plot
+  p <- ggplot(transit_sums_long, aes(x=get(g), y=share, fill=survey)) +
+    geom_bar(stat='identity',position=position_dodge()) +
+    xlab(cat_name) +
+    ggtitle('Share of All Transit Trips in Each Group', 'the denominator is transit trips') +
+    scale_fill_discrete_psrc('psrc_distinct_10') +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+                  position=position_dodge(.9)) +
+    coord_flip()
+  
+  print(p)
 }
 
 ```
