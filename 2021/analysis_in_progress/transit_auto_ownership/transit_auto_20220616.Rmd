@@ -133,9 +133,9 @@ count_and_share_plot <- function(dt, grp_var, num_var, legend_name, tbl_name){
 ```
 
 # Introduction
-The work presented in this document contains analysis of transit ridership in relation to auto ownership and geography. The analysis includes 2021 data and utilizes PSRC's R package, [psrc.travelsurvey](https://psrc.github.io/psrc.travelsurvey/index.html).
+The work presented in this document contains analysis of commute mode, with a focus on transit ridership, in relation to auto ownership and geography. The analysis includes 2021 data and utilizes PSRC's R package, [psrc.travelsurvey](https://psrc.github.io/psrc.travelsurvey/index.html).
 
-* **Has commuting by transit changed with COVID-19?**
+* **Has commuting by transit changed with COVID-19?** (2017 and 2019 vs. 2021)
   + Who uses transit? Have there been shifts over time?
 * **How does vehicle ownership influence transit commuting use over time?**
 
@@ -145,6 +145,8 @@ all_vars_p <- c("commute_mode",
                 # "personid",
                 "race_category",
                 "race_eth_broad",
+                "race_eth_poc", 
+                "race_eth_apoc",
                 # "hhid",
                 "license",
                 "hhsize",
@@ -154,17 +156,49 @@ all_vars_p <- c("commute_mode",
                 "hhincome_broad",
                 "hhincome_detailed",
                 "lifecycle",
-                "final_home_rgcnum",
+                # "final_home_rgcnum",
                 "final_home_is_rgc",
                 "education")
 ```
 
-*Filtering out children and those who do not commute* 
-```{r 2017 survey}
+```{r getting survey data}
 psurvey_17 <- get_hhts(survey = survey_a$survey,
                        level="p",
                        vars=all_vars_p)
+
+psurvey_19 <- get_hhts(survey = survey_b$survey,
+                       level="p",
+                       vars=all_vars_p)
+
+psurvey_1719 <- get_hhts(survey = survey_ab$survey,
+                       level="p",
+                       vars=all_vars_p)
   
+psurvey_21 <- get_hhts(survey = survey_c$survey,
+                       level="p",
+                       vars=all_vars_p)
+```
+
+*Filtering out children and those who do not commute* 
+```{r 2017 survey}
+## all race/eth groups
+psurvey_17_simp_allgrp <- psurvey_17 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>%
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) 
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
+
 ## POC/Non-POC
 psurvey_17_simp_2grp <- psurvey_17 %>%
   filter(race_eth_broad!="Child -- no race specified") %>% 
@@ -221,10 +255,23 @@ psurvey_17_simp_3grp <- psurvey_17 %>%
 ```
 
 ```{r 2019 survey}
-psurvey_19 <- get_hhts(survey = survey_b$survey,
-                       level="p",
-                       vars=all_vars_p)
-  
+## all race/eth groups
+psurvey_19_simp_allgrp <- psurvey_19 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes"))) 
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
 
 ## POC/Non-POC
 psurvey_19_simp_2grp <- psurvey_19 %>%
@@ -275,10 +322,24 @@ psurvey_19_simp_3grp <- psurvey_19 %>%
 ```
 
 ```{r 2017-19 survey}
-psurvey_1719 <- get_hhts(survey = survey_ab$survey,
-                       level="p",
-                       vars=all_vars_p)
-  
+## all race/eth groups
+psurvey_1719_simp_allgrp <- psurvey_1719 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>% 
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes")))
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
+
 
 ## POC/Non-POC
 psurvey_1719_simp_2grp <- psurvey_1719 %>%
@@ -329,10 +390,24 @@ psurvey_1719_simp_3grp <- psurvey_1719 %>%
 ```
 
 ```{r 2021 survey}
-psurvey_21 <- get_hhts(survey = survey_c$survey,
-                       level="p",
-                       vars=all_vars_p)
-  
+## all race/eth groups
+psurvey_21_simp_allgrp <- psurvey_21 %>%
+  filter(race_eth_broad!="Child -- no race specified") %>% 
+  drop_na(commute_mode) %>%
+  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes")))
+  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
+  #                                             TRUE ~ "RGC")))
+
 
 ## POC/Non-POC
 psurvey_21_simp_2grp <- psurvey_21 %>%
@@ -518,11 +593,13 @@ share_plot(active_public_cnt_2017, 'education', 'commute_mode', 'Education', 'Co
 ```{r}
 race_com_cnt_2017 <- count_prep_fx(df_simp_2, 'final_home_is_rgc', 'commute_mode')
 
-race_com_cnt_2017$final_home_rgcnum <- factor(race_com_cnt_2017$final_home_rgcnum,
-                                                 levels=c("RGC",
-                                                          "Not RGC"))
+# race_com_cnt_2017$final_home_rgcnum <- factor(race_com_cnt_2017$final_home_rgcnum,
+#                                                  levels=c("RGC",
+#                                                           "Not RGC"))
+                                                 
+race_com_cnt_2017$final_home_is_rgc <- as.character(race_com_cnt_2017$final_home_is_rgc)
 
-share_plot(race_com_cnt_2017, 'final_home_rgcnum', 'commute_mode', 'Regional Growth Center', 'Commute Mode and RGC: 2017')
+share_plot(race_com_cnt_2017, 'final_home_is_rgc', 'commute_mode', 'Regional Growth Center', 'Commute Mode and RGC: 2017')
 ```
 \
 \
