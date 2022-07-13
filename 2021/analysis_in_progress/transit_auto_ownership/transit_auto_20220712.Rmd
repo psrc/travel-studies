@@ -51,6 +51,27 @@ my.render.cat <- function(x) {
     c("", sapply(stats.default(x), function(y) with(y,
         sprintf("%d (%.0f%%)", FREQ, PCT))))}
 
+# accessing data, formatting 
+smp_commute_fx <- function(data, year) {
+  temp_table <- data %>%
+    filter(race_eth_broad!="Child -- no race specified") %>%
+    drop_na(commute_mode) %>%
+    mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
+                                           commute_mode=="Ferry or water taxi" |
+                                           commute_mode=="Paratransit" |
+                                           commute_mode=="Streetcar" |
+                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+                                         commute_mode=="Bicycle or e-bike" |
+                                           commute_mode=="Motorcycle/moped/scooter" |
+                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+                                         commute_mode=="Drive alone" ~ "3-Drive alone",
+                                         TRUE ~ "4-Other modes")))
+  
+  assign(paste0('smp_commute_', year), temp_table)
+}
+
+# visuals ----
 # hhts_count and prep for graphing
 count_prep_fx <- function(data, grp1, grp2) {
   
@@ -142,12 +163,10 @@ The work presented in this document contains analysis of commute mode, with a fo
 ```{r variables}
 all_vars_p <- c("commute_mode",
                 "workplace",
-                # "personid",
                 "race_category",
                 "race_eth_broad",
                 "race_eth_poc", #POC/non-POC
                 "race_eth_apoc", #Asian POC/non-Asian POC/White
-                # "hhid",
                 "license",
                 "hhsize",
                 "numadults",
@@ -180,69 +199,131 @@ psurvey_21 <- get_hhts(survey = survey_c$survey,
 ```
 
 *Filtering out children and those who do not commute* 
-```{r 2017 survey}
-## all race/eth groups
-psurvey_17_simp_allgrp <- psurvey_17 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>%
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) 
-  # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
-  #                                             TRUE ~ "RGC")))
+```{r create full dataset}
+# access data ----
+commute_17 <- smp_commute_fx(psurvey_17, '2017')
+commute_19 <-smp_commute_fx(psurvey_19, '2019')
+commute_1719 <-smp_commute_fx(psurvey_1719, '2017/2019')
+commute_21 <-smp_commute_fx(psurvey_21, '2021')
+
+# merge dfs ----
+all_commute_17_21 <- bind_rows(commute_17,
+                               commute_19,
+                               commute_1719,
+                               commute_21) %>%
+  mutate(period = as.factor(survey))
+# freq(all_commute_17_21$period)
+
+
+# Order/calculate common measurements ----
+## income
+all_commute_17_21$hhincome_broad <- factor(all_commute_17_21$hhincome_broad,
+                                           levels=c("Under $25,000",
+                                                    "$25,000-$49,999",
+                                                    "$50,000-$74,999",
+                                                    "$75,000-$99,999",
+                                                    "$100,000 or more", 
+                                                    "Prefer not to answer"))
+## education
+all_commute_17_21$education <- factor(all_commute_17_21$education,
+                                      levels=c("Less than high school",
+                                               "High school graduate",
+                                               "Vocational/technical training",
+                                               "Some college",
+                                               "Associates degree",
+                                               "Bachelor degree",
+                                               "Graduate/post-graduate degree"))
+## vehicles per number of adults/per number of workers
+all_commute_17_21 <- all_commute_17_21 %>% 
+  filter(vehicle_count!="0 (no vehicles)") %>% 
+  mutate(veh_num=as.numeric(substr(vehicle_count, 1, 1))) %>%
+  mutate(hhsize_num=as.numeric(substr(hhsize, 1, 1))) %>% 
+  mutate(hhsz_veh=hhsize_num/veh_num) %>% 
+  mutate(hhadults_veh=numadults/veh_num) %>% 
+  mutate(numwork_veh=numworkers/veh_num) %>% 
+  mutate(hhsz_veh_grp=case_when(hhsz_veh<1~"3-More vehicles than people",
+                                hhsz_veh==1~"2-One vehicle per person",
+                                hhsz_veh>1~"1-Fewer vehicles than people",
+                                TRUE ~ as.character(hhsz_veh))) %>% 
+  mutate(hhadults_veh_grp=case_when(hhadults_veh<1~"3-More vehicles than adults",
+                                    hhadults_veh==1~"2-One vehicle per adults",
+                                    hhadults_veh>1~"1-Fewer vehicles than adults",
+                                    TRUE ~ as.character(hhadults_veh))) %>%  
+  mutate(numwork_veh_grp=case_when(numwork_veh<1~"3-More vehicles than workers",
+                                   numwork_veh==1~"2-One vehicle per worker",
+                                   numwork_veh>1~"1-Fewer vehicles than worker",
+                                   TRUE ~ as.character(numwork_veh)))
+
+# freq(all_commute_17_21$hhadults_veh_grp)
+# table(all_commute_17_21$survey, all_commute_17_21$numwork_veh_grp)
+# table(all_commute_17_21$survey, all_commute_17_21$veh_num)
+# table(all_commute_17_21$survey, all_commute_17_21$vehicle_count)
+# table(all_commute_17_21$survey, all_commute_17_21$veh_num)
+# table(all_commute_17_21$survey, all_commute_17_21$hhsize)
+```
+
+```{r 2017 survey, include=FALSE, eval=FALSE}
+# ## all race/eth groups
+# psurvey_17_simp_allgrp <- psurvey_17 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>%
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes"))) 
+
 
 ## POC/Non-POC
-psurvey_17_simp_2grp <- psurvey_17 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) 
+# psurvey_17_simp_2grp <- psurvey_17 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes"))) 
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
-psurvey_17_simp_3grp <- psurvey_17 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
-                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes")))  
+# psurvey_17_simp_3grp <- psurvey_17 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+#                                            race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes")))  
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
@@ -254,45 +335,45 @@ psurvey_17_simp_3grp <- psurvey_17 %>%
 # freq(psurvey_17_simp$final_home_rgcnum)
 ```
 
-```{r 2019 survey}
+```{r 2019 survey, include=FALSE, eval=FALSE}
 ## all race/eth groups
-psurvey_19_simp_allgrp <- psurvey_19 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) 
+# psurvey_19_simp_allgrp <- psurvey_19 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes"))) 
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
 ## POC/Non-POC
-psurvey_19_simp_2grp <- psurvey_19 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) 
+# psurvey_19_simp_2grp <- psurvey_19 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes"))) 
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
@@ -321,143 +402,143 @@ psurvey_19_simp_3grp <- psurvey_19 %>%
   #                                             TRUE ~ "RGC")))
 ```
 
-```{r 2017-19 survey}
+```{r 2017-19 survey, include=FALSE, eval=FALSE}
 ## all race/eth groups
-psurvey_1719_simp_allgrp <- psurvey_1719 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes")))
+# psurvey_1719_simp_allgrp <- psurvey_1719 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes")))
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
 
 ## POC/Non-POC
-psurvey_1719_simp_2grp <- psurvey_1719 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes")))
+# psurvey_1719_simp_2grp <- psurvey_1719 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes")))
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
-psurvey_1719_simp_3grp <- psurvey_1719 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
-                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes"))) 
+# psurvey_1719_simp_3grp <- psurvey_1719 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+#                                            race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes"))) 
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 ```
 
-```{r 2021 survey}
+```{r 2021 survey, include=FALSE, eval=FALSE}
 ## all race/eth groups
-psurvey_21_simp_allgrp <- psurvey_21 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>%
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes")))
+# psurvey_21_simp_allgrp <- psurvey_21 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>%
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes")))
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
 
 ## POC/Non-POC
-psurvey_21_simp_2grp <- psurvey_21 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes")))
+# psurvey_21_simp_2grp <- psurvey_21 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Persons of Color",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes")))
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 
 
 ## Asian POC/Non-Asian POC/White
-psurvey_21_simp_3grp <- psurvey_21 %>%
-  filter(race_eth_broad!="Child -- no race specified") %>% 
-  drop_na(commute_mode) %>% 
-  mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
-                                           race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
-                                             race_eth_broad=="Other race, including multi-race non-Hispanic" |
-                                             race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
-                                           TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
-  mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
-                                           commute_mode=="Commuter rail (Sounder, Amtrak)" |
-                                           commute_mode=="Ferry or water taxi" |
-                                           commute_mode=="Paratransit" |
-                                           commute_mode=="Streetcar" |
-                                           commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
-                                         commute_mode=="Bicycle or e-bike" |
-                                           commute_mode=="Motorcycle/moped/scooter" |
-                                           commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
-                                         commute_mode=="Drive alone" ~ "3-Drive alone",
-                                         TRUE ~ "4-Other modes")))
+# psurvey_21_simp_3grp <- psurvey_21 %>%
+#   filter(race_eth_broad!="Child -- no race specified") %>% 
+#   drop_na(commute_mode) %>% 
+#   mutate(race_eth_broad = factor(case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx" ~ "Asian POC",
+#                                            race_eth_broad=="Black or African American only, non-Hispanic/Latinx" |
+#                                              race_eth_broad=="Other race, including multi-race non-Hispanic" |
+#                                              race_eth_broad=="Hispanic or Latinx"~ "Non-Asian POC",
+#                                            TRUE ~ "White only, non-Hispanic/Latinx"))) %>% 
+#   mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
+#                                            commute_mode=="Commuter rail (Sounder, Amtrak)" |
+#                                            commute_mode=="Ferry or water taxi" |
+#                                            commute_mode=="Paratransit" |
+#                                            commute_mode=="Streetcar" |
+#                                            commute_mode=="Urban rail (Link light rail, monorail)" ~ "2-Public Transit",
+#                                          commute_mode=="Bicycle or e-bike" |
+#                                            commute_mode=="Motorcycle/moped/scooter" |
+#                                            commute_mode=="Walk, jog, or wheelchair" ~ "1-Active/micro-transit",
+#                                          commute_mode=="Drive alone" ~ "3-Drive alone",
+#                                          TRUE ~ "4-Other modes")))
   # mutate(final_home_rgcnum = factor(case_when(final_home_rgcnum=="Not RGC" ~ "Not RGC",
   #                                             TRUE ~ "RGC")))
 ```
 
-# Descriptive Stats: 2017
+# Descriptive Stats: 2017, 2019, 2017/2019, 2021
 ## Transit
 Using 'commute_mode' defined as: 'Usual way of commuting to current location/office'
 \
