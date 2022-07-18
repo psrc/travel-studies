@@ -127,6 +127,7 @@ df_simple <- gen_tc_freq_simple %>%
          lower = share - share_moe,
          tc_freq_group = factor(tc_freq_group, levels = c('Telecommuted at least once per week', 'Never / None')))
 
+
 ```
 
 ```{r data summaries combined gender, include=FALSE}
@@ -203,6 +204,8 @@ df_simple_tot <- gen_tc_freq_simple_tot %>%
          lower = share - share_moe,
          tc_freq_group = factor(tc_freq_group, levels = c('Telecommuted at least once per week', 'Never / None')))
 
+# root <- "T:\\2022July\\christy"
+# write.csv(df_simple_tot, file.path(root, "gtf_simple_tot.csv"))
 ```
 
 ## Plots
