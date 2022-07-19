@@ -126,7 +126,6 @@ smp_commute_fx <- function(data, year) {
 }
 ```
 
-
 ```{r visualization functions}
 # visuals ----
 # hhts_count and prep for graphing
@@ -272,6 +271,37 @@ share_plot_by_year2 <- function(dt1, dt2, grp_var, grp_var2, legend_name){
   
 }
 
+share_plot_by_year2_active <- function(dt1, dt2, grp_var, grp_var2, legend_name){
+  
+  tbl1 <- count_prep_fx(dt1, grp_var, grp_var2)
+  tbl2 <- count_prep_fx(dt2, grp_var, grp_var2)
+  
+  all_commute_17_21 <- bind_rows(tbl1,
+                                 tbl2) %>%
+    mutate(period = as.factor(survey)) %>% 
+    filter(commute_mode=="1-Active transit/micro mobility" |
+           commute_mode=="2-Public Transit")
+  
+  fill_group <- all_commute_17_21[[grp_var]]
+  x_axis_grp <- all_commute_17_21[[grp_var2]]
+
+  ggplot(all_commute_17_21, aes(x=x_axis_grp,
+                              y=share,
+                              fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~period)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
 share_plot_by_cat <- function(dt1, dt2, dt3, dt4, grp_var, grp_var2, legend_name){
   
   tbl1 <- count_prep_fx(dt1, grp_var, grp_var2)
@@ -312,6 +342,36 @@ share_plot_by_cat2 <- function(dt1, dt2, grp_var, grp_var2, legend_name){
   all_commute_17_21 <- bind_rows(tbl1,
                                  tbl2) %>%
     mutate(period = as.factor(survey))
+  
+  fill_group <- all_commute_17_21[[grp_var]]
+  # facet_group <- all_commute_17_21[[grp_var2]]
+
+  ggplot(all_commute_17_21, aes(x=period,
+                                y=share,
+                                fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~all_commute_17_21[[grp_var2]])+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+}
+
+share_plot_by_cat2_active <- function(dt1, dt2, grp_var, grp_var2, legend_name){
+  
+  tbl1 <- count_prep_fx(dt1, grp_var, grp_var2)
+  tbl2 <- count_prep_fx(dt2, grp_var, grp_var2)
+  
+  all_commute_17_21 <- bind_rows(tbl1,
+                                 tbl2) %>%
+    mutate(period = as.factor(survey)) %>% 
+    filter(commute_mode=="1-Active transit/micro mobility" |
+           commute_mode=="2-Public Transit")
   
   fill_group <- all_commute_17_21[[grp_var]]
   # facet_group <- all_commute_17_21[[grp_var2]]
@@ -694,8 +754,7 @@ psurvey_19_simp_3grp <- psurvey_19 %>%
   #                                             TRUE ~ "RGC")))
 ```
 
-# Descriptive Stats: 2017, 2019, 2017/2019, 2021
-## Commuting
+# General Commuting
 Using 'commute_mode' defined as: 'Usual way of commuting to current location/office'
 \
     *survey logic*: if workplace = fixed/varied/telework some days
@@ -752,8 +811,43 @@ table(all_commute_17_21_simp$commute_mode, all_commute_17_21_simp$period)
 </span> 
 \
 \
+```{r, CSV output all workers, include=FALSE, eval=FALSE}
+# generate data
+commute_allworkers_1719 <- hhts_count(commute_1719,
+                                      group_vars = "commute_mode") %>%
+  filter(commute_mode!="Total")
 
-### Race/ethnicity Categories
+commute_allworkers_21 <- hhts_count(commute_21,
+                                    group_vars = "commute_mode") %>%
+  filter(commute_mode!="Total")
+
+commute_allworkers <- bind_rows(commute_allworkers_1719,
+                                commute_allworkers_21)
+
+# create CSV
+write.csv(commute_allworkers,
+          "T:/2022July/Mary/HHTS/output_data/commute_allworkers.csv", 
+          row.names = FALSE)
+
+# test dataset
+ggplot(commute_allworkers, aes(x=commute_mode,
+                              y=share)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(commute_allworkers$survey)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = "Survey") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+
+```
+
+## Race/ethnicity
+### Race - all categories
 ```{r}
 share_plot_by_year(commute_17, commute_19, commute_1719, commute_21, 
                    'race_eth_broad', 'commute_mode',
@@ -769,30 +863,13 @@ share_plot_by_cat(commute_17, commute_19, commute_1719, commute_21,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-active_public_2017 <- commute_17 %>% 
-  filter(commute_mode=="1-Active transit/micro mobility" |
-           commute_mode=="2-Public Transit")
-active_public_2019 <- commute_19 %>% 
-  filter(commute_mode=="1-Active transit/micro mobility" |
-           commute_mode=="2-Public Transit")
-active_public_201719 <- commute_1719 %>% 
-  filter(commute_mode=="1-Active transit/micro mobility" |
-           commute_mode=="2-Public Transit")
-active_public_2021 <- commute_21 %>% 
-  filter(commute_mode=="1-Active transit/micro mobility" |
-           commute_mode=="2-Public Transit")
-```
+share_plot_by_year2_active(commute_1719, commute_21,
+                           'race_eth_broad', 'commute_mode',
+                           'Race Categories')
 
-```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'race_eth_broad', 'commute_mode',
-                   'Race Categories')
-
-share_plot_by_cat(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'race_eth_broad', 'commute_mode',
-                   'Race Categories')
+share_plot_by_cat2_active(commute_1719, commute_21,
+                          'race_eth_broad', 'commute_mode',
+                          'Race Categories')
 ```
 \
 \
@@ -889,15 +966,13 @@ share_plot_by_cat(commute_17, commute_19, commute_1719, commute_21,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'race_eth_poc', 'commute_mode',
-                   'Race Categories')
+share_plot_by_year2_active(commute_1719, commute_21,
+                           'race_eth_poc', 'commute_mode',
+                           'Race Categories')
 
-share_plot_by_cat(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'race_eth_poc', 'commute_mode',
-                   'Race Categories')
+share_plot_by_cat2_active(commute_1719, commute_21,
+                          'race_eth_poc', 'commute_mode',
+                          'Race Categories')
 ```
 \
 \
@@ -955,24 +1030,20 @@ write.csv(race3_commute_all,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year2(#active_public_2017, 
-                   #active_public_2019, 
-                   active_public_201719, 
-                   active_public_2021, 
-                   'race_eth_apoc', 'commute_mode',
-                   'Race Categories')
+share_plot_by_year2_active(commute_1719, 
+                           commute_21,
+                           'race_eth_apoc', 'commute_mode',
+                           'Race Categories')
 
-share_plot_by_cat2(#active_public_2017, 
-                  #active_public_2019,
-                  active_public_201719, 
-                  active_public_2021, 
-                   'race_eth_apoc', 'commute_mode',
-                   'Race Categories')
+share_plot_by_cat2_active(commute_1719,
+                          commute_21,
+                          'race_eth_apoc', 'commute_mode',
+                          'Race Categories')
 ```
 \
 \
 
-### Income
+## Income
 ```{r}
 share_plot_by_year(commute_17, commute_19, commute_1719, commute_21, 
                    'hhincome_broad', 'commute_mode',
@@ -988,20 +1059,18 @@ share_plot_by_cat(commute_17, commute_19, commute_1719, commute_21,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'hhincome_broad', 'commute_mode',
-                   'Income Categories')
+share_plot_by_year2_active(commute_1719, commute_21,
+                           'hhincome_broad', 'commute_mode',
+                           'Income Categories')
 
-share_plot_by_cat(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'hhincome_broad', 'commute_mode',
-                   'Income Categories')
+share_plot_by_cat2_active(commute_1719, commute_21,
+                          'hhincome_broad', 'commute_mode',
+                          'Income Categories')
 ```
 \
 \
 
-### Education
+## Education
 ```{r}
 share_plot_by_year(commute_17, commute_19, commute_1719, commute_21, 
                    'commute_mode','education',
@@ -1017,20 +1086,19 @@ share_plot_by_cat(commute_17, commute_19, commute_1719, commute_21,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'education', 'commute_mode',
-                   'Education Categories')
+share_plot_by_year2_active(commute_1719, commute_21,
+                           'education', 'commute_mode',
+                           'Education Categories')
 
-share_plot_by_cat(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'education', 'commute_mode',
-                   'Education Categories')
+share_plot_by_cat2_active(commute_1719, commute_21,
+                          'education', 'commute_mode',
+                          'Education Categories')
 ```
 \
 \
 
-### Regional Growth Center - home location
+## Regional Growth Center
+This analysis is based on the *final_home_is_rgc* variable.
 ```{r}
 share_plot_by_year2(#commute_17, 
                    #commute_19, 
@@ -1083,20 +1151,20 @@ write.csv(rgc_commute_all,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'final_home_is_rgc', 'commute_mode',
-                   'RGC Status')
+share_plot_by_year2_active(commute_1719,
+                           commute_21,
+                           'final_home_is_rgc', 'commute_mode',
+                           'RGC Status')
 
-share_plot_by_cat(active_public_2017, active_public_2019,
-                  active_public_201719, active_public_2021,
-                  'final_home_is_rgc', 'commute_mode',
-                  'RGC Status')
+share_plot_by_cat2_active(commute_1719,
+                          commute_21,
+                          'final_home_is_rgc', 'commute_mode',
+                          'RGC Status')
 ```
 \
 \
 
-### No-vehicle households
+# No-vehicle households
 survey logic: vehicle_count=="0 (no vehicles)"
 ```{r}
 noveh_2017 <- commute_17 %>% 
@@ -1108,8 +1176,10 @@ noveh_201719 <- commute_1719 %>%
 noveh_2021 <- commute_21 %>% 
   filter(vehicle_count=="0 (no vehicles)")
 ```
+\
 
-### Race/ethnicity Categories
+## Race/ethnicity
+### Race - all categories
 ```{r}
 share_plot_by_year(noveh_2017, noveh_2019, 
                    noveh_201719, noveh_2021, 
@@ -1127,30 +1197,13 @@ share_plot_by_cat(noveh_2017, noveh_2019,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-noveh_active_17 <- noveh_2017 %>% 
-  filter(commute_mode=="1-Active/micro-transit" |
-           commute_mode=="2-Public Transit")
-noveh_active_19 <- noveh_2019 %>% 
-  filter(commute_mode=="1-Active/micro-transit" |
-           commute_mode=="2-Public Transit")
-noveh_active_1719 <- noveh_201719 %>% 
-  filter(commute_mode=="1-Active/micro-transit" |
-           commute_mode=="2-Public Transit")
-noveh_active_21 <- noveh_2021 %>% 
-  filter(commute_mode=="1-Active/micro-transit" |
-           commute_mode=="2-Public Transit")
-```
+share_plot_by_year2_active(noveh_201719, noveh_2021,
+                           'race_eth_broad', 'commute_mode',
+                           'Race Categories')
 
-```{r}
-share_plot_by_year(noveh_active_17, noveh_active_19, 
-                   noveh_active_1719, noveh_active_21, 
-                   'race_eth_broad', 'commute_mode',
-                   'Race Categories')
-
-share_plot_by_cat(noveh_active_17, noveh_active_19,
-                  noveh_active_1719, noveh_active_21,
-                  'race_eth_broad', 'commute_mode',
-                  'Race Categories')
+share_plot_by_cat2_active(noveh_201719, noveh_2021,
+                          'race_eth_broad', 'commute_mode',
+                          'Race Categories')
 ```
 \
 \
@@ -1173,15 +1226,13 @@ share_plot_by_cat(noveh_2017, noveh_2019,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(noveh_active_17, noveh_active_19, 
-                   noveh_active_1719, noveh_active_21, 
-                   'race_eth_poc', 'commute_mode',
-                   'Race Categories')
+share_plot_by_year2_active(noveh_201719, noveh_2021,
+                           'race_eth_poc', 'commute_mode',
+                           'Race Categories')
 
-share_plot_by_cat(noveh_active_17, noveh_active_19,
-                  noveh_active_1719, noveh_active_21,
-                  'race_eth_poc', 'commute_mode',
-                  'Race Categories')
+share_plot_by_cat2_active(noveh_201719, noveh_2021,
+                          'race_eth_poc', 'commute_mode',
+                          'Race Categories')
 ```
 \
 \
@@ -1204,20 +1255,18 @@ share_plot_by_cat(noveh_2017, noveh_2019,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(noveh_active_17, noveh_active_19, 
-                   noveh_active_1719, noveh_active_21, 
-                   'race_eth_apoc', 'commute_mode',
-                   'Race Categories')
+share_plot_by_year2_active(noveh_201719, noveh_2021,
+                           'race_eth_apoc', 'commute_mode',
+                           'Race Categories')
 
-share_plot_by_cat(noveh_active_17, noveh_active_19,
-                  noveh_active_1719, noveh_active_21,
-                  'race_eth_apoc', 'commute_mode',
-                  'Race Categories')
+share_plot_by_cat2_active(noveh_201719, noveh_2021,
+                          'race_eth_apoc', 'commute_mode',
+                          'Race Categories')
 ```
 \
 \
 
-### Income
+## Income
 ```{r}
 share_plot_by_year(noveh_2017, noveh_2019,
                    noveh_201719, noveh_2021, 
@@ -1235,20 +1284,18 @@ share_plot_by_cat(noveh_2017, noveh_2019,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'hhincome_broad', 'commute_mode',
-                   'Income Categories')
+share_plot_by_year2_active(noveh_201719, noveh_2021,
+                           'hhincome_broad', 'commute_mode',
+                           'Income Categories')
 
-share_plot_by_cat(active_public_2017, active_public_2019,
-                  active_public_201719, active_public_2021,
-                  'hhincome_broad', 'commute_mode',
-                  'Income Categories')
+share_plot_by_cat2_active(noveh_201719, noveh_2021,
+                          'hhincome_broad', 'commute_mode',
+                          'Income Categories')
 ```
 \
 \
 
-### Education
+## Education
 ```{r}
 share_plot_by_year(noveh_2017, noveh_2019,
                    noveh_201719, noveh_2021,
@@ -1266,20 +1313,18 @@ share_plot_by_cat(noveh_2017, noveh_2019,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(noveh_active_17, noveh_active_19, 
-                   noveh_active_1719, noveh_active_21, 
-                   'education', 'commute_mode',
-                   'Education Categories')
+share_plot_by_year2_active(noveh_201719, noveh_2021,
+                           'education', 'commute_mode',
+                           'Education Categories')
 
-share_plot_by_cat(noveh_active_17, noveh_active_19,
-                  noveh_active_1719, noveh_active_21,
-                  'education', 'commute_mode',
-                  'Education Categories')
+share_plot_by_cat2_active(noveh_201719, noveh_2021,
+                          'education', 'commute_mode',
+                          'Education Categories')
 ```
 \
 \
 
-### Regional Growth Center - home location
+## Regional Growth Center
 ```{r}
 share_plot_by_year(noveh_2017, noveh_2019,
                    noveh_201719, noveh_2021, 
@@ -1297,15 +1342,13 @@ share_plot_by_cat(noveh_2017, noveh_2019,
 #### Focusing on Active/Public Transit
 To look at numbers more closely
 ```{r}
-share_plot_by_year(noveh_active_17, noveh_active_19, 
-                   noveh_active_1719, noveh_active_21, 
-                   'final_home_is_rgc', 'commute_mode',
-                   'Home Location')
+share_plot_by_year2_active(noveh_201719, noveh_2021,
+                           'final_home_is_rgc', 'commute_mode',
+                           'Home Location')
 
-share_plot_by_cat(noveh_active_17, noveh_active_19,
-                  noveh_active_1719, noveh_active_21,
-                  'final_home_is_rgc', 'commute_mode',
-                  'Home Location')
+share_plot_by_cat2_active(noveh_201719, noveh_2021,
+                          'final_home_is_rgc', 'commute_mode',
+                          'Home Location')
 ```
 \
 \
@@ -1493,19 +1536,24 @@ table(all_commute_17_21_simp$hhsz_veh_grp, all_commute_17_21_simp$period)
 
 Because we're interested in commute modes, we will be focusing on the number of workers within a household
 \
+
 ### Number of vehicles per worker
 ```{r}
-share_plot_by_year(commute_17, commute_19, 
-                   commute_1719, commute_21, 
+# share_plot_by_year(commute_17, commute_19, 
+#                    commute_1719, commute_21, 
+#                    'race_eth_poc', 'numwork_veh_grp',
+#                    'Race Categories')
+# share_plot_by_cat(commute_17, commute_19,
+#                   commute_1719, commute_21,
+#                   'race_eth_poc', 'numwork_veh_grp',
+#                   'Race Categories')
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'race_eth_poc', 'numwork_veh_grp',
+                    'Race Categories')
+share_plot_by_cat2(commute_1719, commute_21,
                    'race_eth_poc', 'numwork_veh_grp',
                    'Race Categories')
-
-p <- share_plot_by_cat(commute_17, commute_19,
-                  commute_1719, commute_21,
-                  'race_eth_poc', 'numwork_veh_grp',
-                  'Race Categories')
-
-ggplot_build(p)
 ```
 
 ```{r CSV output3, include=FALSE, eval=FALSE}
@@ -1571,34 +1619,16 @@ tbl4 <- count_prep_fx(V2survey_21, 'race_eth_poc', 'numwork_veh_grp')
 ## combine dataset ----
 V3_commute_17_21 <- bind_rows(tbl1,
                               tbl2,
-                              tb13,
+                              tbl3,
                               tbl4) %>%
     mutate(period = as.factor(survey))
 
-write.csv(dataset_3,"T:/2022July/Mary/HHTS/output_data/3-race_vehperworker.csv", row.names = FALSE)
+write.csv(V3_commute_17_21,"T:/2022July/Mary/HHTS/output_data/3-race_vehperworker.csv", row.names = FALSE)
 
-```
-\
-\
-
-#### Focusing on Active/Public Transit
-To look at numbers more closely
-```{r}
-share_plot_by_year(active_public_2017, active_public_2019, 
-                   active_public_201719, active_public_2021, 
-                   'race_eth_poc', 'numwork_veh_grp',
-                   'Race Categories')
-
-share_plot_by_cat(active_public_2017, active_public_2019,
-                  active_public_201719, active_public_2021,
-                  'race_eth_poc', 'numwork_veh_grp',
-                  'Race Categories')
 ```
 \
 \
 ```{r, include=FALSE, eval=FALSE}
-
-
 race_com_2017_noveh_2grp$numworkers_chr <- as.character(race_com_2017_noveh_2grp$numworkers)
 
 race_com_2017_noveh_cnt_2 <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'numworkers_chr')
