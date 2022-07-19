@@ -1,0 +1,526 @@
+---
+title: "Transportation Operator Committee HHTS 2021 notes"
+output:
+  html_document:
+    df_print: paged
+---
+
+https://www.psrc.org/committee/transportation-operators-committee
+
+July 27 meeting
+
+We are gathering materials information that could be useful to the transportation operators committee
+
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+```
+
+```{r factor function}
+factor_variable_column <- function(var, table) {
+  # This function will mutate a variable in a dataframe into a factor and set levels for ordering
+  
+  # read values_metadata table & extract levels column as vector
+  levels_col <- vars_meta %>%
+     filter(variable == var & survey_year == 2021) %>%
+     pull(levels) %>%
+     strsplit("\\|") %>%
+     unlist()
+
+   # if levels don't exist in vars_meta, use the ones below
+   if(is.null(levels_col) | var == 'race_eth_broad') {
+      if(var == 'race_eth_broad') {
+        l <- c('Asian only, non-Hispanic/Latinx',
+               'Black or African American only, non-Hispanic/Latinx',
+               'White only, non-Hispanic/Latinx',
+               'Other race, including multi-race non-Hispanic',
+               'Hispanic or Latinx',
+               'No Answer')
+      } else if(var == 'hhincome_100') {
+       l <- c("Under $25,000", "$25,000-$49,999", "$50,000-$74,999", "$75,000-$99,999", "$100,000 or more", "Prefer not to answer")
+     } else if(var == 'edu_simple') {
+       l <- c("Less than Bachelors degree", "Bachelors or higher" )
+     } else if(var == 'hhsize_simple') {
+       l <- c("1 person", "2 people", "3 people", "4 or more people")
+     } else if(var == 'NoVehicles') {
+       l <- c("No Vehicles", "Has Vehicles")
+     } else if (var == 'age_grp') {
+       l <- c("18-24 years", "25-34 years", "35-44 years","45-54 years", "55-64 years","65-74 years","75 years or older")
+     } else if (var == 'gender_grp') {
+       l <- c("Female","Male","Non-binary, another, not listed/prefer not to answer", "Non-binary, another, prefer not to answer", "Not listed here / prefer not to answer")
+     } else if (var == 'work_purpose') {
+       l <- c("Not Work", "Work")
+     }
+   } else {
+     # extract levels that match the order that is in transit_summs
+     l <- intersect(levels_col, unique(table[[var]]))
+   }
+
+   # factor column using levels from variable metadata table
+   df <- table %>% mutate(!!var := factor(.data[[var]], levels = l))
+}
+
+```
+
+```{r ggplot theme}
+my_theme <- function() {
+  # ggplot2 custom theme
+  
+  gridline.color <- '#ededed'
+  background.color <- 'white'
+  
+  theme(axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = 'bottom',
+        panel.background = element_rect(fill = background.color),
+        panel.grid.major.x = element_line(color = gridline.color),
+        panel.grid.minor.x = element_line(color = gridline.color),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank()
+  )
+}
+```
+
+```{r Elmer variable metadata}
+# connect to Elmer
+db.connect <- function(adatabase) {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\SOCKEYE",
+                                database = adatabase,
+                                trusted_connection = "yes"
+  )
+}
+
+# read table
+read.dt <- function(adatabase, atable) {
+  elmer_connection <- db.connect(adatabase)
+  dtelm <- dbReadTable(elmer_connection, SQL(atable))
+  dbDisconnect(elmer_connection)
+  return(dtelm)
+}
+
+# read-in variable metadata table for levels
+vars_meta <- read.dt('Elmer', 'HHSurvey.variable_metadata')
+```
+
+Ashley Asmus presentation by Met Council on their 2022 transit on-board survey provides a lot of inspiration
+
+https://metrocouncil.org/Council-Meetings/Committees/Transportation-Committee/2022/March-28,-2022/info-1_TransitOnBoardSurvey_2022-03-28.aspx
+
+* Estimate of total transit trips regionally in 2019 vs 2021
+ - by access mode
+ - by geography?
+ - by income group
+ - by trip purpose
+ - by time of day
+ - by race category
+ - by age category
+ - by lifecycle
+ - by gender
+ - by worker status
+ 
+ * Overall mode share shift in 2019 vs 2021
+ - by access mode
+ - by geography?
+ - by income group
+ - by trip purpose
+ - by time of day
+ - by race category
+ - by age category
+ - by gender
+  * commute_mode_pre_covid vs commute_mode
+   - by income, race, age, gender
+ * commute_freq_pre_covid vs commute_freq
+    - by income, race, age, gender
+
+* telecommute_freq_pre_covid vs telecommute_freq
+  - by income, race, age, gender
+ 
+ Pull in data that might be useful
+ 
+ Origin County and Destination County are missing
+ Home County appears like it may not be filled in everywhere for 2021?
+```{r}
+mode_vars<-c('mode_1', 'mode_simple')
+other_vars<-c('final_home_rgcnum', 'hhsize', 'vehicle_count',  "hhincome_broad", 'rent_own', 'res_dur', 'student', 'education',  'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'gender', 'employment',  'lifecycle', 'mode_acc', 'dest_purpose_cat')
+all_vars<-c(mode_vars, other_vars)
+```
+
+```{r}
+
+# psrc_colors = list(
+#   psrc_purples = c("#4a0048", "#630460", "#91268F", "#AD5CAB", "#C388C2", "#E3C9E3"),
+#   psrc_oranges = c("#7a2700", "#9f3913", "#F05A28", "#F4835E", "#F7A489", "#FBD6C9"),
+#   psrc_greens = c("#3f6618", "#588527", "#8CC63E", "#A9D46E", "#C0E095", "#E2F1CF"),
+#   psrc_blues = c("#005753", "#00716c", "#00A7A0", "#40BDB8", "#73CFCB", "#BFE9E7"),
+#   psrc_grays = c("#2f3030", "#3E4040", "#4C4C4C", "#76787A", "#999999", "#BCBEC0"),
+#   psrc_distinct_10 = c( "#C388C2", "#C0E095","#F7A489","#3e4040", "#73CFCB", "#630460", "#9f3913", "#588527", "#00716c","#999999"))
+# 
+# psrc_palettes = function(name, n, all_palettes = psrc_colors, type = c("continuous","continuous","continuous","continuous","continuous","discrete")) {
+#   palette = all_palettes[[name]]
+#   if (missing(n)) {
+#     n = length(palette)
+#   }
+#   type = match.arg(type)
+#   out = switch(type,
+#                continuous = grDevices::colorRampPalette(palette)(n),
+#                discrete = palette[1:n]
+#   )
+#   structure(out, name = name, class = "palette")
+# }
+# 
+# #' PSRC Discrete Color Palettes
+# #'
+# #' Function for a discrete color fill for use in ggplot2
+# #'
+# scale_fill_discrete_psrc = function(name) {
+#   ggplot2::scale_fill_manual(values = psrc_palettes(name, type = "discrete"))
+# }
+# 
+# #' PSRC Continuous Color Palettes
+# #'
+# #' Function for a continuous color fill for use in ggplot2
+# #'
+# scale_fill_continuous_psrc = function(name) {
+#   ggplot2::scale_fill_gradientn(colors = psrc_palettes(name = name, type = "continuous"))
+# }
+
+```
+
+
+
+ 
+ 
+```{r}
+transit_data_17_19<- get_hhts("2017_2019", "t", vars=all_vars)
+```
+
+
+```{r}
+transit_data_21<- get_hhts("2021", "t", vars=all_vars)
+
+```
+ 
+ 
+ Start simple - What was the total estimated transit trips in 2017/2019 vs 2021?
+ 
+ These are trips made by adults only
+ 
+```{r, include=TRUE}
+trips_by_mode_17_19<-hhts_count(transit_data_17_19, group_vars='mode_simple')%>%
+  filter(mode_simple!='Total')
+trips_by_mode_21<-hhts_count(transit_data_21, group_vars='mode_simple')%>%filter(mode_simple!='Total')
+
+trips_by_mode_17_19_21<-merge(trips_by_mode_17_19, trips_by_mode_21, by='mode_simple', suffixes=c('17_19', '21'))
+trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)
+
+```
+
+```{r, include=TRUE}
+p<-ggplot(trips_by_mode, aes(x=mode_simple, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Trip Mode')+ggtitle('Trip Mode Share', 'by Survey Year')+scale_fill_discrete_psrc('psrc_light')+
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+                 position=position_dodge(.9)) +scale_y_continuous(labels=scales::percent)
+
+print(p)
+```
+From 2017/2019 to 2021, the transit share went down, drive shares went down, and walking shares went up.
+
+```{r, include=TRUE}
+trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Bike', 'Other'))
+p<-ggplot(trips_by_mode_no_drive, aes(x=mode_simple, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Trip Mode')+ggtitle('Trip Mode Share', 'by Survey Year')+scale_fill_discrete_psrc('psrc_light')+
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+                 position=position_dodge(.9))  +scale_y_continuous(labels=scales::percent)
+
+print(p)
+```
+
+
+
+
+```{r}
+transit_modes<-c('Vanpool', 'Bus (public transit)',  'School bus', 'Private bus or shuttle', 'Paratransit', 'Other bus (rMove only)', 'Ferry or water taxi', 'Commuter rail (Sounder, Amtrak)', 'Other rail (e.g., streetcar)', 'Urban Rail (e.g., Link light rail, monorail)', 'Urban Rail (e.g., Link light rail, monorail, streetcar)')
+```
+
+```{r}
+transit_data_17_19_only<- get_hhts("2017_2019", "t", vars=all_vars)%>%filter(mode_1 %in% transit_modes)%>%mutate(BusorNot=ifelse(mode_1=='Bus (public transit)', 'Bus', 'Other Transit, not Bus'))
+```
+
+
+```{r}
+transit_data_21_only<- get_hhts("2021", "t", vars=all_vars)%>%filter(mode_1 %in% transit_modes)%>%mutate(BusorNot=ifelse(mode_1=='Bus (public transit)', 'Bus', 'Other Transit, not Bus'))
+
+```
+ 
+```{r}
+
+detailed_trips_by_mode_17_19<-hhts_count(transit_data_17_19_only, group_vars='BusorNot', spec_wgt='trip_weight_2017_2019_v2021_adult')%>%filter(BusorNot!='Total')
+detailed_trips_by_mode_21<-hhts_count(transit_data_21_only, group_vars='BusorNot', spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%filter(BusorNot!='Total')
+detailed_trips_by_mode<- rbind(detailed_trips_by_mode_17_19,detailed_trips_by_mode_21)
+p<-ggplot(detailed_trips_by_mode, aes(x=BusorNot, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Bus or Other Transit Mode')+ggtitle('Bus or Other Transit Shares', 'by Survey Year')+
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+                 position=position_dodge(.9)) 
+
+print(p)
+
+
+
+
+```
+
+Mode Share by different characteristics
+
+findings: people with zero cars kept using transit more
+people in smaller households?
+lower income
+
+
+first doing detailed groupings, to figure out how to group the data
+```{r}
+
+groupings<- other_vars
+for(g in groupings){
+  
+cat_name<- eval(g)
+
+transit_summs_2017_2019<-hhts_count(transit_data_17_19, group_vars=c(g,'mode_simple'), spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+  filter(cat_name!='Total') %>%
+  filter(mode_simple=='Transit')
+transit_summs_2021<-hhts_count(transit_data_21, group_vars=c(g,'mode_simple'), spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+  filter(cat_name!='Total') %>%
+  filter(mode_simple=='Transit')
+
+transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
+print(transit_summs)
+transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
+
+p<-ggplot(transit_summs_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_light')+
+  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+                 position=position_dodge(.9)) +coord_flip() +scale_y_continuous(labels=scales::percent)
+print(p)
+}
+```
+
+
+Group variables into meaningful categories and redo analysis
+```{r}
+transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+  mutate(hhsize_simple=case_when(hhsize== '4 people' ~'4 or more people',                                                                     hhsize== '5 people' ~'4 or more people',
+                                  hhsize== '6 people' ~'4 or more people',
+                                  hhsize== '7 people' ~'4 or more people',
+                                  hhsize== '8 people' ~'4 or more people',
+                                  hhsize== '12 people' ~'4 or more people',
+                                  TRUE ~ hhsize))%>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(edu_simple= case_when(education=='Bachelor degree' ~ 'Bachelors or higher', 
+                               education=='Graduate/Post-graduate degree' ~ 'Bachelors or higher',
+                               TRUE ~ 'Less than Bachelors degree'))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+  mutate(gender_grp= case_when(gender == 'Prefer not to answer' ~ 'Non-binary, another, prefer not to answer',
+                            gender=='Not listed here/prefer not to answer' ~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Non-Binary'~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Another'~ 'Non-binary, another, not listed/prefer not to answer',
+                            TRUE ~ gender))%>%
+  mutate(work_purpose=ifelse(dest_purpose_cat=='Work', 'Work', 'Not Work'))
+
+transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+  mutate(hhsize_simple=case_when(hhsize== '4 people' ~'4 or more people',                                                                    hhsize== '5 people' ~'4 or more people',
+                                 hhsize== '6 people' ~'4 or more people',
+                                 hhsize== '7 people' ~'4 or more people',
+                                 hhsize== '8 people' ~'4 or more people',
+                                 hhsize== '12 people' ~'4 or more people',
+                                 TRUE ~ hhsize)) %>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(edu_simple= case_when(education=='Bachelor degree' ~ 'Bachelors or higher', 
+                               education=='Graduate/Post-graduate degree' ~ 'Bachelors or higher',
+                               TRUE ~ 'Less than Bachelors degree'))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+  mutate(gender_grp= case_when(gender == 'Prefer not to answer' ~ 'Non-binary, another, prefer not to answer',
+                            gender=='Not listed here/prefer not to answer' ~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Non-Binary'~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Another'~ 'Non-binary, another, not listed/prefer not to answer',
+                            TRUE ~ gender))%>%
+  mutate(work_purpose=ifelse(dest_purpose_cat=='Work', 'Work', 'Not Work'))
+
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity Category','hhincome_100'='Household Income','edu_simple'= 'Education Level', 'lifecycle' ='Household Lifecycle', 'hhsize_simple'= 'Household Size','NoVehicles'= 'Household Vehicles', 'student'="Student Status",  'age_grp'="Age Group", 'gender_grp'="Gender", 'work_purpose'="Trip Purpose", 'employment'= "Person Employment Status")
+```
+
+```{r Updated ggplot2 style and order}
+
+for(i in seq(1, length(simple_groupings))){
+  g <- simple_groupings[i]
+  # cat_name <- eval(names(g))
+  cat_name <- names(g)
+  
+  transit_summs_2017_2019 <- hhts_count(transit_data_17_19, 
+                                        group_vars=c(names(g),'mode_simple'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(mode_simple=='Transit')
+  
+  transit_summs_2021 <- hhts_count(transit_data_21, 
+                                   group_vars=c(names(g),'mode_simple'), 
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(mode_simple=='Transit')
+  
+  transit_summs <- merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+  # write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
+  print(transit_summs)
+  transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+  print(cat_name)
+  
+   # factorize variable column. Adjust levels in function definition
+  transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+  
+  # plot
+    p <- ggplot(transit_summs_long, aes(x = get(names(g)), y = share, fill = survey)) +
+    geom_bar(stat = 'identity', position = position_dodge()) +
+    labs(x = g,
+         y = 'Share',
+         fill = 'Survey') +
+    ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group') +
+    scale_fill_discrete_psrc('psrc_pairs') + #psrc_light
+    geom_errorbar(aes(ymin = share-share_moe, ymax = share+share_moe), 
+                  width = .2,
+                  position = position_dodge(.9)) +
+    scale_y_continuous(labels = scales::percent) + 
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 25)) +
+    coord_flip() +
+    my_theme()
+  
+  print(p)
+}
+
+```
+
+Share of All TRANSIT Trips made by different characteristics
+```{r}
+groupings<- other_vars
+
+for(g in groupings){
+  cat_name<- eval(g)
+  transit_summs_2017_2019<-hhts_count(transit_data_17_19_only, group_vars=cat_name, spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(get(g)!='Total')
+  
+  transit_summs_2021<-hhts_count(transit_data_21_only, group_vars=cat_name, spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(get(g)!='Total')
+  
+  
+  transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+  write.csv(transit_summs, paste('transit_trips_share_', cat_name, '.csv'))
+  print(transit_summs)
+  transit_sums_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
+  
+  
+  p<-ggplot(transit_sums_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Share of All Transit Trips in Each Group', 'the denominator is transit trips')
+print(p)
+}
+
+```
+ Group variables into meaningful categories and redo analysis
+```{r}
+transit_data_17_19_only<-transit_data_17_19_only%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+  mutate(hhsize_simple=case_when(hhsize== '4 people' ~'4 or more people',                                                                     hhsize== '5 people' ~'4 or more people',
+                                  hhsize== '6 people' ~'4 or more people',
+                                  hhsize== '7 people' ~'4 or more people',
+                                  hhsize== '8 people' ~'4 or more people',
+                                  hhsize== '12 people' ~'4 or more people',
+                                  TRUE ~ hhsize))%>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(edu_simple= case_when(education=='Bachelor degree' ~ 'Bachelors or higher', 
+                               education=='Graduate/Post-graduate degree' ~ 'Bachelors or higher',
+                               TRUE ~ 'Less than Bachelors degree'))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 year or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+  mutate(gender_grp= case_when(gender == 'Prefer not to answer' ~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Not listed here/prefer not to answer' ~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Non-Binary'~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Another'~ 'Non-binary, another, not listed/prefer not to answer',
+                            TRUE ~ gender))%>%
+  mutate(work_purpose=ifelse(dest_purpose_cat=='Work', 'Work', 'Not Work'))
+
+transit_data_21_only<-transit_data_21_only%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+  mutate(hhsize_simple=case_when(hhsize== '4 people' ~'4 or more people',                                                                    hhsize== '5 people' ~'4 or more people',
+                                 hhsize== '6 people' ~'4 or more people',
+                                 hhsize== '7 people' ~'4 or more people',
+                                 hhsize== '8 people' ~'4 or more people',
+                                 hhsize== '12 people' ~'4 or more people',
+                                 TRUE ~ hhsize)) %>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(edu_simple= case_when(education=='Bachelor degree' ~ 'Bachelors or higher', 
+                               education=='Graduate/Post-graduate degree' ~ 'Bachelors or higher',
+                               TRUE ~ 'Less than Bachelors degree'))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+  mutate(gender_grp= case_when(gender == 'Prefer not to answer' ~ 'Non-binary, another, prefer not to answer',
+                            gender=='Not listed here/prefer not to answer' ~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Non-Binary'~ 'Non-binary, another, not listed/prefer not to answer', 
+                            gender=='Another'~ 'Non-binary, another, not listed/prefer not to answer',
+                            TRUE ~ gender))%>%
+  mutate(work_purpose=ifelse(dest_purpose_cat=='Work', 'Work', 'Not Work'))
+
+
+simple_groupings<-c('race_eth_broad','hhincome_100','edu_simple', 'lifecycle', 'hhsize_simple','NoVehicles', 'student',  'age_grp', 'gender_grp', 'work_purpose', 'employment')
+```
+
+```{r}
+
+for(g in simple_groupings){
+  cat_name<- eval(g)
+  transit_summs_2017_2019<-hhts_count(transit_data_17_19_only, group_vars=cat_name, spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(get(g)!='Total')
+  
+  transit_summs_2021<-hhts_count(transit_data_21_only, group_vars=cat_name, spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(get(g)!='Total')
+  
+  transit_summs<-merge(transit_summs_2017_2019, transit_summs_2021, by=cat_name, suffixes=c('17_19', '21'))
+  write.csv(transit_summs, paste('transit_trips_share_', cat_name, '.csv'))
+  print(transit_summs)
+  transit_sums_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>% 
+    mutate(survey = stringr::str_replace_all(survey, "_", "/"))
+  
+  # factorize variable column. Adjust levels in function definition
+  transit_sums_long <- factor_variable_column(g, transit_sums_long)
+  
+  # plot
+  p <- ggplot(transit_sums_long, aes(x = get(g), y = share, fill = survey)) +
+    geom_bar(stat='identity', position = position_dodge()) +
+    labs(x = cat_name,
+         y = 'Share',
+         fill = 'Survey') +
+    ggtitle('Share of All Transit Trips in Each Group', 'the denominator is transit trips') +
+    scale_fill_discrete_psrc('psrc_light') +
+    geom_errorbar(aes(ymin = share-share_moe, ymax = share+share_moe), 
+                  width = .2,
+                  position = position_dodge(.9)) +
+    coord_flip()
+  
+  print(p)
+}
+
+```
+Formatting
