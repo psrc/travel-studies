@@ -164,10 +164,10 @@ def process_person_file(person):
     person['psexpfac'] = person[person_wt]
 
     # Get the TAZ and parcel data from the survey (must be added from the locate_parcels.py script first!)
-    #person['pwtaz'] = person['work_taz']
-    #person['pstaz'] = person['school_loc_taz']
-    #person['pwpcl'] = person['work_parcel']
-    #person['pspcl'] = person['school_loc_parcel']
+    person['pwtaz'] = person['work_taz']
+    person['pstaz'] = person['school_loc_taz']
+    person['pwpcl'] = person['work_parcel']
+    person['pspcl'] = person['school_loc_parcel']
 
     daysim_cols = ['hhno', 'pno', 'pptyp', 'pagey', 'pgend', 'pwtyp', 'pwpcl', 'pwtaz', 'pwautime',
                'pwaudist', 'pstyp', 'pspcl', 'pstaz', 'psautime', 'psaudist', 'puwmode', 'puwarrp', 
@@ -253,17 +253,14 @@ def process_household_file(hh, person):
     hh['hownrent'] = hh[hownrent].map(hownrent_map) 
     hh['hrestype'] = hh[hrestype].map(hhrestype_map) 
     hh['hhincome'] = hh[hhincome].map(income_map) 
-    #hh['hhtaz'] = hh[hhtaz]
-    #hh['hhparcel'] = hh[hhparcel]
-    #hh['hhwkrs'] = hh[hhwkrs]
-    #### FIXME:
-    hh['hhtaz'] = -1
-    hh['hhparcel'] = -1
-    hh['hhwkrs'] = -1
-    #####
+    hh['hhtaz'] = hh[hhtaz]
+    hh['hhparcel'] = hh[hhparcel]
+    hh['hhwkrs'] = hh[hhwkrs].fillna(0)
     hh['hhno'] = hh[hhno]
     hh['hhvehs'] = hh[hhvehs].map(hhveh_map)    # Cap at 4?
     hh['samptype'] = 1
+    # Household size must be converted to integers
+    hh['hhsize'] = hh['hhsize'].apply(lambda x: x.split(' pe')[0]).astype('int')
 
     # Remove households without parcels
     #hh = hh[-hh['hhparcel'].isnull()]
@@ -1060,6 +1057,20 @@ def main():
         df[col_list] = df[col_list].fillna(-1).astype(dtype='int', errors='ignore')
         df.to_csv(os.path.join(output_dir,df_name+'P21.dat'), index=False, sep=' ')
         df.to_csv(os.path.join(output_dir,df_name+'P21.csv'), index=False, sep=',')
+    
+        # Write in tab-delimited format as used in soundcast
+    for df_name, df in {'_person': person, '_trip': trip, '_tour': tour, 
+                        '_household': hh, '_household_day': household_day, 
+                        '_person_day': person_day}.items():
+        expcol = [col for col in df.columns if 'expfac' in col][0]
+        col_list = df.columns.tolist()
+        col_list.remove(expcol)
+        if df_name == 'trip':
+            for col in ['travcost','travdist','travtime']:
+                col_list.remove(col)
+        df[expcol] = df[expcol].astype('str').apply(lambda row: row.split('.')[0] + "." + row.split('.')[-1][0:2])
+        df[col_list] = df[col_list].fillna(-1).astype(dtype='int', errors='ignore')
+        df.to_csv(os.path.join(output_dir,df_name+'.tsv'), index=False, sep='\t')
 
 if __name__ == '__main__':
     main()
