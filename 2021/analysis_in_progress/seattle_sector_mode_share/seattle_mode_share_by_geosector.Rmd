@@ -17,6 +17,8 @@ The City set their targets based on the mode share of all trips that start or en
 Other details from the call;
 looking at trip ends between sectors or with one end in a sector
 3 pm- 6 pm
+Trips that start between 3 to 6 pm, regardless of end
+aggregate by origin area and destination area 8 Seattle areas + Not Seattle
 All trips
 
 
@@ -71,7 +73,7 @@ drop_na(c(origin_lat, dest_lat))%>%
 mutate(mode_incl_hov = ifelse(mode_simple !='Drive', mode_simple, ifelse(travelers_total==1, 'SOV', 'HOV')))%>%
 mutate(arrival_time = format(parse_date_time(arrival_time_hhmm, '%I:%M %p'), "%H"))%>%
 mutate(depart_time = format(parse_date_time(depart_time_hhmm, '%I:%M %p'), "%H"))%>% 
-mutate(PM_Peak=ifelse(((arrival_time>=15 & arrival_time<18)|(depart_time>=15 & depart_time<18)), 'PM Peak', 'Not PM Peak'))
+mutate(PM_Peak=ifelse(((arrival_time>=15 & arrival_time<18)), 'PM Peak', 'Not PM Peak'))
 
 ```
 
@@ -146,17 +148,17 @@ dest_sector_sea<- as.data.frame(st_drop_geometry(dest_sector_sea))
 ```
 
 ```{r}
-od_sector_sea<-merge(origin_sector_sea, dest_sector_sea, by='trip_id', suffixes=c('', '_dest'))%>% mutate(mode_nonm=ifelse((mode_incl_hov=='Walk' | mode_incl_hov=='Bike') , 'Non-Motorized', mode_incl_hov))
+od_sector_sea<-merge(origin_sector_sea, dest_sector_sea, by='trip_id', suffixes=c('', '_dest'))%>% mutate(mode_nonm=ifelse((mode_incl_hov=='Walk' | mode_incl_hov=='Bike') , 'Non-Motorized', mode_incl_hov))%>%mutate(area = as.character(area)) %>% mutate(area_dest=as.character(area_dest))%>%mutate(area=ifelse(is.na(area), 'Not Seattle', area))%>%mutate(area_dest=ifelse(is.na(area_dest), 'Not Seattle', area_dest)) 
 ```
 
 Summarize all trips by whether they are in the PM Peak, what mode they are, what Seattle sector the origin is in, and what Seattle sector the destination is in. Includes all times and places outside Seattle.
 ```{r}
-trips_by_mode_PM<-hhts_count(od_sector_sea, group_vars=c('mode_nonm', 'PM_Peak', 'area', 'area_dest'), spec_wgt='trip_weight_2017_2019_v2021')
+trips_by_mode_PM<-hhts_count(od_sector_sea, group_vars=c('mode_nonm', 'PM_Peak', 'area', 'area_dest'), spec_wgt='trip_weight_2017_2019_v2021')%>%filter(PM_Peak !='Total')%>%filter(area!='Total')%>%filter(area_dest!='Total')
 ```
 # This file will have all trips labelled with the origin area, destination area, and whether or not they are in the Peak. Includes trips outside of Seattle also
 
 ```{r}
-#write.csv(trips_by_mode_PM, 'trips_by_mode_all.csv')
+write.csv(trips_by_mode_PM, 'trips_by_mode_all_update_720.csv')
 ```
 
 This analysis includes trips that originate or are destined to Seattle in the PM Peak. If the trip origin is in Seattle, it uses the origin of the trip as the Seattle trip end, otherwise it uses the destination end.

@@ -130,6 +130,9 @@ trips_by_mode_17_19_21<-merge(trips_by_mode_17_19, trips_by_mode_21, by='mode_si
 trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)
 
 ```
+```{r}
+write.csv(trips_by_mode, 'trips_by_mode.csv')
+```
 
 ```{r, include=TRUE}
 p<-ggplot(trips_by_mode, aes(x=mode_simple, y=share, fill=survey))+geom_bar(stat="identity", position=position_dodge())+xlab('Trip Mode')+ggtitle('Trip Mode Share', 'by Survey Year')+scale_fill_discrete_psrc('psrc_distinct_10')+
@@ -413,3 +416,46 @@ print(p)
 
 ```
 Formatting
+
+
+```{r}
+commute_mode_17_19<- get_hhts("2017_2019", "p", vars='commute_mode')%>%drop_na(commute_mode)
+commute_mode_21<- get_hhts("2021", "p", vars='commute_mode')%>%drop_na(commute_mode)
+```
+
+
+
+```{r, include=TRUE}
+commute_17_19<-hhts_count(commute_mode_17_19, group_vars='commute_mode')%>%
+  filter(commute_mode!='Total')
+commute_21<-hhts_count(commute_mode_21, group_vars='commute_mode')%>%filter(commute_mode!='Total')
+
+commute_mode_17_19_21<-merge(commute_17_19, commute_21, by='commute_mode', suffixes=c('17_19', '21'))
+```
+
+
+
+
+
+```{r}
+mode_rgc_17_19<- get_hhts("2017_2019", "t", vars=c('mode_simple', 'o_rgcname'))
+```
+
+```{r}
+mode_rgc2_17_19<-hhts_count(mode_rgc_17_19, group_vars=c('o_rgcname', 'mode_simple'))%>%
+  filter(o_rgcname!='Total')
+```
+
+```{r}
+write.csv(mode_rgc2_17_19, 'mode_rgc.csv')
+```
+
+```{r, include=TRUE}
+commute_17_19<-hhts_count(commute_mode_17_19, group_vars='commute_mode')%>%
+  filter(commute_mode!='Total')
+commute_21<-hhts_count(commute_mode_21, group_vars='commute_mode')%>%filter(commute_mode!='Total')
+
+commute_mode_17_19_21<-merge(commute_17_19, commute_21, by='commute_mode', suffixes=c('17_19', '21'))
+```
+
+
