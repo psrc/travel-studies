@@ -153,7 +153,7 @@ od_sector_sea<-merge(origin_sector_sea, dest_sector_sea, by='trip_id', suffixes=
 
 Summarize all trips by whether they are in the PM Peak, what mode they are, what Seattle sector the origin is in, and what Seattle sector the destination is in. Includes all times and places outside Seattle.
 ```{r}
-trips_by_mode_PM<-hhts_count(od_sector_sea, group_vars=c('mode_nonm', 'PM_Peak', 'area', 'area_dest'), spec_wgt='trip_weight_2017_2019_v2021')%>%filter(PM_Peak !='Total')%>%filter(area!='Total')%>%filter(area_dest!='Total')
+trips_by_mode_PM<-hhts_count(od_sector_sea, group_vars=c('PM_Peak', 'area', 'area_dest', 'mode_nonm'), spec_wgt='trip_weight_2017_2019_v2021')%>%filter(PM_Peak !='Total')%>%filter(area!='Total')%>%filter(area_dest!='Total')%>%filter(mode_nonm!='Total')
 ```
 # This file will have all trips labelled with the origin area, destination area, and whether or not they are in the Peak. Includes trips outside of Seattle also
 
