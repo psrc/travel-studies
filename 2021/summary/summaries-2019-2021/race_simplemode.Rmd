@@ -5,6 +5,23 @@ date: '2022-06-06'
 output: html_document
 ---
 
+```{r}
+library(psrc.travelsurvey)
+library(tidyverse)
+library(ggiraph)
+
+# global variables
+survey_a <- list(survey = '2017_2019', label = '2017/2019')
+survey_b <- list(survey = '2021', label = '2021')
+survey_c <- list(survey = '2017', label = '2017')
+survey_d <- list(survey = '2019', label = '2019')
+
+
+gridline.color <- '#ededed'
+background.color <- 'white'
+plot.source <- ""
+```
+
 ## Race Categories by Mode
 
 ```{r cleaning}
@@ -37,7 +54,7 @@ rm_get_hhts <- function(survey, level, vars) {
     hhts_count(group_vars = vars) %>%
     mutate(period = survey)
 
-  return(list(df, df_sum, df_simple, df_nodrive))
+  return(list(df=df, sum=df_sum, simple=df_simple, nodrive=df_nodrive))
 }
 
 ```
@@ -48,73 +65,32 @@ rm_get_hhts <- function(survey, level, vars) {
 # mode_1 # Primary mode, combined_adult_trip_weight
 # mode_simple
 
-
-
 r_vars <- c('race_eth_broad', 'mode_simple')
 
 # summarise 2019
 rm1719 <- rm_get_hhts(survey_a$survey, 't', vars)
 
-# r_m1_2019 <- get_hhts(survey = survey_a$survey,
-#                       level = 't',
-#                       vars = r_vars) %>% 
-#    mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
-#                                           !is.na(race_eth_broad) ~ race_eth_broad))
-# 
-# r_m1_sum_2019 <- hhts_count(r_m1_2019, 
-#                             group_vars = r_vars) %>% 
-#   mutate(period = survey_a$label)
-# 
-# r_m1_sum_2019_simple <- hhts_count(r_m1_2019, 
-#                             group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
-#   mutate(period = survey_a$label) %>% 
-#   rename(race_eth_broad = race_eth_broad_group)
-# 
-# r_m1_sum_2019_nodrive <- r_m1_2019 %>% 
-#   filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
-#   hhts_count(group_vars = r_vars) %>% 
-#   mutate(period = survey_a$label)
-
 # summarise 2021
 rm2021 <- rm_get_hhts(survey_b$survey, 't', vars)
-# r_m1_2021 <- get_hhts(survey = survey_b$survey,
-#                       level = 't',
-#                       vars = r_vars) %>% 
-#    mutate(race_eth_broad_group = case_when(!(race_eth_broad %in% c('White only, non-Hispanic/Latinx', 'No Answer', 'Under 18 years, not asked race')) ~ 'Persons of Color',
-#                                           !is.na(race_eth_broad) ~ race_eth_broad))
-# 
-# r_m1_sum_2021 <- hhts_count(r_m1_2021, 
-#                            group_vars = r_vars) %>% 
-#   mutate(period = survey_b$label)
-# 
-# r_m1_sum_2021_simple <- hhts_count(r_m1_2021, 
-#                            group_vars = c('race_eth_broad_group', 'mode_simple')) %>% 
-#   mutate(period = survey_b$label) %>% 
-#   rename(race_eth_broad = race_eth_broad_group)
-# 
-# r_m1_sum_2021_nodrive <- r_m1_2021 %>% 
-#   filter(is.na(mode_simple)|mode_simple != 'Drive') %>% 
-#   hhts_count(r_m1_2021, 
-#              group_vars = r_vars) %>% 
-#   mutate(period = survey_b$label)
+
 
 ## plot ----
 
 plot.title.rm <- 'Race/Ethnicity by Primary Mode of Transportation'
 
-rm_df <- bind_rows(r_m1_sum_2019, r_m1_sum_2021) %>% 
-  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+rm_df <- bind_rows(rm1719$sum, rm2021$sum) %>%
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>%
   mutate(upper = share + share_moe,
          lower = share - share_moe)
 
-rm_df_simple <- bind_rows(r_m1_sum_2019_simple, r_m1_sum_2021_simple) %>% 
-  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+rm_df_simple <- bind_rows(rm1719$simple, rm2021$simple) %>%
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>%
   mutate(upper = share + share_moe,
          lower = share - share_moe,
          race_eth_broad = factor(race_eth_broad, levels = c('Persons of Color', 'White only, non-Hispanic/Latinx', 'No Answer')))
 
-rm_df_nodrive <- bind_rows(r_m1_sum_2019_nodrive, r_m1_sum_2021_nodrive) %>% 
-  filter(is.na(mode_simple)|mode_simple != 'Total') %>% 
+rm_df_nodrive <- bind_rows(rm1719$nodrive, rm2021$nodrive) %>%
+  filter(is.na(mode_simple)|mode_simple != 'Total') %>%
   mutate(upper = share + share_moe,
          lower = share - share_moe)
 ```
