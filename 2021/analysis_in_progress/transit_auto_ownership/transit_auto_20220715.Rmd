@@ -83,19 +83,25 @@ smp_commute_fx <- function(data, year) {
   temp_table2 <- temp_table %>% 
     # filter(vehicle_count!="0 (no vehicles)") %>%
     mutate(veh_num=as.numeric(substr(vehicle_count, 1, 1))) %>%
-    mutate(hhsize_num=as.numeric(substr(hhsize, 1, 1))) %>% 
-    mutate(hhsz_veh=hhsize_num/veh_num) %>%
-    mutate(hhadults_veh=numadults/veh_num) %>%
-    mutate(numwork_veh=numworkers/veh_num) %>% 
-    mutate(hhsz_veh_grp=case_when(hhsz_veh<1~"3-More vehicles than people",
+    mutate(hhsize_num=as.numeric(substr(hhsize, 1, 1))) %>%
+    # mutate(hhsz_veh=hhsize_num/veh_num) %>%
+    # mutate(hhadults_veh=numadults/veh_num) %>%
+    # mutate(numwork_veh=numworkers/veh_num) %>%
+    mutate(hhsz_veh=ifelse(veh_num>0,hhsize_num/veh_num,0)) %>%
+    mutate(hhadults_veh=ifelse(veh_num>0,numadults/veh_num,0)) %>%
+    mutate(numwork_veh=ifelse(veh_num>0,numworkers/veh_num,0)) %>% 
+    mutate(hhsz_veh_grp=case_when(hhsz_veh==0~"0-No household vehicles",
+                                  hhsz_veh<1~"3-More vehicles than people",
                                   hhsz_veh==1~"2-One vehicle per person",
                                   hhsz_veh>1~"1-Fewer vehicles than people",
                                   TRUE ~ as.character(hhsz_veh))) %>% 
-    mutate(hhadults_veh_grp=case_when(hhadults_veh<1~"3-More vehicles than adults",
+    mutate(hhadults_veh_grp=case_when(hhadults_veh==0~"0-No household vehicles",
+                                      hhadults_veh<1~"3-More vehicles than adults",
                                       hhadults_veh==1~"2-One vehicle per adults",
                                       hhadults_veh>1~"1-Fewer vehicles than adults",
                                       TRUE ~ as.character(hhadults_veh))) %>% 
-    mutate(numwork_veh_grp=case_when(numwork_veh<1~"3-More vehicles than workers",
+    mutate(numwork_veh_grp=case_when(numwork_veh==0~"0-No household vehicles",
+                                     numwork_veh<1~"3-More vehicles than workers",
                                      numwork_veh==1~"2-One vehicle per worker",
                                      numwork_veh>1~"1-Fewer vehicles than worker",
                                      TRUE ~ as.character(numwork_veh)))
@@ -105,7 +111,9 @@ smp_commute_fx <- function(data, year) {
                                              hhincome_broad=="$25,000-$49,999"~"2-$25,000-$49,999",
                                              hhincome_broad=="$50,000-$74,999"~"3-$50,000-$74,999",
                                              hhincome_broad=="$75,000-$99,999"~"4-$75,000-$99,999",
-                                             hhincome_broad=="$100,000 or more"~"5-$100,000 or more",
+                                             hhincome_broad=="$100,000 or more"|
+                                               hhincome_broad=="$100,000-$199,000" |
+                                               hhincome_broad=="$200,000 or more"~"5-$100,000 or more",
                                              hhincome_broad=="Prefer not to answer"~"6-Prefer not to answer"))) %>% 
     # mutate(education = factor(case_when(education=="Less than high school"~"1-Less than high school",
     #                                     education=="High school graduate"~"2-High school graduate",
@@ -445,7 +453,6 @@ commute_17 <- smp_commute_fx(psurvey_17, '2017')
 commute_19 <-smp_commute_fx(psurvey_19, '2019')
 commute_1719 <-smp_commute_fx(psurvey_1719, '2017/2019')
 commute_21 <-smp_commute_fx(psurvey_21, '2021')
-
 ```
 
 ```{r, create full dataset, include=FALSE, eval=FALSE}
@@ -1165,6 +1172,13 @@ share_plot_by_cat2_active(commute_1719,
 \
 
 # No-vehicle households
+The following research will be focused on those who reported commuting to work and who don't own any hosehold vehicles.
+```{r, include=FALSE, eval=FALSE}
+table(all_commute_17_21_simp$survey, all_commute_17_21_simp$vehicle_count)
+table(all_commute_17_21_simp$vehicle_count, all_commute_17_21_simp$hhsize)
+table(all_commute_17_21_simp$survey, all_commute_17_21_simp$numwork_veh_grp)
+```
+
 survey logic: vehicle_count=="0 (no vehicles)"
 ```{r}
 noveh_2017 <- commute_17 %>% 
@@ -1175,6 +1189,20 @@ noveh_201719 <- commute_1719 %>%
   filter(vehicle_count=="0 (no vehicles)")
 noveh_2021 <- commute_21 %>% 
   filter(vehicle_count=="0 (no vehicles)")
+```
+\
+
+```{r}
+# xtabs(~race_eth_broad+hhincome_broad+survey, data=all_commute_17_21_simp)
+# xtabs(~race_eth_broad+hhincome_broad+survey, data=commute_21)
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'race_eth_broad', 'hhincome_broad',
+                    'Race Categories')
+
+share_plot_by_cat2(commute_1719, commute_21,
+                   'race_eth_broad', 'hhincome_broad',
+                   'Race Categories')
 ```
 \
 
@@ -1353,140 +1381,12 @@ share_plot_by_cat2_active(noveh_201719, noveh_2021,
 \
 \
 
+# Vehicle Ownership
+There are different ways to quantify vehicle ownership
 
-# END OF WORK FOR NOW------
-\
-```{r, include=FALSE, eval=FALSE}
-race_com_2017_noveh_3grp <- psurvey_17_simp_3grp %>% 
-  filter(vehicle_count=="0 (no vehicles)")
-
-race_com_2017_noveh_cnt_3 <- count_prep_fx(race_com_2017_noveh_3grp,'race_eth_broad', 'commute_mode')
-
-share_plot(race_com_2017_noveh_cnt_3, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017, No household vehicles')
-```
-\
-
-#### Demographics of no-vehicle households
-```{r, include=FALSE, eval=FALSE}
-race_com_2017_noveh_cnt <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'hhincome_broad')
-
-race_com_2017_noveh_cnt$hhincome_broad <- factor(race_com_2017_noveh_cnt$hhincome_broad,
-                                                 levels=c("Under $25,000",
-                                                          "$25,000-$49,999",
-                                                          "$50,000-$74,999",
-                                                          "$75,000-$99,999",
-                                                          "$100,000 or more",
-                                                          "Prefer not to answer"))
-
-share_plot(race_com_2017_noveh_cnt, 'race_eth_broad', 'hhincome_broad', 'Race', 'Household income and Race: 2017, No household vehicles')
-```
-\
-
-```{r, include=FALSE, eval=FALSE}
-race_com_2017_noveh_cnt <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'education')
-
-race_com_2017_noveh_cnt$education <- factor(race_com_2017_noveh_cnt$education,
-                                                 levels=c("Less than high school",
-                                                          "High school graduate",
-                                                          "Vocational/technical training",
-                                                          "Some college",
-                                                          "Associates degree",
-                                                          "Bachelor degree",
-                                                          "Graduate/post-graduate degree"))
-
-share_plot(race_com_2017_noveh_cnt, 'race_eth_broad', 'education', 'Race', 'Education attainment and Race: 2017, No household vehicles')
-```
-\
-\
-
-## Descriptive Stats: 2017, 2019, 2017-2019, 2021
-## Race (2 categories) and transit mode
-```{r, include=FALSE, eval=FALSE}
-# summarize data ----
-all_transit_17 <- count_prep_fx(df_simp_2,'race_eth_broad', 'commute_mode')
-all_transit_19 <- count_prep_fx(psurvey_19_simp_2grp,'race_eth_broad', 'commute_mode')
-all_transit_1719 <- count_prep_fx(psurvey_1719_simp_2grp,'race_eth_broad', 'commute_mode')
-all_transit_21 <- count_prep_fx(psurvey_21_simp_2grp,'race_eth_broad', 'commute_mode')
-
-# merge dfs ----
-all_commute <- bind_rows(all_transit_17, 
-                         all_transit_19, 
-                         all_transit_1719, 
-                         all_transit_21) %>% 
-  mutate(period = as.factor(survey))
-
-# freq(all_commute$period)
-```
-
-```{r, include=FALSE, eval=FALSE}
-all_commute_no_other <- all_commute %>% 
-  filter(commute_mode!="4-Other modes")
-
-ggplot(all_commute_no_other,
-       aes(x=period,
-           y=share,
-           fill=commute_mode)) +
-  geom_bar(stat="identity",
-           position="dodge2") +
-  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-        axis.title.x = element_blank()) +
-  labs(y = "Share",
-       fill = "Commute modes") +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                size=.5, width=.2,
-                position=position_dodge(0.9))+
-  facet_grid(cols=vars(race_eth_broad))
-```
-\
-\
-
-## Race (3 categories) and transit mode
-```{r, include=FALSE, eval=FALSE}
-# summarize data ----
-all_transit_17 <- count_prep_fx(df_simp_3,'race_eth_broad', 'commute_mode')
-all_transit_19 <- count_prep_fx(psurvey_19_simp_3grp,'race_eth_broad', 'commute_mode')
-all_transit_1719 <- count_prep_fx(psurvey_1719_simp_3grp,'race_eth_broad', 'commute_mode')
-all_transit_21 <- count_prep_fx(psurvey_21_simp_3grp,'race_eth_broad', 'commute_mode')
-
-# merge dfs ----
-all_commute <- bind_rows(all_transit_17,
-                         all_transit_19,
-                         all_transit_1719,
-                         all_transit_21) %>%
-  mutate(period = as.factor(survey))
-
-# freq(all_commute$period)
-```
-
-```{r, include=FALSE, eval=FALSE}
-all_commute_no_other <- all_commute %>% 
-  filter(commute_mode!="4-Other modes")
-
-ggplot(all_commute_no_other,
-       aes(x=period,
-           y=share,
-           fill=commute_mode)) +
-  geom_bar(stat="identity",
-           position="dodge2") +
-  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-        axis.title.x = element_blank()) +
-  labs(y = "Share",
-       fill = "Commute modes") +
-  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                size=.5, width=.2,
-                position=position_dodge(0.9))+
-  facet_grid(cols=vars(race_eth_broad))
-```
-\
-\
-
-## Vehicle Ownership
-### Different ways to quantify vehicle ownership
-1. **hhsize/vehicle_count** = Household size
-2. **numadults/vehicle_count** = Number of adults (18+)
-3. **numworkers/vehicle_count** = Number of workers (number of household members with 1+ jobs)
+1. **hhsize/vehicle_count**: Household size
+2. **numadults/vehicle_count**: Number of adults (18+)
+3. **numworkers/vehicle_count**: Number of workers (number of household members with 1+ jobs)
 ```{r, include=FALSE, eval=FALSE}
 # race_com_2017_numveh_2 <- psurvey_17_simp_2grp %>% 
 #   filter(vehicle_count!="0 (no vehicles)") %>% 
@@ -1534,10 +1434,37 @@ table(all_commute_17_21_simp$hhsz_veh_grp, all_commute_17_21_simp$period)
 ```
 \
 
-Because we're interested in commute modes, we will be focusing on the number of workers within a household
+Because we're interested in commute modes, we will be focusing on the number of workers within a household.
+
+## Number of vehicles per worker
+The variables used to calculate this variable are: 
+
+1. Number of household vehicles
+```{r}
+table(all_commute_17_21_simp$vehicle_count, all_commute_17_21_simp$period)
+```
+
+2. Number of workers
+```{r}
+table(all_commute_17_21_simp$numworkers, all_commute_17_21_simp$period)
+```
 \
 
-### Number of vehicles per worker
+### Race - all categories
+```{r}
+share_plot_by_year2(commute_1719, commute_21,
+                    'race_eth_broad', 'numwork_veh_grp',
+                    'Race Categories')
+share_plot_by_cat2(commute_1719, commute_21,
+                   'race_eth_broad', 'numwork_veh_grp',
+                   'Race Categories')
+```
+\
+For households with more vehicles than workers, the difference between Black or African American and all other racial groups  is larger in 2017/19 (especially compared to White only). In 2021 when the MOEs are overalpping except for White only. In 2021 White only households decreased in this category and increased in the one vehicle per worker households. 
+\
+\
+
+### Race - POC/Non-POC
 ```{r}
 # share_plot_by_year(commute_17, commute_19, 
 #                    commute_1719, commute_21, 
@@ -1555,6 +1482,95 @@ share_plot_by_cat2(commute_1719, commute_21,
                    'race_eth_poc', 'numwork_veh_grp',
                    'Race Categories')
 ```
+\
+Non-POC households reported more vehicles than workers in 2017/19 compared to POC, but in 2021, the difference is smaller with overlapping MOEs. Because the proportion of POC households with more vehicles than workers didn't chane too much, the difference seems to be for Non-POC.
+\
+
+### Race - Asian POC/Non-Asian POC/White
+```{r}
+share_plot_by_year2(commute_1719, commute_21,
+                    'race_eth_apoc', 'numwork_veh_grp',
+                    'Race Categories')
+share_plot_by_cat2(commute_1719, commute_21,
+                   'race_eth_apoc', 'numwork_veh_grp',
+                   'Race Categories')
+```
+\
+In 2021, there were more Asian POC households with fewer vehicles than workers compared to Non-POC, but the difference with Non-Asian POC is difficult to determine because of MOEs.
+\
+\
+
+## Income
+```{r}
+# share_plot_by_year(commute_17, commute_19, 
+#                    commute_1719, commute_21,
+#                    'hhincome_broad', 'numwork_veh_grp',
+#                    'Income Categories')
+# share_plot_by_cat(commute_17, commute_19,
+#                   commute_1719, commute_21,
+#                   'hhincome_broad', 'numwork_veh_grp',
+#                   'Income Categories')
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'hhincome_broad', 'numwork_veh_grp',
+                    'Income Categories')
+share_plot_by_cat2(commute_1719, commute_21,
+                   'hhincome_broad', 'numwork_veh_grp',
+                   'Income Categories')
+```
+\
+Zero-vehicle households tend to make less money than households with at least one vehicle, especially in 2021. The overlapping MOEs make it difficult to determine any other changes between years, but the trends seem similar.  
+\
+\
+
+## Education
+```{r}
+# share_plot_by_year(commute_17, commute_19, 
+#                    commute_1719, commute_21,
+#                    'education', 'numwork_veh_grp',
+#                    'Education Categories')
+# share_plot_by_cat(commute_17, commute_19,
+#                   commute_1719, commute_21,
+#                   'education', 'numwork_veh_grp',
+#                   'Education Categories')
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'education', 'numwork_veh_grp',
+                    'Education Categories')
+share_plot_by_cat2(commute_1719, commute_21,
+                   'education', 'numwork_veh_grp',
+                   'Education Categories')
+```
+\
+In 2021, the number of household vehicles per workers seemed to change for individuals with less education - increased in no vehicle households, decrease in fewer vehicle than worker households, and increase in one vehicle per worker households. There doesn't seem to be too much of a difference between years for the other educational attainment levels. There may be a difference for individuals with bachelors degrees or higher in households with more vehicles than workers (decrease in 2021).
+
+
+**Would it be better to create 2 groups instead of 3?**
+\
+\
+
+## Regional Growth Center
+```{r}
+# share_plot_by_year(commute_17, commute_19, 
+#                    commute_1719, commute_21,
+#                    'final_home_is_rgc', 'numwork_veh_grp',
+#                    'Home Location')
+# share_plot_by_cat(commute_17, commute_19,
+#                   commute_1719, commute_21,
+#                   'final_home_is_rgc', 'numwork_veh_grp',
+#                   'Home Location')
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'final_home_is_rgc', 'numwork_veh_grp',
+                    'Home Location')
+share_plot_by_cat2(commute_1719, commute_21,
+                   'final_home_is_rgc', 'numwork_veh_grp',
+                   'Home Location')
+```
+\
+In 2021, for those living in RGCs, there was an increase in the zero vehicle households  and a decrease in the fewer vehicles than workers households. The trends for those living outside of RGCs were similar between years.  
+\
+\
 
 ```{r CSV output3, include=FALSE, eval=FALSE}
 ## create dataset ----
@@ -1646,26 +1662,17 @@ share_plot(race_com_2017_noveh_cnt_3, 'race_eth_broad', 'numworkers_chr', 'Race'
 \
 \
 
-The larger the number, the more people per vehicle in each household. Numbers less than 1 represent households with more vehicles than people. People in households without a vehicle are excluded from this analysis.
-\
-\
 
-#### 3. Number of workers
+# END OF WORK FOR NOW------
+\
 ```{r, include=FALSE, eval=FALSE}
-hist(race_com_2017_numveh_2$numwork_veh, 
-     main="Number of household workers and vehicle ownership",
-     xlab="Workers : Vehicles",
-     breaks=23,
-     ylim=c(0,3000))
+race_com_2017_noveh_3grp <- psurvey_17_simp_3grp %>% 
+  filter(vehicle_count=="0 (no vehicles)")
 
-race_com_2017_noveh_cnt <- count_prep_fx(race_com_2017_numveh_2,'race_eth_broad', 'numwork_veh_grp')
+race_com_2017_noveh_cnt_3 <- count_prep_fx(race_com_2017_noveh_3grp,'race_eth_broad', 'commute_mode')
 
-share_plot(race_com_2017_noveh_cnt, 'race_eth_broad', 'numwork_veh_grp', 'Race', 'Household vehicles and Race: 2017, Household workers/veh')
+share_plot(race_com_2017_noveh_cnt_3, 'race_eth_broad', 'commute_mode', 'Race', 'Commute Mode and Race: 2017, No household vehicles')
 ```
-\
-\
-
-
 \
 \
 
