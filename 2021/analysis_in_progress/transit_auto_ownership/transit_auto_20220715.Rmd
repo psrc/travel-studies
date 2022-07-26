@@ -1460,7 +1460,7 @@ share_plot_by_cat2(commute_1719, commute_21,
                    'Race Categories')
 ```
 \
-For households with more vehicles than workers, the difference between Black or African American and all other racial groups  is larger in 2017/19 (especially compared to White only). In 2021 when the MOEs are overalpping except for White only. In 2021 White only households decreased in this category and increased in the one vehicle per worker households. 
+For households with more vehicles than workers, the difference between Black or African American and all other racial groups  is larger in 2017/19 (especially compared to White only). In 2021, the MOEs overlap more with Black or African American, except for the White only individuals. In 2021 White only households decreased in this category and increased in the one vehicle per worker households. 
 \
 \
 
@@ -1483,7 +1483,8 @@ share_plot_by_cat2(commute_1719, commute_21,
                    'Race Categories')
 ```
 \
-Non-POC households reported more vehicles than workers in 2017/19 compared to POC, but in 2021, the difference is smaller with overlapping MOEs. Because the proportion of POC households with more vehicles than workers didn't chane too much, the difference seems to be for Non-POC.
+Non-POC households reported more vehicles than workers in 2017/19 compared to POC, but in 2021, the difference is smaller with overlapping MOEs. It's difficult to determine any other differences over time because of MOEs. The trends and differences between groups seem relatively consistent over time. The trend for one-vehicle per worker households appears to shift between time periods, but the MOEs make it difficult to determine. 
+\
 \
 
 ### Race - Asian POC/Non-Asian POC/White
@@ -1496,7 +1497,7 @@ share_plot_by_cat2(commute_1719, commute_21,
                    'Race Categories')
 ```
 \
-In 2021, there were more Asian POC households with fewer vehicles than workers compared to Non-POC, but the difference with Non-Asian POC is difficult to determine because of MOEs.
+In 2021, there were more Asian POC households with fewer vehicles than workers compared to Non-POC, but the difference with Non-Asian POC is difficult to determine because of MOEs. In 2017/19 there were more Non-POC with more vehicles than workers than the other racial groups, but this difference decreased in 2021 - a difference that is looks mostly because of the decrease for Non-POC since the other groups remain similar over time. 
 \
 \
 
@@ -1519,7 +1520,7 @@ share_plot_by_cat2(commute_1719, commute_21,
                    'Income Categories')
 ```
 \
-Zero-vehicle households tend to make less money than households with at least one vehicle, especially in 2021. The overlapping MOEs make it difficult to determine any other changes between years, but the trends seem similar.  
+Zero-vehicle households tend to make less money than households with at least one vehicle, especially in 2021. The overlapping MOEs make it difficult to determine any other changes between years, but the trends seem similar. The number of the lowest income households with fewer vehicles per worker decreased over time, seemingly because the number of households without a vehicle increased.   
 \
 \
 
@@ -1571,6 +1572,30 @@ share_plot_by_cat2(commute_1719, commute_21,
 In 2021, for those living in RGCs, there was an increase in the zero vehicle households  and a decrease in the fewer vehicles than workers households. The trends for those living outside of RGCs were similar between years.  
 \
 \
+
+## Commute Mode
+```{r}
+# share_plot_by_year(commute_17, commute_19, 
+#                    commute_1719, commute_21,
+#                    'commute', 'numwork_veh_grp',
+#                    'Commute Modes')
+# share_plot_by_cat(commute_17, commute_19,
+#                   commute_1719, commute_21,
+#                   'commute', 'numwork_veh_grp',
+#                   'Commute Modes')
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'commute', 'numwork_veh_grp',
+                    'Commute Modes')
+share_plot_by_cat2(commute_1719, commute_21,
+                   'commute', 'numwork_veh_grp',
+                   'Commute Modes')
+```
+\
+In 2021, for those living in RGCs, there was an increase in the zero vehicle households  and a decrease in the fewer vehicles than workers households. The trends for those living outside of RGCs were similar between years.  
+\
+\
+
 
 ```{r CSV output3, include=FALSE, eval=FALSE}
 ## create dataset ----
