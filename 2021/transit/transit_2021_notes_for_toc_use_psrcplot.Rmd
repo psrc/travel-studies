@@ -21,7 +21,7 @@ library(forcats)
 library(odbc)
 library(DBI)
 library(tidyr)
-`
+```
 
 ```{r Elmer variable metadata}
 # connect to Elmer
@@ -137,7 +137,7 @@ From 2017/2019 to 2021, the transit share went down, drive shares went down, and
 
 ```{r, include=TRUE}
 trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Bike', 'Other'))
-p<-create_bar_chart(t=trips_by_mode_no_drive, w.x='mode_simple', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_pairs')
+p<-create_bar_chart(t=trips_by_mode_no_drive, w.x='mode_simple', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')
   
 
 print(p)
@@ -182,7 +182,8 @@ transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=
                                   simple_purpose=='Meal' ~ 'Social/Recreation/Meal',
                                   simple_purpose=='Home' ~'Shop and Errands',
                                   is.na(simple_purpose) ~ 'Shop and Errands',
-                                  TRUE ~ simple_purpose))
+                                  TRUE ~ simple_purpose))%>%mutate(rgc=as.factor(final_home_is_rgc))%>%
+  mutate(non_motorized_mode=ifelse((mode_simple=='Walk'|mode_simple=='Bike'),'Walk/Bike', 'Not Walk/Bike'))
 
 
 transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
@@ -217,12 +218,20 @@ transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (n
                                   simple_purpose=='Change mode'~ 'Shop and Errands',
                                   simple_purpose=='Social/Recreation' ~ 'Social/Recreation/Meal',
                                   simple_purpose=='Meal' ~ 'Social/Recreation/Meal',
+                                  simple_purpose=='Meal' ~ 'Social/Recreation/Meal',
                                   simple_purpose=='Home' ~'Shop and Errands',
                                   is.na(simple_purpose) ~ 'Shop and Errands',
-                                  TRUE ~ simple_purpose))
+                                  TRUE ~ simple_purpose))%>%mutate(rgc=as.factor(final_home_is_rgc))%>%
+  mutate(non_motorized_mode=ifelse((mode_simple=='Walk'|mode_simple=='Bike'),'Walk/Bike', 'Not Walk/Bike'))
+
+```
 
 
-simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','edu_simple'= 'Education Level', 'hhsize_simple'= 'Household Size','NoVehicles'= 'Household Vehicles', 'simple_purpose'="Trip Purpose", 'final_home_is_rgc'='Lives in Regional Growth Center', 'gender_grp'='Gender')
+```{r}
+
+
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','edu_simple'= 'Education Level', 'hhsize_simple'= 'Household Size','NoVehicles'= 'Household Vehicles', 'simple_purpose'="Trip Purpose", 'rgc'='Regional Growth Center', 'gender_grp'='Gender')
 
 
 ```
@@ -305,17 +314,20 @@ for(i in seq(1, length(simple_groupings))){
   xlab(as.character(g[cat_name])) + ylab("Transit mode share")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))+coord_flip()
   print(p1)
   
+
  # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='mode_simple', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+coord_flip()
 
 }
 ```
 
 
+
+
 ```{r Updated ggplot2 style and order}
   all_trips_summs_2017_2019 <- hhts_count(transit_data_17_19, 
                                         group_vars=c('simple_purpose', 'mode_simple'), 
                                         spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter(mode_simple!='Total')%>%filter(simple_purpose!='Total')%>%filter(mode_simple!='Other')%>%filter(mode_simple!='Bike')
+    filter(mode_simple!='Total')%>%filter(simple_purpose!='Total')%>%filter(mode_simple!='Drive')%>%filter(mode_simple!='Other')%>%filter(mode_simple!='Bike')
 
   
 
@@ -323,7 +335,7 @@ for(i in seq(1, length(simple_groupings))){
   all_trips_summs_2021 <- hhts_count(transit_data_21, 
                                    group_vars=c('simple_purpose', 'mode_simple'), 
                                    spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter(mode_simple!='Total')%>%filter(simple_purpose!='Total')%>%filter(mode_simple!='Other')%>%filter(mode_simple!='Bike')
+    filter(mode_simple!='Total')%>%filter(simple_purpose!='Total')%>%filter(mode_simple!='Drive')%>%filter(mode_simple!='Drive')%>%filter(mode_simple!='Other')%>%filter(mode_simple!='Bike')
 
 
 
@@ -339,4 +351,219 @@ p<-create_bar_chart(t=trips_purp , w.x='mode_simple', w.y='share', f='survey', w
   ylab(as.character(paste(g, ' Mode Share'))) + xlab("Mode")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))
   print(p)
   }
+```
+
+```{r}
+
+all_trips_summs_2017_2019 <- hhts_median(transit_data_17_19,
+                                         stat_var = 'trip_path_distance',
+                                        group_vars=c('mode_simple'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%filter(mode_simple!='Other')%>%filter(mode_simple!='Bike')%>%drop_na(mode_simple)
+
+all_trips_summs_2021 <- hhts_median(transit_data_21,
+                                         stat_var = 'trip_path_distance',
+                                        group_vars=c('mode_simple'), 
+                                        spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%filter(mode_simple!='Other')%>%filter(mode_simple!='Bike')%>%drop_na(mode_simple)
+
+  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+trips_purp<-all_trips_summs_long
+p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_light')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+
+  ylab(as.character('Trip Path Distance')) + xlab("Mode")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))
+  print(p)
+
+```
+
+
+```{r Updated ggplot2 style and order}
+  all_trips_summs_2017_2019 <- hhts_count(transit_data_17_19, 
+                                        group_vars=c('simple_purpose'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(simple_purpose!='Total')
+
+  
+
+  
+  all_trips_summs_2021 <- hhts_count(transit_data_21, 
+                                   group_vars=c('simple_purpose'), 
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(simple_purpose!='Total')
+
+
+
+  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+
+  
+  
+  trips_purp<-all_trips_summs_long
+p<-create_bar_chart(t=trips_purp , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+
+  ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))+coord_flip()
+  print(p)
+  
+```
+
+
+
+same analysis but for walk/bike
+
+```{r Updated ggplot2 style and order}
+for(i in seq(1, length(simple_groupings))){
+  g <- simple_groupings[i]
+  # cat_name <- eval(names(g))
+  cat_name <- names(g)
+  print(cat_name)
+  transit_summs_2017_2019 <- hhts_count(transit_data_17_19, 
+                                        group_vars=c(names(g),'non_motorized_mode'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(non_motorized_mode=='Walk/Bike')
+  
+
+  
+  transit_summs_2021 <- hhts_count(transit_data_21, 
+                                   group_vars=c(names(g),'non_motorized_mode'), 
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(non_motorized_mode=='Walk/Bike')
+  
+  if(cat_name=='race_eth_broad'){
+
+     transit_summs_2017_2019 <- transit_summs_2017_2019 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+     
+        transit_summs_2021 <- transit_summs_2021 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+  transit_summs_2017_2019$race_eth_broad<-factor(transit_summs_2017_2019$race_eth_broad, levels=
+                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+  
+   transit_summs_2021$race_eth_broad<-factor(transit_summs_2021$race_eth_broad, levels=
+                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+ 
+
+  
+  }
+  
+   if(cat_name=='hhincome_100_f'){
+     
+     transit_summs_2017_2019$hhincome_100_f=factor( transit_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+ transit_summs_2021$hhincome_100_f=factor(transit_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+     
+     
+   }
+
+  transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+  
+   # factorize variable column. Adjust levels in function definition
+  #transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+  
+  transit_summs_2021_only<-  transit_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
+  
+ # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=10,color="#4C4C4C"))+coord_flip()
+#  print(p0)
+  
+   p0<-create_bar_chart(t=transit_summs_2021 , w.x=cat_name, w.y='share', f='non_motorized_mode', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+
+  xlab(as.character(g[cat_name])) + ylab('Walk/Bike mode share')+scale_fill_manual(values="#73CFCB")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))+coord_flip()
+  print(p0)
+  
+  p1<-create_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+
+  xlab(as.character(g[cat_name])) + ylab("Walk/Bike mode share")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))+coord_flip()
+  print(p1)
+  
+
+ # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+coord_flip()
+
+}
+```
+
+
+
+
+```{r Updated ggplot2 style and order}
+  all_trips_summs_2017_2019 <- hhts_count(transit_data_17_19, 
+                                        group_vars=c('simple_purpose', 'non_motorized_mode'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(non_motorized_mode!='Total')%>%filter(simple_purpose!='Total')%>%filter(non_motorized_mode!='Drive')%>%filter(non_motorized_mode!='Other')%>%filter(non_motorized_mode!='Bike')
+
+  
+
+  
+  all_trips_summs_2021 <- hhts_count(transit_data_21, 
+                                   group_vars=c('simple_purpose', 'non_motorized_mode'), 
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(non_motorized_mode!='Total')%>%filter(simple_purpose!='Total')%>%filter(non_motorized_mode!='Drive')%>%filter(non_motorized_mode!='Drive')%>%filter(non_motorized_mode!='Other')%>%filter(non_motorized_mode!='Bike')
+
+
+
+  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+
+  
+for (g in unique(all_trips_summs_long$simple_purpose)){  
+  
+  trips_purp<-all_trips_summs_long%>%filter(simple_purpose==g)
+p<-create_bar_chart(t=trips_purp , w.x='non_motorized_mode', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+
+  ylab(as.character(paste(g, ' Mode Share'))) + xlab("Mode")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))
+  print(p)
+  }
+```
+
+```{r}
+
+all_trips_summs_2017_2019 <- hhts_median(transit_data_17_19,
+                                         stat_var = 'trip_path_distance',
+                                        group_vars=c('non_motorized_mode'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%filter(non_motorized_mode!='Other')%>%filter(non_motorized_mode!='Bike')%>%drop_na(non_motorized_mode)
+
+all_trips_summs_2021 <- hhts_median(transit_data_21,
+                                         stat_var = 'trip_path_distance',
+                                        group_vars=c('non_motorized_mode'), 
+                                        spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%filter(non_motorized_mode!='Other')%>%filter(non_motorized_mode!='Bike')%>%drop_na(non_motorized_mode)
+
+  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+trips_purp<-all_trips_summs_long
+p<-create_bar_chart(t=all_trips_summs_long , w.x='non_motorized_mode', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_light')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+
+  ylab(as.character('Trip Path Distance')) + xlab("Mode")+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))
+  print(p)
+
+```
+
+
+```{r Updated ggplot2 style and order}
+  all_trips_summs_2017_2019 <- hhts_count(transit_data_17_19, 
+                                        group_vars=c('simple_purpose'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(simple_purpose!='Total')
+
+  
+
+  
+  all_trips_summs_2021 <- hhts_count(transit_data_21, 
+                                   group_vars=c('simple_purpose'), 
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(simple_purpose!='Total')
+
+
+
+  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+
+  
+  
+  trips_purp<-all_trips_summs_long
+p<-create_bar_chart(t=trips_purp , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+
+  ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=10,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=12,color="#4C4C4C"))+theme(axis.title.y = element_text(size=12,color="#4C4C4C"))+coord_flip()
+  print(p)
+  
 ```
