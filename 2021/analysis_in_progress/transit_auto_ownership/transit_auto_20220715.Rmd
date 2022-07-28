@@ -408,7 +408,7 @@ The work presented in this document contains analysis of commute mode, with a fo
   + Who uses transit? Have there been shifts over time?
 * **How does vehicle ownership influence transit commuting use over time?**
 
-```{r variables}
+```{r variables, include=FALSE}
 all_vars_p <- c("commute_mode",
                 "workplace",
                 "race_category",
@@ -1547,6 +1547,9 @@ In 2021, the number of household vehicles per workers seemed to change for indiv
 
 
 **Would it be better to create 2 groups instead of 3?**
+```{r}
+table(all_commute_17_21_simp$education, all_commute_17_21_simp$survey)
+```
 \
 \
 
@@ -1585,17 +1588,16 @@ In 2021, for those living in RGCs, there was an increase in the zero vehicle hou
 #                   'Commute Modes')
 
 share_plot_by_year2(commute_1719, commute_21,
-                    'commute', 'numwork_veh_grp',
+                    'commute_mode', 'numwork_veh_grp',
                     'Commute Modes')
 share_plot_by_cat2(commute_1719, commute_21,
-                   'commute', 'numwork_veh_grp',
+                   'commute_mode', 'numwork_veh_grp',
                    'Commute Modes')
 ```
 \
-In 2021, for those living in RGCs, there was an increase in the zero vehicle households  and a decrease in the fewer vehicles than workers households. The trends for those living outside of RGCs were similar between years.  
+In 2021, there was an increase in public transit use for zero-vehicle households. the zero vehicle households  and a decrease in the fewer vehicles than workers households. The trends for those living outside of RGCs were similar between years.  
 \
 \
-
 
 ```{r CSV output3, include=FALSE, eval=FALSE}
 ## create dataset ----
@@ -1669,23 +1671,47 @@ write.csv(V3_commute_17_21,"T:/2022July/Mary/HHTS/output_data/3-race_vehperworke
 ```
 \
 \
-```{r, include=FALSE, eval=FALSE}
-race_com_2017_noveh_2grp$numworkers_chr <- as.character(race_com_2017_noveh_2grp$numworkers)
 
-race_com_2017_noveh_cnt_2 <- count_prep_fx(race_com_2017_noveh_2grp,'race_eth_broad', 'numworkers_chr')
+# Research: Vehicle Ownership & Location
+## Changes over time
+To test if the number of zero-vehicle households in RGCs increased in 2021?
+```{r}
+# Michael's example (https://psrc.github.io/psrc.travelsurvey/articles/calculate_hhts_summaries.html#determining-difference)
+t_2017_19c  <- get_hhts("2017_2019", "t", c("mode_simple","trip_path_distance","travel_time"))
+rs          <- hhts_median(t_2017_19c, "travel_time", "mode_simple")
+z_score(rs[1],rs[3])    # Compares the first-line and third-line estimates for significant difference; 
+                        # -- true difference indicated by score > 1 
 
-share_plot(race_com_2017_noveh_cnt_2, 'race_eth_broad', 'numworkers_chr', 'Race', 'Number of workers and Race (2 categories): 2017, No household vehicles')
+# x <- get_hhts("2017_2019", "p", c('final_home_is_rgc', 'numwork_veh_grp'))
+xy17 <- hhts_count(commute_1719, group_vars=c('final_home_is_rgc', 'numwork_veh_grp'))
+xy21 <- hhts_count(commute_21, group_vars=c('final_home_is_rgc', 'numwork_veh_grp'))
+z_0veh <- z_score(xy17[6], xy21[6])
 ```
+As a basic test, there is no overlap in the 90 percent confidence intervals of the two estimates (2017/19 and 2021), so we can conclude that the values are different and that there was a change over time.
+\
+This difference is confirmed with the z-score, `r z_0veh`
+\
+\
 
-```{r, include=FALSE, eval=FALSE}
-race_com_2017_noveh_3grp$numworkers_chr <- as.character(race_com_2017_noveh_3grp$numworkers)
+To test if the number of fewer vehicles than workers households decreased in 2021?
+```{r}
+z_lessveh <- z_score(xy17[7], xy21[7])
+```
+Following a similar process as before, there is no overlap between the two survey years indicating that there was a change over time.
+\
+This difference is confirmed with the z-score, `r z_lessveh`
+\
+\
 
-race_com_2017_noveh_cnt_3 <- count_prep_fx(race_com_2017_noveh_3grp,'race_eth_broad', 'numworkers_chr')
 
-share_plot(race_com_2017_noveh_cnt_3, 'race_eth_broad', 'numworkers_chr', 'Race', 'Number of workers and Race (3 categories): 2017, No household vehicles')
+## External data sources for location
+```{r}
+
+
 ```
 \
 \
+
 
 
 # END OF WORK FOR NOW------
