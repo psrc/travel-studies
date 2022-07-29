@@ -19,10 +19,14 @@ knitr::opts_chunk$set(echo=FALSE,
 ```{r library setup, include=FALSE}
 devtools::install_github("psrc/psrc.travelsurvey",
                          force=TRUE)
+devtools::install_github("psrc/psrcplot")
+devtools::install_github("psrc/psrctrends")
 
 library(tidyverse)
 # library(psrccensus)
 library(psrc.travelsurvey)
+library(psrcplot)
+library(psrctrends)
 # library(rlang) #required for psrccensus
 # library(emmeans) #required for rlang
 library(magrittr)
@@ -35,7 +39,8 @@ library(summarytools) #freq
 library(table1)  #nice descriptive summary table
 library(scales) #number formatting
 library(ggpubr) #graphing - ggarrange fx
-library(forcats) #for factor releveling
+library(forcats) #for factor re-leveling
+library(plotly) #for interactive charts
 ```
 
 ```{r surveys 2017-2019}
@@ -384,7 +389,7 @@ share_plot_by_cat2_active <- function(dt1, dt2, grp_var, grp_var2, legend_name){
   fill_group <- all_commute_17_21[[grp_var]]
   # facet_group <- all_commute_17_21[[grp_var2]]
 
-  ggplot(all_commute_17_21, aes(x=period,
+  plot <- ggplot(all_commute_17_21, aes(x=period,
                                 y=share,
                                 fill=fill_group)) +
     geom_bar(stat="identity",
@@ -398,6 +403,8 @@ share_plot_by_cat2_active <- function(dt1, dt2, grp_var, grp_var2, legend_name){
     geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
                   size=.5, width=.2,
                   position=position_dodge(0.9))
+  
+  ggplotly(plot)
 }
 ```
 
@@ -1024,6 +1031,14 @@ table(all_commute_17_21_simp$numworkers, all_commute_17_21_simp$period)
 ```
 \
 
+```{r}
+# table(all_commute_17_21_simp$numwork_veh_grp, all_commute_17_21_simp$period)
+
+share_plot_by_cat2(commute_1719, commute_21,
+                   'survey', 'numwork_veh_grp',
+                   'Survey Years')
+```
+
 ### Race - all categories
 ```{r}
 share_plot_by_year2(commute_1719, commute_21,
@@ -1120,7 +1135,7 @@ share_plot_by_cat2(commute_1719, commute_21,
 In 2021, the number of household vehicles per workers seemed to change for individuals with less education - increased in no vehicle households, decrease in fewer vehicle than worker households, and increase in one vehicle per worker households. There doesn't seem to be too much of a difference between years for the other educational attainment levels. There may be a difference for individuals with bachelors degrees or higher in households with more vehicles than workers (decrease in 2021).
 
 
-**Would it be better to create 2 groups instead of 3?**
+**Would it be better to create 2 groups instead of 3?** This would group the first two smaller categories together. 
 ```{r}
 table(all_commute_17_21_simp$education, all_commute_17_21_simp$survey)
 ```
@@ -1247,8 +1262,8 @@ write.csv(V3_commute_17_21,"T:/2022July/Mary/HHTS/output_data/3-race_vehperworke
 \
 
 # Research: Vehicle Ownership & Location
-## Changes over time
-To test if the number of zero-vehicle households in RGCs increased in 2021?
+## Vehicle Ownership & RGC
+*Did the number of zero-vehicle households in RGCs increase in 2021?*
 ```{r, include=FALSE}
 # Michael's example (https://psrc.github.io/psrc.travelsurvey/articles/calculate_hhts_summaries.html#determining-difference)
 # t_2017_19c  <- get_hhts("2017_2019", "t", c("mode_simple","trip_path_distance","travel_time"))
@@ -1261,22 +1276,70 @@ xy17 <- hhts_count(commute_1719, group_vars=c('final_home_is_rgc', 'numwork_veh_
 xy21 <- hhts_count(commute_21, group_vars=c('final_home_is_rgc', 'numwork_veh_grp'))
 z_0veh <- z_score(xy17[6], xy21[6]) 
 ```
-Based on the z-score (`r z_0veh`), we **cannot** conclude that the values are different and that there was a change over time.
+No - based on the z-score (`r z_0veh`), we **cannot** conclude that the values are different and that there was a change over time.
 \
 \
 
-To test if the number of fewer-vehicles-than-workers households decreased in 2021?
+*Did the number of fewer-vehicles-than-workers households in RGCs decrease in 2021?*
 ```{r}
 z_lessveh <- z_score(xy17[7], xy21[7])
 ```
-Based on the z-score (`r z_lessveh`), we **can** conclude that the values are different and that there was a change over time.
+Yes - based on the z-score (`r z_lessveh`), we **can** conclude that the values are different and that there was a change over time.
 \
 \
 
 
 ## External data sources for location
-```{r}
 
+* [Vehicle Registration Transactions by Department of Licensing](https://data.wa.gov/Transportation/Vehicle-Registration-Transactions-by-Department-of/brw6-jymh/data)
+* ["Car Ownership Statistics" by Lyle Daly](https://www.fool.com/the-ascent/research/car-ownership-statistics/)
+    + Washington: 2.5: average number of vehicles per WA household
+* [US Census: Vehicles Available](https://www.census.gov/acs/www/about/why-we-ask-each-question/vehicles/)
+\
+```{r}
+veh_stats <- matrix(c(8.5,32.5,37.1,21.9,
+                      6.9,29.2,37.3,26.2,
+                      10.5,34.8,35.3,19.4,
+                      4.7,25.7,40.3,29.3,
+                      5.2,27.2,39.4,28.2,
+                      4.7,25.2,39.7,30.4),
+                      ncol=6, byrow=FALSE)
+veh_stats <- veh_stats*.01
+colnames(veh_stats) <- c("National", "Washington", "King", "Kitsap", "Pierce", "Snohomish")
+rownames(veh_stats) <- c("No vehicle available", "1 vehicle available", "2 vehicles available", "3+ vehicles available")
+
+census_data <- as.table(veh_stats)
+census_data_df <- as.data.frame(census_data)
+colnames(census_data_df)[1] <- "Vehicles"
+colnames(census_data_df)[2] <- "Geography"
+colnames(census_data_df)[3] <- "Households"
+
+
+
+veh_stats_plot <- create_bar_chart(t=census_data_df,
+                                   w.x="Vehicles",
+                                   w.y="Households",
+                                   f="Geography",
+                                   w.title="Household Vehicle Ownership",
+                                   w.sub.title="Latest ACS 5-Year Estimates | Data Profiles/Housing Characteristics",
+                                   w.color="psrc_light",
+                                   w.interactive="yes")
+
+veh_stats_plot
+
+# veh_stats_plot2 <- create_facet_bar_chart(t=census_data_df,
+#                                           w.x="Geography",
+#                                           w.y="Households",
+#                                           f="Geography",
+#                                           g="Vehicles",
+#                                           w.title="Household Vehicle Ownership",
+#                                           w.sub.title="Latest ACS 5-Year Estimates | Data Profiles/Housing Characteristics",
+#                                           w.color="psrc_light",
+#                                           w.interactive="yes",
+#                                           w.scales="fixed",
+#                                           w.facet=4)
+# 
+# veh_stats_plot2
 
 ```
 \
