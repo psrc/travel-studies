@@ -41,6 +41,13 @@ library(scales) #number formatting
 library(ggpubr) #graphing - ggarrange fx
 library(forcats) #for factor re-leveling
 library(plotly) #for interactive charts
+
+library(sf)
+library(leaflet)
+library(raster)
+library(ggspatial)
+library(lubridate)
+library(stringr) #add leading zero's
 ```
 
 ```{r surveys 2017-2019}
@@ -58,13 +65,14 @@ my.render.cat <- function(x) {
         sprintf("%d (%.0f%%)", FREQ, PCT))))}
 
 # accessing data
-# data_get_hhts_count <- function(survey, level, vars, data, year, )
- 
+# 
 # refining variables 
 smp_commute_fx <- function(data, year) {
   temp_table <- data %>%
     filter(race_eth_broad!="Child -- no race specified") %>%
     drop_na(commute_mode) %>%
+    # drop_na(final_cnty) %>%
+    # filter(final_cnty!="Total") %>%
     mutate(commute_mode = factor(case_when(commute_mode=="Bus (public transit)" |
                                              commute_mode=="Commuter rail (Sounder, Amtrak)" |
                                              commute_mode=="Ferry or water taxi" |
@@ -109,7 +117,11 @@ smp_commute_fx <- function(data, year) {
                                      numwork_veh<1~"3-More vehicles than workers",
                                      numwork_veh==1~"2-One vehicle per worker",
                                      numwork_veh>1~"1-Fewer vehicles than worker",
-                                     TRUE ~ as.character(numwork_veh)))
+                                     TRUE ~ as.character(numwork_veh))) %>% 
+    mutate(veh_num_smp=case_when(veh_num==0~"0-No vehicle available",
+                                 veh_num==1~"1-1 vehicle available",
+                                 veh_num==2~"2-2 vehicles available",
+                                 veh_num>=3~"3-3+ vehicles available"))
   
   temp_table3 <- temp_table2 %>% 
     mutate(hhincome_broad = factor(case_when(hhincome_broad=="Under $25,000"~"1-Under $25,000",
@@ -135,7 +147,7 @@ smp_commute_fx <- function(data, year) {
                                         education=="Bachelor degree" |
                                           education=="Graduate/post-graduate degree"~"3-Bachelor's or higher")))
   
-  assign(paste0('smp_commute_', year), temp_table3)
+  # assign(paste0('smp_commute_', year), temp_table3)
 }
 ```
 
@@ -239,8 +251,8 @@ share_plot_by_year <- function(dt1, dt2, dt3, dt4, grp_var, grp_var2, legend_nam
   x_axis_grp <- all_commute_17_21[[grp_var2]]
 
   ggplot(all_commute_17_21, aes(x=x_axis_grp,
-                              y=share,
-                              fill=fill_group)) +
+                                y=share,
+                                fill=fill_group)) +
     geom_bar(stat="identity",
              position="dodge2") +
     facet_wrap(~period)+
@@ -432,7 +444,10 @@ all_vars_p <- c("commute_mode",
                 "lifecycle",
                 "final_home_rgcnum",
                 "final_home_is_rgc",
-                "education")
+                "final_cnty", #2017-2019 data
+                # "final_home_tract", #2021 data
+                "education",
+                "gender")
 ```
 
 ```{r getting survey data}
@@ -451,6 +466,10 @@ psurvey_1719 <- get_hhts(survey = survey_ab$survey,
 psurvey_21 <- get_hhts(survey = survey_c$survey,
                        level="p",
                        vars=all_vars_p)
+
+table(psurvey_21$final_cnty)
+# test <- get_hhts(survey = "2019", level="p",
+#                  vars=c("final_cnty", "vehicle_count"))
 ```
 
 *Filtering out children and those who do not commute* 
@@ -520,7 +539,7 @@ table(all_commute_17_21_simp$commute_mode, all_commute_17_21_simp$period)
 </span> 
 \
 \
-```{r, CSV output all workers, include=FALSE, eval=FALSE}
+```{r, CSV output4 all workers, include=FALSE, eval=FALSE}
 # generate data
 commute_allworkers_1719 <- hhts_count(commute_1719,
                                       group_vars = "commute_mode") %>%
@@ -627,7 +646,7 @@ share_plot_by_cat2(#commute_17,
                    'Race Categories')
 ```
 
-```{r, CSV output, include=FALSE, eval=FALSE}
+```{r, CSV output1, include=FALSE, eval=FALSE}
 # generate data
 race3_commute_1719 <- count_prep_fx(commute_1719, 'race_eth_apoc', 'commute_mode')
 race3_commute_21 <- count_prep_fx(commute_21, 'race_eth_apoc', 'commute_mode')
@@ -793,6 +812,62 @@ share_plot_by_cat2_active(commute_1719,
                           commute_21,
                           'final_home_is_rgc', 'commute_mode',
                           'RGC Status')
+```
+\
+\
+
+## Gender
+```{r}
+share_plot_by_year2(commute_1719, commute_21, 
+                   'gender', 'commute_mode',
+                   'Gender Categories')
+
+share_plot_by_cat2(commute_1719, commute_21, 
+                   'gender', 'commute_mode',
+                   'Gender Categories')
+```
+```{r, CSV output5, include=FALSE, eval=FALSE}
+# generate data
+gender_commute_1719 <- count_prep_fx(commute_1719, 'gender', 'commute_mode')
+gender_commute_21 <- count_prep_fx(commute_21, 'gender', 'commute_mode')
+
+gender_commute_all <- bind_rows(gender_commute_1719,
+                                gender_commute_21)
+# create CSV
+write.csv(gender_commute_all,
+          "T:/2022August/Mary/HHTS/output_data/gender_commute_all.csv", 
+          row.names = FALSE)
+
+# test dataset
+# ggplot(gender_commute_all, aes(x=commute_mode,
+#                             y=share,
+#                             fill=gender)) +
+#     geom_bar(stat="identity",
+#              position="dodge2") +
+#     facet_wrap(gender_commute_all$survey)+
+#     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+#           axis.title.x = element_blank()) +
+#     labs(y = "Share",
+#          fill = "Survey") +
+#     scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+#     geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+#                   size=.5, width=.2,
+#                   position=position_dodge(0.9))
+
+```
+\
+\
+
+#### Focusing on Active/Public Transit
+To look at numbers more closely
+```{r}
+share_plot_by_year2_active(commute_1719, commute_21,
+                           'gender', 'commute_mode',
+                           'Gender Categories')
+
+share_plot_by_cat2_active(commute_1719, commute_21,
+                          'gender', 'commute_mode',
+                          'Gender Categories')
 ```
 \
 \
@@ -1291,11 +1366,19 @@ Yes - based on the z-score (`r z_lessveh`), we **can** conclude that the values 
 
 ## External data sources for location
 
+* [US Census: Vehicles Available](https://www.census.gov/acs/www/about/why-we-ask-each-question/vehicles/)
 * [Vehicle Registration Transactions by Department of Licensing](https://data.wa.gov/Transportation/Vehicle-Registration-Transactions-by-Department-of/brw6-jymh/data)
+    + Counties: King, Kitsap, Pierce, Snohomish
+    + Owner Type: Individual Owner
+    + Transaction Month/Year: Jan 2021-Dec 2021
+    + Vehicle Type: Passenger Car, Multipurpose Passenger Vehicle, Truck
 * ["Car Ownership Statistics" by Lyle Daly](https://www.fool.com/the-ascent/research/car-ownership-statistics/)
     + Washington: 2.5: average number of vehicles per WA household
-* [US Census: Vehicles Available](https://www.census.gov/acs/www/about/why-we-ask-each-question/vehicles/)
+
 \
+\
+
+### Census
 ```{r}
 veh_stats <- matrix(c(8.5,32.5,37.1,21.9,
                       6.9,29.2,37.3,26.2,
@@ -1313,9 +1396,9 @@ census_data_df <- as.data.frame(census_data)
 colnames(census_data_df)[1] <- "Vehicles"
 colnames(census_data_df)[2] <- "Geography"
 colnames(census_data_df)[3] <- "Households"
+```
 
-
-
+```{r psrcplot}
 veh_stats_plot <- create_bar_chart(t=census_data_df,
                                    w.x="Vehicles",
                                    w.y="Households",
@@ -1340,9 +1423,170 @@ veh_stats_plot
 #                                           w.facet=4)
 # 
 # veh_stats_plot2
-
 ```
 \
+\
+
+
+These results are similar to those from the Household Travel Survey. 
+```{r}
+# generate data
+veh_num_simp_1719 <- hhts_count(commute_1719,
+                                group_vars = c("final_cnty","veh_num_smp")) %>%
+  filter(veh_num_smp!="Total") %>% 
+  filter(final_cnty!="Total")
+
+veh_num_simp_21 <- hhts_count(commute_21,
+                              group_vars = c("final_cnty","veh_num_smp")) %>%
+  filter(veh_num_smp!="Total") 
+  # filter(final_cnty!="Total") %>% 
+  # drop_na(final_cnty)
+
+hhveh_num_simp <- bind_rows(veh_num_simp_1719,
+                            veh_num_simp_21)
+
+# table(hhveh_num_simp$final_cnty, hhveh_num_simp$veh_num_smp)
+# head(hhveh_num_simp)
+# table(veh_num_simp_1719$final_cnty)
+# table(veh_num_simp_1719$veh_num_smp)
+# table(commute_17$veh_num_smp)
+# table(commute_21$veh_num_smp)
+
+
+# # create CSV
+# write.csv(commute_allworkers,
+#           "T:/2022July/Mary/HHTS/output_data/commute_allworkers.csv", 
+#           row.names = FALSE)
+
+# test dataset
+veh_num_plot <- create_facet_bar_chart(t=hhveh_num_simp,
+                                       w.x="veh_num_smp",
+                                       w.y="share",
+                                       f="final_cnty",
+                                       g="survey",
+                                       w.title="Household Vehicle Ownership",
+                                       w.sub.title="Household Travel Survey | PSRC",
+                                       w.color="psrc_light",
+                                       w.interactive="yes")
+
+veh_num_plot
+```
+\
+\
+
+### Department of Licensing
+```{r, include=FALSE}
+# reading in csvs from DoL 
+King_21 <- read.csv(file = 'T:/2022August/Mary/HHTS/veh_regis_2021/Vehicle_Registration_King.csv')
+Kitsap_21 <- read.csv(file = 'T:/2022August/Mary/HHTS/veh_regis_2021/Vehicle_Registration_Kitsap.csv')
+Pierce_21 <- read.csv(file = 'T:/2022August/Mary/HHTS/veh_regis_2021/Vehicle_Registration_Pierce.csv')
+Snohomish_21 <- read.csv(file = 'T:/2022August/Mary/HHTS/veh_regis_2021/Vehicle_Registration_Snohomish.csv')
+
+# head(Kitsap_21)
+# class(Snohomish_21$X2020.Census.Tract)
+
+#combining the county files - they were too large to download as one file
+# class(Kitsap_21$Postal.Code) #integer
+# class(King_21$Postal.Code) #character
+# class(Pierce_21$Postal.Code) #integer
+# class(Snohomish_21$Postal.Code) #integer
+
+King_21$Postal.Code <- as.integer(King_21$Postal.Code)
+
+veh_reg_PSRC <- bind_rows(King_21, Kitsap_21, 
+                          Pierce_21, Snohomish_21)
+
+# head(veh_reg_PSRC)
+# table(veh_reg_PSRC$County)
+# table(veh_reg_PSRC$X2020.Census.Tract)
+```
+
+```{r}
+# Read in shapefile ----
+spn<- 2285
+wgs_84<-4326
+
+# ElmerGeo
+# geodatabase_server <- "AWS-PROD-SQL\\Sockeye"
+# geodatabase_name <- "ElmerGeo"
+# gdb_nm <- paste0("MSSQL:server=",geodatabase_server,";database=",geodatabase_name,";trusted_connection=yes")
+# tbl_nm <- "dbo.tract2020_nowater"
+# tracts_layer<-st_read(gdb_nm, tbl_nm)
+# tracts_layer<- st_transform(tracts_20, crs=wgs_84)
+
+tbl_nm <- "T:/2022August/Mary/HHTS/output_data/tracts_2020.shp"
+tracts_layer <- st_read(tbl_nm)
+tracts_layer <- st_transform(tracts_layer, crs=wgs_84)
+# plot(tracts_layer)
+
+# Join DoL data to 2020 tract shapefile ----
+# add leading 0's to join to shapefile's tract numbers
+veh_reg_PSRC$X2020.Census.Tract <- str_pad(veh_reg_PSRC$X2020.Census.Tract, 6, side = "left", pad = "0")
+
+# transform from integer to string
+# class(veh_reg_PSRC$X2020.Census.Tract) #integer
+veh_reg_PSRC$X2020.Census.Tract <- as.character(veh_reg_PSRC$X2020.Census.Tract)
+# class(veh_reg_PSRC$X2020.Census.Tract) #character
+head(veh_reg_PSRC$X2020.Census.Tract)
+# nrow(veh_reg_PSRC) #3191865
+
+
+# aggregate number of vehicle registrations by census tract
+head(veh_reg_PSRC)
+# table(veh_reg_PSRC$X2020.Census.Tract)
+# table(veh_reg_PSRC$Transaction.Count)
+veh_reg_PSRC_agg <- veh_reg_PSRC %>% 
+  group_by(X2020.Census.Tract) %>%
+  summarise(veh_by_tract=sum(Transaction.Count)) 
+  
+  
+# nrow(veh_reg_PSRC_agg) #965
+class(veh_reg_PSRC_agg$veh_by_tract)
+
+# merge on variables
+veh_num_tracts <- merge(tracts_layer, veh_reg_PSRC_agg, 
+                        by.x="tractce20",
+                        by.y="X2020.Census.Tract", 
+                        all.x=TRUE)
+plot(veh_num_tracts$veh_by_tract)
+# class(veh_num_tracts$veh_by_tract)
+
+# save as shapefile again
+# shapefile(veh_num_tracts,"T:/2022August/Mary/HHTS/output_data/veh_num_tracts_2020.shp")  
+```
+
+```{r}
+map.lat<- 47.615
+map.lon<- -122.257
+map.zoom<- 8
+pal <- leaflet::colorNumeric(palette="Blues", domain = veh_num_tracts$veh_by_tract)
+veh_registration_map<- leaflet()%>%
+     addProviderTiles(providers$CartoDB.Positron) %>%
+  addLayersControl(baseGroups = c("Base Map"),
+                      overlayGroups = c("Travel Survey Origins", "Seattle Sectors"),
+                      options = layersControlOptions(collapsed = TRUE))%>%
+  addPolygons(data=veh_num_tracts,
+               fillColor = pal(veh_num_tracts$veh_by_tract),
+               weight = 4,
+               opacity = 0.1,
+               color = "#91268F",
+               dashArray = "4",
+               fillOpacity = 1.0,
+               group = "Seattle Sectors") %>%
+     # addCircles(data=mode_geo_sf_origin,
+     #              weight = .1, 
+     #             radius = .1,
+     #              fill = TRUE,
+     #              opacity = 0.01,
+     #              group = ("Travel Survey Origins")) %>%
+    leaflet::addLegend(pal = pal,
+                       values = veh_num_tracts$veh_by_tract,
+                       position = "bottomright",
+                       title = "Vehicle Registrations") %>% 
+    leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
+
+veh_registration_map
+```
 \
 
 
