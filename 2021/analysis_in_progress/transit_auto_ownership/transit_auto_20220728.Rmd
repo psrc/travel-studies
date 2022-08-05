@@ -42,8 +42,11 @@ library(ggpubr) #graphing - ggarrange fx
 library(forcats) #for factor re-leveling
 library(plotly) #for interactive charts
 
+library(odbc) #connect to ElmerGeo
+library(DBI) #connect to ElmerGeo
 library(sf)
 library(leaflet)
+library(leafem) #home button
 library(raster)
 library(ggspatial)
 library(lubridate)
@@ -467,7 +470,7 @@ psurvey_21 <- get_hhts(survey = survey_c$survey,
                        level="p",
                        vars=all_vars_p)
 
-table(psurvey_21$final_cnty)
+# table(psurvey_21$final_cnty)
 # test <- get_hhts(survey = "2019", level="p",
 #                  vars=c("final_cnty", "vehicle_count"))
 ```
@@ -1475,6 +1478,7 @@ veh_num_plot
 \
 
 ### Department of Licensing
+Mapping Vehicle Registrations
 ```{r, include=FALSE}
 # reading in csvs from DoL 
 King_21 <- read.csv(file = 'T:/2022August/Mary/HHTS/veh_regis_2021/Vehicle_Registration_King.csv')
@@ -1501,7 +1505,7 @@ veh_reg_PSRC <- bind_rows(King_21, Kitsap_21,
 # table(veh_reg_PSRC$X2020.Census.Tract)
 ```
 
-```{r}
+```{r, include=FALSE}
 # Read in shapefile ----
 spn<- 2285
 wgs_84<-4326
@@ -1511,12 +1515,25 @@ wgs_84<-4326
 # geodatabase_name <- "ElmerGeo"
 # gdb_nm <- paste0("MSSQL:server=",geodatabase_server,";database=",geodatabase_name,";trusted_connection=yes")
 # tbl_nm <- "dbo.tract2020_nowater"
-# tracts_layer<-st_read(gdb_nm, tbl_nm)
-# tracts_layer<- st_transform(tracts_20, crs=wgs_84)
+# tracts_layer<- st_read(gdb_nm, tbl_nm)
+# tracts_layer<- st_transform(tracts_layer, crs=wgs_84)
 
+# option for when ElmerGeo not working
 tbl_nm <- "T:/2022August/Mary/HHTS/output_data/tracts_2020.shp"
 tracts_layer <- st_read(tbl_nm)
 tracts_layer <- st_transform(tracts_layer, crs=wgs_84)
+
+# elmer_geo_connection <- dbConnect(odbc::odbc(),
+#                                   driver = "SQL Server",
+#                                   server = "AWS-PROD-SQL\\Sockeye",
+#                                   database = "ElmerGeo",
+#                                   trusted_connection = "yes")
+# 
+# tracts_layer <- st_read(dsn=elmer_geo_connection,
+#                         layer="TRACT2020_NOWATER",
+#                         geometry_column = 'Shape',
+#                         type = 6)
+
 # plot(tracts_layer)
 
 # Join DoL data to 2020 tract shapefile ----
@@ -1527,12 +1544,12 @@ veh_reg_PSRC$X2020.Census.Tract <- str_pad(veh_reg_PSRC$X2020.Census.Tract, 6, s
 # class(veh_reg_PSRC$X2020.Census.Tract) #integer
 veh_reg_PSRC$X2020.Census.Tract <- as.character(veh_reg_PSRC$X2020.Census.Tract)
 # class(veh_reg_PSRC$X2020.Census.Tract) #character
-head(veh_reg_PSRC$X2020.Census.Tract)
+# head(veh_reg_PSRC$X2020.Census.Tract)
 # nrow(veh_reg_PSRC) #3191865
 
 
 # aggregate number of vehicle registrations by census tract
-head(veh_reg_PSRC)
+# head(veh_reg_PSRC)
 # table(veh_reg_PSRC$X2020.Census.Tract)
 # table(veh_reg_PSRC$Transaction.Count)
 veh_reg_PSRC_agg <- veh_reg_PSRC %>% 
@@ -1542,53 +1559,105 @@ veh_reg_PSRC_agg <- veh_reg_PSRC %>%
   
 # nrow(veh_reg_PSRC_agg) #965
 class(veh_reg_PSRC_agg$veh_by_tract)
+head(veh_reg_PSRC_agg$veh_by_tract)
 
 # merge on variables
 veh_num_tracts <- merge(tracts_layer, veh_reg_PSRC_agg, 
                         by.x="tractce20",
                         by.y="X2020.Census.Tract", 
                         all.x=TRUE)
-plot(veh_num_tracts$veh_by_tract)
+# plot(veh_num_tracts$veh_by_tract)
 # class(veh_num_tracts$veh_by_tract)
+
+# calculate vehicles by population for each tract
+veh_num_tracts_pop <- veh_num_tracts %>% 
+  mutate(veh_by_pop_tract=veh_by_tract/total_pop2)
+
+summary(veh_num_tracts$veh_by_pop_tract)
+class(veh_num_tracts_pop$veh_by_pop_tract)
+summary(veh_num_tracts_pop$veh_by_pop_tract)
+summary(veh_num_tracts$veh_by_tract)
+head(veh_num_tracts_pop)
 
 # save as shapefile again
 # shapefile(veh_num_tracts,"T:/2022August/Mary/HHTS/output_data/veh_num_tracts_2020.shp")  
 ```
 
 ```{r}
+# set map extent
 map.lat<- 47.615
 map.lon<- -122.257
 map.zoom<- 8
-pal <- leaflet::colorNumeric(palette="Blues", domain = veh_num_tracts$veh_by_tract)
-veh_registration_map<- leaflet()%>%
-     addProviderTiles(providers$CartoDB.Positron) %>%
-  addLayersControl(baseGroups = c("Base Map"),
-                      overlayGroups = c("Travel Survey Origins", "Seattle Sectors"),
-                      options = layersControlOptions(collapsed = TRUE))%>%
-  addPolygons(data=veh_num_tracts,
-               fillColor = pal(veh_num_tracts$veh_by_tract),
-               weight = 4,
-               opacity = 0.1,
-               color = "#91268F",
-               dashArray = "4",
-               fillOpacity = 1.0,
-               group = "Seattle Sectors") %>%
-     # addCircles(data=mode_geo_sf_origin,
-     #              weight = .1, 
-     #             radius = .1,
-     #              fill = TRUE,
-     #              opacity = 0.01,
-     #              group = ("Travel Survey Origins")) %>%
-    leaflet::addLegend(pal = pal,
-                       values = veh_num_tracts$veh_by_tract,
-                       position = "bottomright",
-                       title = "Vehicle Registrations") %>% 
-    leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
 
+# set up palettes
+pop_pal <- leaflet::colorNumeric(palette="Purples", 
+                             domain = veh_num_tracts_pop$total_pop2)
+
+veh_pal <- leaflet::colorNumeric(palette="Greens", 
+                             domain = veh_num_tracts_pop$veh_by_tract)
+
+vbp_pal <- leaflet::colorNumeric("Blues", veh_num_tracts_pop$veh_by_pop_tract)
+
+# map settings
+veh_registration_map <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addLayersControl(baseGroups = "Vehicles per person",
+                   overlayGroups = c("Vehicle registrations",
+                                     "Population per tract"),
+                   options = layersControlOptions(collapsed = FALSE)) %>%
+  # polygon layers
+  addPolygons(data=veh_num_tracts_pop,
+              fillColor = veh_pal(veh_num_tracts_pop$veh_by_tract),
+              stroke=FALSE, 
+              smoothFactor = 0.2,
+              fillOpacity = 1.0,
+              group = "Vehicle registrations",
+              label = ~veh_by_tract) %>%
+  addPolygons(data=veh_num_tracts_pop,
+              fillColor = pop_pal(veh_num_tracts_pop$total_pop2),
+              stroke=FALSE, 
+              smoothFactor = 0.2,
+              fillOpacity = 1.0,
+              group = "Population per tract",
+              label = ~total_pop2) %>%
+  addPolygons(data=veh_num_tracts_pop,
+               fillColor = vbp_pal(veh_num_tracts_pop$veh_by_pop_tract),
+              stroke=FALSE, 
+              smoothFactor = 0.2,
+              fillOpacity = 1.0,
+              group = "Vehicles per person",
+              label = ~veh_by_pop_tract) %>% 
+  # legends
+  leaflet::addLegend(pal = vbp_pal,
+                     values = veh_num_tracts_pop$veh_by_pop_tract,
+                     position = "bottomleft",
+                     title = paste("Vehicle registrations","<br>", "per person"),
+                     group="Vehicles per person") %>% 
+  leaflet::addLegend(pal = veh_pal,
+                     values = veh_num_tracts_pop$veh_by_tract,
+                     position = "bottomright",
+                     title = "Vehicle registrations",
+                     group="Vehicle registrations") %>%
+  leaflet::addLegend(pal = pop_pal,
+                     values = veh_num_tracts_pop$total_pop2,
+                     position = "bottomright",
+                     title = "Population",
+                     group="Population per tract") %>%
+  #default hide overlap groups
+  hideGroup("Vehicle registrations") %>% 
+  hideGroup("Population per tract") %>%
+  #set view extent
+  leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
+  # addHomeButton(group = "Vehicles per person",
+  #                        position = "topleft",
+  #                        add=TRUE)
+
+# print map
 veh_registration_map
 ```
+This map includes census tract population data (2020). The population numbers are based on all people in the tract - not the number of workers or number of adults. To calculate vehicle registrations by workers or by adults would require additional work retrieving those numbers by tract. 
 \
-
+\
 
 
 # END OF WORK FOR NOW------
