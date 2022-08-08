@@ -148,7 +148,9 @@ smp_commute_fx <- function(data, year) {
                                           education=="Some college" |
                                           education=="Associates degree"~"2-Technical or Associates",
                                         education=="Bachelor degree" |
-                                          education=="Graduate/post-graduate degree"~"3-Bachelor's or higher")))
+                                          education=="Graduate/post-graduate degree"~"3-Bachelor's or higher"))) %>% 
+    mutate(hhsize_simp = factor(case_when(hhsize>5~"5 or more people",
+                                          TRUE ~ as.character(hhsize))))
   
   # assign(paste0('smp_commute_', year), temp_table3)
 }
@@ -557,7 +559,7 @@ commute_allworkers <- bind_rows(commute_allworkers_1719,
 
 # create CSV
 write.csv(commute_allworkers,
-          "T:/2022July/Mary/HHTS/output_data/commute_allworkers.csv", 
+          "T:/2022August/Mary/HHTS/output_data/commute_allworkers.csv", 
           row.names = FALSE)
 
 # test dataset
@@ -1263,6 +1265,30 @@ share_plot_by_cat2(commute_1719, commute_21,
 ```
 \
 In 2021, there was an increase in public transit use for zero-vehicle households. the zero vehicle households  and a decrease in the fewer vehicles than workers households. The trends for those living outside of RGCs were similar between years.  
+\
+\
+
+## Household size
+```{r}
+share_plot_by_year(commute_17, commute_19,
+                   commute_1719, commute_21,
+                   'final_home_is_rgc', 'hhsize_simp',
+                   'Commute Modes')
+share_plot_by_cat(commute_17, commute_19,
+                  commute_1719, commute_21,
+                  'final_home_is_rgc', 'hhsize_simp',
+                  'Commute Modes')
+
+share_plot_by_year2(commute_1719, commute_21,
+                    'final_home_is_rgc', 'hhsize_simp',
+                    'Commute Modes')
+
+share_plot_by_cat2(commute_1719, commute_21,
+                   'final_home_is_rgc', 'hhsize_simp',
+                   'Commute Modes')
+```
+\
+For 3-person households, the difference between 2017 and 2019 is interesting to look at but it's difficult to make any conclusions because of the MOEs. Overall, regardless of time period, 1-2 person households are more often in RGCs, while households with 3 or more people are more often outside RGCs.  
 \
 \
 
