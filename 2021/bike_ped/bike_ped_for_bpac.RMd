@@ -202,11 +202,11 @@ print(p)
 transit_trips_by_mode_17_19<-Walk_bike_data_17_19%>%drop_na('mode_acc')
 trips_by_mode_17_19<-hhts_count(transit_trips_by_mode_17_19, group_vars='mode_acc',
                                         spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-  filter(mode_acc!='Total')
+  filter(mode_acc!='Total')%>%filter(mode_acc!='Walked or jogged')
 
 transit_trips_by_mode_21<-Walk_bike_data_21%>%drop_na('mode_acc')
-Walk_bike_data_21_no_miss_acc<-transit_trips_by_mode_21%>% filter(mode_acc!='Missing: Technical Error')
-trips_by_mode_21<-hhts_count(Walk_bike_data_21_no_miss_acc, group_vars='mode_acc', spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%filter(mode_acc!='Total')
+Walk_bike_data_21_no_miss_acc<-transit_trips_by_mode_21%>% filter(mode_acc!='Missing: Technical error')
+trips_by_mode_21<-hhts_count(Walk_bike_data_21_no_miss_acc, group_vars='mode_acc', spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%filter(mode_acc!='Total')%>%filter(mode_acc!='Walked or jogged')
 
 trips_by_mode_17_19_21<-merge(trips_by_mode_17_19, trips_by_mode_21, by='mode_acc', suffixes=c('17_19', '21'))
 trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)%>% mutate(year=ifelse(survey=='2017_2019', '2017/2019', '2021'))
@@ -217,8 +217,8 @@ trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)%>% mutate(year=ifels
 ```
 
 ```{r, include=TRUE}
-p<-create_bar_chart(t=trips_by_mode, w.x='mode_acc_walk', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
-  xlab(as.character('Share of All Transit Trips')) + ylab('Transit Access Mode')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-create_bar_chart(t=trips_by_mode, w.x='mode_acc', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
+  xlab(as.character('Share of All Transit Trips')) + ylab('Transit Access Mode')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=14,color="#4C4C4C"))+theme(axis.text.y = element_text(size=10,color="#4C4C4C"))+coord_flip()
   
   
 
@@ -278,12 +278,43 @@ print(p)
     mutate(survey = str_replace_all(survey, "_", "/"))
 
 
-
+    all_trips_summs_2021_mode <- hhts_count(Walk_bike_data_21,
+                                   group_vars=c('simple_purpose','mode_simple'),
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(simple_purpose!='Total')%>%drop_na(mode_simple)%>%filter(mode_simple=='Walk' | mode_simple=='Bike')
+    
+    
+    all_trips_summs_2017_19_mode <- hhts_count(Walk_bike_data_17_19,
+                                   group_vars=c('simple_purpose','mode_simple'),
+                                   spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(simple_purpose!='Total')%>%drop_na(mode_simple)%>%filter(mode_simple=='Walk' | mode_simple=='Bike')
+    
+    
+    mode_purp_long<-rbind(all_trips_summs_2017_19_mode,  all_trips_summs_2021_mode) %>%
+    mutate(survey = str_replace_all(survey, "_", "/"))
+    
+    mode_purp_long_bike<- mode_purp_long%>%filter(mode_simple=='Bike')
+    mode_purp_long_walk<- mode_purp_long%>%filter(mode_simple=='Walk')
 
   trips_purp<-all_trips_summs_long
-p<-create_bar_chart(t=trips_purp , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
+p<-create_bar_chart(t=trips_purp , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+scale_fill_manual(values = psrc_colors$psrc_light[3:4])+
   ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
   print(p)
+  
+
+  p2<-create_bar_chart(t=all_trips_summs_2021_mode , w.x='simple_purpose', w.y='share', f='mode_simple', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))  +
+  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])
+  
+  print(p2)
+  p3<-create_bar_chart(mode_purp_long_walk, w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))  +
+  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])
+  
+  print(p3)
+  
+    p4<-create_bar_chart(mode_purp_long_bike, w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))  +
+  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])
+  
+  print(p4)
 
 ```
 
@@ -410,7 +441,7 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     mutate(survey = str_replace_all(survey, "_", "/"))
     
     
-      p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_3', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
+      p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_3', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
   xlab(as.character('Walk Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
   print(p1)
   
@@ -436,7 +467,7 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     mutate(survey = str_replace_all(survey, "_", "/"))
     
     
-      p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_3', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
+      p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_3', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
   xlab(as.character('Walk Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
   print(p1)
   
@@ -502,12 +533,12 @@ if(cat_name=='hhincome_100_f'){
 
 
 
-   p0<-create_bar_chart(t=wbfreq_summs_2021 , w.x=cat_name, w.y='share', f='Walks_sometimes', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
-  xlab(as.character(g[cat_name])) + ylab('Share who Walk Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C")) +theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+   p0<-create_bar_chart(t=wbfreq_summs_2021 , w.x=cat_name, w.y='share', f='Walks_sometimes', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[1])+
+  xlab(as.character(g[cat_name])) + ylab('Share who Go for a Walk Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C")) +theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
   print(p0)
 
-  p1<-create_bar_chart(t=wbfreq_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
-  xlab(as.character(g[cat_name])) + ylab('Share who Walk Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  p1<-create_bar_chart(t=wbfreq_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
+  xlab(as.character(g[cat_name])) + ylab('Share who Go for a Walk Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
   print(p1)
 
 
@@ -687,79 +718,7 @@ for(i in seq(1, length(simple_groupings))){
 }
 ```
 
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # cat_name <- eval(names(g))
-  cat_name <- names(g)
-  print(cat_name)
-  Walk_bike_summs_2017_2019 <- hhts_count(Walk_bike_data_17_19,
-                                        group_vars=c(names(g),'mode_acc_walk'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter(cat_name!='Total') %>%
-    filter(mode_acc_walk=='Walk')
 
-
-
-  Walk_bike_summs_2021 <- hhts_count(Walk_bike_data_21,
-                                   group_vars=c(names(g),'mode_acc_walk'),
-                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter(cat_name!='Total') %>%
-    filter(mode_acc_walk=='Walk')
-
-  if(cat_name=='race_eth_broad'){
-
-     Walk_bike_summs_2017_2019 <- Walk_bike_summs_2017_2019 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-
-        Walk_bike_summs_2021 <- Walk_bike_summs_2021 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-  Walk_bike_summs_2017_2019$race_eth_broad<-factor(Walk_bike_summs_2017_2019$race_eth_broad, levels=
-                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
-
-   Walk_bike_summs_2021$race_eth_broad<-factor(Walk_bike_summs_2021$race_eth_broad, levels=
-                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
-
-
-
-  }
-
-   if(cat_name=='hhincome_100_f'){
-
-     Walk_bike_summs_2017_2019$hhincome_100_f=factor( Walk_bike_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
-
- Walk_bike_summs_2021$hhincome_100_f=factor(Walk_bike_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
-
-
-   }
-
-  Walk_bike_summs_long<- rbind(Walk_bike_summs_2017_2019, Walk_bike_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #Walk_bike_summs_long <- factor_variable_column(names(g), Walk_bike_summs_long)
-
-  #Walk_bike_summs_2021_only<-  Walk_bike_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_bar_chart(t=Walk_bike_summs_2021 , w.x=cat_name, w.y='share', f='mode_acc_walk', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE) + 
-  xlab(as.character(g[cat_name])) + ylab('Walk mode share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
-  print(p0)
-
-  p1<-create_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+ 
-  xlab(as.character(g[cat_name])) + ylab("Walk mode share")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
-  print(p1)
-
-
- # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
-
-}
-```
 
 
 ## Walk distances by demographics
@@ -916,7 +875,7 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     mutate(survey = str_replace_all(survey, "_", "/"))
     
     
-      p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_2', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
+      p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_2', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
   xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
   print(p1)
   
@@ -943,7 +902,7 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     
     
       p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_2', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
-  xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])
   print(p1)
   
 ```
@@ -1008,11 +967,11 @@ if(cat_name=='hhincome_100_f'){
 
 
    p0<-create_bar_chart(t=wbfreq_summs_2021 , w.x=cat_name, w.y='share', f='bikes_sometimes', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
-  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C")) +theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C")) +theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[1])
   print(p0)
 
   p1<-create_bar_chart(t=wbfreq_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+
-  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])
   print(p1)
 
 
@@ -1126,10 +1085,32 @@ all_Walks<-rbind(
 
 
 
-ggplot(all_Walks, aes(x=trip_path_distance, color=survey)) + geom_histogram(position=position_dodge(0.3), aes(weight=trip_wt, fill=survey), alpha=0.5, bins=30)+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
+ggplot(all_Walks, aes(x=trip_path_distance, color=survey)) + geom_histogram(position=position_dodge(0.3), aes(weight=trip_wt, fill=survey), alpha=0.5, bins=15)+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
   ylab(as.character('Daily Biking Trips')) + xlab("Distance (miles)")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
 
 
 ```
+```{r}
 
+all_trips_summs_2017_2019 <- hhts_median(Walk_bike_data_17_19,
+                                         stat_var = 'trip_path_distance',
+                                        group_vars=c('mode_simple'),
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+filter(mode_simple=='Bike' )%>%drop_na(mode_simple)
+
+all_trips_summs_2021 <- hhts_median(Walk_bike_data_21,
+                                         stat_var = 'trip_path_distance',
+                                        group_vars=c('mode_simple'),
+                                        spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+filter(mode_simple=='Bike')%>%drop_na(mode_simple)
+
+  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>%
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+trips_purp<-all_trips_summs_long
+p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
+  ylab(as.character('Trip Path Distance Median (miles)')) + xlab("Mode")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+  print(p)
+
+```
 
