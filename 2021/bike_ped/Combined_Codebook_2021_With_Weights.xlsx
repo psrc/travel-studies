@@ -609,7 +609,7 @@ for(i in seq(1, length(simple_groupings))){
 
   
   if(cat_name=='race_eth_broad'){
-print('here)
+print('here')
      wbfreq_summs_2017_2019 <- wbfreq_summs_2017_2019  %>%
   mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
   filter(race_eth_broad!='No')
