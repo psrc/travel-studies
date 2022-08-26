@@ -1,0 +1,264 @@
+---
+title: "sntc HHTS 2021 notes"
+output:
+  html_document:
+    df_print: paged
+---
+
+We are gathering materials information that could be useful to SNTC in Sept 2022
+
+there is a field disability on the vehicles table, I'd like to see what we can get cross tab wise from that
+
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(psrcslides)
+library(officer)
+install_psrc_fonts()
+```
+```{r}
+psrc_pres = read_pptx(system.file('extdata', 'psrc-trends-template.pptx', package='psrcslides'))
+
+
+
+
+```
+
+
+#do this later, persons joined to vehicles for disability info
+```{r Elmer variable metadata}
+# connect to Elmer
+db.connect <- function(adatabase) {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\SOCKEYE",
+                                database = adatabase,
+                                trusted_connection = "yes"
+  )
+}
+
+# read table
+read.dt <- function(adatabase, atable) {
+  elmer_connection <- db.connect(adatabase)
+  dtelm <- dbReadTable(elmer_connection, SQL(atable))
+  dbDisconnect(elmer_connection)
+  return(dtelm)
+}
+
+# read-in variable metadata table for levels
+vars_meta <- read.dt('Elmer', 'HHSurvey.variable_metadata')
+```
+```{r}
+get_hhts_veh <- function(survey, level, vars, ...){
+    dyears <- if(survey %in% (c("2017","2019","2017_2019","2021"))){
+      strsplit(survey,"_") %>% as.list() %>% lapply(as.integer) %>% unlist()
+      }else{c(2017,2019)}
+    wgt_str <- paste0("_weight_",survey,"(_\\D|$)") 
+    elmer_hhts_lookup <- data.frame(
+                            abbr    =c("h","p","t","d","v","households","persons","trips","days","vehicles"),
+                            tbl_ref =rep(c("HHSurvey.v_households",
+                                      "HHSurvey.v_persons",
+                                      "HHSurvey.v_trips",
+                                      "HHSurvey.v_days",
+                                      "HHSurvey.v_persons_vehicles"),2)) %>% setDT()
+    elmer_tbl_ref <- elmer_hhts_lookup[abbr==level, .(tbl_ref)][[1]]                               # Convert level to view name       
+    elmer_sql <- paste("SELECT TOP 1 * FROM",elmer_tbl_ref,";")                                     
+    elmer_connection <- elmer_connect(...)
+    df <- DBI::dbGetQuery(elmer_connection, DBI::SQL(elmer_sql)) %>% setDT()                       # Get first row to have column names
+    want_vars <-grep(wgt_str, colnames(df), value=TRUE) %>% unlist() %>% c(unlist(vars), .)        # Determine available weights
+    elmer_sql <- paste0("SELECT '", survey, "' AS survey, ",
+                       paste(want_vars, collapse=", "), " FROM ",elmer_tbl_ref,                    # Build query for only relevant variables
+                       " WHERE survey_year IN(", paste(unique(dyears), collapse=", "),");")
+    df <- DBI::dbGetQuery(elmer_connection, DBI::SQL(elmer_sql)) %>% setDT() %>%                   # Retrieve table by year/s
+      hhts_recode_na() %>% setDF()                                                                 # Recode NA
+    is.na(df) <- is.null(df)                                                                       # Recode NULL
+    DBI::dbDisconnect(elmer_connection)
+    return(df)   
+}  
+
+```
+
+
+```{r}
+
+work_vars<-c('workplace', 'benefits_1', 'benefits_2', 'benefits_3')
+other_vars<-c('final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad')
+all_vars<-c(work_vars, other_vars)
+
+```
+
+## Work Analysis
+```{r}
+work_data_17_19<- get_hhts("2017_2019", "p", vars=all_vars)%>% mutate(year=ifelse(survey=='2017_2019', '2017/2019', '2021'))
+```
+
+
+```{r}
+work_data_21<- get_hhts("2021", "p", vars=all_vars)%>% mutate(year=ifelse(survey=='2017_2019', '2017/2019', '2021'))
+
+```
+
+ Group variables into meaningful categories and redo analysis
+```{r}
+work_data_17_19<-work_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+
+    mutate(race_short= str_extract(race_eth_broad,  "^[^ ]+"))%>%filter(age !='5-11 years' & age != '16-17 years' & age != '12-15 years')
+
+
+work_data_21<-work_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+
+    mutate(race_short= str_extract(race_eth_broad,  "^[^ ]+"))%>%filter(age !='5-11 years' & age != '16-17 years' & age != '12-15 years')%>%mutate('works_outside' = 	ifelse((workplace=='Usually the same location (outside home)' | workplace=='Workplace regularly varies (different offices or jobsites)'| 
+workplace=='Drives for a living (e.g., bus driver, salesperson'), 'Works Outside Home Always', 'Sometimes Works At Home' ))
+                                                                        
+                                                                        
+
+work_data_17_19$hhincome_100_f=factor(work_data_17_19$hhincome_100, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+work_data_21$hhincome_100_f=factor(work_data_21$hhincome_100, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+```
+
+```{r}
+
+
+simple_groupings<-c('race_category'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age'= 'Age', 'final_cnty' ='Home County', 'age_category'='Age Category' )
+```
+
+# Who has to work outside the home?
+```{r }
+work_data_21a<-work_data_21%>%drop_na('workplace')
+for(i in seq(1, length(simple_groupings))){
+  g <- simple_groupings[i]
+  cat_name <- eval(names(g))
+  print(cat_name)
+
+
+ work_summs_2021 <- hhts_count(work_data_21a,
+                                   group_vars=c(names(g),'works_outside'),
+                                   spec_wgt='person_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total')%>%filter(works_outside !='Total')%>%filter(works_outside=='Works Outside Home Always')
+
+
+
+  if(cat_name=='race_eth_broad'){
+
+       work_summs_2021 <-work_summs_2021 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+
+
+  work_summs_2021$race_eth_broad<-factor(work_summs_2021$race_eth_broad, levels=
+                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+
+
+
+  }
+
+if(cat_name=='hhincome_100_f'){
+
+
+work_summs_2021$hhincome_100_f=factor(work_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+
+   }
+
+
+
+
+   # factorize variable column. Adjust levels in function definition
+  #transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+
+
+
+   p0<-create_column_chart(t=work_summs_2021 , w.x=cat_name, w.y='share', f='works_outside', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+
+  xlab(as.character(g[cat_name])) + ylab('Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C")) +theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
+  print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
+
+}
+
+```
+```{r }
+work_data_21<-work_data_21%>%drop_na('benefits_3')
+for(i in seq(1, length(simple_groupings))){
+  g <- simple_groupings[i]
+  cat_name <- eval(names(g))
+  print(cat_name)
+
+
+ work_summs_2021 <- hhts_count(work_data_21,
+                                   group_vars=c(names(g),'benefits_3'),
+                                   spec_wgt='person_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total')%>%filter(benefits_3 !='Total')%>%filter(benefits_3 !='Not offered')
+
+
+
+  if(cat_name=='race_eth_broad'){
+
+       work_summs_2021 <-work_summs_2021 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+
+
+  work_summs_2021$race_eth_broad<-factor(work_summs_2021$race_eth_broad, levels=
+                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+
+
+
+  }
+
+if(cat_name=='hhincome_100_f'){
+
+
+work_summs_2021$hhincome_100_f=factor(work_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+
+   }
+
+
+
+
+   # factorize variable column. Adjust levels in function definition
+  #transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+
+
+
+   p0<-create_column_chart(t=work_summs_2021 , w.x=cat_name, w.y='share', f='benefits_3', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+
+  xlab(as.character(g[cat_name])) + ylab('Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C")) +theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
+  print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
+
+}
+print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_sntc_sept22_new1.pptx")
+```
+

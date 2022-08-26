@@ -177,7 +177,26 @@ print(p)
 
 Individual Center analysis
 
-Mode split over all for these centers
+All Trip 
+
+```{r}
+trips_17_19<-trip_data_17_19%>%drop_na(mode_with_hov)%>%filter(d_rgcname=='Bellevue' |d_rgcname=='Redmond Downtown' | d_rgcname=='Seattle Downtown' | d_rgcname=='Seattle Northgate'|d_rgcname=='Seattle South Lake Union'|d_rgcname=='Tacoma Downtown')
+  
+
+trips_by_mode_17_19<-hhts_count(trips_17_19, group_vars=c('d_rgcname','mode_with_hov'), spec_wgt='trip_weight_2017_2019_v2021_adult')%>%filter(mode_with_hov!='Total')%>%filter(d_rgcname!='Total')
+  
 
 
+                                           
+
+
+```
+
+```{r}
+p<-create_facet_bar_chart(t=trips_by_mode_17_19, w.x='mode_with_hov', w.y='share', f='survey', g='d_rgcname', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
+  xlab(as.character('Trip Mode')) + ylab('Share of All  Trips')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  
+
+print(p)
+```
 

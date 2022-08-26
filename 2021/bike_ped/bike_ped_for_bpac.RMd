@@ -17,7 +17,35 @@ library(forcats)
 library(odbc)
 library(DBI)
 library(tidyr)
+library(psrcslides)
+library(officer)
 install_psrc_fonts()
+```
+```{r}
+psrc_pres = read_pptx(system.file('extdata', 'psrc-trends-template.pptx', package='psrcslides'))
+
+
+psrc_pres <- add_cover_slide(p = psrc_pres,
+                            p.title = "Puget Sound Regional Household Travel Survey Program",
+                              p.mtg = "Bicycle and Pedestrian Access Committee",
+                             p.date = "September 2022")
+
+
+ # Introduction Slide ------------------------------------------------------
+psrc_pres <- add_full_text_slide(p=psrc_pres,
+                                  p.title="Presentation Outline",
+                               p.caption="Topics covered today include:",
+                                  p.text=paste0("Population Trends\n",
+                                                "Housing Trends\n",
+                                                "Job Trends\n",
+                                                "Transportation Trends"))
+# Population Transition --------------------------------------------
+psrc_pres <- add_transition_slide(p=psrc_pres,                                   p.title="Population Trends",
+
+                                   
+                                                                     p.img=system.file('extdata', 'uw-equity.png', package='psrcslides'))
+
+
 ```
 
 ```{r Elmer variable metadata}
@@ -179,18 +207,28 @@ write.csv(trips_by_mode, 'trips_by_mode.csv')
 ```
 
 ```{r, include=TRUE}
-p<-create_bar_chart(t=trips_by_mode, w.x='mode_simple', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
-  xlab(as.character('Share of All Trips')) + ylab('Trip Mode')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-create_column_chart(t=trips_by_mode, w.x='mode_simple', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
+  xlab(as.character('Share of All Trips')) + ylab('Trip Mode')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
   
   
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Trip Mode Share by Adults", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p)
 
 
-print(p)
+
 ```
 ```{r, include=TRUE}
 trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Other'))
-p<-create_bar_chart(t=trips_by_mode_no_drive, w.x='mode_simple', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light') +
-  xlab(as.character('Share of All Trips')) + ylab('Trip Mode')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-create_column_chart(t=trips_by_mode_no_drive, w.x='mode_simple', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light') +
+  xlab(as.character('Share of All Trips')) + ylab('Trip Mode')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p)
   
 
 print(p)
@@ -217,11 +255,15 @@ trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)%>% mutate(year=ifels
 ```
 
 ```{r, include=TRUE}
-p<-create_bar_chart(t=trips_by_mode, w.x='mode_acc', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
-  xlab(as.character('Share of All Transit Trips')) + ylab('Transit Access Mode')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=14,color="#4C4C4C"))+theme(axis.text.y = element_text(size=10,color="#4C4C4C"))+coord_flip()
+p<-create_column_chart(t=trips_by_mode, w.x='mode_acc', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
+  xlab(as.character('Share of All Transit Trips')) + ylab('Transit Access Mode')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=35,color="#4C4C4C"))+theme(axis.text.y = element_text(size=50,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
   
   
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
+                                         p.chart=p)
 
 print(p)
 
@@ -247,11 +289,15 @@ trips_by_mode<-rbind(trips_by_mode_17_19, trips_by_mode_21)%>% mutate(year=ifels
 ```
 
 ```{r, include=TRUE}
-p<-create_bar_chart(t=trips_by_mode, w.x='mode_acc_walk', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
-  xlab(as.character('Share of All Transit Trips')) + ylab('Transit Access Mode')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
-  
+p<-create_column_chart(t=trips_by_mode, w.x='mode_acc_walk', w.y='share', f='year', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+
+  xlab(as.character('Share of All Transit Trips')) + ylab('Transit Access Mode')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
   
 
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p)
 
 print(p)
 
@@ -274,6 +320,7 @@ print(p)
 
 
 
+  
   all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>%
     mutate(survey = str_replace_all(survey, "_", "/"))
 
@@ -297,24 +344,50 @@ print(p)
     mode_purp_long_walk<- mode_purp_long%>%filter(mode_simple=='Walk')
 
   trips_purp<-all_trips_summs_long
-p<-create_bar_chart(t=trips_purp , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+scale_fill_manual(values = psrc_colors$psrc_light[3:4])+
-  ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+p<-create_bar_chart(t=trips_purp , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+scale_fill_manual(values = psrc_colors$psrc_light[3:4])+
+  ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p)
   
+  
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Access Mode to Transit", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
-  p2<-create_bar_chart(t=all_trips_summs_2021_mode , w.x='simple_purpose', w.y='share', f='mode_simple', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))  +
-  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])
+                                         p.chart=p)
+
+
+  
+
+  p2<-create_bar_chart(t=all_trips_summs_2021_mode , w.x='simple_purpose', w.y='share', f='mode_simple', w.moe='share_moe', est.type='percent', w.color='psrc_light') +
+  ylab('Share of All Trips') + xlab('Purpose')+scale_fill_manual(values = psrc_colors$psrc_light[5:6])+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
+  
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Access Mode to Transit", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p2)  
   
   print(p2)
-  p3<-create_bar_chart(mode_purp_long_walk, w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))  +
-  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])
+  p3<-create_bar_chart(mode_purp_long_walk, w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))  +
+  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   
   print(p3)
-  
-    p4<-create_bar_chart(mode_purp_long_bike, w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))  +
-  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Access Mode to Transit", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p3) 
+    p4<-create_bar_chart(mode_purp_long_bike, w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))  +
+  ylab('Share of All Trips') + xlab('Purpose')+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_light[5:6])+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
+    
+    psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Access Mode to Transit", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p4) 
   
   print(p4)
+#print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_bpac_sept22.pptx")
 
 ```
 
@@ -338,9 +411,17 @@ filter(mode_simple!='Other')%>%drop_na(mode_simple)
     mutate(survey = str_replace_all(survey, "_", "/"))
 
 trips_purp<-all_trips_summs_long
-p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
-  ylab(as.character('Trip Path Distance')) + xlab("Mode")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+
+  ylab(as.character('Trip Path Distance')) + xlab("Mode")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(legend.text=element_text(size=35))
   print(p)
+  
+      
+    psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Access Mode to Transit", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p) 
+
 
 ```
 
@@ -442,8 +523,14 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     
     
       p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_3', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
-  xlab(as.character('Walk Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character('Walk Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p1)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
   
   
 ```
@@ -468,7 +555,7 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     
     
       p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_3', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
-  xlab(as.character('Walk Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character('Walk Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p1)
   
 ```
@@ -534,16 +621,27 @@ if(cat_name=='hhincome_100_f'){
 
 
    p0<-create_bar_chart(t=wbfreq_summs_2021 , w.x=cat_name, w.y='share', f='Walks_sometimes', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[1])+
-  xlab(as.character(g[cat_name])) + ylab('Share who Go for a Walk Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C")) +theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Share who Go for a Walk Sometimes')+theme(axis.text.x = element_text(size=35,color="#4C4C4C")) +theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
 
   p1<-create_bar_chart(t=wbfreq_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
-  xlab(as.character(g[cat_name])) + ylab('Share who Go for a Walk Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Share who Go for a Walk Sometimes')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p1)
 
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
 
 
- # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 }
 ```
 
@@ -619,19 +717,29 @@ for(i in seq(1, length(simple_groupings))){
 
   #Walk_bike_summs_2021_only<-  Walk_bike_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
    p0<-create_bar_chart(t=Walk_bike_summs_2021 , w.x=cat_name, w.y='share', f='mode_simple', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE) + 
-  xlab(as.character(g[cat_name])) + ylab('Walk mode share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Walk mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
 
   p1<-create_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+ 
-  xlab(as.character(g[cat_name])) + ylab("Walk mode share")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab("Walk mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p1)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
+                                         p.chart=p1)
 
- # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 }
 ```
@@ -701,21 +809,34 @@ for(i in seq(1, length(simple_groupings))){
 
   #Walk_bike_summs_2021_only<-  Walk_bike_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
    p0<-create_bar_chart(t=Walk_bike_summs_2021 , w.x=cat_name, w.y='share', f='mode_acc_walk', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE) + 
-  xlab(as.character(g[cat_name])) + ylab('Transit Access Walk Mode Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Transit Access Walk Mode Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
 
   p1<-create_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+ 
-  xlab(as.character(g[cat_name])) + ylab("Transit Access Walk Mode Share")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab("Transit Access Walk Mode Share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p1)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
 
 
- # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 }
+
 ```
 
 
@@ -743,10 +864,14 @@ filter(mode_simple=='Walk')%>%drop_na(mode_simple)
     mutate(survey = str_replace_all(survey, "_", "/"))
 
 trips_purp<-all_trips_summs_long
-p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
-  ylab(as.character('Trip Path Distance')) + xlab("Mode")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+
+  ylab(as.character('Trip Path Distance')) + xlab("Mode")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))
   print(p)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
+                                         p.chart=p)
 ```
 
 
@@ -767,9 +892,15 @@ all_Walks<-rbind(
 
 
 
-ggplot(all_Walks, aes(x=trip_path_distance, color=survey)) + geom_histogram(bins=20, aes(weight=trip_wt, fill=survey), alpha=0.5, position= position_dodge(width=0.2))+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
-  ylab(as.character('Daily Walking Trips')) + xlab("Distance (miles)")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-ggplot(all_Walks, aes(x=trip_path_distance, color=survey)) + geom_histogram(bins=20, aes(weight=trip_wt, fill=survey), alpha=0.5, position= position_dodge(width=0.2))+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+
+  ylab(as.character('Daily Walking Trips')) + xlab("Distance (miles)")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))
 
+
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p)
 
 ```
 
@@ -876,8 +1007,14 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     
     
       p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_2', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+
-  xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+theme(legend.text=element_text(size=35))
   print(p1)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
   
   
 ```
@@ -902,9 +1039,13 @@ simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Househol
     
     
       p1<-create_bar_chart(t=wbfreq_summs_long , w.x='mode_freq_2', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
-  xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])
+  xlab(as.character('Bike Frequency')) + ylab('Share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])
   print(p1)
-  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
 ```
 
 ```{r }
@@ -967,16 +1108,24 @@ if(cat_name=='hhincome_100_f'){
 
 
    p0<-create_bar_chart(t=wbfreq_summs_2021 , w.x=cat_name, w.y='share', f='bikes_sometimes', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+
-  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C")) +theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[1])
+  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=35,color="#4C4C4C")) +theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[1])+theme(legend.text=element_text(size=35))
   print(p0)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
+                                         p.chart=p0)
   p1<-create_bar_chart(t=wbfreq_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+
-  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])
+  xlab(as.character(g[cat_name])) + ylab('Share who Bike Sometimes')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()+scale_fill_manual(values = psrc_colors$psrc_pairs[c(4,1)])+theme(legend.text=element_text(size=35))
   print(p1)
 
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
+                                         p.chart=p1)
 
- # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 }
 ```
 
@@ -1052,19 +1201,29 @@ for(i in seq(1, length(simple_groupings))){
 
   #Walk_bike_summs_2021_only<-  Walk_bike_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=Walk_bike_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
    p0<-create_bar_chart(t=Walk_bike_summs_2021 , w.x=cat_name, w.y='share', f='mode_simple', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE) + 
-  xlab(as.character(g[cat_name])) + ylab('Bike mode share')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab('Bike mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()
   print(p0)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
+                                         p.chart=p0)
+  
+  
   p1<-create_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+ 
-  xlab(as.character(g[cat_name])) + ylab("Bike mode share")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))+coord_flip()
+  xlab(as.character(g[cat_name])) + ylab("Bike mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+coord_flip()
   print(p1)
 
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
 
- # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+coord_flip()
+                                         p.chart=p1)
+ # p<-create_facet_bar_chart(t=Walk_bike_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 }
 ```
@@ -1085,8 +1244,8 @@ all_Walks<-rbind(
 
 
 
-ggplot(all_Walks, aes(x=trip_path_distance, color=survey)) + geom_histogram(position=position_dodge(0.3), aes(weight=trip_wt, fill=survey), alpha=0.5, bins=15)+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
-  ylab(as.character('Daily Biking Trips')) + xlab("Distance (miles)")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+ggplot(all_Walks, aes(x=trip_path_distance, color=survey)) + geom_histogram(position=position_dodge(0.3), aes(weight=trip_wt, fill=survey), alpha=0.5, bins=15)+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+
+  ylab(as.character('Daily Biking Trips')) + xlab("Distance (miles)")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))
 
 
 ```
@@ -1108,9 +1267,16 @@ filter(mode_simple=='Bike')%>%drop_na(mode_simple)
     mutate(survey = str_replace_all(survey, "_", "/"))
 
 trips_purp<-all_trips_summs_long
-p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+
-  ylab(as.character('Trip Path Distance Median (miles)')) + xlab("Mode")+theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+theme(axis.title.y = element_text(size=20,color="#4C4C4C"))
+p<-create_bar_chart(t=all_trips_summs_long , w.x='mode_simple', w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+
+  ylab(as.character('Trip Path Distance Median (miles)')) + xlab("Mode")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))
   print(p)
 
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p)
+  
+print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_bpac_sept22.pptx")
 ```
 
