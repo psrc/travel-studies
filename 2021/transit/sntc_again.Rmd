@@ -22,6 +22,7 @@ library(forcats)
 library(odbc)
 library(DBI)
 library(tidyr)
+library(tidycensus)
 library(psrcslides)
 library(officer)
 install_psrc_fonts()
@@ -30,8 +31,9 @@ install_psrc_fonts()
 
 ```{r}
 mode_vars<-c('mode_1', 'mode_simple')
-other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance')
+other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance')
 all_vars<-c(mode_vars, other_vars)
+person_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad')
 ```
 
  
@@ -43,6 +45,16 @@ transit_data_17_19<- get_hhts("2017_2019", "t", vars=all_vars)
 ```{r}
 transit_data_21<- get_hhts("2021", "t", vars=all_vars)
 ```
+
+```{r}
+person_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars)
+```
+
+
+```{r}
+person_data_21<- get_hhts("2021", "p", vars=person_vars)
+```
+
 
 
 ```{r}
@@ -106,12 +118,11 @@ first doing detailed groupings, to figure out how to group the data
 
 Group variables into meaningful categories and redo analysis
 ```{r}
-transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
-  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
                                  hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
                                  TRUE~hhincome_broad))%>%
   mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
-                            age == '85 or years older' ~ '75 years or older',
+                             age == '85 or years older' ~ '75 years or older',
                             TRUE ~ age))%>%mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
   mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
                                   simple_purpose=='School'~ 'Work/School',
@@ -133,7 +144,7 @@ transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (n
                                  hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
                                  TRUE~hhincome_broad))%>%
   mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
-                            age == '85 years older' ~ '75 years or older',
+                            age == '85 or years older' ~ '75 years or older',
                             TRUE ~ age))%>% mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
   mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
                                   simple_purpose=='School'~ 'Work/School',
@@ -150,13 +161,102 @@ transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (n
                                   TRUE ~ simple_purpose))
  
 
-transit_data_17_19$hhincome_100_f=factor(transit_data_17_19$hhincome_100, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+transit_data_17_19$hhincome_100_f=factor(transit_data_17_19$hhincome_100,levels=c("Under $25,000","$25,000-$49,999",   "$50,000-$74,999","$75,000-$99,999","$100,000 or more", "Prefer not to answer"))
 
-transit_data_21$hhincome_100_f=factor(transit_data_21$hhincome_100, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+transit_data_21$hhincome_100_f=factor(transit_data_21$hhincome_100,levels=c("Under $25,000","$25,000-$49,999",   "$50,000-$74,999","$75,000-$99,999","$100,000 or more", "Prefer not to answer"))
 
 
-simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age'= 'age_grp', 'sample_county' ='Home County', 'age_category'='Age Category' )
+transit_data_17_19$NoVehicles=factor(transit_data_17_19$NoVehicles, levels= c('No Vehicles', 'Has Vehicles'))
+
+transit_data_21$NoVehicles=factor(transit_data_21$NoVehicles, levels=c('No Vehicles', 'Has Vehicles'))
+
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age_grp'= 'Age Group', 'sample_county' ='Home County', 'age_category'='Age Category', 'final_home_is_rgc'='Home in Regional Growth Center' )
 ```
+Trip Mode Shares by Demographic
+```{r }
+for(i in seq(1, length(simple_groupings))){
+  g <- simple_groupings[i]
+  # cat_name <- eval(names(g))
+  cat_name <- names(g)
+  print(cat_name)
+  transit_summs_2017_2019 <- hhts_count(transit_data_17_19,
+                                        group_vars=c(names(g),'mode_simple'),
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total') %>%filter(mode_simple!='Total')%>%drop_na(cat_name)%>%mutate(cat_name=str_wrap(cat_name, width=10))
+
+
+
+  transit_summs_2021 <- hhts_count(transit_data_21,
+                                   group_vars=c(names(g),'mode_simple'),
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total') %>%filter(mode_simple!='Total')%>%drop_na(cat_name)%>%mutate(cat_name=str_wrap(cat_name, width=10))
+
+  if(cat_name=='race_eth_broad'){
+
+     transit_summs_2017_2019 <- transit_summs_2017_2019 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+
+        transit_summs_2021 <- transit_summs_2021 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+  #transit_summs_2017_2019$race_eth_broad<-factor(transit_summs_2017_2019$race_eth_broad, levels=
+                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+
+   #transit_summs_2021$race_eth_broad<-factor(transit_summs_2021$race_eth_broad, levels=
+                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+
+
+
+  }
+
+ #  if(cat_name=='hhincome_100_f'){
+
+  #   transit_summs_2017_2019$hhincome_100_f=factor( transit_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+ #transit_summs_2021$hhincome_100_f=factor(transit_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+
+#   }
+
+  transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>%
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+
+   # factorize variable column. Adjust levels in function definition
+  #transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+
+  #transit_summs_2021_only<-  transit_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
+
+ # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+
+
+   p0<-create_column_chart(t=transit_summs_2021 , w.x='mode_simple', w.y='share', f=cat_name, w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)  +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
+
+  p1<-create_facet_bar_chart(t=transit_summs_long , f='mode_simple',  w.x=cat_name, w.y='share', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE) +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p1)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
+}
+ # p<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='non_motorized_mode', g='survey', w.moe='share_moe', est.type='percent', w.color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+
+
+
+```
+
 # Walk Trip Mode Shares by Demographic
 ```{r }
 for(i in seq(1, length(simple_groupings))){
@@ -187,24 +287,24 @@ for(i in seq(1, length(simple_groupings))){
         transit_summs_2021 <- transit_summs_2021 %>%
   mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
   filter(race_eth_broad!='No')
-  transit_summs_2017_2019$race_eth_broad<-factor(transit_summs_2017_2019$race_eth_broad, levels=
-                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+  #transit_summs_2017_2019$race_eth_broad<-factor(transit_summs_2017_2019$race_eth_broad, levels=
+                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
 
-   transit_summs_2021$race_eth_broad<-factor(transit_summs_2021$race_eth_broad, levels=
-                                                  c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
+   #transit_summs_2021$race_eth_broad<-factor(transit_summs_2021$race_eth_broad, levels=
+                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
 
 
 
   }
 
-   if(cat_name=='hhincome_100_f'){
+ #  if(cat_name=='hhincome_100_f'){
 
-     transit_summs_2017_2019$hhincome_100_f=factor( transit_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+  #   transit_summs_2017_2019$hhincome_100_f=factor( transit_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
 
- transit_summs_2021$hhincome_100_f=factor(transit_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+ #transit_summs_2021$hhincome_100_f=factor(transit_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
 
 
-   }
+#   }
 
   transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>%
     mutate(survey = str_replace_all(survey, "_", "/"))
@@ -341,7 +441,7 @@ psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres,
 
 
 
-p<-create_column_chart(t=all_trips_summs_long , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_light')+
+p<-create_column_chart(t=all_trips_summs_long , w.x='simple_purpose', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color='psrc_dark')+
   ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p)
@@ -368,12 +468,13 @@ for(i in seq(1, length(simple_groupings))){
   transit_summs_2017_2019 <- hhts_count(transit_data_17_19,
                                         group_vars=c(names(g),'simple_purpose'),
                                         spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter(cat_name!='Total') %>%drop_na(cat_name)
+    filter(cat_name!='Total') %>%drop_na(c(cat_name, 'simple_purpose'))%>%filter(simple_purpose!='Total')
 
   transit_summs_2021 <- hhts_count(transit_data_21,
                                    group_vars=c(names(g),'simple_purpose'),
                                    spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter(cat_name!='Total') %>%drop_na(cat_name)
+    filter(cat_name!='Total') %>%drop_na(cat_name) %>%drop_na(c(cat_name, 'simple_purpose'))%>%filter(simple_purpose!='Total')
+  
   if(cat_name=='race_eth_broad'){
 
      transit_summs_2017_2019 <- transit_summs_2017_2019 %>%
@@ -404,11 +505,11 @@ for(i in seq(1, length(simple_groupings))){
 
   #transit_summs_2021_only<-  transit_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=transit_summs_2021 , w.x=cat_name, w.y='share', f='simple_purpose', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE) + 
-  xlab(as.character(g[cat_name])) + ylab('Transit mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+   p0<-create_column_chart(t=transit_summs_2021 , w.x='simple_purpose', w.y='share', f=cat_name, w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE) + 
+  xlab(as.character(g[cat_name])) + ylab('Trip Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
   
@@ -418,7 +519,7 @@ for(i in seq(1, length(simple_groupings))){
 
                                          p.chart=p0)
 
-  p1<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='survey',g='simple_purpose', w.moe='share_moe', est.type='percent', w.color = 'psrc_light', w.interactive=TRUE)+ 
+  p1<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='survey',g='simple_purpose', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+ 
   xlab(as.character(g[cat_name])) + ylab("Transit mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
@@ -481,10 +582,10 @@ filter(cat_name!='Other')%>%drop_na(cat_name)
 
   #transit_summs_2021_only<-  transit_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=transit_summs_2021 , w.x=cat_name, w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_light', w.interactive=TRUE) + 
+   p0<-create_column_chart(t=transit_summs_2021 , w.x=cat_name, w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs', w.interactive=TRUE) + 
   xlab(as.character(g[cat_name])) + ylab('Median Distance')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
@@ -495,7 +596,7 @@ filter(cat_name!='Other')%>%drop_na(cat_name)
 
                                          p.chart=p0)
 
-  p1<-create_column_chart(t=transit_summs_long , w.x=cat_name, w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_light', w.interactive=TRUE)+ 
+  p1<-create_column_chart(t=transit_summs_long , w.x=cat_name, w.y='trip_path_distance_median', f='survey', w.moe='trip_path_distance_median_moe', est.type='number', w.color = 'psrc_pairs', w.interactive=TRUE)+ 
   xlab(as.character(g[cat_name])) + ylab("Median Distance")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
@@ -508,7 +609,205 @@ psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres,
 ```
 
 ```{r }
-print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_sntc_sept22_new4.pptx")
+print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_sntc_sept22_new6.pptx")
 ```
 
+```{r}
+person_data_17_19<-person_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                             age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))
+ 
+
+person_data_21<-person_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                             age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))
+ 
+
+person_data_17_19$hhincome_100_f=factor(person_data_17_19$hhincome_100,levels=c("Under $25,000","$25,000-$49,999",   "$50,000-$74,999","$75,000-$99,999","$100,000 or more", "Prefer not to answer"))
+
+person_data_21$hhincome_100_f=factor(person_data_21$hhincome_100,levels=c("Under $25,000","$25,000-$49,999",   "$50,000-$74,999","$75,000-$99,999","$100,000 or more", "Prefer not to answer"))
+
+
+person_data_17_19$NoVehicles=factor(person_data_17_19$NoVehicles, levels= c('No Vehicles', 'Has Vehicles'))
+
+person_data_21$NoVehicles=factor(person_data_21$NoVehicles, levels=c('No Vehicles', 'Has Vehicles'))
+
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age_grp'= 'Age Group', 'age_category'='Age Category', 'final_home_is_rgc'='Home in Regional Growth Center' )
+```
+
+
+Trips per Person
+```{r }
+for(i in seq(1, length(simple_groupings))){
+  g <- simple_groupings[i]
+  # cat_name <- eval(names(g))
+  cat_name <- names(g)
+  print(cat_name)
+  transit_summs_2017_2019 <- hhts_count(transit_data_17_19,
+                                        group_vars=c(names(g),'simple_purpose'),
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%drop_na(c(cat_name, 'simple_purpose'))%>%filter(cat_name!='Total')
+
+  transit_summs_2021 <- hhts_count(transit_data_21,
+                                   group_vars=c(names(g),'simple_purpose'),
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult') %>%drop_na(cat_name) %>%drop_na(c(cat_name, 'simple_purpose'))%>%filter(cat_name!='Total')
+  
+  
+    person_summs_2017_2019 <- hhts_count(person_data_17_19,
+                                        group_vars=c(names(g)),
+                                        spec_wgt='hh_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total') %>%drop_na(cat_name)
+
+  person_summs_2021 <- hhts_count(person_data_21,
+                                   group_vars=c(names(g)),
+                                   spec_wgt='person_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total') %>%drop_na(cat_name)
+
+  
+  if(cat_name=='race_eth_broad'){
+
+     transit_summs_2017_2019 <- transit_summs_2017_2019 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+
+        transit_summs_2021 <- transit_summs_2021 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+  transit_summs_2017_2019$race_eth_broad<-factor(transit_summs_2017_2019$race_eth_broad, levels=
+                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
+
+   transit_summs_2021$race_eth_broad<-factor(transit_summs_2021$race_eth_broad, levels=
+                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
+
+        person_summs_2017_2019 <- person_summs_2017_2019 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+
+        person_summs_2021 <- person_summs_2021 %>%
+  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  filter(race_eth_broad!='No')
+  person_summs_2017_2019$race_eth_broad<-factor(person_summs_2017_2019$race_eth_broad, levels=
+                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
+
+   person_summs_2021$race_eth_broad<-factor(person_summs_2021$race_eth_broad, levels=
+                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
+
+
+
+  }
+
+ trips_persons_2017_2019<- merge(transit_summs_2017_2019, person_summs_2017_2019, by=cat_name, suffixes=c('_trips','_people' ))
+ trips_persons_2021<- merge(transit_summs_2021, person_summs_2021, by=cat_name, suffixes=c('_trips','_people' ))
+ 
+ trips_persons_2017_2019<- trips_persons_2017_2019 %>%mutate(trips_per_person=count_trips/count_people,moe_trips_person=moe_ratio(count_trips, count_people, count_moe_trips, count_moe_people))
+ 
+ 
+  trips_persons_2021<- trips_persons_2021 %>%mutate(trips_per_person=count_trips/count_people,moe_trips_person=moe_ratio(count_trips, count_people, count_moe_trips, count_moe_people))
+  
+ trips_persons_long<- rbind(trips_persons_2017_2019, trips_persons_2021) %>%
+    mutate(survey_trips = str_replace_all(survey_trips, "_", "/"))
+
+trips_persons_long_all_trips<-trips_persons_long%>%filter(simple_purpose=='Total')
+
+ trips_persons_2021_purpose<-trips_persons_2021%>%filter(simple_purpose!='Total')
+   # factorize variable column. Adjust levels in function definition
+  #transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+
+  #transit_summs_2021_only<-  transit_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
+
+ # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ trips_persons_long_shop_trips<-trips_persons_long%>%filter(simple_purpose=='Shop')
+
+   p0<-create_column_chart(t=trips_persons_2021_purpose , w.x=cat_name, w.y='trips_per_person', f='simple_purpose', w.moe='moe_trips_person', est.type='number', w.color = 'psrc_pairs', w.interactive=TRUE) + 
+  xlab(as.character(g[cat_name])) + ylab('Trips per Person')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
+  
+ p1<-create_facet_bar_chart(t=trips_persons_long, w.x=cat_name, w.y='trips_per_person', f='survey_trips',g='simple_purpose', w.moe='moe_trips_person', est.type='number', w.color = 'psrc_dark', w.interactive=TRUE)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
+
+
+
+   p2<-create_column_chart(t=trips_persons_long_all_trips , w.x=cat_name, w.y='trips_per_person', f='survey_trips', w.moe='moe_trips_person', est.type='number', w.color = 'psrc_pairs', w.interactive=TRUE) + 
+  xlab(as.character(g[cat_name])) + ylab('Trips per Person')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p2)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p2)
+  
+  
+   p3<-create_column_chart(t=trips_persons_long_shop_trips , w.x=cat_name, w.y='trips_per_person', f='survey_trips', w.moe='moe_trips_person', est.type='number', w.color = 'psrc_pairs', w.interactive=TRUE) + 
+  xlab(as.character(g[cat_name])) + ylab('Trips per Person')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p2)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p3)
+  
+  
+
+  
+}
+
+print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_sntc_sept22_test456.pptx")
+```
+
+```{r}
+transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>%
+    mutate(survey = str_replace_all(survey, "_", "/"))
+
+
+   # factorize variable column. Adjust levels in function definition
+  #transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
+
+  #transit_summs_2021_only<-  transit_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
+
+ # p0<-create_bar_chart(t=transit_summs_2021_only , w.x=cat_name, w.y='share',  f=cat_name,w.moe='share_moe', est.type='percent', #w.color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+
+
+   p0<-create_column_chart(t=transit_summs_2021 , w.x='simple_purpose', w.y='share', f=cat_name, w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE) + 
+  xlab(as.character(g[cat_name])) + ylab('Trip Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p0)
+  
+  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p0)
+
+  p1<-create_facet_bar_chart(t=transit_summs_long , w.x=cat_name, w.y='share', f='survey',g='simple_purpose', w.moe='share_moe', est.type='percent', w.color = 'psrc_dark', w.interactive=TRUE)+ 
+  xlab(as.character(g[cat_name])) + ylab("Transit mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
+  print(p1)
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Walk, Bike, and Transit Shares", 
+                                         p.caption=paste0("2017/2019 vs 2021"), 
+
+                                         p.chart=p1)
+```
 

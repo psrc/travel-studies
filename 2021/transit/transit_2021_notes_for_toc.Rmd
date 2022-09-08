@@ -304,10 +304,17 @@ write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
 print(transit_summs)
 transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021)
 
-p<-ggplot(transit_summs_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_light')+
-  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
-                 position=position_dodge(.9)) +coord_flip() +scale_y_continuous(labels=scales::percent)
-print(p)
+
+p<-create_column_chart(t=transit_summs_long, w.x=get(g), w.y='share', f=survey, w.moe='share_moe', est.type='percent', w.color = 'LtOrDkOr')+coord_flip()
+
+#p<-ggplot(transit_summs_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode #Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_light')+
+#  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+#                 position=position_dodge(.9)) +coord_flip() +scale_y_continuous(labels=scales::percent)
+
+file_name= 'transit'+get(g)
+write.csv(white_Hispanic_df,'C:/GitHub/heritage-month/hispanic_heritage2/'+file_name+'.csv')
+
+ggsave('C:/GitHub/heritage-month/hispanic_heritage2/'+file_name+'.csv', p, device='jpeg', width=14, height=10, dpi=72)
 }
 ```
 
@@ -387,30 +394,72 @@ for(i in seq(1, length(simple_groupings))){
   # write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
   print(transit_summs)
   transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>% 
-    mutate(survey = str_replace_all(survey, "_", "/"))
+    mutate(survey = str_replace_all(survey, "_", "/"))%>%mutate(cat_name=str_wrap(as.name(cat_name), width=11))
   print(cat_name)
   
    # factorize variable column. Adjust levels in function definition
   transit_summs_long <- factor_variable_column(names(g), transit_summs_long)
   
   # plot
-    p <- ggplot(transit_summs_long, aes(x = get(names(g)), y = share, fill = survey)) +
-    geom_bar(stat = 'identity', position = position_dodge()) +
-    labs(x = g,
-         y = 'Share',
-         fill = 'Survey') +
-    ggtitle('Transit Mode Share by Group', 'The denominator is all trips by people in that group') +
-    scale_fill_discrete_psrc('psrc_pairs') + #psrc_light
-    geom_errorbar(aes(ymin = share-share_moe, ymax = share+share_moe), 
-                  width = .2,
-                  position = position_dodge(.9)) +
-    scale_y_continuous(labels = scales::percent) + 
-    scale_x_discrete(labels = function(x) str_wrap(x, width = 25)) +
-    coord_flip() +
-    my_theme()
+
+
+p<-create_column_chart(t=transit_summs_long, w.x=cat_name, w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'LtOrDkOr')+coord_flip()
+
+#p<-ggplot(transit_summs_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode #Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_light')+
+#  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+#                 position=position_dodge(.9)) +coord_flip() +scale_y_continuous(labels=scales::percent)
+
+file_name= paste('transit',cat_name)
+write.csv(white_Hispanic_df,paste('C:/GitHub/heritage-month/hispanic_heritage2/',file_name,'.csv'))
+
+ggsave(paste('C:/GitHub/heritage-month/hispanic_heritage2/',file_name,'.jpeg'), p, device='jpeg', width=14, height=10, dpi=72)
   
   print(p)
 }
+
+
+
+
+```
+```{r}
+
+ transit_summs_2017_2019 <- hhts_count(transit_data_17_19, 
+                                        group_vars=c('race_eth_broad','mode_simple'), 
+                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(mode_simple=='Transit')
+  
+  transit_summs_2021 <- hhts_count(transit_data_21, 
+                                   group_vars=c('race_eth_broad','mode_simple'), 
+                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
+    filter(cat_name!='Total') %>%
+    filter(mode_simple=='Transit')
+  
+  transit_summs <- merge(transit_summs_2017_2019, transit_summs_2021, by='race_eth_broad', suffixes=c('17_19', '21'))
+  # write.csv(transit_summs, paste('transit_mode_share_', cat_name, '.csv'))
+  print(transit_summs)
+  transit_summs_long<- rbind(transit_summs_2017_2019, transit_summs_2021) %>% 
+    mutate(survey = str_replace_all(survey, "_", "/"))%>%mutate(race_eth_broad=str_wrap(race_eth_broad, width=11))%>%filter(race_eth_broad!='No Answer')%>%arrange(desc(race_eth_broad))
+
+  
+   # factorize variable column. Adjust levels in function definition
+ # transit_summs_long <- factor_variable_column('race_eth_broad', transit_summs_long)
+  
+  # plot
+
+
+p<-create_column_chart(t=transit_summs_long, w.x='race_eth_broad', w.y='share', f='survey', w.moe='share_moe', est.type='percent', w.color = 'LtGnDkGn')
+
+#p<-ggplot(transit_summs_long, aes(x=get(g), y=share, fill=survey))+geom_bar(stat='identity',position=position_dodge())+xlab(cat_name)+ggtitle('Transit Mode #Share by Group', 'The denominator is all trips by people in that group')+scale_fill_discrete_psrc('psrc_light')+
+#  geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=.2,
+#                 position=position_dodge(.9)) +coord_flip() +scale_y_continuous(labels=scales::percent)
+
+file_name= paste('transit','race_eth_broad')
+write.csv(white_Hispanic_df,paste('C:/GitHub/heritage-month/hispanic_heritage2/',file_name,'.csv'))
+
+ggsave(paste('C:/GitHub/heritage-month/hispanic_heritage2/',file_name,'.jpeg'), p, device='jpeg', width=14, height=10, dpi=72)
+  
+  print(p)
 
 ```
 
