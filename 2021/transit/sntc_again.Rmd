@@ -25,15 +25,16 @@ library(tidyr)
 library(tidycensus)
 library(psrcslides)
 library(officer)
+library(DBI)
 install_psrc_fonts()
 ```
 
 
 ```{r}
 mode_vars<-c('mode_1', 'mode_simple')
-other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance')
+other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'person_id')
 all_vars<-c(mode_vars, other_vars)
-person_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad')
+person_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad', 'person_id')
 ```
 
  
@@ -56,6 +57,46 @@ person_data_21<- get_hhts("2021", "p", vars=person_vars)
 ```
 
 
+```{r}
+ elmer_connect<-DBI::dbConnect(odbc::odbc(),
+                 driver = "ODBC Driver 17 for SQL Server",
+                 server = "AWS-PROD-SQL\\Sockeye",
+                 database = "Elmer",
+                 trusted_connection = "yes",
+                 port = 1433)
+  
+
+
+```
+
+```{r}
+disab_sql<-'with hhlds_disability as 
+(
+    select v.household_id, survey_year, count(*) as disability_vehicle_count
+    from HHSurvey.v_vehicles v
+    where v.disability = \'Yes\'
+    group by v.household_id, v.survey_year
+)
+select hhlds_disability.household_id, p.person_id,isnull(hhlds_disability.disability_vehicle_count, 0) as disability_vehicle_count
+from HHSurvey.v_persons as p
+left join hhlds_disability on p.household_id = hhlds_disability.household_id and p.survey_year = hhlds_disability.survey_year'
+
+```
+
+```{r}
+people_disab_vehs <- DBI::dbGetQuery(elmer_connect, DBI::SQL(disab_sql))
+
+```
+
+```{r}
+person_data_17_19<-merge(person_data_17_19, people_disab_vehs, by='person_id')
+person_data_21<-merge(person_data_21, people_disab_vehs, by = 'person_id')
+```
+
+```{r}
+transit_data_17_19<-merge(transit_data_17_19, people_disab_vehs, by='person_id')
+transit_data_21<-merge(transit_data_21, people_disab_vehs, by = 'person_id')
+```
 
 ```{r}
 
@@ -136,7 +177,8 @@ transit_data_17_19<-transit_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=
                                   simple_purpose=='Meal' ~ 'Social/Recreation/Meal',
                                   simple_purpose=='Home' ~'Errands',
                                   is.na(simple_purpose) ~ 'Errands',
-                                  TRUE ~ simple_purpose))
+                                  TRUE ~ simple_purpose))%>%
+  mutate(has_disab_plates=ifelse(disability_vehicle_count>0, 'Has Disability Vehicle Plates', 'No Disability Vehicle Plates'))
  
 
 transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
@@ -158,7 +200,8 @@ transit_data_21<-transit_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (n
                                   simple_purpose=='Meal' ~ 'Social/Recreation/Meal',
                                   simple_purpose=='Home' ~'Errands',
                                   is.na(simple_purpose) ~ 'Errands',
-                                  TRUE ~ simple_purpose))
+                                  TRUE ~ simple_purpose))%>%
+  mutate(has_disab_plates=ifelse(disability_vehicle_count>0, 'Has Disability Vehicle Plates', 'No Disability Vehicle Plates'))
  
 
 transit_data_17_19$hhincome_100_f=factor(transit_data_17_19$hhincome_100,levels=c("Under $25,000","$25,000-$49,999",   "$50,000-$74,999","$75,000-$99,999","$100,000 or more", "Prefer not to answer"))
@@ -171,7 +214,7 @@ transit_data_17_19$NoVehicles=factor(transit_data_17_19$NoVehicles, levels= c('N
 transit_data_21$NoVehicles=factor(transit_data_21$NoVehicles, levels=c('No Vehicles', 'Has Vehicles'))
 
 
-simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age_grp'= 'Age Group', 'sample_county' ='Home County', 'age_category'='Age Category', 'final_home_is_rgc'='Home in Regional Growth Center' )
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age_grp'= 'Age Group', 'sample_county' ='Home County', 'age_category'='Age Category', 'final_home_is_rgc'='Home in Regional Growth Center', has_disab_plates='Has Disability Vehicle Plates' )
 ```
 Trip Mode Shares by Demographic
 ```{r }
@@ -618,7 +661,8 @@ person_data_17_19<-person_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='
                                  TRUE~hhincome_broad))%>%
   mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
                              age == '85 or years older' ~ '75 years or older',
-                            TRUE ~ age))
+                            TRUE ~ age))%>%
+  mutate(has_disab_plates=ifelse(disability_vehicle_count>0, 'Has Disability Vehicle Plates', 'No Disability Vehicle Plates'))
  
 
 person_data_21<-person_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
@@ -627,7 +671,8 @@ person_data_21<-person_data_21%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no 
                                  TRUE~hhincome_broad))%>%
   mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
                              age == '85 or years older' ~ '75 years or older',
-                            TRUE ~ age))
+                            TRUE ~ age))%>%
+  mutate(has_disab_plates=ifelse(disability_vehicle_count>0, 'Has Disability Vehicle Plates', 'No Disability Vehicle Plates'))
  
 
 person_data_17_19$hhincome_100_f=factor(person_data_17_19$hhincome_100,levels=c("Under $25,000","$25,000-$49,999",   "$50,000-$74,999","$75,000-$99,999","$100,000 or more", "Prefer not to answer"))
@@ -640,7 +685,8 @@ person_data_17_19$NoVehicles=factor(person_data_17_19$NoVehicles, levels= c('No 
 person_data_21$NoVehicles=factor(person_data_21$NoVehicles, levels=c('No Vehicles', 'Has Vehicles'))
 
 
-simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age_grp'= 'Age Group', 'age_category'='Age Category', 'final_home_is_rgc'='Home in Regional Growth Center' )
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'age_grp'= 'Age Group', 'sample_county' ='Home County', 'age_category'='Age Category', 'final_home_is_rgc'='Home in Regional Growth Center', has_disab_plates='Has Disability Vehicle Plates' )
 ```
 
 
