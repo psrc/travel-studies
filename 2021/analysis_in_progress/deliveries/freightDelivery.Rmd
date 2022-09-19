@@ -111,7 +111,7 @@ hh_data <- c("household_id", 'hhincome_broad', 'lifecycle', 'hh_race_apoc', 'hh_
 ```
 
 ```{r}
-smp_commute_fx <- function(data, year) {
+smp_delivery_fx <- function(data, year) {
   ## rewriting labels of responses to be more concise
   temp_table <- data %>%
     mutate(delivery_food_all= case_when((is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No Response',
@@ -132,7 +132,7 @@ smp_commute_fx <- function(data, year) {
   temp_table 
 }
 
-smp_commute_fx_hh <- function(data, year) {
+smp_delivery_fx_hh <- function(data, year) {
   ## rewriting labels of responses to be more concise
   temp_table <- data %>%
     mutate(hhincome_broad= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
@@ -189,16 +189,16 @@ dsurvey_21 <- get_hhts(survey = survey_b$survey,
 
 # transform data
 
-delivery_17 <- smp_commute_fx(dsurvey_17, '2017')
+delivery_17 <- smp_delivery_fx(dsurvey_17, '2017')
 
 
-delivery_19 <- smp_commute_fx(dsurvey_19, '2019')
+delivery_19 <- smp_delivery_fx(dsurvey_19, '2019')
 
 
-delivery_1719 <- smp_commute_fx(dsurvey_1719, '2017/2019')
+delivery_1719 <- smp_delivery_fx(dsurvey_1719, '2017/2019')
 
 
-delivery_21 <- smp_commute_fx(dsurvey_21, '2021')
+delivery_21 <- smp_delivery_fx(dsurvey_21, '2021')
 
 
 ```
