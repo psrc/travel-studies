@@ -548,17 +548,158 @@ count_and_share_plot(all_food_freq_17_21,
 ```{r}
 # crosstabs for income and food delivery by share and count (across years)
 
-table_food_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
-                    group_vars = c('delivery_food_all', 'hhincome_broad')) %>% 
-  filter(hhincome_broad != 'Total')
+food_income_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
+  filter(hhincome_broad != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')
 
-table_food_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
-                    group_vars = c('delivery_food_all', 'hhincome_broad')) %>% 
-  filter(hhincome_broad != 'Total')
+food_income_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
+  filter(hhincome_broad != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')
 
-table_food_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
-                    group_vars = c('delivery_food_all', 'hhincome_broad')) %>% 
-  filter(hhincome_broad != 'Total')
+food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
+  filter(hhincome_broad != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_food_freq_17_21 <- bind_rows(food_income_17, food_income_19, food_income_21) %>%
+  mutate(period = as.factor(survey))
+
+table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
+
+# plot by year and by category
+
+share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_food_freq_17_21[[grp_var]]
+  x_axis_grp <- all_food_freq_17_21[[grp_var2]]
+  
+  ggplot(all_food_freq_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~period)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+share_plot_by_year2 <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_food_freq_17_21[[grp_var]]
+  x_axis_grp <- all_food_freq_17_21[[grp_var2]]
+  
+  ggplot(all_food_freq_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~delivery_food_all)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+share_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_food_freq_17_21[[grp_var]]
+  # facet_group <- all_commute_17_21[[grp_var2]]
+  
+  ggplot(all_food_freq_17_21, aes(x=period,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~all_food_freq_17_21[[grp_var2]])+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+}
+
+count_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_food_freq_17_21[[grp_var]]
+  # facet_group <- all_commute_17_21[[grp_var2]]
+  
+  ggplot(all_food_freq_17_21, aes(x=period,
+                                       y=count,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~all_food_freq_17_21[[grp_var2]])+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Count",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::comma) +
+    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+}
+
+# comparative charts/plots
+# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
+share_plot_by_year(food_income_17, food_income_19, food_income_21,
+                   'hhincome_broad', 'delivery_food_all', 
+                   'Food Deliveries to Households by Income')
+
+share_plot_by_year2(food_income_17, food_income_19, food_income_21,
+                   'survey', 'hhincome_broad',  
+                    'Food Deliveries by Year')
+
+share_plot_by_cat(food_income_17, food_income_19, food_income_21, 
+                  'hhincome_broad', 'delivery_food_all',
+                  'Income Categories')+
+  psrc_style()+
+  scale_fill_discrete_psrc("psrc_light")
+
+count_plot_by_cat(food_income_17, food_income_19, food_income_21, 
+                  'hhincome_broad', 'delivery_food_all',
+                  'Income Categories')+
+  psrc_style()+
+  scale_fill_discrete_psrc("psrc_light")
+
+```
+
+```{r}
+# crosstabs for lifecycle and food delivery by share and count (across years)
+
+food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')
+
+food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')
+
+food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')
+
+## STOPPED HERE 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 all_food_freq_17_21 <- bind_rows(table_food_17, table_food_19, table_food_21) %>%
