@@ -125,6 +125,7 @@ smp_delivery_combo <- function(data, year) {
                                         (pernum>1) ~ 'Not Person One, not the responder',
                                         delivery_food_freq == "0 (none)"  ~ 'No Delivery',
                                         deliver_food=='No' ~ 'No Delivery',
+                                        
                                         TRUE ~ 'Delivery Received'))%>%
     mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
                                         (pernum>1) ~ 'Not Person One, not the responder',
@@ -161,15 +162,18 @@ smp_delivery_combo <- function(data, year) {
 }
 ```
 
-```{r, getting survey data with pre-identified variables}
+```{r, getting survey data with pre-identified variables for households}
 
 
 # -- How frequently is someone having a delivery made?? 
 # -- 2017, 2019, 2017/2019, 2021
 
+# pull datasets from two separate dataframes per year
+
 dsurvey_17 <- get_hhts(survey = survey_c$survey, 
                         level = "d", 
                         vars = c(delivery_type, days, hh_data)) 
+
 
 
 dsurvey_19 <- get_hhts(survey = survey_d$survey, 
@@ -177,20 +181,22 @@ dsurvey_19 <- get_hhts(survey = survey_d$survey,
                        vars = c(delivery_type, days, hh_data)) 
 
 
+
 dsurvey_1719 <- get_hhts(survey = survey_a$survey, 
                        level = "d", 
                        vars = c(delivery_type, days, hh_data)) 
+
 
 
 dsurvey_21 <- get_hhts(survey = survey_b$survey, 
                        level = "d", 
                        vars = c(delivery_type, days, hh_data)) 
 
+
+
 ```
 
-```{r, generating datasets}
-
-# transform data with visualization function code block 
+```{r, generate datasets}
 
 delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
 
@@ -207,8 +213,6 @@ delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
 ```
 
 ```{r, rename datasets as "joined_df_deliveries_year"}
-# in previous versions of the code, two datasets/views (days and household views) were merged, so code further in script references
-# "joined_df_deliveries_year"
 
 joined_df_deliveries_17 <-delivery_17
 
@@ -220,49 +224,49 @@ joined_df_deliveries_21 <- delivery_21
 
 ```
 
+```{r, sum checks to verify population numbers}
 
-# Checks:
-# These sums should match the number of people in the region.
-# In 2021, this represents the number of adults because we did not observe children's days (this was done in 2017 & 2019 only).
-```{r, population data sums based off of assigned table weights}
+# Sums should match the number of people in the region
+# In 2021, this represents the number of adults, because didn't observe children's days
+
 sum(joined_df_deliveries_17$day_weight_2017_v2021)
 sum(joined_df_deliveries_19$day_weight_2019_v2021)
+sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021) ## unsure if this is the correct weight??
 sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
 
 ```
+It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
 
-# not fully sure what the next three chunks are doing and if additional calculations needs to be conducted for the combo 2017/2019 data
-```{r, 2017/2019 dataset amendments}
-# Based on the "day weight for 2017_2019" value, the sum should be halved.
-joined_df_deliveries_1719$day_weight_2017_2019_v2021 <- joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
+
+```{r, sum checks to verify household numbers}
+joined_df_deliveries_1719$day_weight_2017_2019_v2021<-joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
 sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
 dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
 joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
 ```
 
 
-```{r}
-# remove duplicate household responses
-
-joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(pernum==1)
+```{r, removing duplicate household member responses}
+joined_df_deliveries_17<<-joined_df_deliveries_17%>%filter(pernum==1)
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(pernum==1)
+joined_df_deliveries_1719<-joined_df_deliveries_1719%>%filter(pernum==1)
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
-
-# checking the sums with various weights
-
-sum(joined_df_deliveries_17$day_weight_2017_v2021)
-sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_21$hh_weight_2021_ABS) # this is the 2021 weight that will be used to calculate analysis
-sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
-sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
 ```
 
-```{r, data transformation}
 
-# remove true non-response
+```{r, sum checks to verify households for the individual years with their new weights}
+sum(joined_df_deliveries_17$day_weight_2017_v2021)
+sum(joined_df_deliveries_19$day_weight_2019_v2021)
+sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
+sum(joined_df_deliveries_21$hh_weight_2021_ABS) #this weight matches the closest to the annual household count
+# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
+# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
+```
 
+```{r, removing true non-responses}
 joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
+joined_df_deliveries_1719<-joined_df_deliveries_1719%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
 
 ```
@@ -275,13 +279,15 @@ count_food_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_food
                                      spec_wgt = "day_weight_2017_v2021")%>%
   filter(delivery_food_all== "Delivery Received")
 
-# have tried the double variable // crosstab with day weight and not recognized, so automatically applies household weight
 
 count_food_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_food_all",
                                spec_wgt = "day_weight_2019_v2021")%>%
   filter(delivery_food_all == "Delivery Received")
 
 
+count_food_1719 <- hhts_count(joined_df_deliveries_1719, group_vars = "delivery_food_all",
+                               spec_wgt = "day_weight_2017_2019_v2021")%>%
+  filter(delivery_food_all == "Delivery Received")
 
 
 count_food_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_food_all",
@@ -290,30 +296,23 @@ count_food_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_food
 
 
 # merge data frames for combined 2017/2019 and 2021
-# write csv and plot
+# write csv
 
-food_freq_separate <- rbind(count_food_17, count_food_19, count_food_21)
+food_freq_separate <- rbind(count_food_1719, count_food_21)
 
 
 write.csv(food_freq_separate, 'delivery_by_freq_food2.csv')
 
+# create plot
 
-
-food_c<- create_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
+food_c <-create_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
                           est ='percent', color = 'psrc_light')+
   xlab(as.character('Food')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
   theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
   theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
 
-
-
 print(food_c)
-
-
-
-
-
 
 ```
 
