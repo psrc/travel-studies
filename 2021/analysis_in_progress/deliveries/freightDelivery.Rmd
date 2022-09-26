@@ -5,6 +5,12 @@ date: "2022-09-14"
 output: html_document
 ---
 
+# This analysis is looking at food, grocery, package, and work/service deliveries from 2017, 2019, 2017/2019, and 2021
+# by household. 
+
+# How many days did people receive deliveries?
+# Did the number of deliveries change by year? by race? by income? by lifecycle?
+
 ```{r setup, include=FALSE}
 
 # how many days did people receive deliveries?
@@ -40,14 +46,14 @@ library(sp)
 library(gridExtra)
 library(ggpubr)
 
-# packages that are from github that host functions for pulling data (do the install in R, not RStudio)
+# packages that are from github that host functions for pulling data (do the install in R Gui, not RStudio)
 
 #devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
 #devtools::install_github("psrc/psrccensus", force = TRUE)
 #devtools::install_github("psrc/psrcplot", force = TRUE)
 #devtools::install_github("psrc/psrctrends", force = TRUE)
 
-# run these in R Studio
+# run these after installing github changes through R Gui
 
 library(psrc.travelsurvey)
 library(psrccensus)
@@ -72,7 +78,8 @@ elmer_connect <- function(){
 
 elmer_connection <- elmer_connect()
 
-# views and global variables for deliveries
+# views and global variables for days and households (** the days table has been updated to include hh variables)
+# surveys a,b,c, and d will be used in functions later in code
 
 deliveries <- dbReadTable(elmer_connection, SQL("HHSurvey.v_days"))
 household_info <- dbReadTable(elmer_connection, SQL("HHSurvey.v_households"))
@@ -82,7 +89,7 @@ survey_b <- list(survey = '2021', label = '2021')
 survey_c <- list(survey = '2017', label = '2017')
 survey_d <- list(survey = '2019', label = '2019')
 
-# create variables that would like to group
+# look at variable names and which years they were collected/documented
 
 hhts_varsearch("delivery")
 hhts_varsearch("traveldate")
@@ -99,28 +106,25 @@ head(household_info)
 unique(household_info$lifecycle)
 unique(deliveries$delivery_work_freq)
 
+# create variables that would like to group by for analysis of deliveries by household
+
 delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
 days <- c("dayofweek", "typical_day")
 hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'race_category_alone_multi', 'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc','pernum')
 
-# getting variables from tables for 2017, 2019, 2017/2019, 2021
-
-#
-
-
 ```
 
-```{r}
-# new function combining the delivery and household functions into one and ordering income by levels
+```{r, visualization functions}
+# function combining the delivery and household functions into one and ordering income by levels
 
 smp_delivery_combo <- function(data, year) {
   ## rewriting labels of responses to be more concise
   temp_table <- data %>%
     mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
                                         (pernum>1) ~ 'Not Person One, not the responder',
                                         delivery_food_freq == "0 (none)"  ~ 'No Delivery',
                                         deliver_food=='No' ~ 'No Delivery',
-                                        
                                         TRUE ~ 'Delivery Received'))%>%
     mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
                                         (pernum>1) ~ 'Not Person One, not the responder',
@@ -157,18 +161,15 @@ smp_delivery_combo <- function(data, year) {
 }
 ```
 
-```{r}
+```{r, getting survey data with pre-identified variables}
 
 
 # -- How frequently is someone having a delivery made?? 
 # -- 2017, 2019, 2017/2019, 2021
 
-# pull datasets from two separate dataframes per year
-
 dsurvey_17 <- get_hhts(survey = survey_c$survey, 
                         level = "d", 
                         vars = c(delivery_type, days, hh_data)) 
-
 
 
 dsurvey_19 <- get_hhts(survey = survey_d$survey, 
@@ -176,24 +177,20 @@ dsurvey_19 <- get_hhts(survey = survey_d$survey,
                        vars = c(delivery_type, days, hh_data)) 
 
 
-
 dsurvey_1719 <- get_hhts(survey = survey_a$survey, 
                        level = "d", 
                        vars = c(delivery_type, days, hh_data)) 
-
 
 
 dsurvey_21 <- get_hhts(survey = survey_b$survey, 
                        level = "d", 
                        vars = c(delivery_type, days, hh_data)) 
 
-
-
 ```
 
-```{r}
+```{r, generating datasets}
 
-# transform data
+# transform data with visualization function code block 
 
 delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
 
@@ -209,9 +206,9 @@ delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
 
 ```
 
-```{r}
-# merge the two datasets
-# using dplyr and readr to join based on common variable name
+```{r, rename datasets as "joined_df_deliveries_year"}
+# in previous versions of the code, two datasets/views (days and household views) were merged, so code further in script references
+# "joined_df_deliveries_year"
 
 joined_df_deliveries_17 <-delivery_17
 
@@ -224,21 +221,20 @@ joined_df_deliveries_21 <- delivery_21
 ```
 
 
-#some checks
+# Checks:
 # These sums should match the number of people in the region.
-# In 2021, this represents the number of adults because we did not observe children's days.
-```{r}
+# In 2021, this represents the number of adults because we did not observe children's days (this was done in 2017 & 2019 only).
+```{r, population data sums based off of assigned table weights}
 sum(joined_df_deliveries_17$day_weight_2017_v2021)
 sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
 sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
 
 ```
-It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
 
-
-```{r}
-joined_df_deliveries_1719$day_weight_2017_2019_v2021<-joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
+# not fully sure what the next three chunks are doing and if additional calculations needs to be conducted for the combo 2017/2019 data
+```{r, 2017/2019 dataset amendments}
+# Based on the "day weight for 2017_2019" value, the sum should be halved.
+joined_df_deliveries_1719$day_weight_2017_2019_v2021 <- joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
 sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
 dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
 joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
@@ -246,20 +242,25 @@ joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_20
 
 
 ```{r}
-joined_df_deliveries_17<<-joined_df_deliveries_17%>%filter(pernum==1)
+# remove duplicate household responses
+
+joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(pernum==1)
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(pernum==1)
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
 
+# checking the sums with various weights
 
 sum(joined_df_deliveries_17$day_weight_2017_v2021)
 sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_21$hh_weight_2021_ABS)
+sum(joined_df_deliveries_21$hh_weight_2021_ABS) # this is the 2021 weight that will be used to calculate analysis
 sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
 sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
 ```
 
-remove true non-response
-```{r}
+```{r, data transformation}
+
+# remove true non-response
+
 joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
@@ -298,8 +299,8 @@ write.csv(food_freq_separate, 'delivery_by_freq_food2.csv')
 
 
 
-food_c<-create_column_chart(t=food_freq_separate, w.x='delivery_food_all', w.y='share', f='survey', w.moe='share_moe', 
-                          est.type='percent', w.color = 'psrc_light')+
+food_c<- create_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
+                          est ='percent', color = 'psrc_light')+
   xlab(as.character('Food')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
   theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
