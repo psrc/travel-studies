@@ -11,7 +11,7 @@ output: html_document
 # How many days did people receive deliveries?
 # Did the number of deliveries change by year? by race? by income? by lifecycle?
 
-```{r setup, include=FALSE}
+```{r setup, include=FALSE, eval = FALSE}
 
 # how many days did people receive deliveries?
 # did the number of deliveries change by year? by race? by income?
@@ -105,7 +105,7 @@ head(household_info)
 
 unique(household_info$lifecycle)
 unique(deliveries$delivery_work_freq)
-
+R
 # create variables that would like to group by for analysis of deliveries by household
 
 delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
@@ -163,7 +163,6 @@ smp_delivery_combo <- function(data, year) {
 ```
 
 ```{r, getting survey data with pre-identified variables for households}
-
 
 # -- How frequently is someone having a delivery made?? 
 # -- 2017, 2019, 2017/2019, 2021
@@ -224,7 +223,7 @@ joined_df_deliveries_21 <- delivery_21
 
 ```
 
-```{r, sum checks to verify population numbers}
+```{r, sum checks to verify population numbers, eval = FALSE}
 
 # Sums should match the number of people in the region
 # In 2021, this represents the number of adults, because didn't observe children's days
@@ -238,7 +237,7 @@ sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
 It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
 
 
-```{r, sum checks to verify household numbers}
+```{r, sum checks to verify household numbers, eval = FALSE}
 joined_df_deliveries_1719$day_weight_2017_2019_v2021<-joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
 sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
 dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
@@ -254,7 +253,7 @@ joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
 ```
 
 
-```{r, sum checks to verify households for the individual years with their new weights}
+```{r, sum checks to verify households for the individual years with their new weights, eval = FALSE}
 sum(joined_df_deliveries_17$day_weight_2017_v2021)
 sum(joined_df_deliveries_19$day_weight_2019_v2021)
 sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
