@@ -5,7 +5,13 @@ date: "2022-09-14"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+# This analysis is looking at food, grocery, package, and work/service deliveries from 2017, 2019, 2017/2019, and 2021
+# by household. 
+
+# How many days did people receive deliveries?
+# Did the number of deliveries change by year? by race? by income? by lifecycle?
+
+```{r setup, include=FALSE, eval = FALSE}
 
 # how many days did people receive deliveries?
 # did the number of deliveries change by year? by race? by income?
@@ -40,14 +46,14 @@ library(sp)
 library(gridExtra)
 library(ggpubr)
 
-# packages that are from github that host functions for pulling data (do the install in R, not RStudio)
+# packages that are from github that host functions for pulling data (do the install in R Gui, not RStudio)
 
 #devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
 #devtools::install_github("psrc/psrccensus", force = TRUE)
 #devtools::install_github("psrc/psrcplot", force = TRUE)
 #devtools::install_github("psrc/psrctrends", force = TRUE)
 
-# run these in R Studio
+# run these after installing github changes through R Gui
 
 library(psrc.travelsurvey)
 library(psrccensus)
@@ -72,7 +78,8 @@ elmer_connect <- function(){
 
 elmer_connection <- elmer_connect()
 
-# views and global variables for deliveries
+# views and global variables for days and households (** the days table has been updated to include hh variables)
+# surveys a,b,c, and d will be used in functions later in code
 
 deliveries <- dbReadTable(elmer_connection, SQL("HHSurvey.v_days"))
 household_info <- dbReadTable(elmer_connection, SQL("HHSurvey.v_households"))
@@ -82,7 +89,7 @@ survey_b <- list(survey = '2021', label = '2021')
 survey_c <- list(survey = '2017', label = '2017')
 survey_d <- list(survey = '2019', label = '2019')
 
-# create variables that would like to group
+# look at variable names and which years they were collected/documented
 
 hhts_varsearch("delivery")
 hhts_varsearch("traveldate")
@@ -98,25 +105,23 @@ head(household_info)
 
 unique(household_info$lifecycle)
 unique(deliveries$delivery_work_freq)
+R
+# create variables that would like to group by for analysis of deliveries by household
 
 delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
 days <- c("dayofweek", "typical_day")
 hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'race_category_alone_multi', 'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc','pernum')
 
-# getting variables from tables for 2017, 2019, 2017/2019, 2021
-
-#
-
-
 ```
 
-```{r}
-# new function combining the delivery and household functions into one and ordering income by levels
+```{r, visualization functions}
+# function combining the delivery and household functions into one and ordering income by levels
 
 smp_delivery_combo <- function(data, year) {
   ## rewriting labels of responses to be more concise
   temp_table <- data %>%
     mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
                                         (pernum>1) ~ 'Not Person One, not the responder',
                                         delivery_food_freq == "0 (none)"  ~ 'No Delivery',
                                         deliver_food=='No' ~ 'No Delivery',
@@ -157,8 +162,7 @@ smp_delivery_combo <- function(data, year) {
 }
 ```
 
-```{r}
-
+```{r, getting survey data with pre-identified variables for households}
 
 # -- How frequently is someone having a delivery made?? 
 # -- 2017, 2019, 2017/2019, 2021
@@ -191,9 +195,7 @@ dsurvey_21 <- get_hhts(survey = survey_b$survey,
 
 ```
 
-```{r}
-
-# transform data
+```{r, generate datasets}
 
 delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
 
@@ -209,9 +211,7 @@ delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
 
 ```
 
-```{r}
-# merge the two datasets
-# using dplyr and readr to join based on common variable name
+```{r, rename datasets as "joined_df_deliveries_year"}
 
 joined_df_deliveries_17 <-delivery_17
 
@@ -223,64 +223,55 @@ joined_df_deliveries_21 <- delivery_21
 
 ```
 
+```{r, sum checks to verify population numbers, eval = FALSE}
 
-#some checks
-# These sums should match the number of people in the region.
-# In 2021, this represents the number of adults because we did not observe children's days.
-```{r}
+# Sums should match the number of people in the region
+# In 2021, this represents the number of adults, because didn't observe children's days
+
 sum(joined_df_deliveries_17$day_weight_2017_v2021)
 sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
 sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
 
 ```
 It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
-
-
-```{r}
+```{r, sum checks to verify household numbers, eval = FALSE}
 joined_df_deliveries_1719$day_weight_2017_2019_v2021<-joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
 sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
 dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
 joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
 ```
 
-
-```{r}
+```{r, removing duplicate household member responses}
 joined_df_deliveries_17<<-joined_df_deliveries_17%>%filter(pernum==1)
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(pernum==1)
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
-
-
-sum(joined_df_deliveries_17$day_weight_2017_v2021)
-sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_21$hh_weight_2021_ABS)
-sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
-sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
 ```
 
-remove true non-response
-```{r}
+```{r, sum checks to verify households for the individual years with their new weights, eval = FALSE}
+sum(joined_df_deliveries_17$day_weight_2017_v2021)
+sum(joined_df_deliveries_19$day_weight_2019_v2021)
+sum(joined_df_deliveries_21$hh_weight_2021_ABS) #this weight matches the closest to the annual household count
+# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
+# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
+```
+
+```{r, removing true non-responses}
 joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
 
 ```
 
-`
-
-```{r}
+```{r, food deliveries by year alone}
 
 count_food_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_food_all",
                                      spec_wgt = "day_weight_2017_v2021")%>%
   filter(delivery_food_all== "Delivery Received")
 
-# have tried the double variable // crosstab with day weight and not recognized, so automatically applies household weight
 
 count_food_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_food_all",
                                spec_wgt = "day_weight_2019_v2021")%>%
   filter(delivery_food_all == "Delivery Received")
-
-
 
 
 count_food_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_food_all",
@@ -289,46 +280,36 @@ count_food_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_food
 
 
 # merge data frames for combined 2017/2019 and 2021
-# write csv and plot
+# write csv
 
 food_freq_separate <- rbind(count_food_17, count_food_19, count_food_21)
 
 
 write.csv(food_freq_separate, 'delivery_by_freq_food2.csv')
 
+# create plot
 
-
-food_c<-create_column_chart(t=food_freq_separate, w.x='delivery_food_all', w.y='share', f='survey', w.moe='share_moe', 
-                          est.type='percent', w.color = 'psrc_light')+
+food_c <-create_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
+                          est ='percent', color = 'psrc_light')+
   xlab(as.character('Food')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
   theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
   theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
 
-
-
 print(food_c)
-
-
-
-
-
 
 ```
 
-```{r}
+```{r, package deliveries by year alone}
 
 count_pkgs_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_pkgs_all",
                                      spec_wgt = "day_weight_2017_v2021")%>%
   filter(delivery_pkgs_all== "Delivery Received")
 
-# have tried the double variable // crosstab with day weight and not recognized, so automatically applies household weight
 
 count_pkgs_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_pkgs_all",
                                spec_wgt = "day_weight_2019_v2021")%>%
   filter(delivery_pkgs_all == "Delivery Received")
-
-
 
 
 count_pkgs_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_pkgs_all",
@@ -337,123 +318,103 @@ count_pkgs_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_pkgs
 
 
 # merge data frames for combined 2017/2019 and 2021
-# write csv and plot
+# write csv
 
 pkgs_freq_separate <- rbind(count_pkgs_17, count_pkgs_19, count_pkgs_21)
 
 
 write.csv(pkgs_freq_separate, 'delivery_by_freq_pkgs2.csv')
 
+# create plot
 
-
-pkgs_c<-create_column_chart(t=pkgs_freq_separate, w.x='delivery_pkgs_all', w.y='share', f='survey', w.moe='share_moe', 
-                          est.type='percent', w.color = 'psrc_light')+
+pkgs_c <-create_column_chart(t=pkgs_freq_separate, x='delivery_pkgs_all', y='share', f='survey', moe='share_moe', 
+                          est ='percent', color = 'psrc_light')+
   xlab(as.character('Packages')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
   theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
   theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
 
-
-
 print(pkgs_c)
 
-
-
-
-
-
 ```
-```{r}
+
+```{r, grocery deliveries by year alone}
 
 count_grocery_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_grocery_all",
                                      spec_wgt = "day_weight_2017_v2021")%>%
   filter(delivery_grocery_all== "Delivery Received")
 
-# have tried the double variable // crosstab with day weight and not recognized, so automatically applies household weight
 
 count_grocery_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_grocery_all",
                                spec_wgt = "day_weight_2019_v2021")%>%
   filter(delivery_grocery_all == "Delivery Received")
 
 
-
-
 count_grocery_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_grocery_all",
-                               spec_wgt = "person_weight_2021_ABS_panel_adult") %>%
+                               spec_wgt = "hh_weight_2021_ABS") %>%
   filter(delivery_grocery_all == "Delivery Received")
 
 
 # merge data frames for combined 2017/2019 and 2021
-# write csv and plot
+# write csv
 
 grocery_freq_separate <- rbind(count_grocery_17, count_grocery_19, count_grocery_21)
 
 
 write.csv(grocery_freq_separate, 'delivery_by_freq_grocery2.csv')
 
+# create plot
 
-
-grocery_c<-create_column_chart(t=grocery_freq_separate, w.x='delivery_grocery_all', w.y='share', f='survey', w.moe='share_moe', 
-                          est.type='percent', w.color = 'psrc_light')+
+grocery_c<-create_column_chart(t=grocery_freq_separate, x='delivery_grocery_all', y='share', f='survey', moe='share_moe', 
+                          est ='percent', color = 'psrc_light')+
   xlab(as.character('Grocery')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
   theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
   theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
 
-
-
 print(grocery_c)
-
-
-
-
-
 
 ```
 
-```{r}
+```{r, work/service deliveries by year alone}
 count_work_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_work_all",
                                      spec_wgt = "day_weight_2017_v2021")%>%
   filter(delivery_work_all== "Delivery Received")
 
-# have tried the double variable // crosstab with day weight and not recognized, so automatically applies household weight
 
 count_work_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_work_all",
                                spec_wgt = "day_weight_2019_v2021")%>%
   filter(delivery_work_all == "Delivery Received")
 
 
-
-
 count_work_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_work_all",
-                               spec_wgt = "person_weight_2021_ABS_panel_adult") %>%
+                               spec_wgt = "hh_weight_2021_ABS") %>%
   filter(delivery_work_all == "Delivery Received")
 
 
 # merge data frames for combined 2017/2019 and 2021
-# write csv and plot
+# write csv
 
 work_freq_separate <- rbind(count_work_17, count_work_19, count_work_21)
 
 
 write.csv(work_freq_separate, 'delivery_by_freq_work2.csv')
 
+# create plot
 
-
-work_c<-create_column_chart(t=work_freq_separate, w.x='delivery_work_all', w.y='share', f='survey', w.moe='share_moe', 
-                          est.type='percent', w.color = 'psrc_light')+
-  xlab(as.character('Number of service Deliveries Per Day')) + ylab('Share of Households Receiving These Types of Deliveries')+
+work_c<-create_column_chart(t=work_freq_separate, x='delivery_work_all', y='share', f='survey', moe='share_moe', 
+                          est='percent', color = 'psrc_light')+
+  xlab(as.character('Work/Service')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
   theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
   theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
 
 
-
 print(work_c)
 ```
 
-```{r, eval = FALSE}
-## this chunk is essentially what was performed above so not necessary, see eval = FALSE
+```{r, count and share function, eval = FALSE}
+# -- this chunk is essentially what was performed above so not necessary, see eval = FALSE
 
 
 # crosstabs for income and food delivery by share and count (across years)
@@ -517,7 +478,7 @@ count_and_share_plot(all_food_freq_17_21,
                      "Number vs Share of Trips by Destination")
 ```
 
-```{r}
+```{r, create data frames to run crosstabs for income and food deliveries}
 # crosstabs for income and food delivery by share and count (across years)
 
 food_income_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
@@ -532,18 +493,21 @@ food_income_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_201
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
   filter(hhincome_broad != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+
 all_food_freq_17_21 <- bind_rows(food_income_17, food_income_19, food_income_21) %>%
   mutate(period = as.factor(survey))
 
 table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
+```
 
+```{r, data visualization function for crosstabs}
 # plot by year and by category
 
 share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
@@ -631,7 +595,10 @@ count_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
                   size=.5, width=.2,
                   position=position_dodge(0.9))
 }
+```
 
+
+```{r, data visualization function for crosstabs}
 # comparative charts/plots
 # share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
 share_plot_by_year(food_income_17, food_income_19, food_income_21,
