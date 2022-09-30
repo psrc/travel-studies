@@ -410,40 +410,44 @@ work_c<-create_column_chart(t=work_freq_separate, x='delivery_work_all', y='shar
 
 print(work_c)
 ```
-```{r, facet wrap charts for all deliveries - pull from Mary's T:\2022September\Mary\EquityTracker\Transportation\HCTaccess_2020_5y_Elmer_CSV.Rmd code}
+```{r, facet wrap charts for all deliveries}
+# pull from Mary's T:\2022September\Mary\EquityTracker\Transportation\HCTaccess_2020_5y_Elmer_CSV.Rmd code
 
-deliveries_facet1<- create_facet_bar_chart(t=allhct_indicator20,
-                                                  w.x="quintile", w.y="wt_avg_miles",
-                                                  f="quintile", g="aggregation",
+# rename column names so that can bind dfs
+# change response type from Delivery Received to delivery_type (i.e., food, grocery, pkgs, work)
+
+food_freq_separate$delivery_type = c("food", "food", "food")
+
+grocery_freq_separate$delivery_type = c("grocery", "grocery", "grocery")
+
+pkgs_freq_separate$delivery_type = c("packages", "packages", "packages")
+
+work_freq_separate$delivery_type = c("work/service", "work/service", "work/service")
+
+
+# bind all dataframes together 
+
+all_deliveries_freq_17_21 <- rbind(food_freq_separate, grocery_freq_separate, pkgs_freq_separate, work_freq_separate, fill = TRUE)
+                                   
+# remove unnecessary columns
+
+all_deliveries_freq_17_21_new <- all_deliveries_freq_17_21[, -c(2, 9, 10, 11)]
+
+# create facet bar chart
+
+deliveries_facet1<- create_facet_bar_chart(t= all_deliveries_freq_17_21_new,
+                                                  w.x="survey", w.y="share",
+                                                  f="survey", g="delivery_type",
                                                   w.color="blues_inc",
-                                                  est.type ="number",
-                                                  w.interactive="yes",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
                                                   w.dec=2,
                                                   w.scales="fixed",
                                                   w.facet=2,
-                                                  w.title="Share of Housholds Receiving Deliveries by Year)",
-                                                  w.sub.title="2017, 2019, and 2021")
+                                                  w.title="Share of Deliveries by Type",
+                                                  w.sub.title="per houshold")
 
 deliveries_facet1
-
-# changing the aesthetic to make bars smaller 
-
-allhct_indicator20_order <- allhct_indicator20 %>% 
-  mutate(aggregation = fct_relevel(aggregation,
-            "poc", "income", "lep", "disability", "older", "youth"))
-
-deliveries_facet2<- create_facet_bar_chart(t=allhct_indicator20_order,
-                                                  w.x="quintile", w.y="wt_avg_miles",
-                                                  f="quintile", g="aggregation",
-                                                  w.color="blues_inc",
-                                                  est.type ="number",
-                                                  w.interactive="yes",
-                                                  w.dec=2,
-                                                  w.scales="fixed",
-                                                  w.facet=3,
-                                                  w.title="Share of Housholds Receiving Deliveries by Year)",
-                                                  w.sub.title="2017, 2019, and 2021")
-deliveries_facet2
 ```
 
 ```{r, count and share function, eval = FALSE}
@@ -664,23 +668,21 @@ count_plot_by_cat(food_income_17, food_income_19, food_income_21,
 
 food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')
 
 food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')
 
 food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')
-
-## STOPPED HERE 
-
-# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
-all_food_freq_17_21 <- bind_rows(table_food_17, table_food_19, table_food_21) %>%
-  mutate(period = as.factor(survey))
-
-table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')
 
 # plot by year and by category
 
@@ -749,19 +751,48 @@ share_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
                   position=position_dodge(0.9))
 }
 
+count_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_food_freq_17_21[[grp_var]]
+  # facet_group <- all_commute_17_21[[grp_var2]]
+  
+  ggplot(all_food_freq_17_21, aes(x=period,
+                                       y=count,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~all_food_freq_17_21[[grp_var2]])+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Count",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::comma) +
+    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+}
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21) %>%
+  mutate(period = as.factor(survey))
+
+table(all_food_lifecycle_17_21$delivery_food_all, all_food_lifecycle_17_21$period)
+
+
+
 # comparative charts/plots
 # share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year(table_food_17, table_food_19, table_food_21,
-                   'hhincome_broad', 'delivery_food_all', 
-                   'Food Deliveries to Households by Income')
+share_plot_by_year(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
+                   'lifecycle', 'delivery_food_all', 
+                   'Food Deliveries to Households by Lifecycle')
 
-share_plot_by_year2(table_food_17, table_food_19, table_food_21,
-                   'survey', 'hhincome_broad',  
+share_plot_by_year2(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
+                   'survey', 'lifecycle',  
                     'Food Deliveries by Year')
 
-share_plot_by_cat(table_food_17, table_food_19, table_food_21, 
-                  'hhincome_broad', 'delivery_food_all',
-                  'Income Categories')+
+share_plot_by_cat(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21, 
+                  'lifecycle', 'delivery_food_all',
+                  'Age')+
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
 
