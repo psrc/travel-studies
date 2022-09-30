@@ -671,6 +671,7 @@ count_plot_by_cat(food_income_17, food_income_19, food_income_21,
 food_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
                     group_vars = c('hhincome_dichot', 'delivery_food_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')%>%
   mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
@@ -681,12 +682,14 @@ hhts_varsearch('hhincome_dichot')
 food_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
                     group_vars = c('hhincome_dichot', 'delivery_food_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
 food_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('hhincome_dichot', 'delivery_food_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
@@ -743,7 +746,7 @@ share_plot_by_year2_a <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
 
 share_plot_by_cat_a <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
   
-  fill_group <- all_food_income_dichot_17_21[[grp_var]]
+  fill_group <- all_food_income_dichot_17_21[[grp_var2]]
   # facet_group <- all_commute_17_21[[grp_var2]]
   
   ggplot(all_food_income_dichot_17_21, aes(x=period,
@@ -751,7 +754,7 @@ share_plot_by_cat_a <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
                                        fill=fill_group)) +
     geom_bar(stat="identity",
              position="dodge2") +
-    facet_wrap(~all_food_income_dichot_17_21[[grp_var2]])+
+    facet_wrap(~all_food_income_dichot_17_21[[grp_var]])+
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
           axis.title.x = element_blank()) +
     labs(y = "Share",
@@ -764,7 +767,7 @@ share_plot_by_cat_a <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
 
 count_plot_by_cat_a <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
   
-  fill_group <- all_food_income_dichot_17_21[[grp_var]]
+  fill_group <- all_food_income_dichot_17_21[[grp_var2]]
   # facet_group <- all_commute_17_21[[grp_var2]]
   
   ggplot(all_food_income_dichot_17_21, aes(x=period,
@@ -772,7 +775,7 @@ count_plot_by_cat_a <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
                                        fill=fill_group)) +
     geom_bar(stat="identity",
              position="dodge2") +
-    facet_wrap(~all_food_income_dichot_17_21[[grp_var2]])+
+    facet_wrap(~all_food_income_dichot_17_21[[grp_var]])+
     theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
           axis.title.x = element_blank()) +
     labs(y = "Count",
@@ -791,7 +794,9 @@ share_plot_by_year_a(food_income_17_dichot, food_income_19_dichot, food_income_2
 
 share_plot_by_year2_a(food_income_17_dichot, food_income_19_dichot, food_income_21_dichot,
                    'survey', 'hhincome_dichot',  
-                    'Food Deliveries by Year')
+                    'Food Deliveries by Year')+
+  psrc_style()+
+  scale_fill_discrete_psrc("psrc_light")
 
 share_plot_by_cat_a(food_income_17_dichot, food_income_19_dichot, food_income_21_dichot, 
                   'hhincome_dichot', 'delivery_food_all',
@@ -800,7 +805,7 @@ share_plot_by_cat_a(food_income_17_dichot, food_income_19_dichot, food_income_21
   scale_fill_discrete_psrc("psrc_light")
 
 count_plot_by_cat_a(food_income_17_dichot, food_income_19_dichot, food_income_21_dichot, 
-                  'hhincome_dichot', 'delivery_food_all',
+                  'delivery_food_all','hhincome_dichot', 
                   'Income Categories')+
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
