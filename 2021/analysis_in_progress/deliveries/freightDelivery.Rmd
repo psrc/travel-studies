@@ -105,7 +105,9 @@ head(household_info)
 
 unique(household_info$lifecycle)
 unique(deliveries$delivery_work_freq)
-R
+
+install_psrc_fonts()
+
 # create variables that would like to group by for analysis of deliveries by household
 
 delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
@@ -125,7 +127,6 @@ smp_delivery_combo <- function(data, year) {
                                         (pernum>1) ~ 'Not Person One, not the responder',
                                         delivery_food_freq == "0 (none)"  ~ 'No Delivery',
                                         deliver_food=='No' ~ 'No Delivery',
-                                        
                                         TRUE ~ 'Delivery Received'))%>%
     mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
                                         (pernum>1) ~ 'Not Person One, not the responder',
@@ -150,6 +151,48 @@ smp_delivery_combo <- function(data, year) {
                                          "$75,000-$99,999", 
                                            "$100,000 or more", 
                                            "Prefer not to answer")))%>%
+     mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+"  ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64" ~ '35-64 years',
+                                   lifecycle == "Household size > 1, Householder under age 35" |
+                                   lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" ~ 'Household has ages 5-17',
+                                   lifecycle == "Household includes children under 5" ~ 'Household has ages under 5'))
+  temp_table
+}
+
+smp_delivery_combo_2 <- function(data, year) {
+  ## rewriting labels of responses to be more concise
+  temp_table <- data %>%
+    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_food=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_package=='No' ~ 'No Delivery',
+                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_grocery=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_work =='No' ~ 'No Delivery',
+                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
+                                         TRUE ~ 'Delivery Received'))%>%
+     mutate(hhincome_broad = case_when(hhincome_broad == "$75,000-$99,999" | 
+                                         hhincome_broad == "$100,000-$199,000" | 
+                                         hhincome_broad == "$100,000 or more" ~ "$75,000 or more",
+                                       hhincome_broad == "Under $25,000" |
+                                         hhincome_broad == "$25,000-$49,999" | 
+                                         hhincome_broad ==  "$50,000-$74,999" ~ "Less than $75,000",
+                                       hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer")) %>%
      mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
                                   lifecycle == "Household size = 1, Householder age 65+"  ~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
@@ -207,7 +250,6 @@ delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')
 
 
 delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
-
 
 ```
 
@@ -729,4 +771,4 @@ share_plot_by_cat(table_food_17, table_food_19, table_food_21,
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
 
-``
+```
