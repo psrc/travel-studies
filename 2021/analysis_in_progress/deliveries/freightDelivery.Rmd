@@ -60,8 +60,6 @@ library(psrccensus)
 library(psrcplot)
 library(psrctrends)
 
-install_psrc_fonts()
-
 # for Elmer connection
 
 library(odbc)
@@ -162,47 +160,6 @@ smp_delivery_combo <- function(data, year) {
   temp_table
 }
 
-smp_delivery_combo_2 <- function(data, year) {
-  ## rewriting labels of responses to be more concise
-  temp_table <- data %>%
-    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
-                                        # pernum == 1 removes households where multiple members answered the question
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
-                                        deliver_food=='No' ~ 'No Delivery',
-                                        TRUE ~ 'Delivery Received'))%>%
-    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        deliver_package=='No' ~ 'No Delivery',
-                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
-                                        TRUE ~ 'Delivery Received'))%>%
-    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
-                                        deliver_grocery=='No' ~ 'No Delivery',
-                                        TRUE ~ 'Delivery Received'))%>%
-    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        deliver_work =='No' ~ 'No Delivery',
-                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
-                                         TRUE ~ 'Delivery Received'))%>%
-     mutate(hhincome_broad = case_when(hhincome_broad == "$75,000-$99,999" | 
-                                         hhincome_broad == "$100,000-$199,000" | 
-                                         hhincome_broad == "$100,000 or more" ~ "$75,000 or more",
-                                       hhincome_broad == "Under $25,000" |
-                                         hhincome_broad == "$25,000-$49,999" | 
-                                         hhincome_broad ==  "$50,000-$74,999" ~ "Less than $75,000",
-                                       hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer")) %>%
-     mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"  ~ '65 years or older', 
-                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
-                                   lifecycle == "Household size = 1, Householder age 35 - 64" ~ '35-64 years',
-                                   lifecycle == "Household size > 1, Householder under age 35" |
-                                   lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
-                                   lifecycle == "Household includes children age 5-17" ~ 'Household has ages 5-17',
-                                   lifecycle == "Household includes children under 5" ~ 'Household has ages under 5'))
-  temp_table
-}
 ```
 
 ```{r, getting survey data with pre-identified variables for households}
@@ -301,7 +258,6 @@ sum(joined_df_deliveries_21$hh_weight_2021_ABS) #this weight matches the closest
 joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
-
 ```
 
 ```{r, food deliveries by year alone}
@@ -454,6 +410,41 @@ work_c<-create_column_chart(t=work_freq_separate, x='delivery_work_all', y='shar
 
 print(work_c)
 ```
+```{r, facet wrap charts for all deliveries - pull from Mary's T:\2022September\Mary\EquityTracker\Transportation\HCTaccess_2020_5y_Elmer_CSV.Rmd code}
+
+deliveries_facet1<- create_facet_bar_chart(t=allhct_indicator20,
+                                                  w.x="quintile", w.y="wt_avg_miles",
+                                                  f="quintile", g="aggregation",
+                                                  w.color="blues_inc",
+                                                  est.type ="number",
+                                                  w.interactive="yes",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=2,
+                                                  w.title="Share of Housholds Receiving Deliveries by Year)",
+                                                  w.sub.title="2017, 2019, and 2021")
+
+deliveries_facet1
+
+# changing the aesthetic to make bars smaller 
+
+allhct_indicator20_order <- allhct_indicator20 %>% 
+  mutate(aggregation = fct_relevel(aggregation,
+            "poc", "income", "lep", "disability", "older", "youth"))
+
+deliveries_facet2<- create_facet_bar_chart(t=allhct_indicator20_order,
+                                                  w.x="quintile", w.y="wt_avg_miles",
+                                                  f="quintile", g="aggregation",
+                                                  w.color="blues_inc",
+                                                  est.type ="number",
+                                                  w.interactive="yes",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=3,
+                                                  w.title="Share of Housholds Receiving Deliveries by Year)",
+                                                  w.sub.title="2017, 2019, and 2021")
+deliveries_facet2
+```
 
 ```{r, count and share function, eval = FALSE}
 # -- this chunk is essentially what was performed above so not necessary, see eval = FALSE
@@ -545,6 +536,10 @@ food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021
 
 all_food_freq_17_21 <- bind_rows(food_income_17, food_income_19, food_income_21) %>%
   mutate(period = as.factor(survey))
+
+sum(food_income_17$count)
+sum(food_income_19$count)
+sum(food_income_21$count)
 
 table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
 ```
@@ -638,7 +633,6 @@ count_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
                   position=position_dodge(0.9))
 }
 ```
-
 
 ```{r, data visualization function for crosstabs}
 # comparative charts/plots
