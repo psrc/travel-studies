@@ -1183,8 +1183,7 @@ share_plot_by_cat_lifecycle(food_lifecycle_17, food_lifecycle_19, food_lifecycle
 
 ```
 
-```{r, food deliveries and county or rgc location}
-# crosstabs for lifecycle and food delivery by share and count (across years)
+```{r, food deliveries and rgc location/destination}
 
 # location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
@@ -1318,4 +1317,181 @@ share_plot_by_cat_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
                   'Location')+
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
+
+#ppsrc plot style
+
+food_rgc_plot<- create_column_chart(t= all_food_rgc_17_21,
+                                                  x="final_home_is_rgc", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Food/Meal Deliveries by Household Location",
+                                                  subtitle="Share of Households on Average Weekday",
+                                         source = "PSRC Regional Household Travel Survey")
+
+food_rgc_plot
 ```
+
+```{r, grocery deliveries and rgc location/destination}
+
+# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+
+grocery_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+grocery_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_grocery_rgc_17_21 <- bind_rows(grocery_rgc_17, grocery_rgc_19, grocery_rgc_21) %>%
+  mutate(period = as.factor(survey))
+
+table(all_grocery_rgc_17_21$delivery_grocery_all, all_grocery_rgc_17_21$period)
+
+# plot by year and by category
+
+share_plot_by_year2_rgc_groc <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_grocery_rgc_17_21[[grp_var]]
+  x_axis_grp <- all_grocery_rgc_17_21[[grp_var2]]
+  
+  ggplot(all_grocery_rgc_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~delivery_grocery_all)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+# comparative charts/plots
+# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
+
+share_plot_by_year2_rgc_groc(grocery_rgc_17, grocery_rgc_19, grocery_rgc_21,
+                   'final_home_is_rgc', 'survey',  
+                    'Grocery Deliveries by RGC')+
+  psrc_style()+
+  scale_fill_discrete_psrc("psrc_light")
+
+
+
+# with psrcplot style
+
+grocery_rgc_plot<- create_column_chart(t= all_grocery_rgc_17_21,
+                                                  x="final_home_is_rgc", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Grocery Deliveries by Household Location",
+                                                  subtitle="Share of Households on Average Weekday",
+                                         source = "PSRC Regional Household Travel Survey")
+
+grocery_rgc_plot
+```
+
+```{r, package deliveries and rgc location/destination}
+
+# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+
+pkg_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+pkg_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+pkg_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_pkg_rgc_17_21 <- bind_rows(pkg_rgc_17, pkg_rgc_19, pkg_rgc_21) %>%
+  mutate(period = as.factor(survey))
+
+table(all_pkg_rgc_17_21$delivery_pkgs_all, all_pkg_rgc_17_21$period)
+
+# plot by year and by category
+
+share_plot_by_year2_rgc_pkgs <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_pkg_rgc_17_21[[grp_var]]
+  x_axis_grp <- all_pkg_rgc_17_21[[grp_var2]]
+  
+  ggplot(all_pkg_rgc_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~delivery_pkgs_all)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+# comparative charts/plots
+# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
+
+share_plot_by_year2_rgc_pkgs(pkg_rgc_17, pkg_rgc_19, pkg_rgc_21,
+                   'final_home_is_rgc', 'survey',  
+                    'Package Deliveries by RGC')+
+  psrc_style()+
+  scale_fill_discrete_psrc("psrc_light")
+
+
+
+# with psrcplot style
+
+pkg_rgc_plot<- create_column_chart(t= all_pkg_rgc_17_21,
+                                                  x="final_home_is_rgc", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Package Deliveries by Household Location",
+                                                  subtitle="Share of Households on Average Weekday",
+                                         source = "PSRC Regional Household Travel Survey")
+
+pkg_rgc_plot
+```
+
