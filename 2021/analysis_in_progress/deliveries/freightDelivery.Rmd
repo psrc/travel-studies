@@ -452,6 +452,20 @@ deliveries_facet1<- create_facet_bar_chart(t= all_deliveries_freq_17_21_new,
                                                   w.sub.title="Share of Households on Average Weekday")
 
 deliveries_facet1
+
+deliveries_facet_test<- create_column_chart(t= all_deliveries_freq_17_21_new,
+                                                  x="delivery_type", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_light",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Home Deliveries or Services",
+                                                  subtitle="Share of Households on Average Weekday",
+                                         source = "regional household travel survey")
+
+deliveries_facet_test
 ```
 
 ```{r, count and share function, eval = FALSE}
@@ -815,6 +829,184 @@ count_plot_by_cat_a(food_income_17_dichot, food_income_19_dichot, food_income_21
 
 ```
 
+```{r, crosstabs for grocery deliveries and income dichotomies, share_plot_by_year2 is favored plot}
+
+# crosstabs for income and grocery delivery by share and count (across years)
+
+grocery_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')%>%
+  mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
+            "Under $75,000", "$75,000+", "Prefer not to answer"))
+
+grocery_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+grocery_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019_v2021', 
+                    group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')%>%
+  mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
+            "Under $75,000", "$75,000+", "Prefer not to answer"))%>%
+  mutate(survey = case_when(survey == "2017_2019" ~ "2019/2019"))
+
+grocery_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+                    group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+
+all_grocery_income_dichot_17_21 <- bind_rows(grocery_income_1719_dichot, grocery_income_21_dichot) %>%
+  mutate(period = as.factor(survey))
+
+# plot by year and by category
+
+share_plot_by_year2_b <- function(dt1, dt2, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_grocery_income_dichot_17_21[[grp_var]]
+  x_axis_grp <- all_grocery_income_dichot_17_21[[grp_var2]]
+  
+  ggplot(all_grocery_income_dichot_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~delivery_grocery_all)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+# create crosstab tables
+
+share_plot_by_year2_b(grocery_income_1719_dichot, grocery_income_21_dichot,
+                   'survey', 'hhincome_dichot',  
+                    'Grocery Deliveries by Year')+
+  scale_fill_discrete_psrc("psrc_light")
+
+groceries_test<- create_column_chart(t= all_grocery_income_dichot_17_21,
+                                                  x="hhincome_dichot", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_light",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Grocery Deliveries",
+                                                  subtitle="(i.e., Amazon Fresh, Safeway Online, Instacart)",
+                                         source = "PSRC Regional Household Travel Survey")
+
+groceries_test
+
+```
+
+```{r, crosstabs for package deliveries and income dichotomies, share_plot_by_year2 is favored plot}
+
+# crosstabs for income and package delivery by share and count (across years)
+
+pkg_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')%>%
+  mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
+            "Under $75,000", "$75,000+", "Prefer not to answer"))
+
+pkg_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+pkg_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019_v2021', 
+                    group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')%>%
+  mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
+            "Under $75,000", "$75,000+", "Prefer not to answer"))%>%
+  mutate(survey = case_when(survey == "2017_2019" ~ "2019/2019"))
+
+pkg_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+                    group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+
+all_pkgs_income_dichot_17_21 <- bind_rows(pkg_income_1719_dichot, pkg_income_21_dichot) %>%
+  mutate(period = as.factor(survey))
+
+# plot by year and by category
+
+share_plot_by_year2_c <- function(dt1, dt2, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_pkgs_income_dichot_17_21[[grp_var]]
+  x_axis_grp <- all_pkgs_income_dichot_17_21[[grp_var2]]
+  
+  ggplot(all_pkgs_income_dichot_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~delivery_pkgs_all)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+# create crosstab tables
+
+share_plot_by_year2_c(pkgs_income_1719_dichot, pkgs_income_21_dichot,
+                   'survey', 'hhincome_dichot',  
+                    'Package Deliveries by Year')+
+  scale_fill_discrete_psrc("psrc_light")
+
+pkgs_test<- create_column_chart(t= all_pkgs_income_dichot_17_21,
+                                                  x="hhincome_dichot", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_light",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Package Deliveries",
+                                                  subtitle="(i.e., FedEx, UPS, USPS)",
+                                         source = "PSRC Regional Household Travel Survey")
+
+pkgs_test
+
+```
+
 ```{r, crosstabs for food deliveries and lifecycle stages - by year3 code includes combined 17/19, but can revert back to disaggregated if desired}
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
@@ -997,19 +1189,19 @@ share_plot_by_cat_lifecycle(food_lifecycle_17, food_lifecycle_19, food_lifecycle
 # location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
 food_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
-                    group_vars = c('delivery_food_all', 'final_home_is_rgc')) %>% 
+                    group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
 food_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
-                    group_vars = c('delivery_food_all', 'final_home_is_rgc')) %>% 
+                    group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
 food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
-                    group_vars = c('delivery_food_all', 'final_home_is_rgc')) %>% 
+                    group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
@@ -1116,7 +1308,7 @@ share_plot_by_year_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
 
 
 share_plot_by_year2_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
-                   'survey', 'final_home_is_rgc',  
+                   'final_home_is_rgc', 'survey',  
                     'Food Deliveries by Year')+
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
