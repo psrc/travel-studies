@@ -868,12 +868,12 @@ grocery_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_w
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 
-all_grocery_income_dichot_17_21 <- bind_rows(grocery_income_1719_dichot, grocery_income_21_dichot) %>%
+all_grocery_income_dichot_17_21 <- bind_rows(grocery_income_17_dichot, grocery_income_19_dichot, grocery_income_21_dichot) %>%
   mutate(period = as.factor(survey))
 
 # plot by year and by category
 
-share_plot_by_year2_b <- function(dt1, dt2, grp_var, grp_var2, legend_name){
+share_plot_by_year2_b <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
   
   fill_group <- all_grocery_income_dichot_17_21[[grp_var]]
   x_axis_grp <- all_grocery_income_dichot_17_21[[grp_var2]]
@@ -897,7 +897,7 @@ share_plot_by_year2_b <- function(dt1, dt2, grp_var, grp_var2, legend_name){
 
 # create crosstab tables
 
-share_plot_by_year2_b(grocery_income_1719_dichot, grocery_income_21_dichot,
+share_plot_by_year2_b(grocery_income_17_dichot, grocery_income_19_dichot, grocery_income_21_dichot,
                    'survey', 'hhincome_dichot',  
                     'Grocery Deliveries by Year')+
   scale_fill_discrete_psrc("psrc_light")
@@ -1034,6 +1034,7 @@ food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weig
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
+
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_1719, food_lifecycle_21) %>%
@@ -1323,14 +1324,14 @@ share_plot_by_cat_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
 food_rgc_plot<- create_column_chart(t= all_food_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
                                                   f="survey",
-                                            moe = "share_moe",
+                                                  moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
                                                   interactive="no",
                                                   dec=1,
                                                   title="Food/Meal Deliveries by Household Location",
                                                   subtitle="Share of Households on Average Weekday",
-                                         source = "PSRC Regional Household Travel Survey")
+                                                  source = "PSRC Regional Household Travel Survey")
 
 food_rgc_plot
 ```
@@ -1495,3 +1496,37 @@ pkg_rgc_plot<- create_column_chart(t= all_pkg_rgc_17_21,
 pkg_rgc_plot
 ```
 
+```{r, rgc facet wrap with fixed scale}
+
+all_food_rgc_17_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal", "food/meal", "food/meal")
+
+all_grocery_rgc_17_21$delivery_type = c("grocery", "grocery", "grocery", "grocery", "grocery", "grocery")
+
+all_pkg_rgc_17_21$delivery_type = c("packages", "packages", "packages", "packages", "packages", "packages")
+
+
+# bind all dataframes together 
+
+all_deliveries_rgc <- rbind(all_food_rgc_17_21, all_grocery_rgc_17_21, all_pkg_rgc_17_21, fill = TRUE)
+                                   
+# remove unnecessary columns
+
+all_deliveries_rgc_new <- all_deliveries_rgc[, -c(3, 11, 12, 13)]
+
+# create facet bar chart
+
+deliveries_rgc<- create_facet_bar_chart(t= all_deliveries_rgc_new,
+                                                  w.x="survey", w.y="share",
+                                                  f="final_home_is_rgc", g="delivery_type",
+                                                  w.color="psrc_pairs",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=3,
+                                                  w.title="Home Deliveries by RGC",
+                                                  w.sub.title="Share of Households on Average Weekday")
+
+deliveries_rgc
+
+```
