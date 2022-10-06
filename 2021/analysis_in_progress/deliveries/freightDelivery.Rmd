@@ -11,7 +11,7 @@ output: html_document
 # How many days did people receive deliveries?
 # Did the number of deliveries change by year? by race? by income? by lifecycle?
 
-```{r setup, include=FALSE, eval = FALSE}
+```{r setup, include=FALSE}
 
 # how many days did people receive deliveries?
 # did the number of deliveries change by year? by race? by income?
@@ -89,20 +89,20 @@ survey_d <- list(survey = '2019', label = '2019')
 
 # look at variable names and which years they were collected/documented
 
-hhts_varsearch("delivery")
-hhts_varsearch("traveldate")
-hhts_varsearch("race")
-hhts_varsearch('income')
-hhts_varsearch('age')
-hhts_varsearch('county')
-hhts_varsearch('home')
-hhts_varsearch('race')
+# hhts_varsearch("delivery")
+# hhts_varsearch("traveldate")
+# hhts_varsearch("race")
+# hhts_varsearch('income')
+# hhts_varsearch('age')
+# hhts_varsearch('county')
+# hhts_varsearch('home')
+# hhts_varsearch('race')
 
-names(deliveries)
-head(household_info)
+# names(deliveries)
+# head(household_info)
 
-unique(household_info$lifecycle)
-unique(deliveries$delivery_work_freq)
+# unique(household_info$lifecycle)
+# unique(deliveries$delivery_work_freq)
 
 install_psrc_fonts()
 
@@ -1495,6 +1495,84 @@ pkg_rgc_plot<- create_column_chart(t= all_pkg_rgc_17_21,
 
 pkg_rgc_plot
 ```
+```{r}
+# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+
+work_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')
+
+work_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')
+
+work_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
+  filter(final_home_is_rgc != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_work_rgc_17_21 <- bind_rows(work_rgc_17, work_rgc_19, work_rgc_21) %>%
+  mutate(period = as.factor(survey))
+
+table(all_work_rgc_17_21$delivery_work_all, all_work_rgc_17_21$period)
+
+# plot by year and by category
+
+share_plot_by_year2_rgc_work <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
+  
+  fill_group <- all_work_rgc_17_21[[grp_var]]
+  x_axis_grp <- all_work_rgc_17_21[[grp_var2]]
+  
+  ggplot(all_work_rgc_17_21, aes(x=x_axis_grp,
+                                       y=share,
+                                       fill=fill_group)) +
+    geom_bar(stat="identity",
+             position="dodge2") +
+    facet_wrap(~delivery_work_all)+
+    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
+          axis.title.x = element_blank()) +
+    labs(y = "Share",
+         fill = legend_name) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                  size=.5, width=.2,
+                  position=position_dodge(0.9))
+  
+}
+
+# comparative charts/plots
+# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
+
+share_plot_by_year2_rgc_work(work_rgc_17, work_rgc_19, work_rgc_21,
+                   'final_home_is_rgc', 'survey',  
+                    'Package Deliveries by RGC')+
+  psrc_style()+
+  scale_fill_discrete_psrc("psrc_light")
+
+
+
+# with psrcplot style
+
+work_rgc_plot<- create_column_chart(t= all_work_rgc_17_21,
+                                                  x="final_home_is_rgc", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Package Deliveries by Household Location",
+                                                  subtitle="Share of Households on Average Weekday",
+                                         source = "PSRC Regional Household Travel Survey")
+
+work_rgc_plot
+```
 
 ```{r, rgc facet wrap with fixed scale}
 
@@ -1504,10 +1582,11 @@ all_grocery_rgc_17_21$delivery_type = c("grocery", "grocery", "grocery", "grocer
 
 all_pkg_rgc_17_21$delivery_type = c("packages", "packages", "packages", "packages", "packages", "packages")
 
+all_work_rgc_17_21$delivery_type = c("work/service", "work/service", "work/service", "work/service", "work/service", "work/service")
 
 # bind all dataframes together 
 
-all_deliveries_rgc <- rbind(all_food_rgc_17_21, all_grocery_rgc_17_21, all_pkg_rgc_17_21, fill = TRUE)
+all_deliveries_rgc <- rbind(all_food_rgc_17_21, all_grocery_rgc_17_21, all_pkg_rgc_17_21, all_work_rgc_17_21, fill = TRUE)
                                    
 # remove unnecessary columns
 
@@ -1516,14 +1595,14 @@ all_deliveries_rgc_new <- all_deliveries_rgc[, -c(3, 11, 12, 13)]
 # create facet bar chart
 
 deliveries_rgc<- create_facet_bar_chart(t= all_deliveries_rgc_new,
-                                                  w.x="survey", w.y="share",
-                                                  f="final_home_is_rgc", g="delivery_type",
+                                                  w.x="final_home_is_rgc", w.y="share",
+                                                  f="survey", g="delivery_type",
                                                   w.color="psrc_pairs",
                                                   est.type ="percent",
                                                   w.interactive="no",
                                                   w.dec=2,
                                                   w.scales="fixed",
-                                                  w.facet=3,
+                                                  w.facet=4,
                                                   w.title="Home Deliveries by RGC",
                                                   w.sub.title="Share of Households on Average Weekday")
 
