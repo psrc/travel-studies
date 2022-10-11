@@ -150,11 +150,14 @@ smp_delivery_combo <- function(data, year) {
                                            "$100,000 or more", 
                                            "Prefer not to answer")))%>%
      mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"  ~ '65 years or older', 
+                                  lifecycle == "Household size = 1, Householder age 65+"  
+                                 ~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
-                                   lifecycle == "Household size = 1, Householder age 35 - 64" | 
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
+                                 ~ '35-64',
                                    lifecycle == "Household size > 1, Householder under age 35" | 
-                                   lifecycle == "Household size = 1, Householder under age 35" ~ '35-64 years, no kids',
+                                   lifecycle == "Household size = 1, Householder under age 35" 
+                                   ~ 'Under 35 years, no kids',
                                    lifecycle == "Household includes children age 5-17" | 
                                    lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
     mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
@@ -1206,7 +1209,9 @@ food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weig
                     group_vars = c('lifecycle', 'delivery_food_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
-  filter(delivery_food_all != 'No Delivery')
+  filter(delivery_food_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1381,7 +1386,7 @@ grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weig
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')%>%
   mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
+            "Household has kids", 'Under 35 years, no kids', "35-64 years, no kids", "65 years or older"))
 
 grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
                     group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
@@ -1393,7 +1398,9 @@ grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_w
                     group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
-  filter(delivery_grocery_all != 'No Delivery')
+  filter(delivery_grocery_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", 'Under 35 years, no kids',"35-64 years, no kids", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1440,7 +1447,9 @@ pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weig
                     group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
-  filter(delivery_pkgs_all != 'No Delivery')
+  filter(delivery_pkgs_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1487,7 +1496,9 @@ work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weig
                     group_vars = c('lifecycle', 'delivery_work_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
-  filter(delivery_work_all != 'No Delivery')
+  filter(delivery_work_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1514,13 +1525,13 @@ lifecycles_work
 
 ```{r, rgc facet wrap with fixed scale}
 
-food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal")
+food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
 
-grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery")
+grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery", "grocery")
 
-pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages")
+pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages", "packages")
 
-work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service")
+work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service", "work/service")
 
 # bind all dataframes together 
 
