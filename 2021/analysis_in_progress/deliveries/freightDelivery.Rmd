@@ -97,7 +97,6 @@ survey_d <- list(survey = '2019', label = '2019')
 # hhts_varsearch('county')
 # hhts_varsearch('home')
 # hhts_varsearch('race')
-hhts_varsearch('size')
 
 # names(deliveries)
 # head(household_info)
@@ -273,6 +272,11 @@ joined_df_deliveries_1719<-joined_df_deliveries_1719%>%filter(delivery_food_all!
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
 ```
 
+```{r, descriptive stats for hhsize}
+ggplot(data = deliveries) + 
+  geom_bar(mapping = aes(x =hhsize))
+```
+
 ```{r, food deliveries by year alone}
 
 count_food_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_food_all",
@@ -422,7 +426,7 @@ grocery_column<- create_column_chart(t= grocery_freq_separate,
                                                   interactive="no",
                                                   dec=1,
                                                   title="Grocery Deliveries",
-                                                  subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online",
+                                                  subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online)",
                                          source = "regional household travel survey")
 
 grocery_column
@@ -474,7 +478,7 @@ work_column<- create_column_chart(t= work_freq_separate,
                                                   interactive="no",
                                                   dec=1,
                                                   title="Work/Service Deliveries",
-                                                  subtitle="(e.g., landscaping, cable service, house-cleaning",
+                                                  subtitle="(e.g., landscaping, cable service, house-cleaning)",
                                          source = "regional household travel survey")
 
 work_column
@@ -901,8 +905,8 @@ food_income_column<- create_column_chart(t= all_food_income_dichot_17_21,
                                                   est ="percent",
                                                   interactive="no",
                                                   dec=1,
-                                                  title="Food Deliveries by Income",
-                                                  subtitle="(i.e., pizza/sushi, Grubhub)",
+                                                  title="Food/Meal Deliveries by Income",
+                                                  subtitle="(e.g.., pizza/sushi, Grubhub)",
                                          source = "PSRC Regional Household Travel Survey")
 
 food_income_column
@@ -1159,14 +1163,14 @@ share_plot_by_year2_d(work_income_17_dichot, work_income_17_dichot, work_income_
                     'Work Deliveries by Year')+
   scale_fill_discrete_psrc("psrc_light")
 
-work_test<- create_column_chart(t= all_pkgs_income_dichot_17_21,
+work_test<- create_column_chart(t= all_work_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
                                                   interactive="no",
-                                                  dec=1,
+                                                  dec= 1,
                                                   title="Work Deliveries by Income",
                                                   subtitle="(e.g., landscaping, cable service, house-cleaningcable)",
                                          source = "PSRC Regional Household Travel Survey")
