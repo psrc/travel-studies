@@ -11,12 +11,12 @@ Recent analysis has uncovered that people who live in RGCs have substantially di
 library(psrc.travelsurvey)
 library(tidyr)
 library(dplyr)
+library(plotly)
 library(stringr)
-library(ggplot2)
 library(psrcplot)
 library(tidycensus)
 library(htmlwidgets)
-install_psrc_fonts()
+#install_psrc_fonts()
 ```
 
 Clearly living in RGC does not directly cause this behavior. People who live in RGCs are already different from people who do not- they have smaller household sizes, are younger, and have higher incomes (at least I think).
@@ -342,7 +342,8 @@ p0 <-
     moe = 'moe_trips_person',
     est = 'number',
     color = 'psrc_pairs',
-    interactive = 'yes'
+    interactive = 'yes',
+    dec=1
   )  
 
 
@@ -882,5 +883,25 @@ psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres,
                                          p.caption=paste0("2017/2019 vs 2021"), 
 
                                          p.chart=p1)
+```
+
+```{r}
+library(psrcplot)
+library(dplyr)
+# This installs PSRC fonts for use in R. It has to be run at the start of each R sessions
+install_psrc_fonts()
+# Column Charts -----------------------------------------------------
+mode_shares <- read.csv(system.file('extdata', 'example_data.csv', package='psrcplot')) %>% 
+  filter(Category=="Mode to Work by Race") %>%
+  filter(Geography=="Region" & Race=="Total") %>%
+  mutate(Year = as.character(Year)) %>%
+  mutate(axis_labels = stringr::str_wrap(Mode, width = 10))
+# Static Chart with Error Bars 
+static_ms_chart <- create_column_chart(t=mode_shares, x="Mode",y="share", f="Year",
+                                       title="Mode Share to Work",
+                                       source="Source: ACS 5yr Data Table B3002",
+                                       moe="share_moe", color="psrc_light")
+interactive_ms_chart <- plotly::ggplotly(static_ms_chart)
+
 ```
 
