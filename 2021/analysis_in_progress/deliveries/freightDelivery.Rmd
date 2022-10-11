@@ -1203,7 +1203,7 @@ food_lifecycle_1719 <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_wei
   filter(delivery_food_all != 'No Delivery')
 
 food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
+                    group_vars = c('lifecycle', 'delivery_food_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
@@ -1390,7 +1390,7 @@ grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weig
   filter(delivery_grocery_all != 'No Delivery')
 
 grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
-                    group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
+                    group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
@@ -1437,7 +1437,7 @@ pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_
   filter(delivery_pkgs_all != 'No Delivery')
 
 pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
-                    group_vars = c('delivery_pkgs_all', 'lifecycle')) %>% 
+                    group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
@@ -1484,7 +1484,7 @@ work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_
   filter(delivery_work_all != 'No Delivery')
 
 work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
-                    group_vars = c('delivery_work_all', 'lifecycle')) %>% 
+                    group_vars = c('lifecycle', 'delivery_work_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
@@ -1509,6 +1509,43 @@ lifecycles_work<- create_column_chart(t= all_work_lifecycle_17_21,
                                          source = "PSRC Regional Household Travel Survey")
 
 lifecycles_work
+
+```
+
+```{r, rgc facet wrap with fixed scale}
+
+food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery")
+
+pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages")
+
+work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service")
+
+# bind all dataframes together 
+
+all_deliveries_lifecycle <- rbind(food_lifecycle_21, grocery_lifecycle_21, pkgs_lifecycle_21, work_lifecycle_21, fill = TRUE)
+                                   
+# remove unnecessary columns
+
+all_deliveries_lifecycle_new <- all_deliveries_lifecycle[, -c(3, 10, 11, 12)]
+
+# create facet bar chart
+
+deliveries_lifecycle_facet<- create_facet_bar_chart(t= all_deliveries_lifecycle_new,
+                                                  w.x="delivery_type", w.y="share",
+                                                  f="lifecycle", g="survey",
+                                                  w.moe = "share_moe",
+                                                  w.color="greens_inc",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=4,
+                                                  w.title="Home Deliveries or Services by Age Group",
+                                                  w.sub.title="Share of Households on Average Weekday")
+
+deliveries_lifecycle_facet
 
 ```
 
