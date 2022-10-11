@@ -1360,10 +1360,151 @@ lifecycles_test<- create_column_chart(t= all_food_lifecycle_17_21,
                                                   interactive="no",
                                                   dec=1,
                                                   title="Food Deliveries",
-                                                  subtitle="(i.e., Amazon Fresh, Safeway Online, Instacart)",
+                                                  subtitle="(e.g., pizza/sushi, GrubHub)",
                                          source = "PSRC Regional Household Travel Survey")
 
 lifecycles_test
+
+```
+
+```{r, crosstabs for grocery deliveries and lifecycle stages}
+
+# crosstabs for lifecycle and food delivery by share and count (across years)
+
+grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
+
+grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_grocery_lifecycle_17_21 <- bind_rows(grocery_lifecycle_17, grocery_lifecycle_19, grocery_lifecycle_21) %>%
+  mutate(period = as.factor(survey))
+
+# column chart
+
+lifecycles_test<- create_column_chart(t= all_grocery_lifecycle_17_21,
+                                                  x="lifecycle", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Grocery Deliveries by Household",
+                                                  subtitle="(e.g., Amazon Fresh, Safeway Online, Instacart)",
+                                         source = "PSRC Regional Household Travel Survey")
+
+lifecycles_test
+
+```
+
+```{r, crosstabs for package deliveries and lifecycle stages}
+
+# crosstabs for lifecycle and food delivery by share and count (across years)
+
+pkgs_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('delivery_pkgs_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
+
+pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('delivery_pkgs_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('delivery_pkgs_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')
+
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_pkgs_lifecycle_17_21 <- bind_rows(pkgs_lifecycle_17, pkgs_lifecycle_19, pkgs_lifecycle_21) %>%
+  mutate(period = as.factor(survey))
+
+# column chart
+
+lifecycles_pkgs<- create_column_chart(t= all_pkgs_lifecycle_17_21,
+                                                  x="lifecycle", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Packages Deliveries by Household",
+                                                  subtitle="(e.g., FedEx, UPS, USPS)",
+                                         source = "PSRC Regional Household Travel Survey")
+
+lifecycles_pkgs
+
+```
+
+```{r, crosstabs for work/service deliveries and lifecycle stages}
+
+# crosstabs for lifecycle and food delivery by share and count (across years)
+
+work_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('delivery_work_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
+
+work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('delivery_work_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')
+
+work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+                    group_vars = c('delivery_work_all', 'lifecycle')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')
+
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_work_lifecycle_17_21 <- bind_rows(work_lifecycle_17, work_lifecycle_19, work_lifecycle_21) %>%
+  mutate(period = as.factor(survey))
+
+# column chart
+
+lifecycles_work<- create_column_chart(t= all_work_lifecycle_17_21,
+                                                  x="lifecycle", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Work/Service Deliveries by Household",
+                                                  subtitle="(e.g., landscaping, cable service, house-cleaning)",
+                                         source = "PSRC Regional Household Travel Survey")
+
+lifecycles_work
 
 ```
 
