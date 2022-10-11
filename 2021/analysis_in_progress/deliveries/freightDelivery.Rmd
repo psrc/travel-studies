@@ -153,11 +153,11 @@ smp_delivery_combo <- function(data, year) {
      mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
                                   lifecycle == "Household size = 1, Householder age 65+"  ~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
-                                   lifecycle == "Household size = 1, Householder age 35 - 64" ~ '35-64 years',
-                                   lifecycle == "Household size > 1, Householder under age 35" |
-                                   lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
-                                   lifecycle == "Household includes children age 5-17" ~ 'Household has ages 5-17',
-                                   lifecycle == "Household includes children under 5" ~ 'Household has ages under 5')) %>%
+                                   lifecycle == "Household size = 1, Householder age 35 - 64" | 
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" ~ '35-64 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
     mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
                                   hhsize == "2 people"  ~ '2 people', 
                                    hhsize == "3 people" ~ '3 people',
@@ -1182,7 +1182,9 @@ food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
-  filter(delivery_food_all != 'No Delivery')
+  filter(delivery_food_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "35-64 years, no kids", "65 years or older"))
 
 food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
@@ -1204,7 +1206,7 @@ food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weig
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
-all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_1719, food_lifecycle_21) %>%
+all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21) %>%
   mutate(period = as.factor(survey))
 
 table(all_food_lifecycle_17_21$delivery_food_all, all_food_lifecycle_17_21$period)
@@ -1348,6 +1350,20 @@ share_plot_by_cat_lifecycle(food_lifecycle_17, food_lifecycle_19, food_lifecycle
                   'Age')+
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
+
+lifecycles_test<- create_column_chart(t= all_food_lifecycle_17_21,
+                                                  x="lifecycle", y="share",
+                                                  f="survey",
+                                            moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Food Deliveries",
+                                                  subtitle="(i.e., Amazon Fresh, Safeway Online, Instacart)",
+                                         source = "PSRC Regional Household Travel Survey")
+
+lifecycles_test
 
 ```
 
