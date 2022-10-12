@@ -1186,32 +1186,28 @@ work_test
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
 food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_food_all != 'Total')%>%
-  filter(delivery_food_all != 'No Delivery')%>%
-  mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
-
-food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_food_all != 'Total')%>%
-  filter(delivery_food_all != 'No Delivery')
-
-food_lifecycle_1719 <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019_v2021', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_food_all != 'Total')%>%
-  filter(delivery_food_all != 'No Delivery')
-
-food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
                     group_vars = c('lifecycle', 'delivery_food_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')%>%
   mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('lifecycle', 'delivery_food_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = "hh_weight_2021_ABS", 
+                    group_vars = c('lifecycle', 'delivery_food_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1220,154 +1216,16 @@ all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food
 
 table(all_food_lifecycle_17_21$delivery_food_all, all_food_lifecycle_17_21$period)
 
-all_food_lifecycle_1719_21 <- bind_rows(food_lifecycle_1719, food_lifecycle_21) %>%
-  mutate(period = as.factor(survey))
-
-# plot by year and by category
-
-share_plot_by_year_lifecycle <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_lifecycle_17_21[[grp_var]]
-  x_axis_grp <- all_food_lifecycle_17_21[[grp_var2]]
-  
-  ggplot(all_food_lifecycle_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~period)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_year2_lifecycle <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_lifecycle_17_21[[grp_var]]
-  x_axis_grp <- all_food_lifecycle_17_21[[grp_var2]]
-  
-  ggplot(all_food_lifecycle_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_food_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_year3_lifecycle <- function(dt1, dt2, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_lifecycle_1719_21[[grp_var]]
-  x_axis_grp <- all_food_lifecycle_1719_21[[grp_var2]]
-  
-  ggplot(all_food_lifecycle_1719_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_food_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_cat_lifecycle <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_lifecycle_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_lifecycle_17_21, aes(x=period,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_lifecycle_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-count_plot_by_cat_lifecycle <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_lifecycle_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_lifecycle_17_21, aes(x=period,
-                                       y=count,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_lifecycle_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Count",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::comma) +
-    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year_lifecycle(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
-                   'lifecycle', 'delivery_food_all', 
-                   'Food Deliveries to Households by Lifecycle')
-
-
-share_plot_by_year2_lifecycle(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
-                   'survey', 'lifecycle',  
-                    'Food Deliveries by Year')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-
-share_plot_by_year3_lifecycle(food_lifecycle_1719, food_lifecycle_21,
-                   'survey', 'lifecycle',  
-                    'Food Deliveries by Year')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-
-share_plot_by_cat_lifecycle(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21, 
-                  'lifecycle', 'delivery_food_all',
-                  'Age')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
+# plot
 
 lifecycles_test<- create_column_chart(t= all_food_lifecycle_17_21,
-                                                  x="lifecycle", y="share",
-                                                  f="survey",
+                                                  x="survey", y="share",
+                                                  f="lifecycle",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
                                                   interactive="no",
-                                                  dec=1,
+                                                  dec=0,
                                                   title="Food Deliveries",
                                                   subtitle="(e.g., pizza/sushi, GrubHub)",
                                          source = "PSRC Regional Household Travel Survey")
@@ -1381,27 +1239,28 @@ lifecycles_test
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
 grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
-                    group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_grocery_all != 'Total')%>%
-  filter(delivery_grocery_all != 'No Delivery')%>%
-  mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", 'Under 35 years, no kids', "35-64 years, no kids", "65 years or older"))
-
-grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
-                    group_vars = c('delivery_grocery_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_grocery_all != 'Total')%>%
-  filter(delivery_grocery_all != 'No Delivery')
-
-grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
                     group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')%>%
   mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", 'Under 35 years, no kids',"35-64 years, no kids", "65 years or older"))
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
+grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+                    group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 all_grocery_lifecycle_17_21 <- bind_rows(grocery_lifecycle_17, grocery_lifecycle_19, grocery_lifecycle_21) %>%
@@ -1409,7 +1268,7 @@ all_grocery_lifecycle_17_21 <- bind_rows(grocery_lifecycle_17, grocery_lifecycle
 
 # column chart
 
-lifecycles_test<- create_column_chart(t= all_grocery_lifecycle_17_21,
+lifecycles_grocery_test<- create_column_chart(t= all_grocery_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -1421,7 +1280,7 @@ lifecycles_test<- create_column_chart(t= all_grocery_lifecycle_17_21,
                                                   subtitle="(e.g., Amazon Fresh, Safeway Online, Instacart)",
                                          source = "PSRC Regional Household Travel Survey")
 
-lifecycles_test
+lifecycles_grocery_test
 
 ```
 
@@ -1430,26 +1289,28 @@ lifecycles_test
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
 pkgs_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
-                    group_vars = c('delivery_pkgs_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_pkgs_all != 'Total')%>%
-  filter(delivery_pkgs_all != 'No Delivery')%>%
-  mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
-
-pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
-                    group_vars = c('delivery_pkgs_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_pkgs_all != 'Total')%>%
-  filter(delivery_pkgs_all != 'No Delivery')
-
-pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
                     group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')%>%
   mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+                    group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_pkgs_all != 'Total')%>%
+  filter(delivery_pkgs_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1479,26 +1340,28 @@ lifecycles_pkgs
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
 work_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
-                    group_vars = c('delivery_work_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_work_all != 'Total')%>%
-  filter(delivery_work_all != 'No Delivery')%>%
-  mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
-
-work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
-                    group_vars = c('delivery_work_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')%>%
-  filter(delivery_work_all != 'Total')%>%
-  filter(delivery_work_all != 'No Delivery')
-
-work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
                     group_vars = c('lifecycle', 'delivery_work_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')%>%
   mutate(lifecycle = fct_relevel(lifecycle,
-            "Household has kids", "35-64 years, no kids", "65 years or older"))
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('lifecycle', 'delivery_work_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
+
+work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+                    group_vars = c('lifecycle', 'delivery_work_all')) %>% 
+  filter(lifecycle != 'Total')%>%
+  filter(delivery_work_all != 'Total')%>%
+  filter(delivery_work_all != 'No Delivery')%>%
+  mutate(lifecycle = fct_relevel(lifecycle,
+            "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
@@ -1553,7 +1416,7 @@ deliveries_lifecycle_facet<- create_facet_bar_chart(t= all_deliveries_lifecycle_
                                                   w.dec=2,
                                                   w.scales="fixed",
                                                   w.facet=4,
-                                                  w.title="Home Deliveries or Services by Age Group",
+                                                  w.title="Home Deliveries or Services by Lifecycle",
                                                   w.sub.title="Share of Households on Average Weekday")
 
 deliveries_lifecycle_facet
@@ -1576,7 +1439,7 @@ food_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -1728,7 +1591,7 @@ grocery_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_201
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
 
-grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
@@ -1808,7 +1671,7 @@ pkg_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkg_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+pkg_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -1887,7 +1750,7 @@ work_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+work_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
@@ -1988,7 +1851,7 @@ deliveries_rgc
 
 ```
 
-```{r, hhsize and food deliveries, produced grocery charrt with this but had to revert}
+```{r, hhsize and food deliveries}
 # hh variables: hhsize'
 
 food_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
@@ -2003,7 +1866,7 @@ food_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+food_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('hhsize', 'delivery_food_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -2139,6 +2002,49 @@ food_hhsize_plot<- create_column_chart(t= all_food_hh_17_21,
 food_hhsize_plot
 ```
 
+```{r, hhsize and grocery deliveries}
+
+# hh variables: hhsize'
+
+grocery_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+                    group_vars = c('hhsize', 'delivery_grocery_all')) %>% 
+  filter(hhsize != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+grocery_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+                    group_vars = c('hhsize', 'delivery_grocery_all')) %>% 
+  filter(hhsize != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+grocery_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+                    group_vars = c('hhsize', 'delivery_grocery_all')) %>% 
+  filter(hhsize != 'Total')%>%
+  filter(delivery_grocery_all != 'Total')%>%
+  filter(delivery_grocery_all != 'No Delivery')
+
+# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
+all_grocery_hh_17_21 <- bind_rows(grocery_hh_17, grocery_hh_19, grocery_hh_21) %>%
+  mutate(period = as.factor(survey))
+
+#ppsrc plot style
+
+grocery_hhsize_plot<- create_column_chart(t= all_grocery_hh_17_21,
+                                                  x="hhsize", y="share",
+                                                  f="survey",
+                                                  moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  interactive="no",
+                                                  dec=1,
+                                                  title="Grocery Deliveries by Household Size",
+                                                  subtitle="Share of Households on Average Weekday",
+                                                  source = "PSRC Regional Household Travel Survey")
+
+grocery_hhsize_plot
+```
+
 ```{r, hhsize and package deliveries}
 # hh variables: hhsize'
 
@@ -2154,7 +2060,7 @@ pkgs_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkgs_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+pkgs_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('hhsize', 'delivery_pkgs_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -2196,7 +2102,7 @@ work_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+work_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
                     group_vars = c('hhsize', 'delivery_work_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
