@@ -16,7 +16,7 @@ library(stringr)
 library(psrcplot)
 library(tidycensus)
 library(htmlwidgets)
-#install_psrc_fonts()
+install_psrc_fonts()
 ```
 
 Clearly living in RGC does not directly cause this behavior. People who live in RGCs are already different from people who do not- they have smaller household sizes, are younger, and have higher incomes (at least I think).
@@ -355,7 +355,7 @@ p1 <-
     f = 'survey_trips',
     g = 'simple_purpose',
     w.moe = 'moe_trips_person',
-    est.type = 'number',
+    est= 'number',
     w.color = 'psrc_light',
     w.interactive = 'yes'
   )
@@ -460,29 +460,20 @@ for(i in seq(1, length(simple_groupings))){
 
   #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=trip_summs_2021 , x='mode_simple', y='share', f='final_home_is_rgc', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE)  +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+   p0<-create_column_chart(t=trip_summs_2021 , x='mode_simple', y='share', f='final_home_is_rgc', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE)  +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
   
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
 
-                                         p.chart=p0)
-
-  p1<-create_facet_bar_chart(t=trip_summs_long , f='mode_simple',  x='final_home_is_rgc', y='share', g='survey', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE) +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
+  p1<-create_facet_bar_chart(t=trip_summs_long , f='mode_simple',  x='final_home_is_rgc', y='share', g='survey', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE) +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
 
-                                         p.chart=p1)
 }
- # p<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='non_motorized_mode', g='survey', moe='share_moe', est.type='percent', color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='non_motorized_mode', g='survey', moe='share_moe', est='percent', color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
 
@@ -546,10 +537,10 @@ for(i in seq(1, length(simple_groupings))){
 
   #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='share', f='mode_simple', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE) + 
+   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='share', f='mode_simple', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE) + 
   xlab(as.character(g['final_home_is_rgc'])) + ylab('Walk mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
@@ -560,7 +551,7 @@ for(i in seq(1, length(simple_groupings))){
 
                                          p.chart=p0)
 
-  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE)+ 
+  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE)+ 
   xlab(as.character(g['final_home_is_rgc'])) + ylab("Walk mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
@@ -570,7 +561,7 @@ psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres,
 
                                          p.chart=p1)
 }
- # p<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='non_motorized_mode', g='survey', moe='share_moe', est.type='percent', color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='non_motorized_mode', g='survey', moe='share_moe', est='percent', color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
 
@@ -623,10 +614,10 @@ for(i in seq(1, length(simple_groupings))){
 
   #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='share', f='mode_simple', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE) + 
+   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='share', f='mode_simple', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE) + 
   xlab(as.character(g['final_home_is_rgc'])) + ylab('trip mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
@@ -637,7 +628,7 @@ for(i in seq(1, length(simple_groupings))){
 
                                          p.chart=p0)
 
-  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE)+ 
+  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE)+ 
   xlab(as.character(g['final_home_is_rgc'])) + ylab("trip mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
@@ -672,7 +663,7 @@ psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres,
 
 
 
-p<-create_column_chart(t=all_trips_summs_long , x='simple_purpose', y='share', f='survey', moe='share_moe', est.type='percent', color='psrc_dark')+
+p<-create_column_chart(t=all_trips_summs_long , x='simple_purpose', y='share', f='survey', moe='share_moe', est='percent', color='psrc_dark')+
   ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p)
@@ -736,10 +727,10 @@ for(i in seq(1, length(simple_groupings))){
 
   #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=trip_summs_2021 , x='simple_purpose', y='share', f='final_home_is_rgc', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE) + 
+   p0<-create_column_chart(t=trip_summs_2021 , x='simple_purpose', y='share', f='final_home_is_rgc', moe='share_moe', est='percent', color = 'psrc_dark', interactive=TRUE) + 
   xlab(as.character(g['final_home_is_rgc'])) + ylab('Trip Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
@@ -750,7 +741,7 @@ for(i in seq(1, length(simple_groupings))){
 
                                          p.chart=p0)
 
-  p1<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey',g='simple_purpose', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE)+ 
+  p1<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey',g='simple_purpose', moe='share_moe', est='percent', color = 'psrc_dark', interactive=TRUE)+ 
   xlab(as.character(g['final_home_is_rgc'])) + ylab("trip mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
@@ -813,10 +804,10 @@ filter('final_home_is_rgc'!='Other')%>%drop_na('final_home_is_rgc')
 
   #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='trip_path_distance_median', f='survey', moe='trip_path_distance_median_moe', est.type='number', color = 'psrc_pairs', interactive=TRUE) + 
+   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='trip_path_distance_median', f='survey', moe='trip_path_distance_median_moe', est='number', color = 'psrc_pairs', interactive=TRUE) + 
   xlab(as.character(g['final_home_is_rgc'])) + ylab('Median Distance')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
@@ -827,7 +818,7 @@ filter('final_home_is_rgc'!='Other')%>%drop_na('final_home_is_rgc')
 
                                          p.chart=p0)
 
-  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='trip_path_distance_median', f='survey', moe='trip_path_distance_median_moe', est.type='number', color = 'psrc_pairs', interactive=TRUE)+ 
+  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='trip_path_distance_median', f='survey', moe='trip_path_distance_median_moe', est='number', color = 'psrc_pairs', interactive=TRUE)+ 
   xlab(as.character(g['final_home_is_rgc'])) + ylab("Median Distance")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
@@ -860,10 +851,10 @@ trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
 
   #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
 
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
+ # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
 
 
-   p0<-create_column_chart(t=trip_summs_2021 , x='simple_purpose', y='share', f='final_home_is_rgc', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE) + 
+   p0<-create_column_chart(t=trip_summs_2021 , x='simple_purpose', y='share', f='final_home_is_rgc', moe='share_moe', est='percent', color = 'psrc_dark', interactive=TRUE) + 
   xlab(as.character(g['final_home_is_rgc'])) + ylab('Trip Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p0)
@@ -874,7 +865,7 @@ trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
 
                                          p.chart=p0)
 
-  p1<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey',g='simple_purpose', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE)+ 
+  p1<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey',g='simple_purpose', moe='share_moe', est='percent', color = 'psrc_dark', interactive=TRUE)+ 
   xlab(as.character(g['final_home_is_rgc'])) + ylab("trip mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
