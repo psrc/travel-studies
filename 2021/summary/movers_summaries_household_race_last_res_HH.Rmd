@@ -25,9 +25,8 @@ Differences are generally within MOE across 2019, 2021 surveys.
 
 
 ```{r}
-
-
-person_2019<-get_hhts(survey='2019', level="p", vars=c( "prev_home_wa",
+psrc_pres = read_pptx(system.file('extdata', 'psrc-trends-template.pptx', package='psrcslides'))
+hhs_2019<-get_hhts(survey='2019', level="h", vars=c("res_dur", "prev_home_wa",
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
 "prev_res_factors_community_change",
@@ -40,8 +39,7 @@ person_2019<-get_hhts(survey='2019', level="p", vars=c( "prev_home_wa",
 "prev_res_factors_quality",
 "prev_res_factors_forced",
 "prev_res_factors_no_answer",
-'race_eth_poc'))
-
+'hh_race_apoc'))%>%filter(hh_race_apoc != 'Missing')%>%drop_na(prev_res_factors_housing_cost)%>%filter(prev_home_wa=="Yes, previous home was in Washington")
 vars_to_summarize<-c(
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
@@ -54,30 +52,22 @@ vars_to_summarize<-c(
 "prev_res_factors_crime",
 "prev_res_factors_quality",
 "prev_res_factors_forced")
-
-
-
 mover_sum<- list()
-mover_sum_19 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=person_2019,group_vars=c('race_eth_poc',x), spec_wgt='hh_weight_2019_v2021'))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost =='Selected')%>%filter(race_eth_poc!='Child -- no race specified')
+mover_sum_19 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c('hh_race_apoc',x)))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost=='Selected')
 
 for(var in vars_to_summarize){
-mover_sum_19_var<- mover_sum_19%>% filter(var_name == var)%>%filter(race_eth_poc!='Total')
-
-plt<-create_bar_chart(mover_sum_19_var, x='race_eth_poc' , y='share', f= 'race_eth_poc',  moe= 'share_moe')+ ggtitle(var) 
-
-
-
-
+mover_sum_19_var<- mover_sum_19%>% filter(var_name == var)%>%filter(hh_race_apoc!='Total')
+plt<-create_bar_chart(mover_sum_19_var, x='hh_race_apoc' , y='share', f= 'hh_race_apoc',  moe= 'share_moe')+ ggtitle(var) 
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Reason for Moving from previous residence", 
+                                         p.caption=paste0("2019"), 
+                                         p.chart=plt)
 print(plt)
 }
-
-
-
-
 ```
 
 ```{r prev-2021}
-person_2021<-get_hhts(survey='2021', level="p", vars=c("prev_res_factors_displaced","res_dur", "prev_home_wa",
+hhs_2021<-get_hhts(survey='2021', level="h", vars=c("res_dur", "prev_home_wa",
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
 "prev_res_factors_community_change",
@@ -90,9 +80,7 @@ person_2021<-get_hhts(survey='2021', level="p", vars=c("prev_res_factors_displac
 "prev_res_factors_quality",
 "prev_res_factors_forced",
 "prev_res_factors_no_answer",
-'race_eth_poc'))%>%filter(race_eth_poc != 'Missing')))%>%filter(prev_res_factors_forced != 'Missing: Skip Logic')
-
-
+'hh_race_apoc'))%>%filter(hh_race_apoc != 'Missing')%>%drop_na(prev_res_factors_housing_cost)%>%filter(prev_home_wa=="Yes, previous home was in Washington")
 vars_to_summarize<-c(
   "prev_res_factors_displaced",
 "prev_res_factors_housing_cost",
@@ -106,27 +94,15 @@ vars_to_summarize<-c(
 "prev_res_factors_crime",
 "prev_res_factors_quality",
 "prev_res_factors_forced")
-
-
-
 mover_sum<- list()
-mover_sum_21 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=person_2021,group_vars=c('race_eth_poc',x), spec_wgt='hh_weight_2021_ABS'))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_displaced%in%c('Selected', 'Displaced'))
-
+mover_sum_21 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c('hh_race_apoc',x)))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost=='Selected'))
 for(var in vars_to_summarize){
-mover_sum_21_var<- mover_sum_21%>% filter(var_name == var)%>%filter(race_eth_poc!='Total')
-plt<-create_bar_chart(mover_sum_21_var, x='race_eth_poc' , y='share', f= 'race_eth_poc',  moe= 'share_moe')+ ggtitle(var) 
-
+mover_sum_21_var<- mover_sum_21%>% filter(var_name == var)%>%filter(hh_race_apoc!='Total')
+plt<-create_bar_chart(mover_sum_19_var, x='hh_race_apoc' , y='share', f= 'hh_race_apoc',  moe= 'share_moe')+ ggtitle(var) 
 psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
                                          p.title="Reason for Moving from previous residence", 
                                          p.caption=paste0("2021"), 
-
                                          p.chart=plt)
-
-
 print(plt)
 }
-
 print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/mover_reasons_race.pptx")
-
-
-```

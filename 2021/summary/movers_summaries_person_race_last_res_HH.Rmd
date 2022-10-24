@@ -27,7 +27,7 @@ Differences are generally within MOE across 2019, 2021 surveys.
 ```{r}
 
 
-person_2019<-get_hhts(survey='2019', level="p", vars=c( "prev_home_wa",
+household_2019<-get_hhts(survey='2019', level=h, vars=c( "prev_home_wa",
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
 "prev_res_factors_community_change",
@@ -58,7 +58,7 @@ vars_to_summarize<-c(
 
 
 mover_sum<- list()
-mover_sum_19 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=person_2019,group_vars=c('race_eth_poc',x), spec_wgt='hh_weight_2019_v2021'))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost =='Selected')%>%filter(race_eth_poc!='Child -- no race specified')
+mover_sum_19 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=household_2019,group_vars=c('race_eth_poc',x), spec_wgt='hh_weight_2019_v2021'))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost =='Selected')%>%filter(race_eth_poc!='Child -- no race specified')
 
 for(var in vars_to_summarize){
 mover_sum_19_var<- mover_sum_19%>% filter(var_name == var)%>%filter(race_eth_poc!='Total')
@@ -77,7 +77,7 @@ print(plt)
 ```
 
 ```{r prev-2021}
-person_2021<-get_hhts(survey='2021', level="p", vars=c("prev_res_factors_displaced","res_dur", "prev_home_wa",
+household_2021<-get_hhts(survey='2021', level=h, vars=c("prev_res_factors_displaced","res_dur", "prev_home_wa",
 "prev_res_factors_housing_cost",
 "prev_res_factors_income_change",
 "prev_res_factors_community_change",
@@ -110,7 +110,7 @@ vars_to_summarize<-c(
 
 
 mover_sum<- list()
-mover_sum_21 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=person_2021,group_vars=c('race_eth_poc',x), spec_wgt='hh_weight_2021_ABS'))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_displaced%in%c('Selected', 'Displaced'))
+mover_sum_21 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=household_2021,group_vars=c('race_eth_poc',x), spec_wgt='hh_weight_2021_ABS'))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_displaced%in%c('Selected', 'Displaced'))
 
 for(var in vars_to_summarize){
 mover_sum_21_var<- mover_sum_21%>% filter(var_name == var)%>%filter(race_eth_poc!='Total')
