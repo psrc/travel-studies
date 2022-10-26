@@ -11,21 +11,29 @@ output:
 ```{r rmarkdown setup, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, 
                       warning=FALSE, 
-                      message=FALSE) # formatting
-```
+                      message=FALSE,
+                      fig.align = "center"
+                      # out.width = '50%'
+                      ) # formatting
+setwd("C:/Joanne_PSRC/data_science/travel-studies/2021/analysis_in_progress/rgcs_vehicle_ownership")
 
-```{r library setup, include=FALSE}
+# connect to script with functions
+source("rgcs_functions.R")
+
+
 # psrc packages
 library(psrc.travelsurvey)
 library(psrcplot)
 library(psrctrends)
 
+
 library(tidyverse)
-# library(stringr)
+library(stringr)
+library(rlang)
+library(scales)
 # library(tidycensus)
 # library(htmlwidgets)
 
-# install fonts from psrcplot
 install_psrc_fonts()
 ```
 
@@ -33,12 +41,20 @@ install_psrc_fonts()
 # Variables we might want to summarize
 ```{r Variable, echo=TRUE}
 
-gen_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  
-              'hhincome_detailed', "age", "age_category", 'final_home_is_rgc', 'race_category', 'race_eth_broad', 
-              'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'person_id')
+gen_vars<-c('sample_county', 
+            'vehicle_count',  
+            "hhincome_broad",
+            'hhincome_detailed', 
+            "age", 
+            "age_category", 
+            'final_home_is_rgc', 
+            'race_category', 
+            'race_eth_broad', 
+            'dest_purpose_cat', 
+            'origin_purpose_cat', 
+            'trip_path_distance', 
+            'person_id')
 
-# remember to filter out drivers for hov trips
-# not a problem = the weights are 0 anyways
 trip_vars = c("hhid",
               "survey_year",
               # "personid",
@@ -69,10 +85,13 @@ trip_vars = c("hhid",
 
 
 hh_vars=c("hhid",
+          "sample_county",
           "survey_year",
           "final_home_is_rgc",
           "hhsize",
           "vehicle_count",
+          "hhincome_broad",
+          "hhincome_detailed", 
           "numadults",
           "numchildren",
           "numworkers",
@@ -99,1045 +118,172 @@ hh_vars=c("hhid",
 
 Get the data from Elmer.
 ```{r trip + household data, include=FALSE}
-trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars)
-trip_data_21<- get_hhts("2021", "t", vars=trip_vars)
+# trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars)
+# trip_data_21<- get_hhts("2021", "t", vars=trip_vars)
 
 hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars)
 hh_data_21<- get_hhts("2021", "h", vars=hh_vars)
-
+unique(c(hh_data_17_19$vehicle_count, hh_data_21$vehicle_count))
 ```
 
 
-Group variables into meaningful categories with statistically large enough groups.First for trips, group the data.
-```{r variable names}
-unique(hh_data_21$res_dur)
-```
-```{r}
-names(hh_data_21)
-```
+# Household analysis
 
-```{r Group variables}
-hh_group_data <- function(.data){
-  .data <- .data %>%
-    mutate(
-      vehicle_count = substring(vehicle_count,1,1),
-      vehicle_count = factor(case_when(vehicle_count==0 ~ "No vehicle", 
-                                       vehicle_count==1 ~ "1",
-                                       vehicle_count==2 ~ "2",
-                                       vehicle_count %in% c(3,4,5,6,7,8)~ "3 or more")),
-      hhsize = substring(hhsize,1,1),
-      hhsize = case_when(hhsize %in% c(5,6,7,8,9)~ "5 or more",
-                         TRUE ~ hhsize),
-      res_type = factor(case_when(res_type == "Single-family house (detached house)"~ "Single-family house",
-                                  res_type == "Townhouse (attached house)"~ "Townhouse",
-                                  res_type %in% c("Building with 4 or more apartments/condos",
-                                                  "Building with 3 or fewer apartments/condos")~ "Apartment/Condo",
-                                  res_type %in% c("Other (including boat, RV, van, etc.)","Mobile home/trailer",
-                                                  "Dorm or institutional housing")~ "Others")),
-      res_dur = case_when(res_dur %in% c("Between 2 and 3 years", "Between 3 and 5 years", 
-                                         "Between 5 and 10 years","Between 10 and 20 years",
-                                         "More than 20 years")~ "More than 2 years",
-                          TRUE ~ res_dur)
-
-      )
-  .data$hhsize <- factor(.data$hhsize, levels=c("1","2","3","4","5 or more"))
-  .data$res_dur <- factor(.data$res_dur, levels=c("Less than a year","Between 1 and 2 years","More than 2 years"))
-  return(.data)
-}
-
-
-hh_group_21 <- hh_data_21 %>% hh_group_data()
+  * Group variables into meaningful categories with statistically large enough groups.First for trips, group the data.
+```{r Group variables, include=FALSE}
 hh_group_17_19 <- hh_data_17_19 %>% hh_group_data()
+hh_group_21 <- hh_data_21 %>% hh_group_data()
+# hh_group <- hh_group_17_19 %>%
+#   rename(hh_weight = hh_weight_2017_2019_v2021) %>%
+#   add_row(
+#     hh_group_21 %>%
+#       rename(hh_weight = hh_weight_2021_ABS)
+#     )
+# 
+# table(hh_group$hhincome_broad,hh_group$survey)
+# 
+# names(hh_group_17_19)
 ```
 
+## Analysis for basic demographic distribution
+1. Number of vehicles  
 ```{r}
 plot  <- hhts_count(hh_group_21, group_vars=c("final_home_is_rgc","vehicle_count")) %>%
   filter(vehicle_count!="Total") %>%
   add_row(hhts_count(hh_group_17_19, group_vars=c("final_home_is_rgc","vehicle_count")) %>%
             filter(vehicle_count!="Total"))
 
-plot$vehicle_count <- factor(plot$vehicle_count, levels=c("No vehicle","1", "2", "3 or more"))
-plot$final_home_is_rgc <- factor(plot$final_home_is_rgc, levels=c("RGC","Not RGC"))
 
-
-chart <- create_facet_bar_chart (t=plot, w.x="vehicle_count",w.y="share", 
-                                 f="survey", g= "final_home_is_rgc",
-                                 w.title="Number of vehicles",
-                                 # source="Source: Household travel survey",
-                                 w.moe="share_moe", w.color="psrc_light")
-chart
+create_facet_bar_chart (t=plot, w.x="vehicle_count",w.y="share", 
+                        f="survey", g= "final_home_is_rgc",
+                        w.scales="fixed",
+                        w.title="Number of vehicles",
+                        # source="Source: Household travel survey",
+                        w.moe="share_moe", w.color="psrc_light")
 ```
+2. Income 
+  * income distribution in each county
+```{r income distribution}
+plot  <- hhts_count(hh_group_21, group_vars=c("sample_county","hhincome_broad")) %>%
+  add_row(hhts_count(hh_group_17_19, group_vars=c("sample_county","hhincome_broad"))) %>%
+  filter(hhincome_broad!="Total",
+         hhincome_broad!="Prefer not to answer") %>%
+  wrap_axis(hhincome_broad)
+plot$cat <- factor(plot$cat, levels=c("Under\n$25,000", "$25,000-\n$49,999",
+                                      "$50,000-\n$74,999","$75,000-\n$99,999",
+                                      "$100,000 or\nmore"))
+TT <- "Household income in each county"
+ggplot(plot, aes(x=cat, y=share, fill=survey)) +
+  geom_col(position = "dodge")+  
+  facet_wrap(~sample_county) +
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("psrc_light")+
+  theme(axis.text.x = element_text(angle = 45,vjust=0.75))+
+  ggtitle(TT)+
+  psrc_style()
+
+```
+  * income distribution in RGCs of each county
+```{r 2021 income distribution (binary)}
+plot  <- hhts_count(hh_group_21, group_vars=c("final_home_is_rgc","sample_county","hhincome_binary")) %>%
+  filter(hhincome_binary!="Total",
+         hhincome_binary!="Prefer not to answer") %>%
+  wrap_axis(hhincome_binary)
+plot$cat <- factor(plot$cat, levels=c("Under\n$50,000", "$50,000 and\nover"))
+
+TT <- "Household income in RGCs of each county"
+ggplot(plot, aes(x=cat, y=share, fill=final_home_is_rgc)) +
+  geom_col(position = "dodge")+  
+  facet_wrap(~sample_county) +
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("pognbgy_10")+
+  ggtitle(TT)+
+  psrc_style()
+
+```
+
+  * income distribution in RGCs
 ```{r}
-plot  <- hhts_count(hh_group_21 %>% filter(final_home_is_rgc=="RGC"), group_vars=c("vehicle_count","res_dur")) %>%
-  filter(res_dur!="Total") %>%
-  add_row(hhts_count(hh_group_17_19 %>% filter(final_home_is_rgc=="RGC"), group_vars=c("vehicle_count","res_dur")) %>%
-            filter(res_dur!="Total"))
+plot  <- hhts_count(hh_group_21, group_vars=c("final_home_is_rgc","hhincome_binary")) %>%
+  filter(hhincome_binary!="Total",
+         hhincome_binary!="Prefer not to answer") %>%
+  add_row(hhts_count(hh_group_17_19, group_vars=c("final_home_is_rgc","hhincome_binary")) %>%
+            filter(hhincome_binary!="Total",
+            hhincome_binary!="Prefer not to answer"))
 
-plot$vehicle_count <- factor(plot$vehicle_count, levels=c("No vehicle","1", "2", "3 or more"))
-plot$final_home_is_rgc <- factor(plot$final_home_is_rgc, levels=c("RGC","Not RGC"))
 
+create_facet_bar_chart (t=plot, w.x="hhincome_binary",w.y="share", 
+                        f="survey", g= "final_home_is_rgc",
+                        w.scales="fixed",
+                        w.title="Household income in RGCs",
+                        # source="Source: Household travel survey",
+                        w.moe="share_moe", w.color="psrc_light")
 
-chart <- create_facet_bar_chart (t=plot, w.x="vehicle_count",w.y="share", 
-                                 f="survey", g= "res_dur",
-                                 w.title="Number of vehicles",
-                                 # source="Source: Household travel survey",
-                                 w.moe="share_moe", w.color="psrc_light")
-chart
 ```
 
-
-```{r visualization functions}
-# visuals ----
-# hhts_count and prep for graphing
-count_prep_fx <- function(data, grp1, grp2) {
-  
-  hhts_count(data,
-             group_vars = c(grp1, grp2)) %>%
-    mutate(period = data$label) %>%
-    filter(!!sym(grp2)!="Total") %>% 
-    filter(!!sym(grp1)!="NA")
-}
-```
-
+3. Population distribution 
 ```{r}
-plot_chart <- function(.data, vars) {
-  .data %>% 
-    group_by(final_home_is_rgc,survey) %>% 
-    mutate(num_hh = n()) %>% 
-    group_by(final_home_is_rgc, survey, num_hh, {{vars}}) %>% 
-    summarise(counts = n()) %>%
-    ungroup() %>%
-    mutate(per = counts*100/num_hh)
-}
+plot  <- hhts_count(hh_group_21, group_vars=c("final_home_is_rgc")) %>%
+  filter(final_home_is_rgc!="Total") %>%
+  add_row(hhts_count(hh_group_17_19, group_vars=c("final_home_is_rgc")) %>%
+            filter(final_home_is_rgc!="Total"))
+plot2  <- hhts_count(hh_group_21, group_vars=c("sample_county")) %>%
+  filter(sample_county!="Total") %>%
+  add_row(hhts_count(hh_group_17_19, group_vars=c("sample_county")) %>%
+            filter(sample_county!="Total"))
 
-plot_chart_w <- function(.data, vars) {
-  .data %>% 
-    group_by(final_home_is_rgc,survey) %>% 
-    mutate(num_hh = sum(hh_weight)) %>% 
-    group_by(final_home_is_rgc, survey, num_hh, {{vars}}) %>% 
-    summarise(counts = sum(hh_weight)) %>%
-    ungroup() %>%
-    mutate(per = counts*100/num_hh)
-}
-```
-
-```{r bar chart for number of vehicles}
-plot_vehicle_count_w <- hh_data %>% plot_chart_w(vehicle_count)
-plot_vehicle_count <- hh_data %>% plot_chart(vehicle_count)
-plot_vehicle_count$vehicle_count <- factor(plot_vehicle_count$vehicle_count, 
-                             levels=c("No vehicle","1","2","3","4 or more"))
-plot_vehicle_count_w$vehicle_count <- factor(plot_vehicle_count_w$vehicle_count, 
-                             levels=c("No vehicle","1","2","3","4 or more"))
-
-ggplot(plot_vehicle_count, 
-       aes(x= vehicle_count, y= per)) +
-  geom_col(aes(fill=survey),position=position_dodge()) +
-  facet_wrap(~final_home_is_rgc) +
-  xlab("Number of vehicles in each household") + 
-  ylab("Percentage of households (%)")+
-  theme_bw()
-
+create_column_chart (t=plot, x="final_home_is_rgc",y="share", 
+                        f="survey",
+                        title="Population in RGCs",
+                        # source="Source: Household travel survey",
+                        moe="share_moe", color="psrc_light")
+create_column_chart (t=plot2, x="sample_county",y="share", 
+                        f="survey", 
+                        title="Population in each county",
+                        # source="Source: Household travel survey",
+                        moe="share_moe", color="psrc_light")
 
 ```
+
+# Residence types
+```{r 2021 Residence typess}
+plot  <- hhts_count(hh_group_21, group_vars=c("final_home_is_rgc","res_type")) %>%
+  filter(res_type!="Total") %>%
+  add_row(hhts_count(hh_group_17_19, group_vars=c("final_home_is_rgc","res_type")) %>%
+            filter(res_type!="Total")) %>%
+  wrap_axis(res_type)
+plot$cat <- factor(plot$cat, levels=c("Single-\nfamily\nhouse","Townhouse","Apartment/\nCondo","Others"))
+
+
+create_facet_bar_chart (t=plot, w.x="cat",w.y="share", 
+                        f="survey", g= "final_home_is_rgc",
+                        w.scales="fixed",
+                        w.title="Residence types in RGCs",
+                        # source="Source: Household travel survey",
+                        w.moe="share_moe", w.color="psrc_light")
+
+```
+
+
+
+## Deeper analysis on vehicle ownership
+1. Number of vehicles in RGCs of each county
+  * only households in RGCs are included in the chart
+  * King county has a different trend compared to other counties  
 ```{r}
-# res_dur==
-ggplot(plot_vehicle_count_w, 
-       aes(x= vehicle_count, y= per)) +
-  geom_col(aes(fill=survey),position=position_dodge()) +
-  facet_wrap(~final_home_is_rgc) +
-  xlab("Number of vehicles in each household") + 
-  ylab("Percentage of households (%)")+
-  theme_bw()
-```
-
-
-```{r hhsize}
-
-plot_hhsize <- hh_data %>% plot_chart(hhsize)
-
-ggplot(plot_hhsize, 
-       aes(x= hhsize, y= per)) +
-  geom_col(aes(fill=survey),position=position_dodge()) +
-  facet_wrap(~final_home_is_rgc) +
-  xlab("Household Sizes") + 
-  ylab("Percentage of households (%)")+
-  theme_bw()
-
-```
-
-```{r resident type}
-plot_res_type <- test %>% plot_chart(res_type)
-plot_res_type$res_type <- factor(plot_res_type$res_type, 
-                             levels=c("Single-family house", "Townhouse", "Apartment/Condo", "Others"))
-
-ggplot(plot_res_type, 
-       aes(x= res_type, y= per)) +
-  geom_col(position=position_dodge()) +
-  facet_wrap(~final_home_is_rgc) +
-  xlab("Types of residence") + 
-  ylab("Percentage of households (%)")+
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.9, hjust = 0.8)) 
-
-```
-
-
-
-
-```{r Group variables}
-trip_data_17_19 <- trip_data_17_19 %>% 
-  mutate(NoVehicles = ifelse(vehicle_count == '0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
-  mutate(
-    hhincome_100 = case_when(
-                     hhincome_broad == '$100,000-$199,000' ~ '$100,000 or more',
-                     hhincome_broad == '$200,000 or more' ~ '$100,000 or more',
-                     TRUE ~ hhincome_broad
-    )
-  ) %>%
-  mutate(
-    age_grp = case_when(
-                age == '75-84 years' ~ '75 years or older',
-                age == '85 or years older' ~ '75 years or older',
-                TRUE ~ age
-    )
-  ) %>% 
-  mutate(simple_purpose = ifelse(dest_purpose_cat == 'Home',
-                                 origin_purpose_cat,
-                                 dest_purpose_cat
-  )) %>%
-  mutate(
-    simple_purpose = case_when(
-                        simple_purpose == 'Work' ~ 'Work/School',
-                        simple_purpose == 'School' ~ 'Work/School',
-                        simple_purpose == 'Work-related' ~ 'Work/School',
-                        simple_purpose == 'Shop' ~ 'Shop',
-                        simple_purpose == 'Escort' ~ 'Errands',
-                        simple_purpose == 'Errand/Other' ~ 'Errands',
-                        simple_purpose == 'Change mode' ~ 'Errands',
-                        simple_purpose == 'Social/Recreation' ~ 'Social/Recreation/Meal',
-                        simple_purpose == 'Meal' ~ 'Social/Recreation/Meal',
-                        simple_purpose == 'Meal' ~ 'Social/Recreation/Meal',
-                        simple_purpose == 'Home' ~ 'Errands',
-                        is.na(simple_purpose) ~ 'Errands',
-                        TRUE ~ simple_purpose
-    )
-  )
-
-
-trip_data_21 <-
-  trip_data_21 %>% mutate(NoVehicles = ifelse(vehicle_count == '0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
-  mutate(
-    hhincome_100 = case_when(
-      hhincome_broad == '$100,000-$199,000' ~ '$100,000 or more',
-      hhincome_broad == '$200,000 or more' ~ '$100,000 or more',
-      TRUE ~ hhincome_broad
-    )
-  ) %>%
-  mutate(
-    age_grp = case_when(
-      age == '75-84 years' ~ '75 years or older',
-      age == '85 or years older' ~ '75 years or older',
-      TRUE ~ age
-    )
-  ) %>% mutate(simple_purpose = ifelse(
-    dest_purpose_cat == 'Home',
-    origin_purpose_cat,
-    dest_purpose_cat
-  )) %>%
-  mutate(
-    simple_purpose = case_when(
-      simple_purpose == 'Work' ~ 'Work/School',
-      simple_purpose == 'School' ~ 'Work/School',
-      simple_purpose == 'Work-related' ~ 'Work/School',
-      simple_purpose == 'Shop' ~ 'Shop',
-      simple_purpose == 'Escort' ~ 'Errands',
-      simple_purpose == 'Errand/Other' ~ 'Errands',
-      simple_purpose == 'Change mode' ~ 'Errands',
-      simple_purpose == 'Social/Recreation' ~ 'Social/Recreation/Meal',
-      simple_purpose == 'Meal' ~ 'Social/Recreation/Meal',
-      simple_purpose == 'Meal' ~ 'Social/Recreation/Meal',
-      simple_purpose == 'Home' ~ 'Errands',
-      is.na(simple_purpose) ~ 'Errands',
-      TRUE ~ simple_purpose
-    )
-  ) 
-
-
-trip_data_17_19$hhincome_100_f = factor(
-  trip_data_17_19$hhincome_100,
-  levels = c(
-    "Under $25,000",
-    "$25,000-$49,999",
-    "$50,000-$74,999",
-    "$75,000-$99,999",
-    "$100,000 or more",
-    "Prefer not to answer"
-  )
-)
-
-trip_data_21$hhincome_100_f = factor(
-  trip_data_21$hhincome_100,
-  levels = c(
-    "Under $25,000",
-    "$25,000-$49,999",
-    "$50,000-$74,999",
-    "$75,000-$99,999",
-    "$100,000 or more",
-    "Prefer not to answer"
-  )
-)
-
-
-trip_data_17_19$NoVehicles = factor(trip_data_17_19$NoVehicles,
-                                    levels = c('No Vehicles', 'Has Vehicles'))
-
-trip_data_21$NoVehicles = factor(trip_data_21$NoVehicles,
-                                 levels = c('No Vehicles', 'Has Vehicles'))
-
-
-simple_groupings <-
-  c(
-    'race_eth_broad' = 'Race/Ethnicity',
-    'hhincome_100_f' = 'Household Income',
-    'NoVehicles' = 'Household Vehicles',
-    'age_grp' = 'Age Group',
-    'sample_county' = 'Home County',
-    'age_category' = 'Age Category',
-    'final_home_is_rgc' = 'Home in Regional Growth Center'
-  )
-```
-
-Now group the data into the same categories for people.
-```{r}
-person_data_17_19 <-
-  person_data_17_19 %>% mutate(NoVehicles = ifelse(vehicle_count == '0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
-  mutate(
-    hhincome_100 = case_when(
-      hhincome_broad == '$100,000-$199,000' ~ '$100,000 or more',
-      hhincome_broad == '$200,000 or more' ~ '$100,000 or more',
-      TRUE ~ hhincome_broad
-    )
-  ) %>%
-  mutate(
-    age_grp = case_when(
-      age == '75-84 years' ~ '75 years or older',
-      age == '85 or years older' ~ '75 years or older',
-      TRUE ~ age
-    )
-  ) 
-
-person_data_21 <-
-  person_data_21 %>% mutate(NoVehicles = ifelse(vehicle_count == '0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%
-  mutate(
-    hhincome_100 = case_when(
-      hhincome_broad == '$100,000-$199,000' ~ '$100,000 or more',
-      hhincome_broad == '$200,000 or more' ~ '$100,000 or more',
-      TRUE ~ hhincome_broad
-    )
-  ) %>%
-  mutate(
-    age_grp = case_when(
-      age == '75-84 years' ~ '75 years or older',
-      age == '85 or years older' ~ '75 years or older',
-      TRUE ~ age
-    )
-  ) 
-
-
-person_data_17_19$hhincome_100_f = factor(
-  person_data_17_19$hhincome_100,
-  levels = c(
-    "Under $25,000",
-    "$25,000-$49,999",
-    "$50,000-$74,999",
-    "$75,000-$99,999",
-    "$100,000 or more",
-    "Prefer not to answer"
-  )
-)
-
-person_data_21$hhincome_100_f = factor(
-  person_data_21$hhincome_100,
-  levels = c(
-    "Under $25,000",
-    "$25,000-$49,999",
-    "$50,000-$74,999",
-    "$75,000-$99,999",
-    "$100,000 or more",
-    "Prefer not to answer"
-  )
-)
-
-
-person_data_17_19$NoVehicles = factor(person_data_17_19$NoVehicles,
-                                      levels = c('No Vehicles', 'Has Vehicles'))
-
-person_data_21$NoVehicles = factor(person_data_21$NoVehicles,
-                                   levels = c('No Vehicles', 'Has Vehicles'))
-
-
-
-simple_groupings <-
-  c(
-    'race_eth_broad' = 'Race/Ethnicity',
-    'hhincome_100_f' = 'Household Income',
-    'NoVehicles' = 'Household Vehicles',
-    'age_grp' = 'Age Group',
-    'sample_county' = 'Home County',
-    'age_category' = 'Age Category',
-    'final_home_is_rgc' = 'Home in Regional Growth Center'
-  )
-```
-
-
-##How many trips do people make in RGCs and for what purposes?
-
-For this we have to aggregate both the trips and the people, and join them to calculate trips per person.
-We may want to functionalize some of this since we are doing things twice, just felt easier not to. (i get indecisive about functionalizing things i do only twice)
-
-```{r}
-trip_summs_2017_2019 <- hhts_count(
-  trip_data_17_19,
-  group_vars = c('final_home_is_rgc', 'simple_purpose'),
-  spec_wgt = 'trip_weight_2017_2019_v2021_adult'
-) %>% drop_na(c('simple_purpose', 'final_home_is_rgc')) %>% filter(final_home_is_rgc !=
-                                                                     'Total')
-trip_summs_2021 <- hhts_count(
-  trip_data_21,
-  group_vars = c('final_home_is_rgc', 'simple_purpose'),
-  spec_wgt = 'trip_weight_2021_ABS_Panel_adult'
-) %>% drop_na(c('final_home_is_rgc', 'simple_purpose')) %>% filter(final_home_is_rgc !=
-                                                                     'Total')
-
-
-person_summs_2017_2019 <- hhts_count(
-  person_data_17_19,
-  group_vars = c('final_home_is_rgc'),
-  spec_wgt = 'hh_weight_2017_2019_v2021_adult'
-) %>%
-  filter(final_home_is_rgc != 'Total') %>% drop_na(final_home_is_rgc)
-
-person_summs_2021 <- hhts_count(person_data_21,
-                                group_vars = c('final_home_is_rgc'),
-                                spec_wgt = 'person_weight_2021_ABS_Panel_adult') %>%
-  filter(final_home_is_rgc != 'Total') %>% drop_na(final_home_is_rgc)
-
-
-# Join persons and trips by group and calculate trips/person.
-
-trips_persons_2017_2019 <-
-  merge(
-    trip_summs_2017_2019,
-    person_summs_2017_2019,
-    by = 'final_home_is_rgc',
-    suffixes = c('_trips', '_people')
-  )
-trips_persons_2021 <-
-  merge(
-    trip_summs_2021,
-    person_summs_2021,
-    by = 'final_home_is_rgc',
-    suffixes = c('_trips', '_people')
-  )
-
-trips_persons_2017_2019 <-
-  trips_persons_2017_2019 %>% mutate(
-    trips_per_person = count_trips / count_people,
-    moe_trips_person = moe_ratio(count_trips, count_people, count_moe_trips, count_moe_people)
-  )
-
-
-trips_persons_2021 <-
-  trips_persons_2021 %>% mutate(
-    trips_per_person = count_trips / count_people,
-    moe_trips_person = moe_ratio(count_trips, count_people, count_moe_trips, count_moe_people)
-  )
-
-trips_persons_long <-
-  rbind(trips_persons_2017_2019, trips_persons_2021) %>%
-  mutate(survey_trips = str_replace_all(survey_trips, "_", "/"))
-
-trips_persons_long_all_trips <-
-  trips_persons_long %>% filter(simple_purpose == 'Total')
-
-trips_persons_2021_purpose <-
-  trips_persons_2021 %>% filter(simple_purpose != 'Total')
-
-trips_persons_long_shop_trips <-
-  trips_persons_long %>% filter(simple_purpose == 'Shop')
-
-
-
-```
-Make charts about trips by purpose by RGC
-```{r}
-p0 <-
-  create_bar_chart(
-    t = trips_persons_2021_purpose ,
-    x = 'simple_purpose',
-    y = 'trips_per_person',
-    f = 'final_home_is_rgc',
-    moe = 'moe_trips_person',
-    est = 'number',
-    color = 'psrc_pairs',
-    interactive = 'yes',
-    dec=1
-  )  
-
-
-p1 <-
-  create_facet_bar_chart(
-    t = trips_persons_long,
-    w.x = 'final_home_is_rgc',
-    w.y = 'trips_per_person',
-    f = 'survey_trips',
-    g = 'simple_purpose',
-    w.moe = 'moe_trips_person',
-    est.type = 'number',
-    w.color = 'psrc_light',
-    w.interactive = 'yes'
-  )
-
-p2 <-
-  create_column_chart(
-    t = trips_persons_long_all_trips ,
-    x = 'final_home_is_rgc',
-    y = 'trips_per_person',
-    f = 'survey_trips',
-    moe = 'moe_trips_person',
-    est = 'number',
-    color = 'psrc_pairs',
-    interactive = 'yes'
-  ) 
-
-
-p3 <-
-  create_column_chart(
-    t = trips_persons_long_shop_trips ,
-    x = 'final_home_is_rgc',
-    y = 'trips_per_person',
-    f = 'survey_trips',
-    moe = 'moe_trips_person',
-    est = 'number',
-    color = 'psrc_pairs',
-    interactive = 'yes'
-  ) 
-
-
-
-htmlwidgets::saveWidget(p0, "trips_by_purpose_rgc_2021.html")
-htmlwidgets::saveWidget(p1, "trips_by_purpose_rgc_2017_2019_2021.html")
-htmlwidgets::saveWidget(p2, "trips_overall_rgc_2017_2019_2021.html")
-htmlwidgets::saveWidget(p3, "shop_trips_rgc_2017_2019_2021.html")
-
-```
-
-
-
-
-
-
-
-
-
-
-
-Trip Mode Shares by Demographic
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # 'final_home_is_rgc' <- eval('final_home_is_rgc')
-  'final_home_is_rgc' <- 'final_home_is_rgc'
-  print('final_home_is_rgc')
-  trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
-                                        group_vars=c('final_home_is_rgc','mode_simple'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%filter(mode_simple!='Total')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
-
-
-
-  trip_summs_2021 <- hhts_count(trip_data_21,
-                                   group_vars=c('final_home_is_rgc','mode_simple'),
-                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%filter(mode_simple!='Total')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
-
-  if('final_home_is_rgc'=='race_eth_broad'){
-
-     trip_summs_2017_2019 <- trip_summs_2017_2019 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-
-        trip_summs_2021 <- trip_summs_2021 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-  #trip_summs_2017_2019$race_eth_broad<-factor(trip_summs_2017_2019$race_eth_broad, levels=
-                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
-
-   #trip_summs_2021$race_eth_broad<-factor(trip_summs_2021$race_eth_broad, levels=
-                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
-
-
-
-  }
-
- #  if('final_home_is_rgc'=='hhincome_100_f'){
-
-  #   trip_summs_2017_2019$hhincome_100_f=factor( trip_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
-
- #trip_summs_2021$hhincome_100_f=factor(trip_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
-
-
-#   }
-
-  trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #trip_summs_long <- factor_variable_column('final_home_is_rgc', trip_summs_long)
-
-  #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_column_chart(t=trip_summs_2021 , x='mode_simple', y='share', f='final_home_is_rgc', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE)  +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p0)
-  
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p0)
-
-  p1<-create_facet_bar_chart(t=trip_summs_long , f='mode_simple',  x='final_home_is_rgc', y='share', g='survey', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE) +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p1)
-}
- # p<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='non_motorized_mode', g='survey', moe='share_moe', est.type='percent', color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-
-```
-
-# Walk Trip Mode Shares by Demographic
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # 'final_home_is_rgc' <- eval('final_home_is_rgc')
-  'final_home_is_rgc' <- 'final_home_is_rgc'
-  print('final_home_is_rgc')
-  trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
-                                        group_vars=c('final_home_is_rgc','mode_simple'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%
-    filter(mode_simple=='Walk')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
-
-
-
-  trip_summs_2021 <- hhts_count(trip_data_21,
-                                   group_vars=c('final_home_is_rgc','mode_simple'),
-                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%
-    filter(mode_simple=='Walk')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
-
-  if('final_home_is_rgc'=='race_eth_broad'){
-
-     trip_summs_2017_2019 <- trip_summs_2017_2019 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-
-        trip_summs_2021 <- trip_summs_2021 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-  #trip_summs_2017_2019$race_eth_broad<-factor(trip_summs_2017_2019$race_eth_broad, levels=
-                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
-
-   #trip_summs_2021$race_eth_broad<-factor(trip_summs_2021$race_eth_broad, levels=
-                                                  #c('White', 'Other', 'Hispanic', 'Black', 'Asian'))
-
-
-
-  }
-
- #  if('final_home_is_rgc'=='hhincome_100_f'){
-
-  #   trip_summs_2017_2019$hhincome_100_f=factor( trip_summs_2017_2019$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
-
- #trip_summs_2021$hhincome_100_f=factor(trip_summs_2021$hhincome_100_f, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
-
-
-#   }
-
-  trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #trip_summs_long <- factor_variable_column('final_home_is_rgc', trip_summs_long)
-
-  #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='share', f='mode_simple', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE) + 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab('Walk mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p0)
-  
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p0)
-
-  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE)+ 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab("Walk mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p1)
-}
- # p<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='non_motorized_mode', g='survey', moe='share_moe', est.type='percent', color = 'psrc_light')+ theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-
-#print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_sntc_sept22_new2.pptx")
-```
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # 'final_home_is_rgc' <- eval('final_home_is_rgc')
-  'final_home_is_rgc' <- 'final_home_is_rgc'
-  print('final_home_is_rgc')
-  trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
-                                        group_vars=c('final_home_is_rgc','mode_simple'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%
-    filter(mode_simple=='trip')%>%drop_na('final_home_is_rgc')
-
-  trip_summs_2021 <- hhts_count(trip_data_21,
-                                   group_vars=c('final_home_is_rgc','mode_simple'),
-                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%
-    filter(mode_simple=='trip')%>%drop_na('final_home_is_rgc')
-  if('final_home_is_rgc'=='race_eth_broad'){
-
-     trip_summs_2017_2019 <- trip_summs_2017_2019 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-
-        trip_summs_2021 <- trip_summs_2021 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-  trip_summs_2017_2019$race_eth_broad<-factor(trip_summs_2017_2019$race_eth_broad, levels=
-                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
-
-   trip_summs_2021$race_eth_broad<-factor(trip_summs_2021$race_eth_broad, levels=
-                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
-
-
-
-  }
-
-
-
-  trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #trip_summs_long <- factor_variable_column('final_home_is_rgc', trip_summs_long)
-
-  #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_light')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='share', f='mode_simple', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE) + 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab('trip mode share')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p0)
-  
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p0)
-
-  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est.type='percent', color = 'psrc_light', interactive=TRUE)+ 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab("trip mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p1)
-}
-```
-
-
-
-```{r}
-  all_trips_summs_2017_2019 <- hhts_count(trip_data_17_19,
-                                        group_vars=c('simple_purpose'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter(simple_purpose!='Total')
-
-
-
-
-  all_trips_summs_2021 <- hhts_count(trip_data_21,
-                                   group_vars=c('simple_purpose'),
-                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter(simple_purpose!='Total')
-
-
-
-  all_trips_summs_long<- rbind(all_trips_summs_2017_2019, all_trips_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-
-p<-create_column_chart(t=all_trips_summs_long , x='simple_purpose', y='share', f='survey', moe='share_moe', est.type='percent', color='psrc_dark')+
-  ylab('Share of All Trips') + xlab('Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+ theme(axis.title.x = element_text(size=50,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p)
-  
-  
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Access Mode to trip", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p)
-
-
-  
-
-
-```
-
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # 'final_home_is_rgc' <- eval('final_home_is_rgc')
-  'final_home_is_rgc' <- 'final_home_is_rgc'
-  print('final_home_is_rgc')
-  trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
-                                        group_vars=c('final_home_is_rgc','simple_purpose'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%drop_na(c('final_home_is_rgc', 'simple_purpose'))%>%filter(simple_purpose!='Total')
-
-  trip_summs_2021 <- hhts_count(trip_data_21,
-                                   group_vars=c('final_home_is_rgc','simple_purpose'),
-                                   spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%drop_na('final_home_is_rgc') %>%drop_na(c('final_home_is_rgc', 'simple_purpose'))%>%filter(simple_purpose!='Total')
-  
-  if('final_home_is_rgc'=='race_eth_broad'){
-
-     trip_summs_2017_2019 <- trip_summs_2017_2019 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-
-        trip_summs_2021 <- trip_summs_2021 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-  trip_summs_2017_2019$race_eth_broad<-factor(trip_summs_2017_2019$race_eth_broad, levels=
-                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
-
-   trip_summs_2021$race_eth_broad<-factor(trip_summs_2021$race_eth_broad, levels=
-                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
-
-
-
-  }
-
-
-
-  trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #trip_summs_long <- factor_variable_column('final_home_is_rgc', trip_summs_long)
-
-  #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_column_chart(t=trip_summs_2021 , x='simple_purpose', y='share', f='final_home_is_rgc', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE) + 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab('Trip Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p0)
-  
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p0)
-
-  p1<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey',g='simple_purpose', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE)+ 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab("trip mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p1)
-}
-```
-
-
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # 'final_home_is_rgc' <- eval('final_home_is_rgc')
-  'final_home_is_rgc' <- 'final_home_is_rgc'
-  print('final_home_is_rgc')
-  trip_summs_2017_2019 <- hhts_median(trip_data_17_19,
-                                         stat_var = 'trip_path_distance',
-                                        group_vars=c('final_home_is_rgc'),
-                                        spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-filter('final_home_is_rgc'!='Other')%>%drop_na('final_home_is_rgc')
-
-  
-
-  trip_summs_2021<- hhts_median(trip_data_21,
-                                         stat_var = 'trip_path_distance',
-                                        group_vars=c('final_home_is_rgc'),
-                                        spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-filter('final_home_is_rgc'!='Other')%>%drop_na('final_home_is_rgc')
-  
-  if('final_home_is_rgc'=='race_eth_broad'){
-
-     trip_summs_2017_2019 <- trip_summs_2017_2019 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-
-        trip_summs_2021 <- trip_summs_2021 %>%
-  mutate(race_eth_broad= str_extract(race_eth_broad,  "^[^ ]+"))%>%
-  filter(race_eth_broad!='No')
-  trip_summs_2017_2019$race_eth_broad<-factor(trip_summs_2017_2019$race_eth_broad, levels=
-                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
-
-   trip_summs_2021$race_eth_broad<-factor(trip_summs_2021$race_eth_broad, levels=
-                                                  c('Asian', 'Black', 'Hispanic', 'Other', 'White'))
-
-
-
-  }
-
-
-
-  trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #trip_summs_long <- factor_variable_column('final_home_is_rgc', trip_summs_long)
-
-  #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_column_chart(t=trip_summs_2021 , x='final_home_is_rgc', y='trip_path_distance_median', f='survey', moe='trip_path_distance_median_moe', est.type='number', color = 'psrc_pairs', interactive=TRUE) + 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab('Median Distance')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p0)
-  
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p0)
-
-  p1<-create_column_chart(t=trip_summs_long , x='final_home_is_rgc', y='trip_path_distance_median', f='survey', moe='trip_path_distance_median_moe', est.type='number', color = 'psrc_pairs', interactive=TRUE)+ 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab("Median Distance")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p1)
-}
-```
-
-```{r }
-print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/hhts_sntc_sept22_new6.pptx")
-```
-
-
-
-
-Trips per Person
-```{r }
-
-
-```{r}
-trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
-    mutate(survey = str_replace_all(survey, "_", "/"))
-
-
-   # factorize variable column. Adjust levels in function definition
-  #trip_summs_long <- factor_variable_column('final_home_is_rgc', trip_summs_long)
-
-  #trip_summs_2021_only<-  trip_summs_2021%>%filter(non_motorized_mode=='Walk/Bike')
-
- # p0<-create_bar_chart(t=trip_summs_2021_only , x='final_home_is_rgc', y='share',  f='final_home_is_rgc',moe='share_moe', est.type='percent', #color='psrc_dark')+ t#heme(axis.text.x = element_text(size=35,color="#4C4C4C"))+coord_flip()
-
-
-   p0<-create_column_chart(t=trip_summs_2021 , x='simple_purpose', y='share', f='final_home_is_rgc', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE) + 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab('Trip Purpose')+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p0)
-  
-  psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p0)
-
-  p1<-create_facet_bar_chart(t=trip_summs_long , x='final_home_is_rgc', y='share', f='survey',g='simple_purpose', moe='share_moe', est.type='percent', color = 'psrc_dark', interactive=TRUE)+ 
-  xlab(as.character(g['final_home_is_rgc'])) + ylab("trip mode share")+theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(axis.title.y = element_text(size=50,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
-                                         p.title="Walk, Bike, and trip Shares", 
-                                         p.caption=paste0("2017/2019 vs 2021"), 
-
-                                         p.chart=p1)
-```
-
-```{r}
-library(psrcplot)
-library(dplyr)
-# This installs PSRC fonts for use in R. It has to be run at the start of each R sessions
-install_psrc_fonts()
-# Column Charts -----------------------------------------------------
-mode_shares <- read.csv(system.file('extdata', 'example_data.csv', package='psrcplot')) %>% 
-  filter(Category=="Mode to Work by Race") %>%
-  filter(Geography=="Region" & Race=="Total") %>%
-  mutate(Year = as.character(Year)) %>%
-  mutate(axis_labels = stringr::str_wrap(Mode, width = 10))
-# Static Chart with Error Bars 
-static_ms_chart <- create_column_chart(t=mode_shares, x="Mode",y="share", f="Year",
-                                       title="Mode Share to Work",
-                                       source="Source: ACS 5yr Data Table B3002",
-                                       moe="share_moe", color="psrc_light")
-interactive_ms_chart <- plotly::ggplotly(static_ms_chart)
+plot  <- hhts_count(hh_group_21, group_vars=c("final_home_is_rgc","sample_county","vehicle_binary")) %>%
+  filter(vehicle_binary!="Total") %>%
+  add_row(hhts_count(hh_group_17_19, group_vars=c("final_home_is_rgc","sample_county","vehicle_binary")) %>%
+  filter(vehicle_binary!="Total")) %>%
+  filter(final_home_is_rgc == "RGC")
+
+
+create_facet_bar_chart (t=plot, w.x="vehicle_binary",w.y="share", 
+                        f="sample_county", g= "survey",
+                        w.title="Number of vehicles in RGCs of each county",
+                        w.scales="fixed",
+                        # source="Source: Household travel survey",
+                        # w.moe="share_moe",
+                        w.color="psrc_light")
 
 ```
