@@ -23,6 +23,9 @@ hh_group_data <- function(.data){
                                          "Between 5 and 10 years","Between 10 and 20 years",
                                          "More than 20 years")~ "More than 2 years",
                           TRUE ~ res_dur),
+      hhincome_broad = case_when(hhincome_broad %in% c("$100,000-$199,000",
+                                                       "$200,000 or more","$100,000 or more")~"$100,000 or more",
+                                 TRUE ~ hhincome_broad),
       hhincome_binary = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999") ~ "Under $50,000",
                                   hhincome_broad %in% c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,000",
                                                         "$200,000 or more","$100,000 or more") ~ "$50,000 and over",
@@ -36,17 +39,22 @@ hh_group_data <- function(.data){
   .data$res_type <- factor(.data$res_type, levels=c("Single-family house","Townhouse","Apartment/Condo","Others"))
   .data$res_dur <- factor(.data$res_dur, levels=c("Less than a year","Between 1 and 2 years","More than 2 years"))
   .data$final_home_is_rgc <- factor(.data$final_home_is_rgc, levels=c("RGC","Not RGC"))
+  .data$hhincome_broad <- factor(.data$hhincome_broad, levels=c("Under $25,000","$25,000-$49,999",
+                                                                "$50,000-$74,999","$75,000-$99,999",
+                                                                "$100,000 or more","Prefer not to answer"))
   .data$hhincome_binary <- factor(.data$hhincome_binary, levels=c("Under $50,000","$50,000 and over","Prefer not to answer"))
   .data$survey <- factor(.data$survey, levels=c("2017_2019","2021"))
   return(.data)
 }
 
-plot_chart_w <- function(.data, vars) {
-  .data %>% 
-    group_by(final_home_is_rgc,survey) %>% 
-    mutate(num_hh = sum(hh_weight)) %>% 
-    group_by(final_home_is_rgc, survey, num_hh, {{vars}}) %>% 
-    summarise(counts = sum(hh_weight)) %>%
-    ungroup() %>%
-    mutate(per = counts*100/num_hh)
+
+wrap_axis <- function(.data, fields){
+  
+  .data %>%
+    mutate(cat = str_wrap({{fields}}, width=11))
+  
 }
+
+
+
+
