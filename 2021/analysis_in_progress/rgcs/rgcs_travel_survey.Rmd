@@ -399,20 +399,17 @@ p3
 
 Trip Mode Shares by RGCs or not
 ```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-
-  trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
+trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
                                         group_vars=c('final_home_is_rgc','mode_simple'),
                                         spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%filter(mode_simple!='Total')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
+    filter('final_home_is_rgc'!='Total') %>%filter(mode_simple!='Total')%>%drop_na('final_home_is_rgc')
 
 
 
   trip_summs_2021 <- hhts_count(trip_data_21,
                                    group_vars=c('final_home_is_rgc','mode_simple'),
                                    spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
-    filter('final_home_is_rgc'!='Total') %>%filter(mode_simple!='Total')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
+    filter(final_home_is_rgc!='Total') %>%filter(mode_simple!='Total')%>%drop_na('final_home_is_rgc')
 
   
   trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
@@ -426,14 +423,10 @@ for(i in seq(1, length(simple_groupings))){
   print(p0)
   
 
-  p1<-create_facet_bar_chart(t=trip_summs_long , f='mode_simple',  x='final_home_is_rgc', y='share', g='survey', moe='share_moe', est='percent', color = 'psrc_light', interactive=TRUE) +theme(axis.text.x = element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=35))+
-  scale_x_discrete(labels=function(x) str_wrap(x, width=10))
-  print(p1)
-
-}
+  
 
 p0
-p1
+
 
 
 
@@ -441,13 +434,11 @@ p1
 
 # Walk Trip Mode Shares by RGC or not; just zooming in on walk
 ```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
+trip_summs_2017_2019 <- hhts_count(trip_data_17_19,
                                         group_vars=c('final_home_is_rgc','mode_simple'),
                                         spec_wgt='trip_weight_2017_2019_v2021_adult')%>%
     filter('final_home_is_rgc'!='Total') %>%
-    filter(mode_simple=='Walk')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
+    filter(mode_simple=='Walk')%>%drop_na('final_home_is_rgc')
 
 
 
@@ -455,7 +446,7 @@ for(i in seq(1, length(simple_groupings))){
                                    group_vars=c('final_home_is_rgc','mode_simple'),
                                    spec_wgt='trip_weight_2021_ABS_Panel_adult')%>%
     filter('final_home_is_rgc'!='Total') %>%
-    filter(mode_simple=='Walk')%>%drop_na('final_home_is_rgc')%>%mutate('final_home_is_rgc'=str_wrap('final_home_is_rgc', width=10))
+    filter(mode_simple=='Walk')%>%drop_na('final_home_is_rgc')
 
   trip_summs_long<- rbind(trip_summs_2017_2019, trip_summs_2021) %>%
     mutate(survey = str_replace_all(survey, "_", "/"))
@@ -515,6 +506,6 @@ filter('final_home_is_rgc'!='Other')%>%drop_na('final_home_is_rgc')
   scale_x_discrete(labels=function(x) str_wrap(x, width=10))
   print(p1)
 
-}
+
 ```
 

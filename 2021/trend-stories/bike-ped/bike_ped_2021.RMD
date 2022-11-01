@@ -1,0 +1,176 @@
+---
+output: 
+  pdf_document:
+    latex_engine: lualatex
+fontsize: 12pt
+  
+header-includes:
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{pdfcomment}
+  - \usepackage{fancyhdr}
+   \pagestyle{fancy}
+   \setlength{\headheight}{75pt}
+   \setlength{\textheight}{600pt}
+   \fancyhead[C]{}
+   \fancyhead[L]{\includegraphics{X:/DSA/shiny-uploads/images/trends-header.png}}
+   \fancyhead[R]{}
+   \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. November 2022}
+   \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
+   \fancyfoot[C]{}
+   \renewcommand{\headrulewidth}{0pt}
+   \renewcommand{\footrulewidth}{4pt}
+   \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
+  - \usepackage{fontspec}
+
+---
+\setmainfont{Poppins}
+
+# Trends in Walking and Biking 
+```{r setup, include=FALSE}
+library(psrcplot)
+library(psrccensus)
+library(tidyverse)
+library(knitr)
+library(magick)
+library(openxlsx)
+
+output_path='C:/GitHub/travel-studies/2021/trend-stories/bike-ped/'
+
+options(tinytex.verbose=TRUE)
+
+# Create Image 
+image1 <- image_read("plaza_roberto.png")
+image2 <- image_read("pride_pedestrian.jpg")
+image3 <- image_read("puyallup_transit.jpg")
+image4<-  image_read("hectors-walking.jpg")
+image5<- image_read("northgate_cyclist.jpg")
+
+input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"),  image_scale(image4, "x200"),  image_scale(image5, "x200"))
+
+walking_image_header <- image_append(input)
+image_write(walking_image_header, path="walking_image_header.png", format="png")
+
+install_psrc_fonts()
+walking_image_header
+```
+![](C:/GitHub/equity-focused-trends/travel-survey/walking_image_header.png){width=100%}
+\begin{flushleft}
+The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+\end{flushleft}
+
+## People walked more and used transit less in 2021
+\begin{flushleft}
+In 2021, the regional walk mode share was 15\% and 
+the regional bike mode share was 1\%. Compared to previous surveys, 
+walking and biking trips increased and transit trips decreased.  
+
+The walk trip mode share was over 30\% in 2021 for social,
+recreational, and meal trips. A greater proportion of trips was made
+for these purposes in 2021 when compared to 2017/2019 survey responses.  
+
+Driving remained around 80\% of trips, consistent with previous years.
+
+2017 and 2019 survey samples have been combined in this analysis to strengthen the statistical validity of the findings by increasing the number of respondents in each calculation.
+\end{flushleft}
+
+```{r overallmodeshare, echo=FALSE, results=TRUE,  fig.dim=c(6,4), fig.dim=c(6,4) }
+
+if(file.exists(paste0(output_path, "/trips_by_mode.csv"))){
+  
+  trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
+}else{
+  # pull the data from Elmer, group, and organize it, write to csv
+  source('bike-ped-data-processing.R')
+  trips_by_mode<-read.csv(paste(output_path, '/trips_by_mode.csv'))
+}
+
+trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Other'))
+
+trips_by_mode_trend<-static_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
+
+trips_by_mode_trend
+
+```
+
+
+
+<!-- \pdftooltip{\includegraphics{trips_by_mode_trend.png}}{Percent of All Trips by Mode} -->
+
+
+
+### More Social-Recreation Trips, Less Work and School Trips
+\begin{flushleft}
+The average number of trips per day decreased modestly from 4.4 trips per person per day in 2017/2019 to 4.1 trips per person per day. The types of trips people took shifted towards social-recreation trips away from work and school.
+\end{flushleft}
+
+
+```{r purpose, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
+trips_by_purpose<-read.csv(paste0(output_path, '/trips_by_purpose.csv'))
+
+trips_by_purpose_trend<-static_bar_chart(t=trips_by_purpose , y='simple_purpose',x='share', fill='survey', moe='share_moe',est ='percent', color="pgnobgy_5",  title= 'Percent of Trips by Purpose')
+
+trips_by_purpose_trend
+
+
+```
+
+
+### A greater share of social-recreation trips were made by walking in 2021.
+\begin{flushleft}
+Walking mode shares increased for social, recreation, and meal purposes but decreased for work and school purposes in 2021, as compared to 2017/2019.
+
+In 2021, walking accounted for about one-third of social, recreation, and meal related trips up from one-fourth of these types of trips in 2017/2019. 
+\end{flushleft}
+
+
+```{r walkpurpose, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
+trips_by_purpose_walk<-read.csv(paste0(output_path, '/trips_by_purpose_walk.csv'))
+
+trips_by_purpose_walk_trend<-static_bar_chart(t=trips_by_purpose_walk , y='simple_purpose',x='share', fill='survey', moe='share_moe', est='percent', color="pgnobgy_5", title='Walk Mode Share by Purpose')
+
+
+trips_by_purpose_walk_trend
+
+```
+
+
+### 75% of transit trips were accessed by walking.
+\begin{flushleft}
+Approximately 75\% of all transit trips were accessed by walk, jog, or wheelchair.  Access by biking accounted for less than 5\% of trips to transit in both years.  The remaining trips are a combination of modes, including driving and parking, getting dropped off, and other. 
+\end{flushleft}
+```{r transit-access, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
+transit_access_mode<-read.csv(paste0(output_path, '/transit_access.csv'))
+transit_access_chart<-static_column_chart(t=transit_access_mode, x='mode_acc_walk', y='share', fill='year', moe='share_moe', est='percent',color="pgnobgy_5", title='Transit Access Mode')
+transit_access_chart
+```
+
+### More people going for walks and bike rides
+\begin{flushleft}
+Most people, at around 70\%, reported going for walks, even before COVID-19. During COVID-19 the share of people who reported going for walks increased about 10\% to 85\% of adults. 
+
+In 2021, the highest share of people reported walking 2-4 days/week, while in 2017/2019, the highest share of people reported never walking. 
+\end{flushleft}
+
+
+```{r walk-freq, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
+walk_freq<-read.csv(paste0(output_path, '/walk_frequency.csv'))
+walk_freq_chart<-static_bar_chart(t=walk_freq , y='mode_freq_3', x='share', fill='survey', moe='share_moe', est='percent',color="pgnobgy_5", title ='Share of People Going for Walks')
+walk_freq_chart
+```
+
+
+```{r bike-freq, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
+bike_freq<-read.csv(paste0(output_path, '/bike_frequency.csv'))
+bike_freq_chart<-static_bar_chart(t=bike_freq , y='mode_freq_2', x='share', fill='survey', moe='share_moe', est='percent',color="pgnobgy_5", title = 'Share of People Going for Bike Rides')
+bike_freq_chart
+```
+\begin{flushleft}
+People were biking a little more frequently in 2021 than in 2017/2019. More people in the region biked sometimes, but less than monthly in 2021. 
+\end{flushleft}
+
+### More information
+\begin{flushleft}
+For a more detailed investigation of biking and walking by different demographics, including race and income, see  \href{https://www.psrc.org/media/6969}{\underline{\textcolor{red}{this presentation}}} given to the Bike/Pedestrian Committee.
+\end{flushleft}
+
