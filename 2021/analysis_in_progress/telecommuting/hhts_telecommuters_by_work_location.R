@@ -85,17 +85,13 @@ workers_loc %>%
   filter(survey == "2017/2019") %>% 
   group_by(county) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021") %>% 
   group_by(county) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # telecommuters by county
 workers_loc %>% 
@@ -103,18 +99,14 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(county) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
          & telecommute == "Telecommuter") %>% 
   group_by(county) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # workers in King Co
 workers_loc %>% 
@@ -122,18 +114,14 @@ workers_loc %>%
          & county == "King") %>% 
   group_by(king_cities) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
          & county == "King") %>% 
   group_by(king_cities) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # telecommuters in King Co
 workers_loc %>% 
@@ -142,9 +130,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(king_cities) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
@@ -152,9 +138,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(king_cities) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # workers in King subareas
 workers_loc %>% 
@@ -162,18 +146,14 @@ workers_loc %>%
          & county == "King") %>% 
   group_by(subarea) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
          & county == "King") %>% 
   group_by(subarea) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # telecommuters in King subareas
 workers_loc %>% 
@@ -182,9 +162,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(subarea) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
@@ -192,9 +170,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(subarea) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # workers in Seattle
 workers_loc %>% 
@@ -202,18 +178,14 @@ workers_loc %>%
          & jurisdiction == "Seattle") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
          & jurisdiction == "Seattle") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # telecommuters in Seattle
 workers_loc %>% 
@@ -222,9 +194,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
@@ -232,9 +202,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # workers in Seattle-Shoreline
 workers_loc %>% 
@@ -242,18 +210,14 @@ workers_loc %>%
          & subarea == "Seattle-Shoreline") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
          & subarea == "Seattle-Shoreline") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
 
 # telecommuters in Seattle-Shoreline
 workers_loc %>% 
@@ -262,9 +226,7 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(hh_weight_2017_2019_v2021_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(hh_weight_2017_2019_v2021_adult))
 
 workers_loc %>% 
   filter(survey == "2021"
@@ -272,6 +234,4 @@ workers_loc %>%
          & telecommute == "Telecommuter") %>% 
   group_by(rgc_name) %>% 
   summarize(count = n(),
-            total = sum(person_weight_2021_ABS_Panel_adult)) %>% 
-  mutate(percent = round(total / sum(total), 3),
-         moe = round(1.645 * sqrt(0.25 / sum(count)), 3))
+            total = sum(person_weight_2021_ABS_Panel_adult))
