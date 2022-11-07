@@ -56,6 +56,15 @@ WHERE worker <> 'No jobs'
   AND workplace IN ('Usually the same location (outside home)', 'Telework some days and travel to a work location some days')
 ;
 
+SELECT p.household_id, p.person_id, h.final_home_lng, h.final_home_lat
+FROM [Elmer].[HHSurvey].[v_persons] AS p
+  INNER JOIN Elmer.HHSurvey.v_households AS h ON p.household_id = h.household_id
+WHERE p.worker <> 'No jobs'
+  AND p.age_category <> 'Under 18 years'
+  AND p.work_lng IS NOT NULL
+  AND p.workplace IN ('Usually the same location (outside home)', 'Telework some days and travel to a work location some days')
+;
+
 SELECT *, dbo.ToXY(work_lng, work_lat) AS work_geom
 INTO #workers
 FROM [Elmer].[HHSurvey].[v_persons]
