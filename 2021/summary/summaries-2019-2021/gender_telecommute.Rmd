@@ -45,26 +45,33 @@ wrkr_1719 <- gender_tcf_get_hhts(survey_a$survey, 'p', vars_02)
 
 # summarise 2017/2019 and add telecommute frequency lookup
 gen_tc_freq_1719 <- hhts_count(wrkr_1719, 
-                               spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               spec_wgt = 'hh_weight_2017_2019_adult',
                                group_vars = c('gender_group', 'tc_freq_group')) %>%
   mutate(period = survey_a$label)
 
 gen_tc_freq_1719_simple <- hhts_count(wrkr_1719, 
-                                      spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      spec_wgt = 'hh_weight_2017_2019_adult',
                                       group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
   mutate(period = survey_a$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
 
 # 2021: How frequently did you telecommute in the past week? ----
 wrkr_2021 <- gender_tcf_get_hhts(survey_b$survey, 'p', vars_02)
-
+# browser()
 # summarise 2021
-gen_tc_freq_2021 <- hhts_count(wrkr_2021, group_vars = c('gender_group', 'telecommute_freq')) %>% 
+gen_tc_freq_2021 <- hhts_count(wrkr_2021, 
+                               group_vars = c('gender_group', 'telecommute_freq'), 
+                               # spec_wgt = 'person_weight_2021_ABS_Panel_adult'
+                               spec_wgt = 'person_adult_weight_2021'
+                               ) %>% 
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = telecommute_freq)
 
 gen_tc_freq_2021_simple <- hhts_count(wrkr_2021, 
-                                      spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      # spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      spec_wgt = 'person_adult_weight_2021',
                                       group_vars = c('gender_group', 'tc_freq_group_simple')) %>% 
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
@@ -74,12 +81,14 @@ wrkr_2017 <- gender_tcf_get_hhts(survey_c$survey, 'p', vars_02)
 
 # summarise 2017 and add telecommute frequency lookup
 gen_tc_freq_2017 <- hhts_count(wrkr_2017, 
-                               spec_wgt = 'hh_weight_2017_v2021',
+                               # spec_wgt = 'hh_weight_2017_v2021',
+                               spec_wgt = 'hh_weight_2017',
                                group_vars = c('gender_group', 'tc_freq_group')) %>%
   mutate(period = survey_c$label)
 
 gen_tc_freq_2017_simple <- hhts_count(wrkr_2017, 
-                                      spec_wgt = 'hh_weight_2017_v2021',
+                                      # spec_wgt = 'hh_weight_2017_v2021',
+                                      spec_wgt = 'hh_weight_2017',
                                       group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
   mutate(period = survey_c$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
@@ -89,12 +98,14 @@ wrkr_2019 <- gender_tcf_get_hhts(survey_d$survey, 'p', vars_02)
 
 # summarise 2019 and add telecommute frequency lookup
 gen_tc_freq_2019 <- hhts_count(wrkr_2019, 
-                               spec_wgt = 'hh_weight_2019_v2021',
+                               # spec_wgt = 'hh_weight_2019_v2021',
+                               spec_wgt = 'hh_weight_2019',
                                group_vars = c('gender_group', 'tc_freq_group')) %>%
   mutate(period = survey_d$label)
 
 gen_tc_freq_2019_simple <- hhts_count(wrkr_2019, 
-                                      spec_wgt = 'hh_weight_2019_v2021',
+                                      # spec_wgt = 'hh_weight_2019_v2021',
+                                      spec_wgt = 'hh_weight_2019',
                                       group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
   mutate(period = survey_d$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
@@ -135,12 +146,14 @@ df_simple <- gen_tc_freq_simple %>%
 # 2017/2019 All Genders ----
 
 gen_tc_freq_1719_tot <- hhts_count(wrkr_1719,
-                               spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               spec_wgt = 'hh_weight_2017_2019_adult',
                                group_vars = 'tc_freq_group') %>%
   mutate(period = survey_a$label)
 
 gen_tc_freq_1719_simple_tot <- hhts_count(wrkr_1719,
-                                      spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      spec_wgt = 'hh_weight_2017_2019_adult',
                                       group_vars = 'tc_freq_group_simple') %>%
   mutate(period = survey_a$label) %>%
   rename(tc_freq_group = tc_freq_group_simple)
@@ -148,12 +161,14 @@ gen_tc_freq_1719_simple_tot <- hhts_count(wrkr_1719,
 # 2017 All Genders ----
 
 gen_tc_freq_2017_tot <- hhts_count(wrkr_2017, 
-                               spec_wgt = 'hh_weight_2017_v2021',
+                               # spec_wgt = 'hh_weight_2017_v2021',
+                               spec_wgt = 'hh_weight_2017',
                                group_vars = 'tc_freq_group') %>%
   mutate(period = survey_c$label)
 
 gen_tc_freq_2017_simple_tot <- hhts_count(wrkr_2017, 
-                                      spec_wgt = 'hh_weight_2017_v2021',
+                                      # spec_wgt = 'hh_weight_2017_v2021',
+                                      spec_wgt = 'hh_weight_2017',
                                       group_vars = 'tc_freq_group_simple') %>%
   mutate(period = survey_c$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
@@ -161,24 +176,31 @@ gen_tc_freq_2017_simple_tot <- hhts_count(wrkr_2017,
 # 2019 All Genders ----
 
 gen_tc_freq_2019_tot <- hhts_count(wrkr_2019, 
-                               spec_wgt = 'hh_weight_2019_v2021',
+                               # spec_wgt = 'hh_weight_2019_v2021',
+                               spec_wgt = 'hh_weight_2019',
                                group_vars = 'tc_freq_group') %>%
   mutate(period = survey_d$label)
 
 gen_tc_freq_2019_simple_tot <- hhts_count(wrkr_2019, 
-                                      spec_wgt = 'hh_weight_2019_v2021',
+                                      # spec_wgt = 'hh_weight_2019_v2021',
+                                      spec_wgt = 'hh_weight_2019',
                                       group_vars = 'tc_freq_group_simple') %>%
   mutate(period = survey_d$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
 
 # 2021 All Genders ----
 
-gen_tc_freq_2021_tot <- hhts_count(wrkr_2021, group_vars = 'telecommute_freq') %>% 
+gen_tc_freq_2021_tot <- hhts_count(wrkr_2021, 
+                                   group_vars = 'telecommute_freq', 
+                                   # spec_wgt = 'person_weight_2021_ABS_Panel_adult'
+                                   spec_wgt = 'person_adult_weight_2021'
+                                   ) %>% 
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = telecommute_freq)
 
 gen_tc_freq_2021_simple_tot <- hhts_count(wrkr_2021, 
-                                      spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      # spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      spec_wgt = 'person_adult_weight_2021',
                                       group_vars = 'tc_freq_group_simple') %>% 
   mutate(period = survey_b$label) %>% 
   rename(tc_freq_group = tc_freq_group_simple)
