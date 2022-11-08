@@ -29,6 +29,7 @@ gender_tcf_get_hhts <- function(survey, level, vars) {
     }
     
   } else {
+
     wrkr <- get_hhts(survey = survey,
                      level = level,
                      vars = vars) %>%
@@ -41,8 +42,8 @@ gender_tcf_get_hhts <- function(survey, level, vars) {
                                        telecommute_freq %in% c('Never', 'Not applicable') ~ 'Never / None',
                                        !is.na(telecommute_freq) ~ telecommute_freq)) %>%
       mutate(tc_freq_group_simple = case_when(tc_freq_group %in% str_subset(unique(.data$tc_freq_group), '.*days$')~ 'Telecommuted at least once per week',
-                                              !is.na(tc_freq_group) ~ tc_freq_group)) %>%
-      filter(!(telecommute_freq %in% str_subset(unique(telecommute_freq), '.*month(ly)*$')))
+                                              !is.na(tc_freq_group) ~ tc_freq_group)) #%>%
+      # filter(!(telecommute_freq %in% str_subset(unique(telecommute_freq), '.*month(ly)*$')))
     
     if('gender' %in% colnames(wrkr)) {
       wrkr <- wrkr %>% 
