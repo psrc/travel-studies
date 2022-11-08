@@ -81,8 +81,8 @@ if(file.exists(paste0(output_path, "/trips_by_mode.csv"))){
   trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
 }else{
   # pull the data from Elmer, group, and organize it, write to csv
-  source('bike-ped-data-processing-new-weights.R')
-  trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
+  source('bike-ped-data-processing.R')
+  trips_by_mode<-read.csv(paste(output_path, '/trips_by_mode.csv'))
 }
 
 trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Other'))
