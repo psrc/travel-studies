@@ -50,7 +50,12 @@ hh_group_data <- function(.data){
                                   hhincome_broad %in% c("$100,000-$199,000",
                                                         "$200,000 or more","$100,000 or more") ~ "$100,000 and over",
                                   TRUE ~ hhincome_broad)
-    )
+    )%>%
+    left_join(urban_metro, by = c("final_home_rgcnum"="name")) %>%
+    mutate(urban_metro = case_when(!is.na(category)~category,
+                                   TRUE~"Not RGC"),
+           .after = "final_home_rgcnum") %>%
+    select(-category)
   
   .data$vehicle_count <- factor(.data$vehicle_count, levels=c("No vehicle","1","2 or more"))
   .data$vehicle_binary <- factor(.data$vehicle_binary, levels=c("No vehicle","1 or more"))
@@ -64,9 +69,13 @@ hh_group_data <- function(.data){
                                                                 "$100,000 or more","Prefer not to answer"))
   .data$hhincome_three <- factor(.data$hhincome_three, levels=c("Under $25,000","$25,000 - $99,999","$100,000 and over","Prefer not to answer"))
   .data$hhincome_binary <- factor(.data$hhincome_binary, levels=c("Under $50,000","$50,000 and over","Prefer not to answer"))
-  .data$survey <- factor(.data$survey, levels=c("2017/2019","2021"))
+  .data$survey <- factor(.data$survey, levels=c("2017/2019","2021")) 
+  .data$urban_metro <- factor(.data$urban_metro, levels=c("Metro","Urban","Not RGC")) 
+  
   return(.data)
 }
+
+
 per_group_data <- function(.data){
 
   .data <- .data %>%
@@ -238,9 +247,12 @@ trip_group_data <- function(.data){
              is.na(simple_purpose) ~ 'Errands',
              simple_purpose %in% c('Social/Recreation','Meal') ~ 'Social/Recreation/Meal',
              TRUE ~ simple_purpose),
-           travel_time = case_when(google_duration_sec<=600~"Under 10 mins",
-                                   google_duration_sec<=1200~"Under 20 mins",
-                                   google_duration_sec<=1800~"Under 30 mins",)
+           travel_time_google = case_when(google_duration_sec<=600~"Under 10 mins",
+                                          google_duration_sec<=1200~"Under 20 mins",
+                                          google_duration_sec<=1800~"Under 30 mins"),
+           travel_time = arrival_time_mam-depart_time_mam,
+           mode_simple2 = case_when(mode_simple %in% c("Bike","Walk")~"Walk/Bike",
+                                    TRUE~mode_simple)
            
     )
   
@@ -269,6 +281,8 @@ trip_group_data <- function(.data){
                                           'Social/Recreation/Meal'))
   .data$mode_simple <- factor(.data$mode_simple, 
                               levels=c("Drive","Transit", "Bike","Walk","Other"))
+  .data$mode_simple2 <- factor(.data$mode_simple2, 
+                              levels=c("Drive","Transit", "Walk/Bike","Other"))
   
   return(.data)
 }
@@ -283,7 +297,7 @@ wrap_axis <- function(.data, fields, w=11){
 
 
 # change legend
-psrc_style2 <- function(text_size=0) {
+psrc_style2 <- function(text_size=0, loc="bottom") {
   font <- "Poppins"
   
   ggplot2::theme(
@@ -310,7 +324,7 @@ psrc_style2 <- function(text_size=0) {
     
     #Legend format
     #This sets the position and alignment of the legend, removes a title and background for it and sets the requirements for any text within the legend.
-    legend.position = "bottom",
+    legend.position = loc,
     legend.background = ggplot2::element_blank(),
     legend.title = ggplot2::element_blank(),
     legend.key = ggplot2::element_blank(),
