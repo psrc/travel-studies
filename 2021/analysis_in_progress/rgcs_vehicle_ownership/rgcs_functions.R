@@ -1,11 +1,67 @@
 library(tidyverse)
 library(stringr)
+library(odbc)
+library(DBI)
 
+
+# extract data from elmer
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "Elmer",
+                              trusted_connection = "yes"
+) 
+
+rgcs_tracts <- c("53033000600", "53033001200", "53033001300",
+                 "53033001900", "53033004200", "53033004301",
+                 "53033004302", "53033004400", "53033004500",
+                 "53033005200", "53033005301", "53033005302",
+                 "53033005802", "53033006500", "53033006600",
+                 "53033006700", "53033007000", "53033007100",
+                 "53033007200", "53033007300", "53033007401",
+                 "53033007402", "53033007500", "53033007600",
+                 "53033007900", "53033008001", "53033008002",
+                 "53033008100", "53033008200", "53033008300",
+                 "53033008400", "53033008500", "53033008600",
+                 "53033008700", "53033009000", "53033009100",
+                 "53033009200", "53033009300", "53033009400",
+                 "53033021903", "53033021904", "53033022003",
+                 "53033022005", "53033022006", "53033022400",
+                 "53033022500", "53033022603", "53033022605",
+                 "53033022801", "53033022803", "53033022901",
+                 "53033023000", "53033023404", "53033023801",
+                 "53033023803", "53033023804", "53033024000",
+                 "53033025006", "53033025301", "53033025302",
+                 "53033026200", "53033027400", "53033027500",
+                 "53033027600", "53033027900", "53033028000",
+                 "53033028100", "53033028300", "53033028402",
+                 "53033028403", "53033028801", "53033028802",
+                 "53033029203", "53033029206", "53033029700",
+                 "53033030006", "53033030313", "53033030501",
+                 "53033030600", "53033030801", "53033032103",
+                 "53033032104", "53033032208", "53033032309",
+                 "53033032324", "53033032325", "53035080500",
+                 "53035081000", "53035081100", "53035081200",
+                 "53035081400", "53035090400", "53035091201",
+                 "53035091203", "53035091204", "53053060200",
+                 "53053060600", "53053061002", "53053061300",
+                 "53053061400", "53053061500", "53053061601",
+                 "53053061602", "53053061700", "53053062600",
+                 "53053062900", "53053071206", "53053071207",
+                 "53053071208", "53053071209", "53053071304",
+                 "53053071805", "53053071806", "53053071807",
+                 "53053071901", "53053071902", "53053072305",
+                 "53053072307", "53053072308", "53053072309",
+                 "53053072310", "53053072311", "53053072312",
+                 "53053072313", "53053073404", "53053073407",
+                 "53061040400", "53061040500", "53061040700",
+                 "53061040800", "53061041000", "53061051400",
+                 "53061051702", "53061051802", "53061051905",
+                 "53061051916", "53061051918", "53061051922",
+                 "53061051925")
 
 # specifications for ggplots ####
-# error bars for ggplot
-moe_bars <- geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                          width=0.2, position = position_dodge(0.9))
+
 
 
 # functions for data processing ####
@@ -13,7 +69,8 @@ moe_bars <- geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
 hh_group_data <- function(.data){
   .data <- .data %>%
     mutate(
-      survey = ifelse(survey=="2017_2019", "2017/2019",survey),
+      survey = case_when(length(unique(survey_year))>1~ "2017/2019", 
+                         TRUE~as.character(survey_year)),
       vehicle_count = substring(vehicle_count,1,1),
       vehicle_count = case_when(vehicle_count==0 ~ "No vehicle", 
                                 vehicle_count==1 ~ "1",
@@ -69,15 +126,15 @@ hh_group_data <- function(.data){
                                                                 "$100,000 or more","Prefer not to answer"))
   .data$hhincome_three <- factor(.data$hhincome_three, levels=c("Under $25,000","$25,000 - $99,999","$100,000 and over","Prefer not to answer"))
   .data$hhincome_binary <- factor(.data$hhincome_binary, levels=c("Under $50,000","$50,000 and over","Prefer not to answer"))
-  .data$survey <- factor(.data$survey, levels=c("2017/2019","2021")) 
+  .data$survey <- factor(.data$survey, levels=c("2017","2019","2017/2019","2021"))
   .data$urban_metro <- factor(.data$urban_metro, levels=c("Metro","Urban","Not RGC")) 
   
   return(.data)
 }
 
 
-per_group_data <- function(.data){
-
+per_group_data <- function(.data,hh_data){
+  
   .data <- .data %>%
     rename(transit_freq = mode_freq_1,
            bike_freq = mode_freq_2,
@@ -86,21 +143,6 @@ per_group_data <- function(.data){
            rideshare_freq = mode_freq_5,
            transit_pass = benefits_3) %>%
     mutate(
-      survey = ifelse(survey=="2017_2019", "2017/2019",survey),
-      vehicle_count = substring(vehicle_count,1,1),
-      vehicle_count = case_when(vehicle_count==0 ~ "No vehicle", 
-                                vehicle_count==1 ~ "1",
-                                # vehicle_count==2 ~ "2",
-                                vehicle_count %in% c(2,3,4,5,6,7,8)~ "2 or more"),
-      vehicle_binary = case_when(vehicle_count=="No vehicle" ~ "No vehicle", 
-                                 vehicle_count %in% c("1","2 or more")~ "1 or more"),
-      hhincome_broad = case_when(hhincome_broad %in% c("$100,000-$199,000",
-                                                       "$200,000 or more","$100,000 or more")~"$100,000 or more",
-                                 TRUE ~ hhincome_broad),
-      hhincome_binary = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999") ~ "Under $50,000",
-                                  hhincome_broad %in% c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,000",
-                                                        "$200,000 or more","$100,000 or more") ~ "$50,000 and over",
-                                  hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer"),
       race_eth_broad = case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx"~"Asian only",
                                  race_eth_broad=="Black or African American only, non-Hispanic/Latinx"~"Black or African American only",
                                  race_eth_broad=="White only, non-Hispanic/Latinx"~ "White only",
@@ -110,12 +152,12 @@ per_group_data <- function(.data){
                       age == '85 or years older' ~ '75 years or older',
                       TRUE ~ age),
       education2 = case_when(education=="Less than high school"|
-                              education=="High school graduate"~"High school or less",
-                            education=="Vocational/technical training" |
-                              education=="Some college" |
-                              education=="Associates degree"~"Technical or Associates",
-                            education=="Bachelor degree" |
-                              education=="Graduate/post-graduate degree"~"Bachelor's or higher"),
+                               education=="High school graduate"~"High school or less",
+                             education=="Vocational/technical training" |
+                               education=="Some college" |
+                               education=="Associates degree"~"Technical or Associates",
+                             education=="Bachelor degree" |
+                               education=="Graduate/post-graduate degree"~"Bachelor's or higher"),
       commute_mode2 = case_when(commute_mode %in%  c("Bus (public transit)",
                                                      "Commuter rail (Sounder, Amtrak)",
                                                      "Ferry or water taxi",
@@ -123,30 +165,22 @@ per_group_data <- function(.data){
                                                      "Streetcar",
                                                      "Urban rail (Link light rail, monorail)",
                                                      "Urban rail (Link light rail, monorail, streetcar)") ~ "Public transit",
-                               commute_mode %in% c("Bicycle or e-bike",
-                                                   "Scooter or e-scooter (e.g., Lime, Bird, Razor)")~ "Bike or micro-mobility",
-                               commute_mode=="Walk, jog, or wheelchair" ~ "Walk",
-                               commute_mode=="Drive alone" ~ "Drive alone",
-                               commute_mode %in% c("Carpool ONLY with other household members",
-                                                   "Carpool with other people not in household (may also include household members)",
-                                                   "Vanpool",
-                                                   "Private bus or shuttle") ~ "HOV modes",
-                               is.na(commute_mode) ~ "NA",
-                               TRUE ~ "Other modes")
-      )
+                                commute_mode %in% c("Bicycle or e-bike",
+                                                    "Scooter or e-scooter (e.g., Lime, Bird, Razor)")~ "Bike or micro-mobility",
+                                commute_mode=="Walk, jog, or wheelchair" ~ "Walk",
+                                commute_mode=="Drive alone" ~ "Drive alone",
+                                commute_mode %in% c("Carpool ONLY with other household members",
+                                                    "Carpool with other people not in household (may also include household members)",
+                                                    "Vanpool",
+                                                    "Private bus or shuttle") ~ "HOV modes",
+                                is.na(commute_mode) ~ "NA",
+                                TRUE ~ "Other modes")
+    ) %>%
+    # add household data
+    left_join(hh_data %>%
+                select(survey_year:hhincome_broad,vehicle_binary:hhincome_binary), 
+              by = c("household_id"="hhid")) 
   
-  .data$vehicle_count <- factor(.data$vehicle_count, levels=c("No vehicle","1","2 or more"))
-  .data$vehicle_binary <- factor(.data$vehicle_binary, levels=c("No vehicle","1 or more"))
-  .data$final_home_is_rgc <- factor(.data$final_home_is_rgc, levels=c("RGC","Not RGC"))
-  .data$hhincome_broad <- factor(.data$hhincome_broad, levels=c("Under $25,000","$25,000-$49,999",
-                                                                "$50,000-$74,999","$75,000-$99,999",
-                                                                "$100,000 or more","Prefer not to answer"))
-  .data$hhincome_binary <- factor(.data$hhincome_binary, levels=c("Under $50,000","$50,000 and over","Prefer not to answer"))
-  .data$survey <- factor(.data$survey, levels=c("2017/2019","2021"))
-  
-  .data$age <- factor(.data$age, levels=c("Under 5 years old","5-11 years","12-15 years","16-17 years","18-24 years",
-                                          "25-34 years","35-44 years","45-54 years","55-64 years","65-74 years","75-84 years",
-                                          "85 or years older"))
   .data$race_eth_broad <- factor(.data$race_eth_broad, 
                                  levels=c("Asian only",
                                           "Black or African American only",
@@ -162,18 +196,18 @@ per_group_data <- function(.data){
                                      "Workplace regularly varies (different offices or jobsites)",                 
                                      NA ))
   .data$education2 <- factor(.data$education2, 
-                            levels=c("High school or less",
-                                     "Technical or Associates",
-                                     "Bachelor's or higher", 
-                                     NA))
-  .data$education <- factor(.data$education, 
-                             levels=c("Less than high school",
-                                      "High school graduate",
-                                      "Vocational/technical training",
-                                      "Associates degree",
-                                      "Some college",
-                                      "Bachelor degree","Graduate/post-graduate degree", 
+                             levels=c("High school or less",
+                                      "Technical or Associates",
+                                      "Bachelor's or higher", 
                                       NA))
+  .data$education <- factor(.data$education, 
+                            levels=c("Less than high school",
+                                     "High school graduate",
+                                     "Vocational/technical training",
+                                     "Associates degree",
+                                     "Some college",
+                                     "Bachelor degree","Graduate/post-graduate degree", 
+                                     NA))
   .data$employment <- factor(.data$employment, 
                              levels=c("Employed full time (35+ hours/week, paid)",
                                       "Employed part time (fewer than 35 hours/week, paid)",
@@ -191,7 +225,6 @@ per_group_data <- function(.data){
                                                              NA))
   .data$commute_mode2 <- factor(.data$commute_mode2, level = c("Drive alone","HOV modes","Public transit",
                                                                "Walk","Bike or micro-mobility","Other modes","NA"))
-  # .data$commute_mode2 <- factor(.data$commute_mode2, levels= c("Bike","Drive alone","HOV modes","Other modes", "Public transit","Walk"))
   
   .freq <- c("I never do this",
              "1 day/week",
@@ -212,68 +245,43 @@ per_group_data <- function(.data){
   return(.data)
 }
 
-trip_group_data <- function(.data){
+
+trip_group_data <- function(.data,per_data){
   
   .data <- .data %>%
-    mutate(survey = ifelse(survey=="2017_2019", "2017/2019",survey),
-           vehicle_count = substring(vehicle_count,1,1),
-           vehicle_count = case_when(vehicle_count==0 ~ "No vehicle", 
-                                     vehicle_count==1 ~ "1",
-                                     # vehicle_count==2 ~ "2",
-                                     vehicle_count %in% c(2,3,4,5,6,7,8)~ "2 or more"),
-           vehicle_binary = case_when(vehicle_count=="No vehicle" ~ "No vehicle", 
-                                      vehicle_count %in% c("1","2 or more")~ "1 or more"),
-           hhincome_broad = case_when(hhincome_broad %in% c("$100,000-$199,000",
-                                                            "$200,000 or more","$100,000 or more")~"$100,000 or more",
-                                      TRUE ~ hhincome_broad),
-           hhincome_binary = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999") ~ "Under $50,000",
-                                       hhincome_broad %in% c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,000",
-                                                             "$200,000 or more","$100,000 or more") ~ "$50,000 and over",
-                                       hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer"),
-           race_eth_broad = case_when(race_eth_broad=="Asian only, non-Hispanic/Latinx"~"Asian only",
-                                      race_eth_broad=="Black or African American only, non-Hispanic/Latinx"~"Black or African American only",
-                                      race_eth_broad=="White only, non-Hispanic/Latinx"~ "White only",
-                                      race_eth_broad=="Other race, including multi-race non-Hispanic"~ "Other race, including multi-race",
-                                      TRUE~race_eth_broad),
-           age = case_when(age == '75-84 years' ~ '75 years or older',
-                           age == '85 or years older' ~ '75 years or older',
-                           TRUE ~ age),
-           simple_purpose = ifelse(dest_purpose_cat == 'Home',
-             origin_purpose_cat,dest_purpose_cat),
-           simple_purpose = case_when(
-             simple_purpose %in% c('Work','School', 'Work-related') ~ 'Work/School',
-             simple_purpose == 'Shop' ~ 'Shop',
-             simple_purpose %in% c('Escort','Errand/Other','Change mode','Home')~ 'Errands',
-             is.na(simple_purpose) ~ 'Errands',
-             simple_purpose %in% c('Social/Recreation','Meal') ~ 'Social/Recreation/Meal',
-             TRUE ~ simple_purpose),
-           travel_time_google = case_when(google_duration_sec<=600~"Under 10 mins",
-                                          google_duration_sec<=1200~"Under 20 mins",
-                                          google_duration_sec<=1800~"Under 30 mins"),
-           travel_time = arrival_time_mam-depart_time_mam,
-           mode_simple2 = case_when(mode_simple %in% c("Bike","Walk")~"Walk/Bike",
-                                    TRUE~mode_simple)
+    mutate(
+      mode_simple2 = case_when(mode_simple %in% c("Bike","Walk")~"Walk/Bike",
+                               TRUE~mode_simple),
+       simple_purpose = ifelse(dest_purpose_cat == 'Home',
+                               origin_purpose_cat,dest_purpose_cat),
+       simple_purpose = case_when(
+         simple_purpose %in% c('Work','School', 'Work-related') ~ 'Work/School',
+         simple_purpose == 'Shop' ~ 'Shop',
+         simple_purpose %in% c('Escort','Errand/Other','Change mode','Home')~ 'Errands',
+         is.na(simple_purpose) ~ 'Errands',
+         simple_purpose %in% c('Social/Recreation','Meal') ~ 'Social/Recreation/Meal',
+         TRUE ~ simple_purpose),
+       .after="mode_simple")%>%
+    mutate(depart_time_mfm = case_when(substr(depart_time_hhmm,1,2)=="12" & substr(depart_time_hhmm,7,8)=="AM"~as.numeric(substr(depart_time_hhmm,4,5)),
+                                       substr(depart_time_hhmm,7,8)=="AM"~as.numeric(substr(depart_time_hhmm,1,2))*60+as.numeric(substr(depart_time_hhmm,4,5)),
+                                       substr(depart_time_hhmm,1,2)=="12" & substr(depart_time_hhmm,7,8)=="PM"~as.numeric(substr(depart_time_hhmm,1,2))*60+as.numeric(substr(depart_time_hhmm,4,5)),
+                                       substr(depart_time_hhmm,7,8)=="PM"~(as.numeric(substr(depart_time_hhmm,1,2))+12)*60+as.numeric(substr(depart_time_hhmm,4,5))),
            
-    )
+           arrival_time_mfm = case_when(substr(arrival_time_hhmm,1,2)=="12" & substr(arrival_time_hhmm,7,8)=="AM"~as.numeric(substr(arrival_time_hhmm,4,5)),
+           substr(arrival_time_hhmm,7,8)=="AM"~as.numeric(substr(arrival_time_hhmm,1,2))*60+as.numeric(substr(arrival_time_hhmm,4,5)),
+           substr(arrival_time_hhmm,1,2)=="12" & substr(arrival_time_hhmm,7,8)=="PM"~as.numeric(substr(arrival_time_hhmm,1,2))*60+as.numeric(substr(arrival_time_hhmm,4,5)),
+           substr(arrival_time_hhmm,7,8)=="PM"~(as.numeric(substr(arrival_time_hhmm,1,2))+12)*60+as.numeric(substr(arrival_time_hhmm,4,5))),
+           .after="arrival_time_hhmm") %>%
+    mutate(travel_time = ifelse(arrival_time_mfm<depart_time_mfm,arrival_time_mfm+24*60-depart_time_mfm,arrival_time_mfm-depart_time_mfm),
+           .after = "google_duration") %>%
+    # add person data
+    left_join(per_data %>%
+                select(survey_year,person_id,sample_county:vehicle_count,vehicle_binary,
+                       hhincome_broad,hhincome_binary,have_child,
+                       gender,age,age_category,race_eth_broad,
+                       education,education2,workplace:license,commute_mode2), 
+              by = "person_id")
   
-  .data$vehicle_binary <- factor(.data$vehicle_binary, levels=c("No vehicle","1 or more"))
-  .data$final_home_is_rgc <- factor(.data$final_home_is_rgc, levels=c("RGC","Not RGC"))
-  .data$hhincome_broad <- factor(.data$hhincome_broad, levels=c("Under $25,000","$25,000-$49,999",
-                                                                "$50,000-$74,999","$75,000-$99,999",
-                                                                "$100,000 or more","Prefer not to answer"))
-  .data$hhincome_binary <- factor(.data$hhincome_binary, levels=c("Under $50,000","$50,000 and over","Prefer not to answer"))
-  .data$survey <- factor(.data$survey, levels=c("2017/2019","2021"))
-  
-  .data$age <- factor(.data$age, levels=c("Under 5 years old","5-11 years","12-15 years","16-17 years","18-24 years",
-                                          "25-34 years","35-44 years","45-54 years","55-64 years","65-74 years","75-84 years",
-                                          "85 or years older"))
-  .data$race_eth_broad <- factor(.data$race_eth_broad, 
-                                 levels=c("Asian only",
-                                          "Black or African American only",
-                                          "Hispanic or Latinx",
-                                          "White only",
-                                          "Other race, including multi-race",
-                                          "Child -- no race specified"))
   .data$simple_purpose <- factor(.data$simple_purpose, 
                                  levels=c('Work/School',
                                           'Shop',
@@ -282,10 +290,11 @@ trip_group_data <- function(.data){
   .data$mode_simple <- factor(.data$mode_simple, 
                               levels=c("Drive","Transit", "Bike","Walk","Other"))
   .data$mode_simple2 <- factor(.data$mode_simple2, 
-                              levels=c("Drive","Transit", "Walk/Bike","Other"))
+                               levels=c("Drive","Transit", "Walk/Bike","Other"))
   
   return(.data)
 }
+
 
 # for wrapping the labels in x-axis
 wrap_axis <- function(.data, fields, w=11){
@@ -295,9 +304,13 @@ wrap_axis <- function(.data, fields, w=11){
   
 }
 
+# error bars for ggplot
+moe_bars <- geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
+                          width=0.2, position = position_dodge(0.9))
+
 
 # change legend
-psrc_style2 <- function(text_size=0, loc="bottom") {
+psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
   font <- "Poppins"
   
   ggplot2::theme(
@@ -335,7 +348,7 @@ psrc_style2 <- function(text_size=0, loc="bottom") {
     #Axis format
     #This sets the text font, size and colour for the axis test, as well as setting the margins and removes lines and ticks. In some cases, axis lines and axis ticks are things we would want to have in the chart - the cookbook shows examples of how to do so.
     axis.title = ggplot2::element_blank(),
-    axis.text = ggplot2::element_text(size=10+text_size,
+    axis.text = ggplot2::element_text(size=10+text_size+axis_text_size,
                                       color="#2f3030"),
     axis.text.x = ggplot2::element_text(margin=ggplot2::margin(5, b = 10)),
     axis.ticks = ggplot2::element_blank(),
@@ -356,4 +369,5 @@ psrc_style2 <- function(text_size=0, loc="bottom") {
     strip.text = ggplot2::element_text(size  = 12+text_size,  hjust = 0)
   )
 }
+
 
