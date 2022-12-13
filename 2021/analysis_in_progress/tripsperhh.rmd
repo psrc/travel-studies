@@ -274,7 +274,7 @@ print(work_trips_households_long)
   
 
   print(p)
-  print(p1)
+
   
 
   
@@ -408,10 +408,10 @@ all_trips_hh_19<-all_trips_per_hh_total(trip_data_19, household_data_19,'trip_we
   
 all_trips_hh_21<-all_trips_per_hh_total(trip_data_21, household_data_21,'trip_adult_weight_2021', 'hh_weight_2021')
 
- all_trips_households_long<- bind_rows(all_trips_hh_17, all_trips_hh_19, all_trips_hh_21)
+ all_trips_households_long<- bind_rows(all_trips_hh_17, all_trips_hh_19, all_trips_hh_21)%>%filter(simple_purpose != 'Total')
  
-  p0<-create_facet_bar_chart(t= all_trips_households_long , w.x='survey', w.y='trips_per_household', f='survey', g='simple_purpose', w.moe='moe_trips_household', est.type='number', w.color = 'psrc_light') + 
-  ylab('Trips per Household')+theme(axis.title.x = element_text(size=15,color="#4C4C4C"))+theme(axis.text.x = element_text(size=15,color="#4C4C4C"))+theme(axis.title.y = element_text(size=15,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=15,color="#4C4C4C"))+theme(legend.text=element_text(size=15))
+  p0<-create_facet_bar_chart(t= all_trips_households_long , w.x='survey', w.y='trips_per_household', f='survey', g='simple_purpose', w.moe='moe_trips_household', est.type='number', w.color = 'psrc_light', w.scale='fixed') + 
+  xlab('Year') + ylab('Trips per Household')+theme(axis.title.x = element_text(size=15,color="#4C4C4C"))+theme(axis.text.x = element_text(size=15,color="#4C4C4C"))+theme(axis.title.y = element_text(size=15,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=15,color="#4C4C4C"))+theme(legend.text=element_text(size=15))
  p0
 ```
 
