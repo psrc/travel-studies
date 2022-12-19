@@ -43,21 +43,21 @@ install_psrc_fonts()
 
 
 ```{r}
-trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'age_category', 'daynum' )
-household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle')
+trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'age_category', 'daynum', 'sample_source', 'hhgroup' )
+household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults')
 
 ```
 
 
 ```{r}
-trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years')%>%select(-trip_weight_2017)
-trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years')%>%select(-trip_weight_2019)
-trip_data_21<- get_hhts("2021", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years')%>%select(-c(trip_adult_weight_2021, trip_respondent_weight_2021))
+trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2017)
+trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2019)
+trip_data_21<- get_hhts("2021", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & sample_source=='ABS')%>%dplyr::select(-c(trip_adult_weight_2021, trip_respondent_weight_2021))
 trip_data_17_19_21<-rbind(trip_data_17, trip_data_19, trip_data_21)
 
-household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%select(-hh_weight_2017)
-household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%select(-hh_weight_2019)
-household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%select(-hh_weight_2021)
+household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2017)
+household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2019)
+household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_source=='ABS')%>%dplyr::select(-hh_weight_2021)
 household_data_17_19_21<-rbind(household_data_17, household_data_19, household_data_21)
 ```
 
@@ -105,7 +105,7 @@ household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no 
     hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
     hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
     hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
-    hhincome_broad=='$100,000-$199,999' ~ '$75,000 or more',
+    hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
                                  hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
                                  TRUE~hhincome_broad))%>%mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
                                   hhsize == "2 people"  ~ '2 people', 
@@ -121,7 +121,7 @@ household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no 
                                  ~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
                                    lifecycle == "Household size = 1, Householder age 35 - 64"  
-                                 ~ '35-64',
+                                 ~ '35-64, no kids',
                                    lifecycle == "Household size > 1, Householder under age 35" | 
                                    lifecycle == "Household size = 1, Householder under age 35" 
                                    ~ 'Under 35 years, no kids',
@@ -142,20 +142,29 @@ household_data_17_19_21<-household_grouping(household_data_17_19_21)
 ```
 
 ```{r}
+
+```
+
+
+```{r}
 household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_hh_day, by='household_id')%>%mutate_all(~replace(., is.na(.), 0)) 
+
+household_data_17_19_21_shop%>%group_by(survey)%>%summarise(mean=mean(n,na.rm=TRUE))
 ```
 ```{r}
 household_data_17_19_21_shop<- household_data_17_19_21_shop%>%mutate(shop_trips=ifelse(n<4, n, 4))%>%mutate(shop_trips=factor(shop_trips,levels=c(0,1, 2, 3,4)))
-
 ```
 
 ```{r}
-shop_model<-polr(formula= shop_trips~hhsize+hhincome_detailed+survey, data=household_data_17_19_21_shop)
-summary(shop_model)
+ggplot(household_data_17_19_21_shop, aes(x=shop_trips, fill=survey))+geom_histogram(stat='count')
+
+
 ```
-```{r}
-+ final_home_is_rgc+hhsize+lifecycle
+
 ```
+
+```
+
 
 
 
@@ -254,7 +263,7 @@ smp_delivery_combo <- function(data, year) {
                                         deliver_work =='No' ~ 'No Delivery',
                                         delivery_work_freq == "0 (none)"  ~ 'No Delivery',
                                          TRUE ~ 'Delivery Received'))
-  temp_table<-temp_table%>%filter(pernum==1)%>% dplyr::select(survey,household_id,daynum, deliver_package, deliver_grocery, deliver_food )
+  temp_table<-temp_table%>%filter(pernum==1)%>% dplyr::select(survey,household_id,daynum, delivery_pkgs_all, delivery_grocery_all, delivery_food_all )
   temp_table
 }
 ```
@@ -292,9 +301,50 @@ household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_1
 
 
 ```{r}
-shop_model<-polr(formula= shop_trips~hhsize+hhincome_detailed+survey.x+deliver_package+deliver_grocery+NoVehicles+final_home_is_rgc, data=household_data_17_19_21_shop_del)
+shop_model<-polr(formula= shop_trips~hhincome_detailed+lifecycle+numworkers+delivery_pkgs_all, data=household_data_17_19_21_shop_del)
 summary(shop_model)
 ```
 
+
+```{r}
+shop_model<-polr(formula= shop_trips~hhincome_detailed+lifecycle+survey.x+NoVehicles+final_home_is_rgc+delivery_pkgs_all, data=household_data_17_19_21_shop_del)
+summary(shop_model)
 ```
+
+```{r}
+library(jtools)
+plot_summs(shop_model, scale=TRUE)
+```
+
+
+
+```{r}
+displ_index_data<- 'C:/GitHub/travel-studies/2019/analysis/zero_veh_hh/displacement_risk_estimation.csv'
+tract_data<-read.csv(displ_index_data)
+
+```
+
+```{r}
+household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data_17_19_21_shop_del$final_home_tract10)
+```
+
+
+```{r}
+hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE)
+```
+
+```{r}
+shop_model<-polr(formula= shop_trips~hhincome_detailed+lifecycle+survey.x+ln_jobs_auto_30+numworkers++delivery_pkgs_all+dist_super, data=hh_shop_tract)
+summary(shop_model)
+```
+
+```{r}
+
+plot_summs(shop_model, scale=TRUE)
+```
+
+```{r}
+stargazer(shop_model, type="text")
+```
+
 

@@ -88,14 +88,13 @@ household_data_21<- get_hhts("2021", "h", vars=household_vars)
 ```{r}
 trip_grouping <-function(trip_data){
 
-trip_data<-trip_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%mutate(hhincome_100= case_when(
+trip_data<-trip_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%mutate(hhincome_100= case_when(
     hhincome_broad=="Under $25,000" ~ "Under $75,000",
     hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
     hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
     hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
-    hhincome_broad=='$100,000-$199,999' ~ '$75,000 or more',
-                                 hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
-                                 TRUE~hhincome_broad))%>%
+    hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$75,000 or more'))%>%
   mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
   mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
                                   simple_purpose=='School'~ 'Work/School',
@@ -116,16 +115,30 @@ trip_data<-trip_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)'
                                   hhsize == "6 people" | 
                                   hhsize == "7 people" |
                                   hhsize == "8 people" | 
-                                  hhsize == "12 people" ~ "4+ people"))
+                                  hhsize == "12 people" ~ "4+ people"))%>%
+     mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+"  
+                                 ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
+                                 ~ '35-64',
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" 
+                                   ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids'))
  
 
 
 trip_data$hhincome_100_f=factor(trip_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
+trip_data$lifecycle2 =factor(trip_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
 trip_data
 
 }
 
-simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'sample_county' ='Home County', 'final_home_is_rgc'='Home in Regional Growth Center',  'hhsize' ='Household Size', 'lifecycle' = 'Lifecycle'  )
+
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'sample_county' ='Home County', 'final_home_is_rgc'='Home in Regional Growth Center',  'hhsize' ='Household Size', 'lifecycle2' = 'Lifecycle'  )
 ```
 
 
@@ -146,7 +159,7 @@ household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no 
     hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
     hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
     hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
-    hhincome_broad=='$100,000-$199,999' ~ '$75,000 or more',
+    hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
                                  hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
                                  TRUE~hhincome_broad))%>%mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
                                   hhsize == "2 people"  ~ '2 people', 
@@ -156,14 +169,28 @@ household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no 
                                   hhsize == "6 people" | 
                                   hhsize == "7 people" |
                                   hhsize == "8 people" | 
-                                  hhsize == "12 people" ~ "4+ people"))
+                                  hhsize == "12 people" ~ "4+ people"))%>%
+     mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+"  
+                                 ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
+                                 ~ '35-64',
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" 
+                                   ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids'))
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
+
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
 household_data
+                                  
 }
 
 
-simple_groupings<-c('hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'final_home_is_rgc'='Home in Regional Growth Center', 'hhsize' ='Household Size', 'lifecycle' ='Lifecycle' )
+simple_groupings<-c('hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'final_home_is_rgc'='Home in Regional Growth Center', 'hhsize' ='Household Size', 'lifecycle2' ='Lifecycle' )
 ```
 
 ```{r}
@@ -267,7 +294,7 @@ print(work_trips_households_long)
  work_trips_households_long_total<- bind_rows(work_trips_hh_17, work_trips_hh_19, work_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)=='Total')
 
   
-   p<-create_column_chart(t= work_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
+   p<-static_column_chart(t= work_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
   xlab('Household Characteristic') + ylab('Work/School Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
    
 
@@ -302,12 +329,13 @@ print(shop_trips_households_long)
 
  shop_trips_households_long_total<- bind_rows(shop_trips_hh_17, shop_trips_hh_19, shop_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)=='Total')
 
+ print(shop_trips_households_long)
   
-   p<-create_column_chart(t= shop_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
-  xlab('Household Characteristic') + ylab('Shopping Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
+   p<-static_column_chart(t= shop_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
+  xlab('Household Characteristic') + ylab('Shopping Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=15,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
    
-    p1<-create_column_chart(t= shop_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
-  xlab('All Households') + ylab('Shopping Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
+    p1<-static_column_chart(t= shop_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
+  xlab('All Households') + ylab('Shopping Trips per HH')+theme(axis.title.x = element_text(size=15,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
   
 
   print(p)
@@ -340,10 +368,10 @@ print(meal_trips_households_long)
  meal_trips_households_long_total<- bind_rows(meal_trips_hh_17, meal_trips_hh_19, meal_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)=='Total')
 
   
-   p<-create_column_chart(t= meal_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
+   p<-static_column_chart(t= meal_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
   xlab('Household Characteristic') + ylab('Meal Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
    
-    p1<-create_column_chart(t= meal_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
+    p1<-static_column_chart(t= meal_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
   xlab('All Households') + ylab('Meal Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
   
 
@@ -438,7 +466,7 @@ print(all_trips_households_long)
 
  
   
-   p<-create_column_chart(t= all_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
+   p<-static_column_chart(t= all_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
   xlab('Household Characteristic') + ylab('All Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
    
 
@@ -446,7 +474,7 @@ print(all_trips_households_long)
 
 
    
-    p1<-create_column_chart(t= all_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light', interactive=FALSE) + 
+    p1<-static_column_chart(t= all_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
   xlab('All Households') + ylab('All Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
   
 
