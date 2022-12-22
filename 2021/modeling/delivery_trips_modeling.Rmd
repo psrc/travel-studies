@@ -296,24 +296,7 @@ household_data_17_19_21_shop<- household_data_17_19_21_shop %>%mutate(daynum=ife
 
 
 ```{r}
-household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_17_19_21, by=c('household_id', 'daynum'))
-```
-
-
-```{r}
-shop_model<-polr(formula= delivery_pkgs_all~hhincome_detailed+lifecycle+numworkers+shop_trips, data=household_data_17_19_21_shop_del)
-summary(shop_model)
-```
-
-
-```{r}
-shop_model<-polr(formula= shop_trips~hhincome_detailed+lifecycle+survey.x+NoVehicles+final_home_is_rgc+delivery_pkgs_all, data=household_data_17_19_21_shop_del)
-summary(shop_model)
-```
-
-```{r}
-library(jtools)
-plot_summs(shop_model, scale=TRUE)
+household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_17_19_21, by=c('household_id', 'daynum'))%>%filter(delivery_pkgs_all%in% c('Delivery Received', 'No Delivery'))%>%mutate('delivery_pkg'=ifelse(delivery_pkgs_all=='Delivery Received', 1, 0))
 ```
 
 
@@ -334,17 +317,15 @@ hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_ho
 ```
 
 ```{r}
-shop_model<-polr(formula= shop_trips~hhincome_detailed+lifecycle+survey.x+ln_jobs_auto_30+numworkers++delivery_pkgs_all+dist_super, data=hh_shop_tract)
-summary(shop_model)
+deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+ln_jobs_auto_30+numworkers+dist_super,family=binomial(), data=hh_shop_tract)
+summary(deliv_model)
+
 ```
 
-```{r}
 
+
+```{r}
+library(jtools)
 plot_summs(shop_model, scale=TRUE)
 ```
-
-```{r}
-stargazer(shop_model, type="text")
-```
-
 
