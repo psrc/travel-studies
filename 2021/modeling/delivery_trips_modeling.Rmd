@@ -26,8 +26,10 @@ library(ggplot2)
 library(MASS)
 library(Hmisc)
 library(reshape2)
+library(jtools)
 install_psrc_fonts()
 ```
+Read in the data from Elmer
 
 ```{r}
  elmer_connect<-DBI::dbConnect(odbc::odbc(),
@@ -41,14 +43,16 @@ install_psrc_fonts()
 
 ```
 
-
+We are getting household variables and trip variables to understand how
+1. household characteristics relate to gettin deliveries
+2. trip making characteristics relate to getting deliveries
 ```{r}
 trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'age_category', 'daynum', 'sample_source', 'hhgroup' )
 household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults')
 
 ```
 
-
+Get all three years of data and bind it together.
 ```{r}
 trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2017)
 trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2019)
@@ -61,6 +65,8 @@ household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_s
 household_data_17_19_21<-rbind(household_data_17, household_data_19, household_data_21)
 ```
 
+
+a function to group trips by purpose to understand how the number of household trips by a purpose relates to the propensity to receive deliveries
 ```{r}
 trip_grouping <-function(trip_data){
 
@@ -93,10 +99,7 @@ shop_trips_per_hh_day<-trip_grouping(trip_data_17_19_21)
 
 ```
 
-#calculate shopping trips per household id,daynum
-
-
-
+A function for grouping household characteristics
 ```{r}
 
 household_grouping<-function(household_data){
@@ -141,10 +144,8 @@ household_data_17_19_21<-household_grouping(household_data_17_19_21)
 
 ```
 
-```{r}
 
-```
-
+Joining households to the number of shopping trips they made
 
 ```{r}
 household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_hh_day, by='household_id')%>%mutate_all(~replace(., is.na(.), 0)) 
@@ -152,7 +153,7 @@ household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_
 household_data_17_19_21_shop%>%group_by(survey)%>%summarise(mean=mean(n,na.rm=TRUE))
 ```
 ```{r}
-household_data_17_19_21_shop<- household_data_17_19_21_shop%>%mutate(shop_trips=ifelse(n<4, n, 4))%>%mutate(shop_trips=factor(shop_trips,levels=c(0,1, 2, 3,4)))
+household_data_17_19_21_shop<- household_data_17_19_21_shop%>%mutate(shop_trips=ifelse(n>0, 1, 0))
 ```
 
 ```{r}
@@ -161,13 +162,7 @@ ggplot(household_data_17_19_21_shop, aes(x=shop_trips, fill=survey))+geom_histog
 
 ```
 
-```
-
-```
-
-
-
-
+This set of code is for summarizing whether a household received a delivery or not.
 ```{r}
 
 
@@ -295,12 +290,12 @@ household_data_17_19_21_shop<- household_data_17_19_21_shop %>%mutate(daynum=ife
 ```
 
 
+Finally joining the households with demographics and number of shopping trips, to the delivery info.
 ```{r}
 household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_17_19_21, by=c('household_id', 'daynum'))%>%filter(delivery_pkgs_all%in% c('Delivery Received', 'No Delivery'))%>%mutate('delivery_pkg'=ifelse(delivery_pkgs_all=='Delivery Received', 1, 0))
 ```
 
-
-
+Reading in data about Census Tracts to understand how characteristics of the home geography relate to the propensity to receive deliveries.
 ```{r}
 displ_index_data<- 'C:/GitHub/travel-studies/2019/analysis/zero_veh_hh/displacement_risk_estimation.csv'
 tract_data<-read.csv(displ_index_data)
@@ -311,21 +306,42 @@ tract_data<-read.csv(displ_index_data)
 household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data_17_19_21_shop_del$final_home_tract10)
 ```
 
-
+Join tract level data to household data at the home end.
 ```{r}
 hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE)
 ```
 
+
+Make a big old model and see what stands out
 ```{r}
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+ln_jobs_auto_30+numworkers+dist_super,family=binomial(), data=hh_shop_tract)
+deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30,family=binomial(), data=hh_shop_tract)
 summary(deliv_model)
 
 ```
 
-
+A smaller model with only statistically significant variables.
 
 ```{r}
-library(jtools)
-plot_summs(shop_model, scale=TRUE)
-```
+deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+poor_english+prox_high_inc+transit_qt_mile+shop_trips,family=binomial(), data=hh_shop_tract)
+summary(deliv_model_sig)
+plot_summs(deliv_model_sig, scale=TRUE)
 
+```
+https://www.cdc.gov/training/SIC_CaseStudy/Interpreting_Odds_ptversion.pdf
+
+https://stats.stackexchange.com/questions/412668/how-to-interpret-a-negative-coefficient-in-logistic-regression
+https://mmuratarat.github.io/2019-09-05/odds-ratio-logistic-regression#:~:text=The%20odds%20of%20an%20event,0.9%3D0.111%20(recurring).
+https://www.polyu.edu.hk/cbs/sjpolit/logisticregression.html
+
+```{r}
+odds<- exp(deliv_model_sig$coefficients)
+odds
+```
+Interpretation:
+* All else being equal, the probability of receiving a package on a given day is less than 50%
+* The strongest association between receiving a package and not is for household income; as income increases the odds of receiving a package increase.
+*Older households are less likely to get deliveries.
+*Smaller households are less likely to get deliveries.
+* People were more likely to get deliveries in 2019 and even more likely in 2021 than 2017.
+*People living within a quarter mile of transit are more likely to get deliveries.
+* Living in a Census tract with a high share of people with limited English profiency is associated with getting fewer deliveries
