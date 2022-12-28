@@ -1149,7 +1149,6 @@ lifecycles_test<- static_column_chart(t= all_food_lifecycle_17_21,
                                          source = "PSRC Regional Household Travel Survey")
 
 lifecycles_test
-
 ```
 
 ```{r, crosstabs for grocery deliveries and lifecycle stages}
@@ -1335,6 +1334,73 @@ deliveries_lifecycle_facet<- create_facet_bar_chart(t= all_deliveries_lifecycle_
                                                   w.sub.title="Share of Households on Average Weekday")
 
 deliveries_lifecycle_facet
+
+# facet for suzanne - request on teams
+# 2017
+food_lifecycle_17$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_17$delivery_type = c("grocery", "grocery", "grocery", "grocery")
+
+pkgs_lifecycle_17$delivery_type = c("packages", "packages", "packages", "packages")
+
+work_lifecycle_17$delivery_type = c("work/service", "work/service", "work/service", "work/service")
+
+#2019
+food_lifecycle_19$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_19$delivery_type = c("grocery", "grocery", "grocery", "grocery")
+
+pkgs_lifecycle_19$delivery_type = c("packages", "packages", "packages", "packages")
+
+work_lifecycle_19$delivery_type = c("work/service", "work/service", "work/service", "work/service")
+
+#2021
+food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery", "grocery")
+
+pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages", "packages")
+
+work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service", "work/service")
+
+# bind all dataframes together 
+
+all_deliveries_lifecycle2 <- rbind(food_lifecycle_17, grocery_lifecycle_17, pkgs_lifecycle_17, work_lifecycle_17, food_lifecycle_19, grocery_lifecycle_19, pkgs_lifecycle_19, work_lifecycle_19,food_lifecycle_21, grocery_lifecycle_21, pkgs_lifecycle_21, work_lifecycle_21, fill = TRUE)
+                                   
+# remove unnecessary columns
+
+all_deliveries_lifecycle_new2 <- all_deliveries_lifecycle2[, -c(3, 10, 11, 12)]
+
+deliveries_lifecycle_facet2<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
+                                                  w.x="survey", w.y="share",
+                                                  f="lifecycle", g="delivery_type",
+                                                  w.color="greens_inc",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=2,
+                                                  w.title="Home Deliveries or Services by Year and by Type",
+                                                  w.sub.title="Share of Households on Average Weekday")+ 
+  ggplot2::theme(axis.title = ggplot2::element_blank())
+
+deliveries_lifecycle_facet2
+
+deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
+                                                  w.x="lifecycle", w.y="share",
+                                                  f="survey", g="delivery_type",
+                                                  w.color="purples_inc",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=2,
+                                                  w.title="Home Deliveries or Services by Year and by Type",
+                                                  w.sub.title="Share of Households on Average Weekday")+ 
+  ggplot2::theme(axis.title = ggplot2::element_blank()) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+
+deliveries_lifecycle_facet3
 
 ```
 
