@@ -22,7 +22,7 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
              & worker != "No jobs") %>% 
       mutate(telecommute_freq_cond <- case_when(telecommute_freq %in% c("1-2 days", "3-4 days", "5+ days")
                                                   ~ "1+ days per week",
-                                                TRUE ~ telecommute_freq),
+                                                !is.na(telecommute_freq) ~ telecommute_freq),
              workplace_travel <- case_when(workplace %in% c("Usually the same location (outside home)",
                                                             "Workplace regularly varies (different offices or jobsites)",
                                                             "Drives for a living (e.g., bus driver, salesperson)")
@@ -30,8 +30,11 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                                            workplace %in% c("Telework some days and travel to a work location some days",
                                                             "At home (telecommute or self-employed with home office)")
                                              ~ "Works at home",
-                                           TRUE ~ "Missing"),
-             industry <- stringr::str_trim(indsutry)) %>% 
+                                           !is.na(workplace) ~ workplace),
+             gender_group = case_when(gender %in% c("Not listed here / prefer not to answer", "Non-Binary")
+                                        ~ "Prefer not to answer / Another",
+                                      !is.na(gender) ~ gender),
+             industry <- stringr::str_trim(industry)) %>% 
       mutate(industry_cond <- case_when(
         industry %in% c("Construction", "Natural resources (e.g., forestry, fishery, energy)")
           ~ "Construction & Resources",
@@ -81,19 +84,22 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
       mutate(telecommute_freq2 = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
                                            telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
                                            telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
-                                           TRUE ~ telecommute_freq),
+                                           !is.na(telecommute_freq) ~ telecommute_freq),
              telecommute_freq_cond <- case_when(telecommute_freq %in% c("1 day a week", "2 days a week",
                                                                         "3 days a week", "4 days a week",
                                                                         "5 days a week", "6-7 days a week")
                                                   ~ "1+ days per week",
-                                                TRUE ~ telecommute_freq),
+                                                !is.na(telecommute_freq) ~ telecommute_freq),
              workplace_travel <- case_when(workplace %in% c("Usually the same location (outside home)",
                                                             "Workplace regularly varies (different offices or jobsites)",
                                                             "Drives for a living (e.g., bus driver, salesperson)")
                                              ~ "Works outside the home",
                                            workplace == "At home (telecommute or self-employed with home office)"
                                              ~ "Works at home",
-                                           TRUE ~ "Missing"))
+                                           !is.na(workplace) ~ "Missing"),
+             gender_group = case_when(gender %in% c("Prefer not to answer", "Another")
+                                        ~ "Prefer not to answer / Another",
+                                      !is.na(gender) ~ gender))
   }
   
   stats <- hhts_count(df = sdf,
