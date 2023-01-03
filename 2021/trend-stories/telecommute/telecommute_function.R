@@ -81,14 +81,16 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                              "benefits_3")) %>% 
       filter(age_category != "Under 18 years"
              & worker != "No jobs") %>% 
-      mutate(telecommute_freq2 = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
-                                           telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
-                                           telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
-                                           !is.na(telecommute_freq) ~ telecommute_freq),
+      mutate(telecommute_freq = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
+                                          telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                          telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
+                                          !is.na(telecommute_freq) ~ telecommute_freq),
              telecommute_freq_cond = case_when(telecommute_freq %in% c("1 day a week", "2 days a week",
                                                                        "3 days a week", "4 days a week",
                                                                        "5 days a week", "6-7 days a week")
                                                  ~ "1+ days per week",
+                                               telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
                                                !is.na(telecommute_freq) ~ telecommute_freq),
              workplace_travel = case_when(workplace %in% c("Usually the same location (outside home)",
                                                            "Workplace regularly varies (different offices or jobsites)",
