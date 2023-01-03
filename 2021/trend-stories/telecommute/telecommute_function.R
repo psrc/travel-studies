@@ -1,6 +1,5 @@
 # Function to get travel survey telecommute data for travel story
-library(dplyr)
-library(magrittr)
+library(tidyverse)
 library(psrc.travelsurvey)
 
 get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na = TRUE) {
@@ -12,6 +11,7 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                              "worker",
                              "workplace",
                              "gender",
+                             "race_category",
                              "race_eth_poc",
                              "telecommute_freq",
                              "benefits_1",
@@ -34,7 +34,7 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
              gender_group = case_when(gender %in% c("Not listed here / prefer not to answer", "Non-Binary")
                                         ~ "Prefer not to answer / Another",
                                       !is.na(gender) ~ gender),
-             industry = stringr::str_trim(industry)) %>% 
+             industry = str_trim(industry)) %>% 
       mutate(industry_cond = case_when(
         industry %in% c("Construction", "Natural resources (e.g., forestry, fishery, energy)")
           ~ "Construction & Resources",
@@ -74,6 +74,7 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                              "employment",
                              "workplace",
                              "gender",
+                             "race_category",
                              "race_eth_poc",
                              "telecommute_freq",
                              "benefits_1",
@@ -85,12 +86,9 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                                           telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
                                           telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
                                           telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
-                                          !is.na(telecommute_freq) ~ telecommute_freq),
-             telecommute_freq_cond = case_when(telecommute_freq %in% c("1 day a week", "2 days a week",
-                                                                       "3 days a week", "4 days a week",
-                                                                       "5 days a week", "6-7 days a week")
+                                          !is.na(telecommute_freq) ~ telecommute_freq)) %>% 
+      mutate(telecommute_freq_cond = case_when(telecommute_freq %in% c("1-2 days", "3-4 days", "5+ days")
                                                  ~ "1+ days per week",
-                                               telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
                                                !is.na(telecommute_freq) ~ telecommute_freq),
              workplace_travel = case_when(workplace %in% c("Usually the same location (outside home)",
                                                            "Workplace regularly varies (different offices or jobsites)",
@@ -103,6 +101,9 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                                         ~ "Prefer not to answer / Another",
                                       !is.na(gender) ~ gender))
   }
+  
+  sdf$race_category <- recode(sdf$race_category, `White Only` = "White")
+  sdf$race_eth_poc <- recode(sdf$race_eth_poc, `Non-POC` = "White")
   
   stats <- hhts_count(df = sdf,
                       stat_var = stat_var,
