@@ -735,7 +735,7 @@ food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_adul
   filter(lifecycle != 'Total')
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
-all_food_freq_17_21 <- bind_rows(table_food_17, table_food_19, table_food_21) %>%
+all_food_freq_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21) %>%
   mutate(period = as.factor(survey))
 
 table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
@@ -809,15 +809,14 @@ share_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
 
 # comparative charts/plots
 # share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year(table_food_17, table_food_19, table_food_21,
+share_plot_by_year(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
                    'hhincome_broad', 'delivery_food_all', 
                    'Food Deliveries to Households by Income')
 
-share_plot_by_year2(table_food_17, table_food_19, table_food_21,
-                   'survey', 'hhincome_broad',  
-                    'Food Deliveries by Year')
+share_plot_by_year2(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
+                   'survey', 'hhincome_broad', 'Food Deliveries by Year')
 
-share_plot_by_cat(table_food_17, table_food_19, table_food_21, 
+share_plot_by_cat(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21, 
                   'hhincome_broad', 'delivery_food_all',
                   'Income Categories')+
   psrc_style()+
@@ -1386,6 +1385,8 @@ deliveries_lifecycle_facet2<- create_facet_bar_chart(t= all_deliveries_lifecycle
 
 deliveries_lifecycle_facet2
 
+# favored
+?create_facet_bar_chart
 deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
                                                   w.x="lifecycle", w.y="share",
                                                   f="survey", g="delivery_type",
@@ -1393,7 +1394,7 @@ deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle
                                                   est.type ="percent",
                                                   w.interactive="no",
                                                   w.dec=2,
-                                                  w.scales="fixed",
+                                                  w.scales="free",
                                                   w.facet=2,
                                                   w.title="Home Deliveries or Services by Year and by Type",
                                                   w.sub.title="Share of Households on Average Weekday")+ 
