@@ -1,33 +1,28 @@
 ---
-output: 
+output:
+  html_document:
+    df_print: paged
   pdf_document:
     latex_engine: lualatex
 fontsize: 12pt
-  
 header-includes:
-  - \usepackage{xcolor}
-  - \usepackage{hyperref}
-  - \usepackage{pdfcomment}
-  - \usepackage{fancyhdr}
-   \pagestyle{fancy}
-   \setlength{\headheight}{75pt}
-   \setlength{\textheight}{600pt}
-   \fancyhead[C]{}
-   \fancyhead[L]{\includegraphics{X:/DSA/shiny-uploads/images/trends-header.png}}
-   \fancyhead[R]{}
-   \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. November 2022}
-   \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
-   \fancyfoot[C]{}
-   \renewcommand{\headrulewidth}{0pt}
-   \renewcommand{\footrulewidth}{4pt}
-   \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
-  - \usepackage{fontspec}
-
+- \usepackage{xcolor}
+- \usepackage{hyperref}
+- \usepackage{pdfcomment}
+- "\\usepackage{fancyhdr} \\pagestyle{fancy} \\setlength{\\headheight}{75pt} \\setlength{\\textheight}{600pt}
+  \\fancyhead[R]{} \\fancyfoot[L]{\\scriptsize{1011 Western Ave, Suite 500, Seattle
+  WA 98104} \\textcolor[HTML]{F05A28}. 206.464.7532 \\textcolor[HTML]{F05A28}. www.psrc.org
+  \\textcolor[HTML]{F05A28}. January 2023} \\fancyfoot[R]{\\textcolor[HTML]{F05A28}\\thepage}
+  \\fancyfoot[C]{} \\renewcommand{\\headrulewidth}{0pt} \\renewcommand{\\footrulewidth}{4pt}
+  \\renewcommand{\\footrule}{\\hbox to \\headwidth{\\color[HTML]{BCBEC0}\\leaders\\hrule
+  height \\footrulewidth\\hfill}}"
+- \usepackage{fontspec}
+  \\fancyhead[C]{} \\fancyhead[L]{\\includegraphics{X:/DSA/shiny-uploads/images/trends-header.png}}
 ---
 \setmainfont{Poppins}
 
-# Trends in Walking and Biking 
-```{r setup, include=FALSE}
+# Trends in Employment and Telecommuting
+```{r setup, include = FALSE}
 library(psrcplot)
 library(psrccensus)
 library(tidyverse)
@@ -35,80 +30,159 @@ library(knitr)
 library(magick)
 library(openxlsx)
 library(htmlwidgets)
-output_path='C:/GitHub/travel-studies/2021/trend-stories/bike-ped/'
-options(tinytex.verbose=TRUE)
+
+source("telecommute_function.R")
+# OR
+#load("telecommute_tables.RData")
+
+output_path <- "C:/GitHub/travel-studies/2021/trend-stories/telecommute/"
+options(tinytex.verbose = TRUE)
+
 # Create Image 
-image1 <- image_read("plaza_roberto.png")
-image2 <- image_read("pride_pedestrian.jpg")
-image3 <- image_read("puyallup_transit.jpg")
-image4<-  image_read("hectors-walking.jpg")
-image5<- image_read("northgate_cyclist.jpg")
-input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"),  image_scale(image4, "x200"),  image_scale(image5, "x200"))
-walking_image_header <- image_append(input)
-image_write(walking_image_header, path="walking_image_header.png", format="png")
-install_psrc_fonts()
-walking_image_header
+#image1 <- image_read("plaza_roberto.png")
+#image2 <- image_read("pride_pedestrian.jpg")
+#image3 <- image_read("puyallup_transit.jpg")
+#image4 <-  image_read("hectors-walking.jpg")
+#image5 <- image_read("northgate_cyclist.jpg")
+
+#input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"),  image_scale(image4, "x200"),  image_scale(image5, "x200"))
+
+#walking_image_header <- image_append(input)
+#image_write(walking_image_header, path="walking_image_header.png", format="png")
+#install_psrc_fonts()
+#walking_image_header
 ```
 ![](C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%}
 \begin{flushleft}
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
 \end{flushleft}
 
-## People walked more and used transit less in 2021
+## First Section: changes in workplace
 \begin{flushleft}
-In 2021, the regional walk mode share was 15\% and 
-the regional bike mode share was 1\%. Compared to previous surveys, 
-walking and biking trips increased and transit trips decreased.  
 
-The walk trip mode share was over 30\% in 2021 for social,
-recreational, and meal trips. A greater proportion of trips was made
-for these purposes in 2021 when compared to 2017/2019 survey responses.  
+first section text here
 
-Driving remained around 80\% of trips, consistent with previous years.
-
-2017 and 2019 survey samples have been combined in this analysis to strengthen the statistical validity of the findings by increasing the number of respondents in each calculation.
 \end{flushleft}
 
+```{r load_tables, echo = FALSE, results = TRUE}
+# Workplace
+workplace_17_19 <- get_telecommute_data(survey = "2017_2019",
+                                        stat_var = "workplace",
+                                        group_vars = "workplace",
+                                        weight = "hh_weight_2017_2019_adult")
 
+workplace_21 <- get_telecommute_data(survey = "2021",
+                                     stat_var = "workplace",
+                                     group_vars = "workplace",
+                                     weight = "person_adult_weight_2021")
 
-```{r, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
-wb <- createWorkbook()
-xlsx_file <- "bike_ped_hhts_2021.xlsx"
+workplace <- bind_rows(workplace_17_19, workplace_21) %>% 
+  filter(workplace != "Total")
 
-```
+rm(workplace_17_19, workplace_21)
 
+# Telecommute frequency: 1+ days per week
+telecommute_17 <- get_telecommute_data(survey = "2017",
+                                       stat_var = "telecommute_freq_cond",
+                                       group_vars = "telecommute_freq_cond",
+                                       weight = "hh_weight_2017",
+                                       incl_na = FALSE)
 
-```{r overallmodeshare, echo=FALSE, results=TRUE,  fig.dim=c(6,4), fig.dim=c(6,4) }
+telecommute_19 <- get_telecommute_data(survey = "2019",
+                                       stat_var = "telecommute_freq_cond",
+                                       group_vars = "telecommute_freq_cond",
+                                       weight = "hh_weight_2019",
+                                       incl_na = FALSE)
 
-if(file.exists(paste0(output_path, "/trips_by_mode.csv"))){
-  
-  trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
-}else{
-  # pull the data from Elmer, group, and organize it, write to csv
-  source('bike-ped-data-processing-new-weights.R')
-  trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
-}
+telecommute_21 <- get_telecommute_data(survey = "2021",
+                                       stat_var = "telecommute_freq_cond",
+                                       group_vars = "telecommute_freq_cond",
+                                       weight = "person_adult_weight_2021",
+                                       incl_na = FALSE)
 
-trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Other'))
+telecommute_frequency <- bind_rows(telecommute_17, telecommute_19, telecommute_21) %>% 
+  filter(telecommute_freq_cond != "Total")
 
-trips_by_mode_trend<-static_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
+rm(telecommute_17, telecommute_19, telecommute_21)
 
-trips_by_mode_trend
+# Telecommute frequency: times per week
+times_17 <- get_telecommute_data(survey = "2017",
+                                 stat_var = "telecommute_freq",
+                                 group_vars = "telecommute_freq",
+                                 weight = "hh_weight_2017",
+                                 incl_na = FALSE)
 
-trips_by_mode_trend_int<-interactive_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
+times_19 <- get_telecommute_data(survey = "2019",
+                                 stat_var = "telecommute_freq",
+                                 group_vars = "telecommute_freq",
+                                 weight = "hh_weight_2019",
+                                 incl_na = FALSE)
 
-saveWidget(trips_by_mode_trend_int, 
-           file=paste0(output_path,'/bike_ped_interactive_plots/trips_by_mode_no_drive.html'))
+times_21 <- get_telecommute_data(survey = "2021",
+                                 stat_var = "telecommute_freq",
+                                 group_vars = "telecommute_freq",
+                                 weight = "person_adult_weight_2021",
+                                 incl_na = FALSE)
 
-#trips_by_mode_trend_int<-create_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', f='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares", interactive='yes')
+telecommute_times_per_week <- bind_rows(times_17, times_19, times_21) %>% 
+  filter(telecommute_freq != "Total")
 
-#%>%layout(xaxis=list(title='Trip Mode'),yaxis=list(title='Percent of All Trips') )
+rm(times_17, times_19, times_21)
 
-#saveWidget(trips_by_mode_trend_int, file=paste0(output_path, '/trips_by_mode.html'))
+# Telecommute frequency: gender
+telecommute_freq_gender_1719 <- get_telecommute_data(survey = "2017_2019",
+                                                     stat_var = "telecommute_freq",
+                                                     group_vars = c("gender_group", "telecommute_freq"),
+                                                     weight = "hh_weight_2017_2019_adult",
+                                                     incl_na = FALSE)
 
-addWorksheet(wb = wb, sheetName = 'trips_by_mode', gridLines = FALSE)
-writeDataTable(wb = wb, sheet = 'trips_by_mode', x = trips_by_mode_no_drive)
+telecommute_freq_gender_21 <- get_telecommute_data(survey = "2021",
+                                                   stat_var = "telecommute_freq",
+                                                   group_vars = c("gender_group", "telecommute_freq"),
+                                                   weight = "person_adult_weight_2021",
+                                                   incl_na = FALSE)
 
+telecommute_freq_gender <- bind_rows(telecommute_freq_gender_1719, telecommute_freq_gender_21) %>% 
+  filter(telecommute_freq != "Total")
+
+rm(telecommute_freq_gender_1719, telecommute_freq_gender_21)
+
+# Workplace travel
+travel_by_gender_21 <- get_telecommute_data(survey = "2021",
+                                            stat_var = "workplace_travel",
+                                            group_vars = c("gender_group", "workplace_travel"),
+                                            weight = "person_adult_weight_2021",
+                                            incl_na = FALSE) %>% 
+  filter(workplace_travel != "Total")
+
+travel_by_race_21 <- get_telecommute_data(survey = "2021",
+                                          stat_var = "workplace_travel",
+                                          group_vars = c("race_category", "workplace_travel"),
+                                          weight = "person_adult_weight_2021",
+                                          incl_na = FALSE) %>% 
+  filter(workplace_travel != "Total")
+
+# Industry
+industry_by_work_loc_21 <- get_telecommute_data(survey = "2021",
+                                                stat_var = "workplace_travel",
+                                                group_vars = c("industry_cond", "workplace_travel"),
+                                                weight = "person_adult_weight_2021",
+                                                incl_na = FALSE) %>% 
+  filter(workplace_travel != "Total")
+
+industry_by_gender_21 <- get_telecommute_data(survey = "2021",
+                                              stat_var = "gender_group",
+                                              group_vars = c("industry_cond", "gender_group"),
+                                              weight = "person_adult_weight_2021",
+                                              incl_na = FALSE) %>% 
+  filter(gender_group != "Total")
+
+industry_by_race_21 <- get_telecommute_data(survey = "2021",
+                                            stat_var = "race_eth_poc",
+                                            group_vars = c("industry_cond", "race_eth_poc"),
+                                            weight = "person_adult_weight_2021",
+                                            incl_na = FALSE) %>% 
+  filter(race_eth_poc != "Total")
 ```
 
 ### More Social-Recreation Trips, Less Work and School Trips
@@ -190,18 +264,11 @@ addWorksheet(wb = wb, sheetName = 'bike_freq', gridLines = FALSE)
 writeDataTable(wb = wb, sheet = 'bike_freq', x = bike_freq)
 ```
 
-## Walking Trends for People by Race, Income, and Where they live
+## Second Section: telecommuting trends
 
 \begin{flushleft}
-As walking rates were up in 2021, we also explored:
-  \begin{itemize}
-\item How much were different demographics walking as percent of all their trips in 2021?
-  \item How did people's walk mode shares change from 2017 to 2021?
-\end{itemize}
 
-\textbf{Regional Growth Centers}
-
-People who live in regional growth centers walk on about \textbf{32\%} their trips as compared to people who live outside regional growth centers who walk on only \textbf{13\%} of their trips. People who live in regional growth centers and outside of growth centers  both increased their walking mode shares from 2017/2019 to 2021.
+second section text here
 
 \end{flushleft}
 
@@ -250,17 +317,11 @@ writeDataTable(wb = wb, sheet = 'race_walk_mode', x = race_walk_mode)
 
 ```
 
-### Going for Walks and Bike Rides
+## Third Section: workplace travel & industry trends in 2021
 \begin{flushleft}
-The previous analysis showed how people made a higher percent of their trips by walking in 2021 than before.  The travel survey also asks people about recreational walking and biking in terms of how frequently they "go for a walk or a bike ride". The 2021 survey results showed \textbf{all of the following types of people walked more frequently}:
-  \begin{itemize}
-\item all racial groups
-\item all income groups
-\item all age groups
-\item living in all four counties
-\end{itemize}
 
-People of all race groups also went for bike rides more frequently in 2021 than in 2017/2019.
+third section text here
+
 \end{flushleft}
 
 ```{r, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
@@ -270,6 +331,8 @@ saveWorkbook(wb=wb, file=xlsx_file, overwrite = TRUE)
 
 \subsection{Conclusion}
 \begin{flushleft}
-People were walking and biking more in 2021 than in previous years, but using transit less. COVID-19 conditions contributed to this substantial shift in behavior across most demographic groups. The 2023 household travel survey will show whether these patterns continue.
+
+conclusion text here
+
 \end{flushleft}
 
