@@ -42,8 +42,10 @@ install_psrc_fonts()
 
 ```{r Variable, echo=TRUE}
 hh_vars=c("survey_year",
-          "hhid", "sample_county", "final_home_rgcnum", "final_home_is_rgc",
-          # "final_home_uvnum","final_home_tract",
+          "hhid", "sample_county", 
+          "final_home_rgcnum", "final_home_is_rgc","final_home_tract20",
+          # "final_home_uvnum",
+          "final_home_tract10",
           "hhsize", "vehicle_count", "hhincome_broad", "hhincome_detailed", 
           "numadults", "numchildren", "numworkers", "lifecycle",
           "res_dur", "res_type", "res_months",
@@ -85,7 +87,10 @@ trip_vars = c("hhid",'person_id',
 
 
 # list of all urban and metro RGCs
-urban_metro <- read_csv("urban_metro.csv") %>% select(3,13)
+urban_metro <- read_csv("urban_metro.csv") %>% select(3,13) %>%
+  mutate(name = case_when(name == "Bellevue" ~ "Bellevue Downtown",
+                          name == "Redmond-Overlake" ~ "Redmond Overlake",
+                          TRUE~ name))
 ```
 
 Get the data from Elmer.
@@ -106,9 +111,9 @@ trip_data_17<-    get_hhts("2017", "t", vars=trip_vars) %>%      trip_group_data
 trip_data_19<-    get_hhts("2019", "t", vars=trip_vars) %>%      trip_group_data(per_data_19)
 trip_data_21<-    get_hhts("2021", "t", vars=trip_vars) %>%      trip_group_data(per_data_21)
 
-rgcs_tracts_list <- read_csv("C:/Users/JLin/Downloads/rgc_tracts.csv") %>% select(-1) %>%
-  inner_join(hh_data_21 %>%distinct(urban_metro, final_home_rgcnum), 
-             by = c("name"="final_home_uv"))
+# rgcs_tracts_list <- read_csv("C:/Users/JLin/Downloads/rgc_tracts.csv") %>% select(-1) %>%
+#   inner_join(hh_data_21 %>%distinct(urban_metro, final_home_rgcnum), 
+#              by = c("name"="final_home_uv"))
 ```
 
 
@@ -180,48 +185,6 @@ ggplot(plot, aes(x=cat, y=share, fill=final_home_is_rgc)) +
 
 
 
-# no good plots ####
-# Household size
-# plot  <- hhts_count(hh_data_21, group_vars=c("urban_metro","hhsize"),
-#                     spec_wgt = "hh_weight_2021") %>%
-#   filter(hhsize!="Total")
-# 
-# TT <- "Household size in Metro and Urban RGCs (2021)"
-# ggplot(plot, aes(x=hhsize, y=share, fill=urban_metro)) +
-#   geom_col(position = "dodge")+
-#   moe_bars+
-#   scale_y_continuous(labels=percent) +
-#   scale_fill_discrete_psrc ("pognbgy_10")+
-#   ggtitle(TT)+
-#   psrc_style2()
-# 
-# plot  <- hhts_count(hh_data_21, group_vars=c("urban_metro","hhsize"),
-#                     spec_wgt = "hh_weight_2021") %>%
-#   filter(hhsize=="1") %>%
-#   mutate(hhsize = "single-person household")
-# TT <- "Household size in Metro and Urban RGCs (2021)"
-# ggplot(plot, aes(x=hhsize, y=share, fill=urban_metro)) +
-#   geom_col(position = "dodge")+  
-#   moe_bars+
-#   scale_y_continuous(labels=percent) +
-#   scale_fill_discrete_psrc ("pognbgy_10")+
-#   ggtitle(TT)+
-#   psrc_style2()
-
-# Include children
-# plot2  <- hhts_count(hh_data_21, group_vars=c("urban_metro","have_child"),
-#                      spec_wgt = "hh_weight_2021") %>%
-#   filter(have_child=="Includes children")
-# 
-# TT <- "Households that include children in Metro and Urban RGCs (2021)"
-# ggplot(plot2, aes(x=have_child, y=share, fill=urban_metro)) +
-#   geom_col(position = "dodge")+  
-#   moe_bars+
-#   scale_y_continuous(labels=percent) +
-#   scale_fill_discrete_psrc ("psrc_light")+
-#   ggtitle(TT)+
-#   psrc_style2(text_size=3)
-#####
 
 # Residence types
 plot  <- hhts_count(hh_data_21, group_vars=c("urban_metro","res_type"),
@@ -415,8 +378,8 @@ ggplot(plot, aes(x=cat, y=share, fill=urban_metro)) +
 
 
 # vehicle ownership
-plot2 <- hhts_count(per_data_21, group_vars=c("urban_metro","vehicle_binary"),
-                    spec_wgt = "person_adult_weight_2021") %>%
+plot2 <- hhts_count(hh_data_21, group_vars=c("urban_metro","vehicle_binary"),
+                    spec_wgt = "hh_weight_2021") %>%
   filter(vehicle_binary=="1 or more") %>%
   mutate(vehicle_binary="1 vehicle or more")
 
@@ -435,6 +398,201 @@ ggplot(plot2, aes(x=vehicle_binary, y=share, fill=urban_metro)) +
 
 
 # Travel behavior analysis
+
+```{r}
+trip_w <- c("trip_weight_2017","trip_weight_2019","trip_adult_weight_2021")
+person_w <- c("hh_weight_2017","hh_weight_2019","person_adult_weight_2021")
+
+trip <- function(trip_data, person_data, year){
+  
+  if(year==2017){
+    ix <- 1
+  }
+  else if(year==2019){
+    ix <- 2
+  }
+  else{
+    ix <- 3
+  }
+  
+  # remove children
+  trip_data <- trip_data %>%
+    filter(race_eth_broad != "Child -- no race specified")
+  person_data <- person_data %>%
+    filter(race_eth_broad != "Child -- no race specified")
+  
+  # total trips
+  plot <- hhts_count(trip_data,group_vars = c('final_home_is_rgc'),
+                     spec_wgt = trip_w[[ix]]) %>%
+    drop_na('final_home_is_rgc') %>% 
+    filter(final_home_is_rgc != 'Total')
+  
+  #  to calculate total number of people
+  plot2 <- hhts_count(person_data, group_vars=c("final_home_is_rgc"),
+                      spec_wgt = person_w[[ix]]) %>%
+    filter(final_home_is_rgc != 'Total')
+  
+  # number of trips and total population
+  plot3 <- plot %>%
+    left_join(plot2, by="final_home_is_rgc", suffix = c('_trips', '_person')) %>% 
+    mutate(
+      trips_per_person = count_trips / count_person,
+      moe_trips_person = moe_ratio(count_trips, count_person, count_moe_trips, count_moe_person)
+    ) 
+  
+  # TT <- paste("Number of trips per day in RGCs",year)
+  # 
+  # return(ggplot(plot3, 
+  #        aes(x=final_home_is_rgc, y=trips_per_person, fill=final_home_is_rgc)) +
+  #   geom_col(position = "dodge")+  
+  #   geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+  #                           width=0.2, position = position_dodge(0.9))+
+  #   scale_fill_discrete_psrc ("gnbopgy_5")+
+  #   ggtitle(TT)+
+  #   psrc_style2(text_size = 2, loc="top"))
+  return(plot3)
+  
+  
+}
+
+plot_17 <- trip(trip_data_17,per_data_17,2017)
+plot_19 <- trip(trip_data_19,per_data_19,2019)
+plot_21 <- trip(trip_data_21,per_data_21,2021)
+
+
+plot_all_per <- plot_17 %>% mutate(survey ="2017") %>%
+  add_row(plot_19 %>% mutate(survey ="2019")) %>%
+  add_row(plot_21 %>% mutate(survey ="2021"))# %>%
+  # wrap_axis(simple_purpose)
+
+
+ TT <- paste("Number of trips per day in RGCs")
+ggplot(plot_all_per, 
+         aes(x=final_home_is_rgc, y=trips_per_person, fill=survey)) +
+    geom_col(position = "dodge")+  
+    geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+                            width=0.2, position = position_dodge(0.9))+
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+  # facet_wrap(~final_home_is_rgc)+
+    ggtitle(TT)+
+    psrc_style2(text_size = 2)
+
+TT <- paste("Number of trips per day in RGCs (2021)")
+ggplot(plot_all_per[plot_all_per$survey==2021,], 
+         aes(x=final_home_is_rgc, y=trips_per_person, fill=final_home_is_rgc)) +
+    geom_col(position = "dodge")+  
+    geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+                            width=0.2, position = position_dodge(0.9))+
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+  # facet_wrap(~final_home_is_rgc)+
+    ggtitle(TT)+
+    psrc_style2(text_size = 2)
+
+
+trip <- function(trip_data, person_data, year){
+  
+  if(year==2017){
+    ix <- 1
+  }
+  else if(year==2019){
+    ix <- 2
+  }
+  else{
+    ix <- 3
+  }
+  
+  # remove children
+  trip_data <- trip_data %>%
+    filter(race_eth_broad != "Child -- no race specified")
+  person_data <- person_data %>%
+    filter(race_eth_broad != "Child -- no race specified")
+  
+  # total trips
+  plot <- hhts_count(trip_data,group_vars = c('urban_metro'),
+                     spec_wgt = trip_w[[ix]]) %>%
+    drop_na('urban_metro') %>% 
+    filter(urban_metro != 'Total')
+  
+  #  to calculate total number of people
+  plot2 <- hhts_count(person_data, group_vars=c("urban_metro"),
+                      spec_wgt = person_w[[ix]]) %>%
+    filter(urban_metro != 'Total')
+  
+  # number of trips and total population
+  plot3 <- plot %>%
+    left_join(plot2, by="urban_metro", suffix = c('_trips', '_person')) %>% 
+    mutate(
+      trips_per_person = count_trips / count_person,
+      moe_trips_person = moe_ratio(count_trips, count_person, count_moe_trips, count_moe_person)
+    ) 
+  
+  # TT <- paste("Number of trips per day in RGCs",year)
+  # 
+  # return(ggplot(plot3, 
+  #        aes(x=urban_metro, y=trips_per_person, fill=urban_metro)) +
+  #   geom_col(position = "dodge")+  
+  #   geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+  #                           width=0.2, position = position_dodge(0.9))+
+  #   scale_fill_discrete_psrc ("gnbopgy_5")+
+  #   ggtitle(TT)+
+  #   psrc_style2(text_size = 2, loc="top"))
+  return(plot3)
+  
+  
+}
+
+plot_17_um <- trip(trip_data_17,per_data_17,2017)
+plot_19_um <- trip(trip_data_19,per_data_19,2019)
+plot_21_um <- trip(trip_data_21,per_data_21,2021)
+
+
+plot_all_per_um <- plot_17_um %>% mutate(survey ="2017") %>%
+  add_row(plot_19_um %>% mutate(survey ="2019")) %>%
+  add_row(plot_21_um %>% mutate(survey ="2021"))# %>%
+  # wrap_axis(simple_purpose)
+
+
+ TT <- paste("Number of trips per day in RGCs")
+ggplot(plot_all_per_um, 
+         aes(x=urban_metro, y=trips_per_person, fill=survey)) +
+    geom_col(position = "dodge")+  
+    geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+                            width=0.2, position = position_dodge(0.9))+
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+  # facet_wrap(~urban_metro)+
+    ggtitle(TT)+
+    psrc_style2(text_size = 2)
+
+test_um<- plot_21 %>%
+  rename(label = final_home_is_rgc) %>%
+  mutate(category = "final_home_is_rgc") %>%
+  add_row(plot_21_um %>%
+    rename(label = urban_metro) %>%
+    mutate(category = "urban_metro"))
+test_um$label <- factor(test_um$label, levels=c("RGC","Metro","Urban","Not RGC")) 
+
+TT <- paste("Average number of trips per day \nin RGCs (2021 HHTS)")
+ggplot(test_um[test_um$category=="final_home_is_rgc"], 
+         aes(x=label, y=trips_per_person, fill=label)) +
+    geom_col(position = "dodge")+  
+    geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+                            width=0.2, position = position_dodge(0.9))+
+    scale_fill_discrete_psrc ("pognbgy_10")+
+  # facet_wrap(~category, scales = "free_x")+
+    ggtitle(TT)+
+    psrc_style2(text_size = 2)
+
+TT <- paste("Average number of trips per day \nin metro and urban RGCs (2021 HHTS)")
+ggplot(test_um[test_um$category=="urban_metro"], 
+         aes(x=label, y=trips_per_person, fill=label)) +
+    geom_col(position = "dodge")+  
+    geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+                            width=0.2, position = position_dodge(0.9))+
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+  # facet_wrap(~category, scales = "free_x")+
+    ggtitle(TT)+
+    psrc_style2(text_size = 2)
+```
 
 ## Trips by purpose (trips per person)
   * if only look into trips made by single households, would the patterns differ? not as much as households with children
@@ -657,61 +815,77 @@ trip_w <- c("trip_weight_2017","trip_weight_2019","trip_adult_weight_2021")
 hh_w <- c("hh_weight_2017","hh_weight_2019","hh_weight_2021")
 
 
-plot_rgc <- hhts_count(trip_data_17 %>%
-                     filter(race_eth_broad != "Child -- no race specified"),
-                   group_vars = c('final_home_is_rgc', 'mode_simple2'),
-                   spec_wgt = 'trip_weight_2017') %>%  
-  add_row(hhts_count(trip_data_19 %>%
+# plot_rgc <- hhts_count(trip_data_17 %>%
+#                      filter(race_eth_broad != "Child -- no race specified"),
+#                    group_vars = c('final_home_is_rgc', 'mode_simple2'),
+#                    spec_wgt = 'trip_weight_2017') %>%  
+#   add_row(hhts_count(trip_data_19 %>%
+#                        filter(race_eth_broad != "Child -- no race specified"),
+#                      group_vars = c('final_home_is_rgc', 'mode_simple2'),
+#                      spec_wgt = 'trip_weight_2019')) %>%
+#   add_row(hhts_count(trip_data_21 %>%
+#                        filter(race_eth_broad != "Child -- no race specified"),
+#                      group_vars = c('final_home_is_rgc', 'mode_simple2'),
+#                      spec_wgt = 'trip_adult_weight_2021')) %>% 
+#   filter(final_home_is_rgc != 'Total',
+#          !is.na(mode_simple2),
+#          mode_simple2 != 'Total')
+# 
+# plot_metro <- hhts_count(trip_data_17 %>%
+#                      filter(race_eth_broad != "Child -- no race specified"),
+#                    group_vars = c('urban_metro', 'mode_simple2'),
+#                    spec_wgt = 'trip_weight_2017') %>%  
+#   add_row(hhts_count(trip_data_19 %>%
+#                        filter(race_eth_broad != "Child -- no race specified"),
+#                      group_vars = c('urban_metro', 'mode_simple2'),
+#                      spec_wgt = 'trip_weight_2019')) %>%
+#   add_row(hhts_count(trip_data_21 %>%
+#                        filter(race_eth_broad != "Child -- no race specified"),
+#                      group_vars = c('urban_metro', 'mode_simple2'),
+#                      spec_wgt = 'trip_adult_weight_2021')) %>% 
+#   filter(urban_metro != 'Total',
+#          !is.na(mode_simple2),
+#          mode_simple2 != 'Total')
+
+plot_rgc <- hhts_count(trip_data_21 %>%
                        filter(race_eth_broad != "Child -- no race specified"),
                      group_vars = c('final_home_is_rgc', 'mode_simple2'),
-                     spec_wgt = 'trip_weight_2019')) %>%
-  add_row(hhts_count(trip_data_21 %>%
-                       filter(race_eth_broad != "Child -- no race specified"),
-                     group_vars = c('final_home_is_rgc', 'mode_simple2'),
-                     spec_wgt = 'trip_adult_weight_2021')) %>% 
+                     spec_wgt = 'trip_adult_weight_2021') %>% 
   filter(final_home_is_rgc != 'Total',
          !is.na(mode_simple2),
          mode_simple2 != 'Total')
 
-plot_metro <- hhts_count(trip_data_17 %>%
-                     filter(race_eth_broad != "Child -- no race specified"),
-                   group_vars = c('urban_metro', 'mode_simple2'),
-                   spec_wgt = 'trip_weight_2017') %>%  
-  add_row(hhts_count(trip_data_19 %>%
+plot_metro <- hhts_count(trip_data_21 %>%
                        filter(race_eth_broad != "Child -- no race specified"),
                      group_vars = c('urban_metro', 'mode_simple2'),
-                     spec_wgt = 'trip_weight_2019')) %>%
-  add_row(hhts_count(trip_data_21 %>%
-                       filter(race_eth_broad != "Child -- no race specified"),
-                     group_vars = c('urban_metro', 'mode_simple2'),
-                     spec_wgt = 'trip_adult_weight_2021')) %>% 
+                     spec_wgt = 'trip_adult_weight_2021') %>% 
   filter(urban_metro != 'Total',
          !is.na(mode_simple2),
          mode_simple2 != 'Total')
 
-TT <- "Trips by mode in RGCs"
-ggplot(plot_rgc, aes(x=mode_simple2, y=share, fill=final_home_is_rgc)) +
-  geom_col(position = "dodge")+  
-  moe_bars+
-  scale_y_continuous(labels=percent) +
-  scale_fill_discrete_psrc ("pognbgy_10")+
-  facet_wrap(~survey)+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
-TT <- "Trips by mode in metro and urban RGCs"
-ggplot(plot_metro, aes(x=mode_simple2, y=share, fill=urban_metro)) +
-  geom_col(position = "dodge")+  
-  moe_bars+
-  scale_y_continuous(labels=percent) +
-  scale_fill_discrete_psrc ("pognbgy_10")+
-  facet_wrap(~survey)+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
+# TT <- "Trips by mode in RGCs"
+# ggplot(plot_rgc, aes(x=mode_simple2, y=share, fill=final_home_is_rgc)) +
+#   geom_col(position = "dodge")+  
+#   moe_bars+
+#   scale_y_continuous(labels=percent) +
+#   scale_fill_discrete_psrc ("pognbgy_10")+
+#   facet_wrap(~survey)+
+#   ggtitle(TT)+
+#   psrc_style2(text_size = 2)
+# TT <- "Trips by mode in metro and urban RGCs"
+# ggplot(plot_metro, aes(x=mode_simple2, y=share, fill=urban_metro)) +
+#   geom_col(position = "dodge")+  
+#   moe_bars+
+#   scale_y_continuous(labels=percent) +
+#   scale_fill_discrete_psrc ("pognbgy_10")+
+#   facet_wrap(~survey)+
+#   ggtitle(TT)+
+#   psrc_style2(text_size = 2)
 
 
 TT <- "Trips by mode in RGCs (2021 HHTS)"
 ggplot(plot_rgc[plot_rgc$mode_simple2!="Other" & plot_rgc$survey == "2021",],
-       aes(x=final_home_is_rgc, y=share, fill=mode_simple2)) +
+       aes(x=mode_simple2, y=share, fill=final_home_is_rgc)) +
   geom_col(position = "dodge")+
   moe_bars+
   scale_y_continuous(labels=percent) +
@@ -721,11 +895,11 @@ ggplot(plot_rgc[plot_rgc$mode_simple2!="Other" & plot_rgc$survey == "2021",],
 
 TT <- "Trips by mode in metro and urban RGCs (2021 HHTS)"
 ggplot(plot_metro[plot_metro$mode_simple2!="Other" & plot_metro$survey == "2021",],
-       aes(x=urban_metro, y=share, fill=mode_simple2)) +
+       aes(x=mode_simple2, y=share, fill=urban_metro)) +
   geom_col(position = "dodge")+
   moe_bars+
   scale_y_continuous(labels=percent) +
-  scale_fill_discrete_psrc ("pognbgy_10")+
+  scale_fill_discrete_psrc ("gnbopgy_5")+
   ggtitle(TT)+
   psrc_style2(text_size = 2)
 ```
@@ -734,56 +908,56 @@ ggplot(plot_metro[plot_metro$mode_simple2!="Other" & plot_metro$survey == "2021"
 
 ```{r}
 # number of trips and total population
-plot <- plot_metro %>%
-  left_join(plot_metro[plot_metro$survey=="2017",c(2,3,6,7)] %>% 
-              rename(share_base2017 = share,
-                     share_moe_base2017 = share_moe),
-            by = c("urban_metro", "mode_simple2")) %>%
-  filter(survey!="2017",
-         mode_simple2!="Other",
-         !(mode_simple2=="Transit" & urban_metro=="Urban")) %>%
-  mutate(
-    share_change = (share-share_base2017) / share_base2017,
-    share_moe_change = moe_ratio(share, share_base2017, share_moe, share_moe_base2017)
-  ) 
-
-plot2 <- plot_rgc %>%
-  left_join(plot_rgc[plot_rgc$survey=="2017",c(2,3,6,7)] %>% 
-              rename(share_base2017 = share,
-                     share_moe_base2017 = share_moe),
-            by = c("final_home_is_rgc", "mode_simple2")) %>%
-  filter(survey!="2017",
-         mode_simple2!="Other") %>%
-  mutate(
-    share_change = (share-share_base2017) / share_base2017,
-    share_moe_change = moe_ratio(share, share_base2017, share_moe, share_moe_base2017)
-  ) 
-
-TT <- "Change in mode share in RGCs"
-ggplot(plot2, aes(x=mode_simple2, y=share_change, fill=survey)) +
-  geom_col(position = "dodge")+
-  geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
-                          width=0.2, position = position_dodge(0.9)) +
-  scale_y_continuous(labels=percent,breaks=seq(-0.6,0.6,0.2)) +
-  scale_fill_discrete_psrc ("gnbopgy_5")+
-  facet_wrap(~final_home_is_rgc, scales = "free_x")+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
-
-TT <- "Change in mode share in metro and urban RGCs"
-ggplot(plot, aes(x=mode_simple2, y=share_change, fill=survey)) +
-  geom_col(position = "dodge")+
-  geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
-                          width=0.2, position = position_dodge(0.9)) +
-  scale_y_continuous(labels=percent,breaks=seq(-0.6,0.6,0.2)) +
-  scale_fill_discrete_psrc ("gnbopgy_5")+
-  facet_wrap(~urban_metro, scales = "free_x")+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
-
-
-trip_w <- c("trip_weight_2017","trip_weight_2019","trip_adult_weight_2021")
-hh_w <- c("hh_weight_2017","hh_weight_2019","hh_weight_2021")
+# plot <- plot_metro %>%
+#   left_join(plot_metro[plot_metro$survey=="2017",c(2,3,6,7)] %>% 
+#               rename(share_base2017 = share,
+#                      share_moe_base2017 = share_moe),
+#             by = c("urban_metro", "mode_simple2")) %>%
+#   filter(survey!="2017",
+#          mode_simple2!="Other",
+#          !(mode_simple2=="Transit" & urban_metro=="Urban")) %>%
+#   mutate(
+#     share_change = (share-share_base2017) / share_base2017,
+#     share_moe_change = moe_ratio(share, share_base2017, share_moe, share_moe_base2017)
+#   ) 
+# 
+# plot2 <- plot_rgc %>%
+#   left_join(plot_rgc[plot_rgc$survey=="2017",c(2,3,6,7)] %>% 
+#               rename(share_base2017 = share,
+#                      share_moe_base2017 = share_moe),
+#             by = c("final_home_is_rgc", "mode_simple2")) %>%
+#   filter(survey!="2017",
+#          mode_simple2!="Other") %>%
+#   mutate(
+#     share_change = (share-share_base2017) / share_base2017,
+#     share_moe_change = moe_ratio(share, share_base2017, share_moe, share_moe_base2017)
+#   ) 
+# 
+# TT <- "Change in mode share in RGCs"
+# ggplot(plot2, aes(x=mode_simple2, y=share_change, fill=survey)) +
+#   geom_col(position = "dodge")+
+#   geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
+#                           width=0.2, position = position_dodge(0.9)) +
+#   scale_y_continuous(labels=percent,breaks=seq(-0.6,0.6,0.2)) +
+#   scale_fill_discrete_psrc ("gnbopgy_5")+
+#   facet_wrap(~final_home_is_rgc, scales = "free_x")+
+#   ggtitle(TT)+
+#   psrc_style2(text_size = 2)
+# 
+# TT <- "Change in mode share in metro and urban RGCs"
+# ggplot(plot, aes(x=mode_simple2, y=share_change, fill=survey)) +
+#   geom_col(position = "dodge")+
+#   geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
+#                           width=0.2, position = position_dodge(0.9)) +
+#   scale_y_continuous(labels=percent,breaks=seq(-0.6,0.6,0.2)) +
+#   scale_fill_discrete_psrc ("gnbopgy_5")+
+#   facet_wrap(~urban_metro, scales = "free_x")+
+#   ggtitle(TT)+
+#   psrc_style2(text_size = 2)
+# 
+# 
+# trip_w <- c("trip_weight_2017","trip_weight_2019","trip_adult_weight_2021")
+# hh_w <- c("hh_weight_2017","hh_weight_2019","hh_weight_2021")
 
 
 plot_rgc2 <- hhts_count(trip_data_17_19 %>%
@@ -835,8 +1009,8 @@ plot2 <- plot_rgc2 %>%
     share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
   ) 
 
-TT <- "Change in mode share in RGCs \n(2021 compared to 2017/2019 HHTS"
-ggplot(plot2, aes(x=final_home_is_rgc, y=share_change, fill=mode_simple2)) +
+TT <- "Change in mode share in RGCs \n(2021 compared to 2017/2019 HHTS)"
+ggplot(plot2, aes(x=mode_simple2, y=share_change, fill=final_home_is_rgc)) +
   geom_col(position = "dodge")+
   geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
                           width=0.2, position = position_dodge(0.9)) +
@@ -846,12 +1020,12 @@ ggplot(plot2, aes(x=final_home_is_rgc, y=share_change, fill=mode_simple2)) +
   psrc_style2(text_size = 2)
 
 TT <- "Change in mode share in metro and urban RGCs \n(2021 compared to 2017/2019 HHTS)"
-ggplot(plot, aes(x=urban_metro, y=share_change, fill=mode_simple2)) +
+ggplot(plot, aes(x=mode_simple2, y=share_change, fill=urban_metro)) +
   geom_col(position = "dodge")+
   geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
                           width=0.2, position = position_dodge(0.9)) +
   scale_y_continuous(labels=percent) +
-  scale_fill_discrete_psrc ("pognbgy_10")+
+  scale_fill_discrete_psrc ("gnbopgy_5")+
   ggtitle(TT)+
   psrc_style2(text_size = 2)
 ```
@@ -1465,7 +1639,7 @@ Sys.getenv("CENSUS_API_KEY")
 #              acs.type = 'acs5')
 test_rgc <- get_acs_recs(geography = 'tract',
              table.names = 'B08201',
-             years = 2020,
+             years = 2021,
              acs.type = 'acs1') %>%
   filter(label %in% c(#"Estimate!!Total:",
                       "Estimate!!Total:!!No vehicle available",
@@ -1497,7 +1671,7 @@ plot <- test_rgc %>%
   filter(label2 == "1 or more vehicle(s)")
 
 
-TT <- "Vehicle ownership (2020 ACS 1-year data)"
+TT <- "Vehicle ownership (2021 ACS 1-year data)"
 ggplot(plot, aes(x=label2, y=share, fill=urban_metro)) +
   geom_col(position = "dodge")+  
   moe_bars +
@@ -1510,7 +1684,7 @@ ggplot(plot, aes(x=label2, y=share, fill=urban_metro)) +
 
 test_rgc <- get_acs_recs(geography = 'tract',
              table.names = 'B08201',
-             years = 2020,
+             years = 2021,
              acs.type = 'acs1') %>%
   filter(label %in% c(#"Estimate!!Total:",
                       "Estimate!!Total:!!1-person household:",
@@ -1539,7 +1713,7 @@ plot2 <- test_rgc %>%
   filter(label2 =="Single-person")
 
 
-TT <- "Household size (2020 ACS 1-year data)"
+TT <- "Household size (2021 ACS 1-year data)"
 ggplot(plot2, aes(x=label2, y=share, fill=urban_metro)) +
   geom_col(position = "dodge")+  
   moe_bars +
@@ -1555,7 +1729,7 @@ ggplot(plot2, aes(x=label2, y=share, fill=urban_metro)) +
 
 test_rgc <- get_acs_recs(geography = 'tract',
              table.names = 'B19001',
-             years = 2020,
+             years = 2021,
              acs.type = 'acs1') %>%
   filter(label != "Estimate!!Total:") %>%
   mutate(RGC = case_when(GEOID %in% rgcs_tracts_list$geoid~"RGC",
@@ -1571,10 +1745,10 @@ test_rgc <- get_acs_recs(geography = 'tract',
                                         "Estimate!!Total:!!$30,000 to $34,999",
                                         "Estimate!!Total:!!$35,000 to $39,999",
                                         "Estimate!!Total:!!$40,000 to $44,999",
-                                        "Estimate!!Total:!!$45,000 to $49,999") ~ "Under $500,000",
-                            TRUE~"$500,000 and over"))
+                                        "Estimate!!Total:!!$45,000 to $49,999") ~ "Under $50,000",
+                            TRUE~"$50,000 and over"))
 test_rgc$urban_metro <- factor(test_rgc$urban_metro, levels=c("Metro","Urban","Not RGC")) 
-test_rgc$label2 <- factor(test_rgc$label2, levels=c("Under $500,000","$500,000 and over")) 
+test_rgc$label2 <- factor(test_rgc$label2, levels=c("Under $50,000","$50,000 and over")) 
 
 
 plot <- test_rgc %>%
@@ -1587,7 +1761,7 @@ plot <- test_rgc %>%
   ungroup() 
 
 
-TT <- "Household income (2020 ACS 1-year data)"
+TT <- "Household income (2021 ACS 1-year data)"
 ggplot(plot, aes(x=label2, y=share, fill=urban_metro)) +
   geom_col(position = "dodge")+  
   moe_bars +
@@ -1598,5 +1772,220 @@ ggplot(plot, aes(x=label2, y=share, fill=urban_metro)) +
 
 ```
 
+# check HHTS and ACS vehicle ownership
+```{r}
+library(psrccensus)
+Sys.setenv(CENSUS_API_KEY = '3fc20d0d6664692c0becc323b82c752408d843d9')
+Sys.getenv("CENSUS_API_KEY")
+# test <- get_acs_recs(geography = 'tract',
+#              table.names = 'B08201',
+#              years = 2020,
+#              acs.type = 'acs5')
+trip_w <- c("trip_weight_2017","trip_weight_2019","trip_adult_weight_2021")
+hh_w <- c("hh_weight_2017","hh_weight_2019","hh_weight_2021")
 
+
+veh_compare <- function(year,per_data){
+  
+    
+  if(year==2017){
+    ix <- 1
+  }
+  else if(year==2019){
+    ix <- 2
+  }
+  else{
+    ix <- 3
+  }
+  
+  abb <- substr(as.character(year),3,4)
+  
+  acs <- get_acs_recs(geography = 'tract',
+               table.names = 'B08201',
+               years = year,
+               acs.type = 'acs1') %>%
+      filter(label %in% c("Estimate!!Total!!No vehicle available",
+                        "Estimate!!Total!!1 vehicle available",
+                        "Estimate!!Total!!2 vehicles available",
+                        "Estimate!!Total!!3 vehicles available",
+                        "Estimate!!Total!!4 or more vehicles available",
+                        "Estimate!!Total:!!No vehicle available",
+                        "Estimate!!Total:!!1 vehicle available",
+                        "Estimate!!Total:!!2 vehicles available",
+                        "Estimate!!Total:!!3 vehicles available",
+                        "Estimate!!Total:!!4 or more vehicles available")) %>%
+    mutate(County = case_when(substr(GEOID,3,5)=="033"~"King",
+                              substr(GEOID,3,5)=="035"~"Kitsap",
+                              substr(GEOID,3,5)=="053"~"Pierce",
+                              substr(GEOID,3,5)=="061"~"Snohomish"),
+           RGC = case_when(GEOID %in% rgcs_tracts_list$geoid~"RGC",
+                           !GEOID %in% rgcs_tracts_list$geoid~"Not RGC"),
+           urban_metro = case_when(GEOID %in% rgcs_tracts_list[rgcs_tracts_list$urban_metro=="Metro",]$geoid~"Metro",
+                                   GEOID %in% rgcs_tracts_list[rgcs_tracts_list$urban_metro=="Urban",]$geoid~"Urban",
+                           !GEOID %in% rgcs_tracts_list$geoid~"Not RGC"),
+           label2 = case_when(label %in% c("Estimate!!Total!!1 vehicle available",
+                                           "Estimate!!Total!!2 vehicles available",
+                                           "Estimate!!Total!!3 vehicles available",
+                                           "Estimate!!Total!!4 or more vehicles available",
+                                           "Estimate!!Total:!!1 vehicle available",
+                                           "Estimate!!Total:!!2 vehicles available",
+                                           "Estimate!!Total:!!3 vehicles available",
+                                           "Estimate!!Total:!!4 or more vehicles available")~"1 or more vehicle(s)",
+                              label %in% c("Estimate!!Total!!No vehicle available",
+                                           "Estimate!!Total:!!No vehicle available")~"No vehicle"))
+  acs$urban_metro <- factor(acs$urban_metro, levels=c("Metro","Urban","Not RGC")) 
+  acs$RGC <- factor(acs$RGC, levels=c("RGC","Not RGC"))
+  
+  plot_acs <- acs %>%
+    # County
+    group_by(label2,County) %>%
+    summarise(estimate = sum(estimate),
+              moe = moe_sum(moe, estimate = estimate)) %>%
+    group_by(County) %>%
+    mutate(share = estimate/sum(estimate),
+           share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+    ungroup() %>%
+    filter(label2 == "1 or more vehicle(s)") %>%
+    select(County,share,share_moe) %>%
+    mutate(data = "ACS",
+           group = "County") %>%
+    rename(label = County) %>%
+    # RGC
+    add_row(acs %>%
+      group_by(label2,RGC) %>%
+      summarise(estimate = sum(estimate),
+                moe = moe_sum(moe, estimate = estimate)) %>%
+      group_by(RGC) %>%
+      mutate(share = estimate/sum(estimate),
+             share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+      ungroup() %>%
+      filter(label2 == "1 or more vehicle(s)") %>%
+      select(RGC,share,share_moe) %>%
+      mutate(data = "ACS",
+             group = "RGC") %>%
+      rename(label = RGC)) %>%
+    # Metro and Urban RGC
+    add_row(acs %>%
+        group_by(label2,urban_metro) %>%
+        summarise(estimate = sum(estimate),
+                  moe = moe_sum(moe, estimate = estimate)) %>%
+        group_by(urban_metro) %>%
+        mutate(share = estimate/sum(estimate),
+               share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+        ungroup() %>%
+        filter(label2 == "1 or more vehicle(s)") %>%
+        select(urban_metro,share,share_moe) %>%
+        mutate(data = "ACS",
+               group = "Metro and Urban RGC") %>%
+        rename(label = urban_metro)) %>%
+    # total
+    add_row(acs %>%
+        group_by(label2) %>%
+        summarise(estimate = sum(estimate),
+                  moe = moe_sum(moe, estimate = estimate)) %>%
+        ungroup() %>%
+        mutate(share = estimate/sum(estimate),
+               share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+        filter(label2 == "1 or more vehicle(s)") %>%
+        select(share,share_moe) %>%
+        mutate(data = "ACS",
+               group = "Total",
+               label = "Total"))
+  
+  plot_hhts <- hhts_count(per_data, group_vars=c("sample_county","vehicle_binary"),
+                      spec_wgt = hh_w[[ix]]) %>%
+    filter(vehicle_binary=="1 or more",
+           !is.na(sample_county)) %>%
+    mutate(vehicle_binary="1 vehicle or more") %>%
+    select(sample_county,share,share_moe) %>%
+    mutate(data = "HHTS",
+           group = "County") %>%
+    rename(label = sample_county) %>%
+    # RGC
+    add_row(hhts_count(per_data, group_vars=c("final_home_is_rgc","vehicle_binary"),
+                      spec_wgt = hh_w[[ix]]) %>%
+    filter(vehicle_binary=="1 or more",
+           !is.na(final_home_is_rgc)) %>%
+    mutate(vehicle_binary="1 vehicle or more") %>%
+    select(final_home_is_rgc,share,share_moe) %>%
+    mutate(data = "HHTS",
+           group = "RGC") %>%
+    rename(label = final_home_is_rgc)) %>%
+    # Metro and Urban RGC
+    add_row(hhts_count(per_data, group_vars=c("urban_metro","vehicle_binary"),
+                        spec_wgt = hh_w[[ix]]) %>%
+      filter(vehicle_binary=="1 or more",
+             !is.na(urban_metro)) %>%
+      mutate(vehicle_binary="1 vehicle or more") %>%
+      select(urban_metro,share,share_moe) %>%
+      mutate(data = "HHTS",
+             group = "Metro and Urban RGC") %>%
+      rename(label = urban_metro)) %>%
+    # Total
+    add_row(hhts_count(per_data, group_vars=c("vehicle_binary"),
+                        spec_wgt = hh_w[[ix]]) %>%
+      filter(vehicle_binary=="1 or more") %>%
+      mutate(vehicle_binary="1 vehicle or more") %>%
+      select(share,share_moe) %>%
+      mutate(data = "HHTS",
+             group = "Total",
+             label = "Total"))
+  plot <- plot_acs %>% add_row(plot_hhts)
+  plot$label <- factor(plot$label, levels=c("RGC","Metro","Urban","Not RGC",
+                                            "King","Kitsap", "Pierce", "Snohomish",
+                                            "Total")) 
+  plot$group <- factor(plot$group, levels=c("County","RGC","Metro and Urban RGC","Total")) 
+  
+  return(plot)
+
+}
+
+plot2017 <- veh_compare(2017, hh_data_17)
+plot2019 <- veh_compare(2019, hh_data_19)
+plot2021 <- veh_compare(2021, hh_data_21)
+
+
+
+veh_plot <- function(plot, year){
+  
+  
+  TT <- paste("Vehicle ownership (",year,")",sep = "")
+  
+  
+  return(
+    ggplot(plot, aes(x=label, y=share, fill=data)) +
+    geom_col(position = "dodge")+  
+    moe_bars +
+    scale_y_continuous(labels=percent) +
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+    facet_grid(cols = vars(group), scales = "free_x", space = "free_x")+
+    # facet_wrap(~group,scales = "free_x", ncol = 4)+
+    ggtitle(TT)+
+    psrc_style2()
+  )
+}
+
+veh_plot(plot2017,2017)
+veh_plot(plot2019,2019)
+veh_plot(plot2021,2021)
+
+vehicle_ownership <- plot2017 %>% 
+  mutate(year = 2017) %>%
+  add_row(plot2019 %>% 
+  mutate(year = 2019)) %>% 
+  add_row(plot2021 %>% 
+  mutate(year = 2021))
+```
+
+
+# urban and metro rgc counties
+```{r}
+rgc_county_acs <- rgcs_tracts_list %>%
+  group_by(urban_metro) %>%
+  summarise(num_tracts = n())
+
+rgc_county_hhts <- hh_data_17 %>%
+  group_by(urban_metro) %>%
+  summarise(num_tracts = length(unique(final_home_tract10)))
+```
 

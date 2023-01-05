@@ -1,0 +1,71 @@
+---
+output: 
+  pdf_document:
+    latex_engine: lualatex
+fontsize: 12pt
+
+header-includes:
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{pdfcomment}
+  - \usepackage{fancyhdr}
+   \pagestyle{fancy}
+   \setlength{\headheight}{75pt}
+   \setlength{\textheight}{600pt}
+   \fancyhead[C]{}
+   \fancyhead[L]{\includegraphics{X:/DSA/shiny-uploads/images/trends-header.png}}
+   \fancyhead[R]{}
+   \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. November 2022}
+   \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
+   \fancyfoot[C]{}
+   \renewcommand{\headrulewidth}{0pt}
+   \renewcommand{\footrulewidth}{4pt}
+   \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
+  - \usepackage{fontspec}
+
+---
+\setmainfont{Poppins}
+
+# Trends in Regional Growth Centers
+
+\begin{flushleft}
+Since the early 1990s, the region has been focused on concentrating growth into centers. Regional growth centers represent a small share of the region's land that are planned for dense, walkable, mixed-used areas.
+
+This report looks into the travel behaviors residents in RGCs and non-RGC areas.
+\end{flushleft}
+```{r setup, include=FALSE}
+library(psrcplot)
+library(psrccensus)
+library(tidyverse)
+library(knitr)
+library(magick)
+library(openxlsx)
+options(tinytex.verbose=TRUE)
+
+install_psrc_fonts()
+
+source("trend_processing.R")
+```
+
+```{r}
+TT <- "Vehicle ownership (2021 ACS 1-year data)"
+p_veh_own + ggtitle(TT)
+```
+
+```{r}
+TT <- "Household size (2021 ACS 1-year data)"
+p_hh_size + ggtitle(TT)
+```
+
+
+<!-- ![](C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%} -->
+\begin{flushleft}
+The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+\end{flushleft}
+
+
+
+\subsection{Conclusion}
+\begin{flushleft}
+People were walking and biking more in 2021 than in previous years, but using transit less. COVID-19 conditions contributed to this substantial shift in behavior across most demographic groups. The 2023 household travel survey will show whether these patterns continue.
+\end{flushleft}
