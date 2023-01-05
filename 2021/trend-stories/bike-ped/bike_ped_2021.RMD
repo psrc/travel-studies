@@ -34,6 +34,7 @@ library(tidyverse)
 library(knitr)
 library(magick)
 library(openxlsx)
+library(htmlwidgets)
 output_path='C:/GitHub/travel-studies/2021/trend-stories/bike-ped/'
 options(tinytex.verbose=TRUE)
 # Create Image 
@@ -93,6 +94,11 @@ trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Oth
 trips_by_mode_trend<-static_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
 
 trips_by_mode_trend
+
+trips_by_mode_trend_int<-interactive_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
+
+saveWidget(trips_by_mode_trend_int, 
+           file=paste0(output_path,'/bike_ped_interactive_plots/trips_by_mode_no_drive.html'))
 
 #trips_by_mode_trend_int<-create_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', f='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares", interactive='yes')
 

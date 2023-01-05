@@ -20,6 +20,7 @@ output: html_document
 # .libloc <- "C:/Users/MGrzybowski/AppData/Local/R/win-library/4.2"
 # remove.packages("rlang")
 # install.packages("rlang")
+getwd()
 
 # r start
 
@@ -48,10 +49,10 @@ library(ggpubr)
 
 # packages that are from github that host functions for pulling data (do the install in R Gui, not RStudio)
 
-#devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
-#devtools::install_github("psrc/psrccensus", force = TRUE)
-#devtools::install_github("psrc/psrcplot", force = TRUE)
-#devtools::install_github("psrc/psrctrends", force = TRUE)
+devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
+devtools::install_github("psrc/psrccensus", force = TRUE)
+devtools::install_github("psrc/psrcplot", force = TRUE)
+devtools::install_github("psrc/psrctrends", force = TRUE)
 
 # run these after installing github changes through R Gui
 
@@ -98,7 +99,7 @@ survey_d <- list(survey = '2019', label = '2019')
 # hhts_varsearch('age')
 # hhts_varsearch('county')
 # hhts_varsearch('home')
-# hhts_varsearch('race')
+hhts_varsearch('hhincome_dichot')
 
 names(deliveries)
 head(household_info)
@@ -110,7 +111,7 @@ unique(deliveries$delivery_work_freq)
 
 delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
 days <- c("dayofweek", "typical_day")
-hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'race_category_alone_multi', 'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc','pernum')
+hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'hhincome_dichot', 'race_category_alone_multi', 'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc','pernum', 'hhsize')
 
 ```
 
@@ -125,7 +126,6 @@ smp_delivery_combo <- function(data, year) {
                                         (pernum>1) ~ 'Not Person One, not the responder',
                                         delivery_food_freq == "0 (none)"  ~ 'No Delivery',
                                         deliver_food=='No' ~ 'No Delivery',
-                                        
                                         TRUE ~ 'Delivery Received'))%>%
     mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
                                         (pernum>1) ~ 'Not Person One, not the responder',
@@ -240,17 +240,17 @@ joined_df_deliveries_21 <- delivery_21
 # Sums should match the number of people in the region
 # In 2021, this represents the number of adults, because didn't observe children's days
 
-sum(joined_df_deliveries_17$day_weight_2017_v2021)
-sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
+sum(joined_df_deliveries_17$day_weight_2017)
+sum(joined_df_deliveries_19$day_weight_2019)
+sum(joined_df_deliveries_21$person_adult_weight_2021)
 
 ```
 It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
 ```{r, sum checks to verify household numbers, eval = FALSE}
-joined_df_deliveries_1719$day_weight_2017_2019_v2021<-joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
-sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
-dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
-joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
+joined_df_deliveries_1719$day_weight_2017_2019<-joined_df_deliveries_1719$day_weight_2017_2019/2
+sum(joined_df_deliveries_1719$day_weight_2017_2019)
+dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017))
+joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017))
 ```
 
 ```{r, removing duplicate household member responses}
@@ -260,10 +260,10 @@ joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
 ```
 
 ```{r, sum checks to verify households for the individual years with their new weights, eval = FALSE}
-sum(joined_df_deliveries_17$day_weight_2017_v2021)
-sum(joined_df_deliveries_19$day_weight_2019_v2021)
-sum(joined_df_deliveries_21$hh_weight_2021_ABS) #this weight matches the closest to the annual household count
-# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
+sum(joined_df_deliveries_17$day_weight_2017)
+sum(joined_df_deliveries_19$day_weight_2019)
+sum(joined_df_deliveries_21$hh_weight_2021) #this weight matches the closest to the annual household count
+# sum(joined_df_deliveries_21$person_adult_weight_2021)
 # sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
 ```
 
@@ -282,17 +282,17 @@ ggplot(data = deliveries) +
 ```{r, food deliveries by year alone}
 
 count_food_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_food_all",
-                                     spec_wgt = "day_weight_2017_v2021")%>%
+                                     spec_wgt = "day_weight_2017")%>%
   filter(delivery_food_all== "Delivery Received")
 
 
 count_food_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_food_all",
-                               spec_wgt = "day_weight_2019_v2021")%>%
+                               spec_wgt = "day_weight_2019")%>%
   filter(delivery_food_all == "Delivery Received")
 
 
 count_food_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_food_all",
-                               spec_wgt = "hh_weight_2021_ABS") %>%
+                               spec_wgt = "hh_weight_2021") %>%
   filter(delivery_food_all == "Delivery Received")
 
 
@@ -306,7 +306,7 @@ write.csv(food_freq_separate, 'delivery_by_freq_food2.csv')
 
 # create plot
 
-food_c <-create_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
+food_c <-static_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
                           est ='percent', color = 'psrc_light')+
   xlab(as.character('Food')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
@@ -320,17 +320,17 @@ print(food_c)
 ```{r, package deliveries by year alone}
 
 count_pkgs_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_pkgs_all",
-                                     spec_wgt = "day_weight_2017_v2021")%>%
+                                     spec_wgt = "day_weight_2017")%>%
   filter(delivery_pkgs_all== "Delivery Received")
 
 
 count_pkgs_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_pkgs_all",
-                               spec_wgt = "day_weight_2019_v2021")%>%
+                               spec_wgt = "day_weight_2019")%>%
   filter(delivery_pkgs_all == "Delivery Received")
 
 
 count_pkgs_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_pkgs_all",
-                               spec_wgt = "hh_weight_2021_ABS") %>%
+                               spec_wgt = "hh_weight_2021") %>%
   filter(delivery_pkgs_all == "Delivery Received")
 
 
@@ -344,7 +344,7 @@ write.csv(pkgs_freq_separate, 'delivery_by_freq_pkgs2.csv')
 
 # create plot
 
-pkgs_c <-create_column_chart(t=pkgs_freq_separate, x='delivery_pkgs_all', y='share', f='survey', moe='share_moe', 
+pkgs_c <-static_column_chart(t=pkgs_freq_separate, x='delivery_pkgs_all', y='share', f='survey', moe='share_moe', 
                           est ='percent', color = 'psrc_light')+
   xlab(as.character('Packages')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
@@ -358,17 +358,17 @@ print(pkgs_c)
 ```{r, grocery deliveries by year alone}
 
 count_grocery_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_grocery_all",
-                                     spec_wgt = "day_weight_2017_v2021")%>%
+                                     spec_wgt = "day_weight_2017")%>%
   filter(delivery_grocery_all== "Delivery Received")
 
 
 count_grocery_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_grocery_all",
-                               spec_wgt = "day_weight_2019_v2021")%>%
+                               spec_wgt = "day_weight_2019")%>%
   filter(delivery_grocery_all == "Delivery Received")
 
 
 count_grocery_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_grocery_all",
-                               spec_wgt = "hh_weight_2021_ABS") %>%
+                               spec_wgt = "hh_weight_2021") %>%
   filter(delivery_grocery_all == "Delivery Received")
 
 
@@ -382,7 +382,7 @@ write.csv(grocery_freq_separate, 'delivery_by_freq_grocery2.csv')
 
 # create plot
 
-grocery_c<-create_column_chart(t=grocery_freq_separate, x='delivery_grocery_all', y='share', f='survey', moe='share_moe', 
+grocery_c<-static_column_chart(t=grocery_freq_separate, x='delivery_grocery_all', y='share', f='survey', moe='share_moe', 
                           est ='percent', color = 'psrc_light')+
   xlab(as.character('Grocery')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
@@ -391,17 +391,16 @@ grocery_c<-create_column_chart(t=grocery_freq_separate, x='delivery_grocery_all'
 
 print(grocery_c)
 
-grocery_column<- create_column_chart(t= grocery_freq_separate,
+grocery_column<- static_column_chart(t= grocery_freq_separate,
                                                   x="delivery_grocery_all", y="share",
                                                   f="survey",
-                                            moe = "share_moe",
+                                                  moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Grocery Deliveries",
                                                   subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online)",
-                                         source = "regional household travel survey")
+                                                  source = "regional household travel survey")
 
 grocery_column
 
@@ -409,17 +408,17 @@ grocery_column
 
 ```{r, work/service deliveries by year alone}
 count_work_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_work_all",
-                                     spec_wgt = "day_weight_2017_v2021")%>%
+                                     spec_wgt = "day_weight_2017")%>%
   filter(delivery_work_all== "Delivery Received")
 
 
 count_work_19 <- hhts_count(joined_df_deliveries_19, group_vars = "delivery_work_all",
-                               spec_wgt = "day_weight_2019_v2021")%>%
+                               spec_wgt = "day_weight_2019")%>%
   filter(delivery_work_all == "Delivery Received")
 
 
 count_work_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_work_all",
-                               spec_wgt = "hh_weight_2021_ABS") %>%
+                               spec_wgt = "hh_weight_2021") %>%
   filter(delivery_work_all == "Delivery Received")
 
 
@@ -433,7 +432,7 @@ write.csv(work_freq_separate, 'delivery_by_freq_work2.csv')
 
 # create plot
 
-work_c<-create_column_chart(t=work_freq_separate, x='delivery_work_all', y='share', f='survey', moe='share_moe', 
+work_c<-static_column_chart(t=work_freq_separate, x='delivery_work_all', y='share', f='survey', moe='share_moe', 
                           est='percent', color = 'psrc_light')+
   xlab(as.character('Work/Service')) + ylab('Share of Households Receiving These Types of Deliveries')+
   theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
@@ -443,13 +442,12 @@ work_c<-create_column_chart(t=work_freq_separate, x='delivery_work_all', y='shar
 
 print(work_c)
 
-work_column<- create_column_chart(t= work_freq_separate,
+work_column<- static_column_chart(t= work_freq_separate,
                                                   x="delivery_work_all", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Work/Service Deliveries",
                                                   subtitle="(e.g., landscaping, cable service, house-cleaning)",
@@ -497,13 +495,12 @@ deliveries_facet1<- create_facet_bar_chart(t= all_deliveries_freq_17_21_new,
 
 deliveries_facet1
 
-deliveries_facet_test<- create_column_chart(t= all_deliveries_freq_17_21_new,
+deliveries_facet_test<- static_column_chart(t= all_deliveries_freq_17_21_new,
                                                   x="delivery_type", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Home Deliveries or Services",
                                                   subtitle="Share of Households on Average Weekday",
@@ -517,7 +514,7 @@ deliveries_facet_test
 
 
 # crosstabs for income and food delivery by share and count (across years)
-test2 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+test2 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('delivery_food_all', 'hhincome_broad')) %>% 
   filter(hhincome_broad != 'Total')
 
@@ -580,19 +577,19 @@ count_and_share_plot(all_food_freq_17_21,
 ```{r, create data frames to run crosstabs for income and food deliveries}
 # crosstabs for income and food delivery by share and count (across years)
 
-food_income_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+food_income_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
   filter(hhincome_broad != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_income_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+food_income_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
   filter(hhincome_broad != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
   filter(hhincome_broad != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -725,22 +722,20 @@ count_plot_by_cat(food_income_17, food_income_19, food_income_21,
 ```{r}
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
-food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
   filter(lifecycle != 'Total')
 
-food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
   filter(lifecycle != 'Total')
 
-food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_weight_2021_ABS_panel_adult', 
+food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_adult_weight_2021', 
                     group_vars = c('delivery_food_all', 'lifecycle')) %>% 
   filter(lifecycle != 'Total')
-
-## STOPPED HERE 
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
-all_food_freq_17_21 <- bind_rows(table_food_17, table_food_19, table_food_21) %>%
+all_food_freq_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21) %>%
   mutate(period = as.factor(survey))
 
 table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
@@ -814,27 +809,25 @@ share_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
 
 # comparative charts/plots
 # share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year(table_food_17, table_food_19, table_food_21,
+share_plot_by_year(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
                    'hhincome_broad', 'delivery_food_all', 
                    'Food Deliveries to Households by Income')
 
-share_plot_by_year2(table_food_17, table_food_19, table_food_21,
-                   'survey', 'hhincome_broad',  
-                    'Food Deliveries by Year')
+share_plot_by_year2(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
+                   'survey', 'hhincome_broad', 'Food Deliveries by Year')
 
-share_plot_by_cat(table_food_17, table_food_19, table_food_21, 
+share_plot_by_cat(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21, 
                   'hhincome_broad', 'delivery_food_all',
                   'Income Categories')+
   psrc_style()+
   scale_fill_discrete_psrc("psrc_light")
 
-food_income_column<- create_column_chart(t= all_food_income_dichot_17_21,
+food_income_column<- static_column_chart(t= all_food_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Food/Meal Deliveries by Income",
                                                   subtitle="(e.g.., pizza/sushi, Grubhub)",
@@ -848,7 +841,7 @@ food_income_column
 
 # crosstabs for income and grocery delivery by share and count (across years)
 
-grocery_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+grocery_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -857,14 +850,14 @@ grocery_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_
   mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
             "Under $75,000", "$75,000+", "Prefer not to answer"))
 
-grocery_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+grocery_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
 
-grocery_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019_v2021', 
+grocery_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019', 
                     group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -874,7 +867,7 @@ grocery_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = '
             "Under $75,000", "$75,000+", "Prefer not to answer"))%>%
   mutate(survey = case_when(survey == "2017_2019" ~ "2019/2019"))
 
-grocery_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+grocery_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhincome_dichot', 'delivery_grocery_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -917,13 +910,12 @@ share_plot_by_year2_b(grocery_income_17_dichot, grocery_income_19_dichot, grocer
                     'Grocery Deliveries by Year')+
   scale_fill_discrete_psrc("psrc_light")
 
-groceries_test<- create_column_chart(t= all_grocery_income_dichot_17_21,
+groceries_test<- static_column_chart(t= all_grocery_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Grocery Deliveries",
                                                   subtitle="(i.e., Amazon Fresh, Safeway Online, Instacart)",
@@ -937,7 +929,7 @@ groceries_test
 
 # crosstabs for income and package delivery by share and count (across years)
 
-pkg_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+pkg_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -946,14 +938,14 @@ pkg_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weig
   mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
             "Under $75,000", "$75,000+", "Prefer not to answer"))
 
-pkg_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+pkg_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkg_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019_v2021', 
+pkg_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019', 
                     group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -963,7 +955,7 @@ pkg_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_
             "Under $75,000", "$75,000+", "Prefer not to answer"))%>%
   mutate(survey = case_when(survey == "2017_2019" ~ "2019/2019"))
 
-pkg_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+pkg_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -1006,13 +998,12 @@ share_plot_by_year2_c(pkgs_income_17_dichot, pkgs_income_17_dichot, pkgs_income_
                     'Package Deliveries by Year')+
   scale_fill_discrete_psrc("psrc_light")
 
-pkgs_test<- create_column_chart(t= all_pkgs_income_dichot_17_21,
+pkgs_test<- static_column_chart(t= all_pkgs_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Package Deliveries",
                                                   subtitle="(i.e., FedEx, UPS, USPS)",
@@ -1025,7 +1016,7 @@ pkgs_test
 ```{r, crosstabs for work/service deliveries and income dichotomies, share_plot_by_year2 is favored plot}
 # crosstabs for income and package delivery by share and count (across years)
 
-work_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+work_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhincome_dichot', 'delivery_work_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -1034,14 +1025,14 @@ work_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_wei
   mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
             "Under $75,000", "$75,000+", "Prefer not to answer"))
 
-work_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+work_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhincome_dichot', 'delivery_work_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019_v2021', 
+work_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day_weight_2017_2019', 
                     group_vars = c('hhincome_dichot', 'delivery_work_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -1051,7 +1042,7 @@ work_income_1719_dichot <- hhts_count(joined_df_deliveries_1719, spec_wgt = 'day
             "Under $75,000", "$75,000+", "Prefer not to answer"))%>%
   mutate(survey = case_when(survey == "2017_2019" ~ "2019/2019"))
 
-work_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+work_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhincome_dichot', 'delivery_work_all')) %>% 
   filter(hhincome_dichot != 'Total')%>%
   filter(hhincome_dichot != 'Prefer not to answer') %>%
@@ -1094,13 +1085,12 @@ share_plot_by_year2_d(work_income_17_dichot, work_income_17_dichot, work_income_
                     'Work Deliveries by Year')+
   scale_fill_discrete_psrc("psrc_light")
 
-work_test<- create_column_chart(t= all_work_income_dichot_17_21,
+work_test<- static_column_chart(t= all_work_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec= 1,
                                                   title="Work Deliveries by Income",
                                                   subtitle="(e.g., landscaping, cable service, house-cleaningcable)",
@@ -1113,7 +1103,7 @@ work_test
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
-food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('lifecycle', 'delivery_food_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -1121,7 +1111,7 @@ food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('lifecycle', 'delivery_food_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -1129,7 +1119,7 @@ food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = "hh_weight_2021_ABS", 
+food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = "hh_weight_2021", 
                     group_vars = c('lifecycle', 'delivery_food_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -1146,27 +1136,25 @@ table(all_food_lifecycle_17_21$delivery_food_all, all_food_lifecycle_17_21$perio
 
 # plot
 
-lifecycles_test<- create_column_chart(t= all_food_lifecycle_17_21,
+lifecycles_test<- static_column_chart(t= all_food_lifecycle_17_21,
                                                   x="survey", y="share",
                                                   f="lifecycle",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=0,
                                                   title="Food Deliveries",
                                                   subtitle="(e.g., pizza/sushi, GrubHub)",
                                          source = "PSRC Regional Household Travel Survey")
 
 lifecycles_test
-
 ```
 
 ```{r, crosstabs for grocery deliveries and lifecycle stages}
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
-grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
@@ -1174,7 +1162,7 @@ grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weig
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
@@ -1182,7 +1170,7 @@ grocery_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weig
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+grocery_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
@@ -1196,13 +1184,12 @@ all_grocery_lifecycle_17_21 <- bind_rows(grocery_lifecycle_17, grocery_lifecycle
 
 # column chart
 
-lifecycles_grocery_test<- create_column_chart(t= all_grocery_lifecycle_17_21,
+lifecycles_grocery_test<- static_column_chart(t= all_grocery_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Grocery Deliveries by Household",
                                                   subtitle="(e.g., Amazon Fresh, Safeway Online, Instacart)",
@@ -1216,7 +1203,7 @@ lifecycles_grocery_test
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
-pkgs_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+pkgs_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -1224,7 +1211,7 @@ pkgs_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -1232,7 +1219,7 @@ pkgs_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+pkgs_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('lifecycle', 'delivery_pkgs_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -1247,13 +1234,12 @@ all_pkgs_lifecycle_17_21 <- bind_rows(pkgs_lifecycle_17, pkgs_lifecycle_19, pkgs
 
 # column chart
 
-lifecycles_pkgs<- create_column_chart(t= all_pkgs_lifecycle_17_21,
+lifecycles_pkgs<- static_column_chart(t= all_pkgs_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Packages Deliveries by Household",
                                                   subtitle="(e.g., FedEx, UPS, USPS)",
@@ -1267,7 +1253,7 @@ lifecycles_pkgs
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
-work_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+work_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('lifecycle', 'delivery_work_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
@@ -1275,7 +1261,7 @@ work_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('lifecycle', 'delivery_work_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
@@ -1283,7 +1269,7 @@ work_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_
   mutate(lifecycle = fct_relevel(lifecycle,
             "Household has kids", "Under 35 years, no kids", "35-64", "65 years or older"))
 
-work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+work_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('lifecycle', 'delivery_work_all')) %>% 
   filter(lifecycle != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
@@ -1298,13 +1284,12 @@ all_work_lifecycle_17_21 <- bind_rows(work_lifecycle_17, work_lifecycle_19, work
 
 # column chart
 
-lifecycles_work<- create_column_chart(t= all_work_lifecycle_17_21,
+lifecycles_work<- static_column_chart(t= all_work_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Work/Service Deliveries by Household",
                                                   subtitle="(e.g., landscaping, cable service, house-cleaning)",
@@ -1344,10 +1329,79 @@ deliveries_lifecycle_facet<- create_facet_bar_chart(t= all_deliveries_lifecycle_
                                                   w.dec=2,
                                                   w.scales="fixed",
                                                   w.facet=4,
-                                                  w.title="Home Deliveries or Services by Lifecycle",
+                                                  w.title="Home Deliveries or Services by Age Group",
                                                   w.sub.title="Share of Households on Average Weekday")
 
 deliveries_lifecycle_facet
+
+# facet for suzanne - request on teams
+# 2017
+food_lifecycle_17$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_17$delivery_type = c("grocery", "grocery", "grocery", "grocery")
+
+pkgs_lifecycle_17$delivery_type = c("packages", "packages", "packages", "packages")
+
+work_lifecycle_17$delivery_type = c("work/service", "work/service", "work/service", "work/service")
+
+#2019
+food_lifecycle_19$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_19$delivery_type = c("grocery", "grocery", "grocery", "grocery")
+
+pkgs_lifecycle_19$delivery_type = c("packages", "packages", "packages", "packages")
+
+work_lifecycle_19$delivery_type = c("work/service", "work/service", "work/service", "work/service")
+
+#2021
+food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
+
+grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery", "grocery")
+
+pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages", "packages")
+
+work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service", "work/service")
+
+# bind all dataframes together 
+
+all_deliveries_lifecycle2 <- rbind(food_lifecycle_17, grocery_lifecycle_17, pkgs_lifecycle_17, work_lifecycle_17, food_lifecycle_19, grocery_lifecycle_19, pkgs_lifecycle_19, work_lifecycle_19,food_lifecycle_21, grocery_lifecycle_21, pkgs_lifecycle_21, work_lifecycle_21, fill = TRUE)
+                                   
+# remove unnecessary columns
+
+all_deliveries_lifecycle_new2 <- all_deliveries_lifecycle2[, -c(3, 10, 11, 12)]
+
+deliveries_lifecycle_facet2<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
+                                                  w.x="survey", w.y="share",
+                                                  f="lifecycle", g="delivery_type",
+                                                  w.color="greens_inc",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
+                                                  w.dec=2,
+                                                  w.scales="fixed",
+                                                  w.facet=2,
+                                                  w.title="Home Deliveries or Services by Year and by Type",
+                                                  w.sub.title="Share of Households on Average Weekday")+ 
+  ggplot2::theme(axis.title = ggplot2::element_blank())
+
+deliveries_lifecycle_facet2
+
+# favored
+?create_facet_bar_chart
+deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
+                                                  w.x="lifecycle", w.y="share",
+                                                  f="survey", g="delivery_type",
+                                                  w.color="purples_inc",
+                                                  est.type ="percent",
+                                                  w.interactive="no",
+                                                  w.dec=2,
+                                                  w.scales="free",
+                                                  w.facet=2,
+                                                  w.title="Home Deliveries or Services by Year and by Type",
+                                                  w.sub.title="Share of Households on Average Weekday")+ 
+  ggplot2::theme(axis.title = ggplot2::element_blank()) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
+
+deliveries_lifecycle_facet3
 
 ```
 
@@ -1355,19 +1409,19 @@ deliveries_lifecycle_facet
 
 # location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
-food_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+food_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+food_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -1488,13 +1542,12 @@ share_plot_by_cat_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
 
 #ppsrc plot style
 
-food_rgc_plot<- create_column_chart(t= all_food_rgc_17_21,
+food_rgc_plot<- static_column_chart(t= all_food_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
                                                   f="survey",
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Food/Meal Deliveries by Household Location",
                                                   subtitle="Share of Households on Average Weekday",
@@ -1507,19 +1560,19 @@ food_rgc_plot
 
 # location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
-grocery_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+grocery_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
 
-grocery_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+grocery_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
 
-grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
@@ -1568,13 +1621,12 @@ share_plot_by_year2_rgc_groc(grocery_rgc_17, grocery_rgc_19, grocery_rgc_21,
 
 # with psrcplot style
 
-grocery_rgc_plot<- create_column_chart(t= all_grocery_rgc_17_21,
+grocery_rgc_plot<- static_column_chart(t= all_grocery_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Grocery Deliveries by Household Location",
                                                   subtitle="Share of Households on Average Weekday",
@@ -1587,19 +1639,19 @@ grocery_rgc_plot
 
 # location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
-pkg_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+pkg_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkg_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+pkg_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkg_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+pkg_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -1648,13 +1700,12 @@ share_plot_by_year2_rgc_pkgs(pkg_rgc_17, pkg_rgc_19, pkg_rgc_21,
 
 # with psrcplot style
 
-pkg_rgc_plot<- create_column_chart(t= all_pkg_rgc_17_21,
+pkg_rgc_plot<- static_column_chart(t= all_pkg_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Package Deliveries by Household Location",
                                                   subtitle="Share of Households on Average Weekday",
@@ -1666,19 +1717,19 @@ pkg_rgc_plot
 ```{r, work deliveries and rgc location/destination}
 # location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
-work_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+work_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+work_rgc_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+work_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
   filter(final_home_is_rgc != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
@@ -1727,13 +1778,12 @@ share_plot_by_year2_rgc_work(work_rgc_17, work_rgc_19, work_rgc_21,
 
 # with psrcplot style
 
-work_rgc_plot<- create_column_chart(t= all_work_rgc_17_21,
+work_rgc_plot<- static_column_chart(t= all_work_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
                                                   f="survey",
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Work Deliveries by Household Location",
                                                   subtitle="Share of Households on Average Weekday",
@@ -1782,19 +1832,19 @@ deliveries_rgc
 ```{r, hhsize and food deliveries}
 # hh variables: hhsize'
 
-food_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+food_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_food_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+food_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhsize', 'delivery_food_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+food_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhsize', 'delivery_food_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_food_all != 'Total')%>%
@@ -1915,13 +1965,12 @@ share_plot_by_cat_hhsize(food_hh_17, food_hh_19, food_hh_21,
 
 #ppsrc plot style
 
-food_hhsize_plot<- create_column_chart(t= all_food_hh_17_21,
+food_hhsize_plot<- static_column_chart(t= all_food_hh_17_21,
                                                   x="hhsize", y="share",
                                                   f="survey",
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Food/Meal Deliveries by Household Size",
                                                   subtitle="Share of Households on Average Weekday",
@@ -1934,19 +1983,19 @@ food_hhsize_plot
 
 # hh variables: hhsize'
 
-grocery_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+grocery_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_grocery_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
 
-grocery_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+grocery_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhsize', 'delivery_grocery_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
   filter(delivery_grocery_all != 'No Delivery')
 
-grocery_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+grocery_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhsize', 'delivery_grocery_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_grocery_all != 'Total')%>%
@@ -1958,13 +2007,12 @@ all_grocery_hh_17_21 <- bind_rows(grocery_hh_17, grocery_hh_19, grocery_hh_21) %
 
 #ppsrc plot style
 
-grocery_hhsize_plot<- create_column_chart(t= all_grocery_hh_17_21,
+grocery_hhsize_plot<- static_column_chart(t= all_grocery_hh_17_21,
                                                   x="hhsize", y="share",
                                                   f="survey",
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Grocery Deliveries by Household Size",
                                                   subtitle="Share of Households on Average Weekday",
@@ -1976,19 +2024,19 @@ grocery_hhsize_plot
 ```{r, hhsize and package deliveries}
 # hh variables: hhsize'
 
-pkgs_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+pkgs_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_pkgs_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkgs_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+pkgs_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhsize', 'delivery_pkgs_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
   filter(delivery_pkgs_all != 'No Delivery')
 
-pkgs_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+pkgs_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhsize', 'delivery_pkgs_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_pkgs_all != 'Total')%>%
@@ -2000,13 +2048,12 @@ all_pkgs_hh_17_21 <- bind_rows(pkgs_hh_17, pkgs_hh_19, pkgs_hh_21) %>%
 
 #ppsrc plot style
 
-pkgs_hhsize_plot<- create_column_chart(t= all_pkgs_hh_17_21,
+pkgs_hhsize_plot<- static_column_chart(t= all_pkgs_hh_17_21,
                                                   x="hhsize", y="share",
                                                   f="survey",
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Package Deliveries by Household Size",
                                                   subtitle="Share of Households on Average Weekday",
@@ -2018,19 +2065,19 @@ pkgs_hhsize_plot
 ```{r, hhsize and work deliveries}
 # hh variables: hhsize'
 
-work_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017_v2021', 
+work_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_work_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019_v2021', 
+work_hh_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
                     group_vars = c('hhsize', 'delivery_work_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
   filter(delivery_work_all != 'No Delivery')
 
-work_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021_ABS', 
+work_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
                     group_vars = c('hhsize', 'delivery_work_all')) %>% 
   filter(hhsize != 'Total')%>%
   filter(delivery_work_all != 'Total')%>%
@@ -2043,13 +2090,12 @@ all_work_hh_17_21 <- bind_rows(work_hh_17, work_hh_19, work_hh_21) %>%
 
 #ppsrc plot style
 
-work_hhsize_plot<- create_column_chart(t= all_work_hh_17_21,
+work_hhsize_plot<- static_column_chart(t= all_work_hh_17_21,
                                                   x="hhsize", y="share",
                                                   f="survey",
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  interactive="no",
                                                   dec=1,
                                                   title="Work/Service Deliveries by Household Size",
                                                   subtitle="Share of Households on Average Weekday",
