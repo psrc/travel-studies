@@ -90,7 +90,8 @@ telecommute_21 <- get_telecommute_data(survey = "2021",
                                        incl_na = FALSE)
 
 telecommute_frequency <- bind_rows(telecommute_17, telecommute_19, telecommute_21) %>% 
-  filter(telecommute_freq_cond != "Total")
+  filter(telecommute_freq_cond != "Total"
+         & telecommute_freq_cond == "1+ days per week")
 
 rm(telecommute_17, telecommute_19, telecommute_21)
 
@@ -114,7 +115,8 @@ times_21 <- get_telecommute_data(survey = "2021",
                                  incl_na = FALSE)
 
 telecommute_times_per_week <- bind_rows(times_17, times_19, times_21) %>% 
-  filter(telecommute_freq != "Total")
+  filter(telecommute_freq != "Total"
+         & telecommute_freq %in% c("1-2 days", "3-4 days", "5+ days"))
 
 rm(times_17, times_19, times_21)
 
@@ -132,7 +134,9 @@ telecommute_freq_gender_21 <- get_telecommute_data(survey = "2021",
                                                    incl_na = FALSE)
 
 telecommute_freq_gender <- bind_rows(telecommute_freq_gender_1719, telecommute_freq_gender_21) %>% 
-  filter(telecommute_freq != "Total")
+  filter(telecommute_freq != "Total"
+         & telecommute_freq %in% c("1-2 days", "3-4 days", "5+ days")
+         & gender_group %in% c("Female", "Male"))
 
 rm(telecommute_freq_gender_1719, telecommute_freq_gender_21)
 
@@ -195,13 +199,65 @@ workplace_chart <- static_column_chart(t = workplace,
 workplace_chart
 ```
 
-## Second Section: telecommuting trends
-
+## Large changes seen in telecommuting
 \begin{flushleft}
-second section text here
+Working remotely from home, also called telecommuting, has been a feature of the work environment in the Puget Sound region for multiple years before the onset of the COVID-19 pandemic. While it is true that the pandemic lead to major increase in telecommuting, we saw that a trend was already underway in the two travel surveys before 2021.
 \end{flushleft}
 
+### Yearly increases in weekly rates of telecommuting
+\begin{flushleft}
+In the travel surveys, people who responded that they traveled to a primary work location or, in 2021, telecommuted some days and traveled to work some days were asked to state how often they had substituted a work trip with telecommuting in the past week. In 2017, 16\% of those workers telecommuted at least once per week; this increased slightly to 20\% in 2019, followed by a large increase to 31\% in 2021.
+\end{flushleft}
 
+```{r telecommute_over_year, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+telecommute_frequency_chart <- static_column_chart(t = telecommute_frequency,
+                                                   x = "telecommute_freq_cond", y = "share",
+                                                   fill = "survey",
+                                                   moe = "share_moe",
+                                                   color = "pgnobgy_5",
+                                                   title = "Telecommuted At Least Once per Week")
+
+telecommute_frequency_chart
+```
+
+### Telecommute frequencies did not increase evenly
+\begin{flushleft}
+When looking at a more detailed view of telecommuting frequency, the largest increase occurred for workers who said they telecommuted 3-4 days per week, increasing from around 2\% in 2017 to 10\% in 2021. Telecommuting five or more days per week also saw a large increase, while telecommuting only one or two times per week did not increase after 2019.
+\end{flushleft}
+
+```{r times_per_week, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+telecommute_times_per_week_chart <- static_column_chart(t = telecommute_times_per_week,
+                                                        x = "telecommute_freq", y = "share",
+                                                        fill = "survey",
+                                                        moe = "share_moe",
+                                                        color = "pgnobgy_5",
+                                                        title = "Telecommute Frequency: Times per Week")
+
+telecommute_times_per_week_chart
+```
+
+### Telecommute frequency also varied by gender
+\begin{flushleft}
+When telecommute frequency is broken down by gender, there was little difference in the shares of female workers reporting telecommuting 1-2 days per week (11\%), 3-4 days per week (12\%), and 5+ days per week (10\%). There was a slightly larger difference for male workers, with the largest share reporting 5+ days per week (12\%) compared to 9\% and 8\% for 1-2 days per week and 3-4 days per week, respectively. For both genders, the largest increase in telecommuting frequency between 2017/2019 and 2021 was for 3-4 days per week; the share of female workers increased from 2\% to 12\% and the share of male workers increased from 3\% to 8\%. There was also a large increase in male workers who reported telecommuting 5+ days per week, an increase from 7\% to 12\%.
+\end{flushleft}
+
+```{r telecommute_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+telecommute_freq_gender_chart <- static_column_chart(t = telecommute_freq_gender,
+                                                     x = "telecommute_freq", y = "share",
+                                                     fill = "survey",
+                                                     moe = "share_moe",
+                                                     color = "pgnobgy_5",
+                                                     title = "Telecommute Frequency: Times per Week by Gender",
+                                                     source = 'Non-binary and "prefer not to answer" are not included due to small sample sizes') +
+  facet_wrap(vars(gender_group))
+
+telecommute_freq_gender_chart
+```
+
+\begin{flushleft}
+\textbf{Telecommute frequency by race and ethnicity}
+When telecommute frequency is broken down by race and ethnicity, the number of workers telecommuting at least once per week increased the most for white workers, while telecommuting remained the same for workers of color. By the 2021, there were similar shares of workers of color and white workers telecommuting.
+\end{flushleft}
 
 ## Third Section: workplace travel & industry trends in 2021
 \begin{flushleft}
