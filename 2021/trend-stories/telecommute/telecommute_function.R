@@ -102,8 +102,9 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                                       !is.na(gender) ~ gender))
   }
   
-  sdf$race_category <- recode(sdf$race_category, `White Only` = "White")
-  sdf$race_eth_poc <- recode(sdf$race_eth_poc, `Non-POC` = "White")
+  sdf$survey <- recode(sdf$survey, `2017_2019` = "2017/2019", .default = levels(sdf$survey))
+  sdf$race_category <- recode(sdf$race_category, `White Only` = "White", .default = levels(sdf$race_category))
+  sdf$race_eth_poc <- recode(sdf$race_eth_poc, `Non-POC` = "White", .default = levels(sdf$race_eth_poc))
   
   stats <- hhts_count(df = sdf,
                       stat_var = stat_var,
