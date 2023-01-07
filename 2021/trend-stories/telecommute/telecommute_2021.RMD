@@ -148,12 +148,47 @@ travel_by_gender_21 <- get_telecommute_data(survey = "2021",
                                             incl_na = FALSE) %>%
   filter(workplace_travel != "Total")
 
+travel_21 <- get_telecommute_data(survey = "2021",
+                                  stat_var = "workplace_travel",
+                                  group_vars = "workplace_travel",
+                                  weight = "person_adult_weight_2021",
+                                  incl_na = FALSE) %>%
+  filter(workplace_travel != "Total") %>% 
+  mutate(gender_group = "Region", .before = workplace_travel)
+
+travel_by_gender_21 <- bind_rows(travel_by_gender_21, travel_21)
+
+travel_by_gender_21$gender_group <- factor(travel_by_gender_21$gender_group)
+
+rm(travel_21)
+
 travel_by_race_21 <- get_telecommute_data(survey = "2021",
                                           stat_var = "workplace_travel",
                                           group_vars = c("race_category", "workplace_travel"),
                                           weight = "person_adult_weight_2021",
                                           incl_na = FALSE) %>% 
   filter(workplace_travel != "Total")
+
+travel_21 <- get_telecommute_data(survey = "2021",
+                                  stat_var = "workplace_travel",
+                                  group_vars = "workplace_travel",
+                                  weight = "person_adult_weight_2021",
+                                  incl_na = FALSE) %>%
+  filter(workplace_travel != "Total") %>% 
+  mutate(race_category = "Region", .before = workplace_travel)
+
+travel_by_race_21 <- bind_rows(travel_by_race_21, travel_21)
+
+travel_by_race_21$race_category <- factor(travel_by_race_21$race_category,
+                                          levels = c("African American",
+                                                     "Asian",
+                                                     "Hispanic",
+                                                     "Other",
+                                                     "White",
+                                                     "Missing",
+                                                     "Region"))
+
+rm(travel_21)
 
 # Industry
 industry_by_work_loc_21 <- get_telecommute_data(survey = "2021",
@@ -259,11 +294,27 @@ telecommute_freq_gender_chart
 When telecommute frequency is broken down by race and ethnicity, the number of workers telecommuting at least once per week increased the most for white workers, while telecommuting remained the same for workers of color. By the 2021, there were similar shares of workers of color and white workers telecommuting.
 \end{flushleft}
 
-## Third Section: workplace travel & industry trends in 2021
+## Trends in workplace travel in 2021
 \begin{flushleft}
-third section text here
+As discussed above, 37\% of workers in the region worked at home in 2021, while 63\% of workers still worked at a location outside the home. However, we did see differences in the survey data when cross-tabulating differences in workplace travel by gender and by race and ethnicity.
 \end{flushleft}
 
+### Men working outside the home more than women
+\begin{flushleft}
+Overall, there was a greater proportion of male workers (66\%) who reported working outside the home than female workers (59\%). However, both groups deviate only slightly from the regional average of 63\% of workers.
+\end{flushleft}
+
+```{r work_travel_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+# travel_by_gender_chart <- static_column_chart(t = travel_by_gender_21,
+#                                               x = "gender_group", y = "share",
+#                                               fill = "workplace_travel",
+#                                               pos = "stack",  # fix bar stack issue
+#                                               moe = "share_moe",
+#                                               color = "pgnobgy_5",
+#                                               title = "Workplace Travel by Gender, Spring 2021")
+# 
+# travel_by_gender_chart
+```
 
 
 \subsection{Conclusion}
