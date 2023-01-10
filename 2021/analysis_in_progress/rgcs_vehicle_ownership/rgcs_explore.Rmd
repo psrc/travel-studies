@@ -815,38 +815,6 @@ trip_w <- c("trip_weight_2017","trip_weight_2019","trip_adult_weight_2021")
 hh_w <- c("hh_weight_2017","hh_weight_2019","hh_weight_2021")
 
 
-# plot_rgc <- hhts_count(trip_data_17 %>%
-#                      filter(race_eth_broad != "Child -- no race specified"),
-#                    group_vars = c('final_home_is_rgc', 'mode_simple2'),
-#                    spec_wgt = 'trip_weight_2017') %>%  
-#   add_row(hhts_count(trip_data_19 %>%
-#                        filter(race_eth_broad != "Child -- no race specified"),
-#                      group_vars = c('final_home_is_rgc', 'mode_simple2'),
-#                      spec_wgt = 'trip_weight_2019')) %>%
-#   add_row(hhts_count(trip_data_21 %>%
-#                        filter(race_eth_broad != "Child -- no race specified"),
-#                      group_vars = c('final_home_is_rgc', 'mode_simple2'),
-#                      spec_wgt = 'trip_adult_weight_2021')) %>% 
-#   filter(final_home_is_rgc != 'Total',
-#          !is.na(mode_simple2),
-#          mode_simple2 != 'Total')
-# 
-# plot_metro <- hhts_count(trip_data_17 %>%
-#                      filter(race_eth_broad != "Child -- no race specified"),
-#                    group_vars = c('urban_metro', 'mode_simple2'),
-#                    spec_wgt = 'trip_weight_2017') %>%  
-#   add_row(hhts_count(trip_data_19 %>%
-#                        filter(race_eth_broad != "Child -- no race specified"),
-#                      group_vars = c('urban_metro', 'mode_simple2'),
-#                      spec_wgt = 'trip_weight_2019')) %>%
-#   add_row(hhts_count(trip_data_21 %>%
-#                        filter(race_eth_broad != "Child -- no race specified"),
-#                      group_vars = c('urban_metro', 'mode_simple2'),
-#                      spec_wgt = 'trip_adult_weight_2021')) %>% 
-#   filter(urban_metro != 'Total',
-#          !is.na(mode_simple2),
-#          mode_simple2 != 'Total')
-
 plot_rgc <- hhts_count(trip_data_21 %>%
                        filter(race_eth_broad != "Child -- no race specified"),
                      group_vars = c('final_home_is_rgc', 'mode_simple2'),

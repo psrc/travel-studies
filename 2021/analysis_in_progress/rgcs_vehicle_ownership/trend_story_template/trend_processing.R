@@ -82,6 +82,145 @@ trip_data_21<-    get_hhts("2021", "t", vars=trip_vars) %>%      trip_group_data
 
 # RGC analysis ####
 
+## travel behavior ####
+### 1. mode share ####
+mode_rgc <- hhts_count(trip_data_21 %>%
+                         filter(race_eth_broad != "Child -- no race specified"),
+                       group_vars = c('final_home_is_rgc', 'mode_simple2'),
+                       spec_wgt = 'trip_adult_weight_2021') %>% 
+  add_row(
+    hhts_count(trip_data_19 %>%
+                 filter(race_eth_broad != "Child -- no race specified"),
+               group_vars = c('final_home_is_rgc', 'mode_simple2'),
+               spec_wgt = 'trip_weight_2019')
+  ) %>% 
+  add_row(
+    hhts_count(trip_data_17 %>%
+                 filter(race_eth_broad != "Child -- no race specified"),
+               group_vars = c('final_home_is_rgc', 'mode_simple2'),
+               spec_wgt = 'trip_weight_2017')
+  ) %>% 
+  filter(final_home_is_rgc != 'Total',
+         !is.na(mode_simple2),
+         mode_simple2 != 'Total')
+
+mode_metro <- hhts_count(trip_data_21 %>%
+                           filter(race_eth_broad != "Child -- no race specified"),
+                         group_vars = c('urban_metro', 'mode_simple2'),
+                         spec_wgt = 'trip_adult_weight_2021') %>% 
+  add_row(
+    hhts_count(trip_data_19 %>%
+                 filter(race_eth_broad != "Child -- no race specified"),
+               group_vars = c('urban_metro', 'mode_simple2'),
+               spec_wgt = 'trip_weight_2019')
+  ) %>% 
+  add_row(
+    hhts_count(trip_data_17 %>%
+                 filter(race_eth_broad != "Child -- no race specified"),
+               group_vars = c('urban_metro', 'mode_simple2'),
+               spec_wgt = 'trip_weight_2017')
+  ) %>% 
+  filter(urban_metro != 'Total',
+         !is.na(mode_simple2),
+         mode_simple2 != 'Total')
+
+mode_metro$survey <- factor(mode_metro$survey, levels = c("2017","2019","2021"))
+mode_rgc$survey <- factor(mode_rgc$survey, levels = c("2017","2019","2021"))
+
+### 2. change in mode share ####
+mode_change_rgc <- hhts_count(trip_data_17_19 %>%
+                          filter(race_eth_broad != "Child -- no race specified"),
+                        group_vars = c('final_home_is_rgc', 'mode_simple2'),
+                        spec_wgt = 'trip_weight_2017_2019') %>%  
+  add_row(hhts_count(trip_data_21 %>%
+                       filter(race_eth_broad != "Child -- no race specified"),
+                     group_vars = c('final_home_is_rgc', 'mode_simple2'),
+                     spec_wgt = 'trip_adult_weight_2021')) %>% 
+  filter(final_home_is_rgc != 'Total',
+         !is.na(mode_simple2),
+         mode_simple2 != 'Total') 
+
+mode_change_rgc <- mode_change_rgc %>%
+  left_join(mode_change_rgc[mode_change_rgc$survey=="2017_2019",c(2,3,6,7)] %>% 
+              rename(share_base = share,
+                     share_moe_base = share_moe),
+            by = c("final_home_is_rgc", "mode_simple2")) %>%
+  filter(survey!="2017_2019",
+         mode_simple2!="Other") %>%
+  mutate(
+    share_change = (share-share_base) / share_base,
+    share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
+  ) 
+
+mode_change_metro <- hhts_count(trip_data_17_19 %>%
+                            filter(race_eth_broad != "Child -- no race specified"),
+                          group_vars = c('urban_metro', 'mode_simple2'),
+                          spec_wgt = 'trip_weight_2017_2019') %>%  
+  add_row(hhts_count(trip_data_21 %>%
+                       filter(race_eth_broad != "Child -- no race specified"),
+                     group_vars = c('urban_metro', 'mode_simple2'),
+                     spec_wgt = 'trip_adult_weight_2021')) %>% 
+  filter(urban_metro != 'Total',
+         !is.na(mode_simple2),
+         mode_simple2 != 'Total')
+
+mode_change_metro <- mode_change_metro %>%
+  left_join(mode_change_metro[mode_change_metro$survey=="2017_2019",c(2,3,6,7)] %>% 
+              rename(share_base = share,
+                     share_moe_base = share_moe),
+            by = c("urban_metro", "mode_simple2")) %>%
+  filter(survey!="2017_2019",
+         mode_simple2!="Other",
+         !(mode_simple2=="Transit" & urban_metro=="Urban")) %>%
+  mutate(
+    share_change = (share-share_base) / share_base,
+    share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
+  ) 
+
+### 3. trip travel time and distance ####
+time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
+                  group_vars=c('final_home_is_rgc'),
+                  spec_wgt='trip_adult_weight_2021') %>%
+  filter(final_home_is_rgc!='Total') %>%
+  mutate(label = "Trip distance (miles)") %>%
+  rename(mean = trip_path_distance_mean,
+         mean_moe = trip_path_distance_mean_moe) %>%
+  add_row(hhts_mean(trip_data_21, stat_var = 'google_duration',
+                    group_vars=c('final_home_is_rgc'),
+                    spec_wgt='trip_adult_weight_2021') %>%
+            filter(final_home_is_rgc!='Total') %>%
+            mutate(label = "Travel time (minutes)") %>%
+            rename(mean = google_duration_mean,
+                   mean_moe = google_duration_mean_moe))
+time_dist_metro <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
+                  group_vars=c('urban_metro'),
+                  spec_wgt='trip_adult_weight_2021') %>%
+  filter(urban_metro!='Total') %>%
+  mutate(label = "Trip distance (miles)") %>%
+  rename(mean = trip_path_distance_mean,
+         mean_moe = trip_path_distance_mean_moe) %>%
+  add_row(hhts_mean(trip_data_21, stat_var = 'google_duration',
+                    group_vars=c('urban_metro'),
+                    spec_wgt='trip_adult_weight_2021') %>%
+            filter(urban_metro!='Total') %>%
+            mutate(label = "Travel time (minutes)") %>%
+            rename(mean = google_duration_mean,
+                   mean_moe = google_duration_mean_moe))
+
+### 4. walking and transit frequencies ####
+freq <- per_data_21 %>%
+  mutate(walk_label = case_when(walk_freq %in% c("1 day/week",
+                                                 "2-4 days/week",
+                                                 "5 days/week",
+                                                 "6-7 days/week")~"at least 1 day/week",
+                                TRUE~ "less than 1 day/week"),
+         transit_label = case_when(transit_freq %in% c("1 day/week",
+                                                       "2-4 days/week",
+                                                       "5 days/week",
+                                                       "6-7 days/week")~"at least 1 day/week",
+                                   TRUE~ "less than 1 day/week"))
+
+
 ## demographics ####
 ## 2020 ACS 1-year data
 
