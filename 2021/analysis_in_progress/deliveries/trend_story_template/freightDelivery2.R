@@ -1,30 +1,6 @@
----
-title: "freightdelivery_rmd"
-author: "suzanne"
-date: "2022-09-14"
-output: html_document
----
+# This analysis is looking at food, grocery, package, and work/service deliveries from 2017, 2019, 2017/2019, and 2021 by hh.
+# Did the share of deliveries change by year? by hhsize? by income? by lifecycle?
 
-# This analysis is looking at food, grocery, package, and work/service deliveries from 2017, 2019, 2017/2019, and 2021
-# by household. 
-
-# How many days did people receive deliveries?
-# Did the number of deliveries change by year? by race? by income? by lifecycle?
-
-```{r setup, include=FALSE, eval = FALSE}
-
-# how many days did people receive deliveries?
-# did the number of deliveries change by year? by race? by income?
-
-# .libPaths()
-# .libloc <- "C:/Users/MGrzybowski/AppData/Local/R/win-library/4.2"
-# remove.packages("rlang")
-# install.packages("rlang")
-getwd()
-
-# r start
-
-library(tidyverse)
 library(data.table)
 library(leaflet)
 library(shiny)
@@ -34,9 +10,6 @@ library(readr)
 library(ggplot2)
 library(ggiraph)
 library(magrittr)
-
-# additional packages
-
 library(usethis)
 library(installr)
 library(sf)
@@ -49,10 +22,10 @@ library(ggpubr)
 
 # packages that are from github that host functions for pulling data (do the install in R Gui, not RStudio)
 
-devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
-devtools::install_github("psrc/psrccensus", force = TRUE)
-devtools::install_github("psrc/psrcplot", force = TRUE)
-devtools::install_github("psrc/psrctrends", force = TRUE)
+#devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
+#devtools::install_github("psrc/psrccensus", force = TRUE)
+#devtools::install_github("psrc/psrcplot", force = TRUE)
+#devtools::install_github("psrc/psrctrends", force = TRUE)
 
 # run these after installing github changes through R Gui
 
@@ -62,6 +35,8 @@ library(psrcplot)
 library(psrctrends)
 
 install_psrc_fonts()
+setwd("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template")
+#output_path <- "C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_visuals"
 
 # for Elmer connection
 
@@ -79,6 +54,9 @@ elmer_connect <- function(){
 
 elmer_connection <- elmer_connect()
 
+# functions
+source("delivery_fxns.R")
+
 # views and global variables for days and households (** the days table has been updated to include hh variables)
 # surveys a,b,c, and d will be used in functions later in code
 
@@ -90,101 +68,21 @@ survey_b <- list(survey = '2021', label = '2021')
 survey_c <- list(survey = '2017', label = '2017')
 survey_d <- list(survey = '2019', label = '2019')
 
-# look at variable names and which years they were collected/documented
-
-# hhts_varsearch("delivery")
-# hhts_varsearch("traveldate")
-# hhts_varsearch("race")
-# hhts_varsearch('income')
-# hhts_varsearch('age')
-# hhts_varsearch('county')
-# hhts_varsearch('home')
-hhts_varsearch('hhincome_dichot')
-
-names(deliveries)
-head(household_info)
-
-unique(household_info$lifecycle)
-unique(deliveries$delivery_work_freq)
-
 # create variables that would like to group by for analysis of deliveries by household
 
-delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", 
+                   "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
 days <- c("dayofweek", "typical_day")
-hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'hhincome_dichot', 'race_category_alone_multi', 'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc','pernum', 'hhsize')
-
-```
-
-```{r, visualization functions}
-# function combining the delivery and household functions into one and ordering income by levels
-
-smp_delivery_combo <- function(data, year) {
-  ## rewriting labels of responses to be more concise
-  temp_table <- data %>%
-    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
-                                        # pernum == 1 removes households where multiple members answered the question
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
-                                        deliver_food=='No' ~ 'No Delivery',
-                                        TRUE ~ 'Delivery Received'))%>%
-    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        deliver_package=='No' ~ 'No Delivery',
-                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
-                                        TRUE ~ 'Delivery Received'))%>%
-    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
-                                        deliver_grocery=='No' ~ 'No Delivery',
-                                        TRUE ~ 'Delivery Received'))%>%
-    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
-                                        (pernum>1) ~ 'Not Person One, not the responder',
-                                        deliver_work =='No' ~ 'No Delivery',
-                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
-                                         TRUE ~ 'Delivery Received'))%>%
-     mutate(hhincome_broad = factor(case_when(as.character(hhincome_broad) %in% c("$100,000-$199,000","$200,000 or more") ~ 
-                                             "$100,000 or more", !is.na(hhincome_broad) ~ as.character(hhincome_broad)),
-                                  levels=c("Under $25,000", 
-                                          "$25,000-$49,999", 
-                                          "$50,000-$74,999", 
-                                         "$75,000-$99,999", 
-                                           "$100,000 or more", 
-                                           "Prefer not to answer")))%>%
-     mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"  
-                                 ~ '65 years or older', 
-                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
-                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
-                                 ~ '35-64',
-                                   lifecycle == "Household size > 1, Householder under age 35" | 
-                                   lifecycle == "Household size = 1, Householder under age 35" 
-                                   ~ 'Under 35 years, no kids',
-                                   lifecycle == "Household includes children age 5-17" | 
-                                   lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
-    mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
-                                  hhsize == "2 people"  ~ '2 people', 
-                                   hhsize == "3 people" ~ '3 people',
-                                   hhsize == "4 people" | 
-                                  hhsize == "5 people" | 
-                                  hhsize == "6 people" | 
-                                  hhsize == "7 people" |
-                                  hhsize == "8 people" | 
-                                  hhsize == "12 people" ~ "4+ people"))
-  temp_table
-}
-```
-
-```{r, getting survey data with pre-identified variables for households}
+hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'hhincome_dichot', 'race_category_alone_multi', 
+             'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 
+             'final_home_uvnum', 'final_home_is_rgc','pernum', 'hhsize')
 
 # -- How frequently is someone having a delivery made?? 
 # -- 2017, 2019, 2017/2019, 2021
 
-# pull datasets from two separate dataframes per year
-
 dsurvey_17 <- get_hhts(survey = survey_c$survey, 
                         level = "d", 
                         vars = c(delivery_type, days, hh_data)) 
-
 
 
 dsurvey_19 <- get_hhts(survey = survey_d$survey, 
@@ -192,94 +90,51 @@ dsurvey_19 <- get_hhts(survey = survey_d$survey,
                        vars = c(delivery_type, days, hh_data)) 
 
 
-
 dsurvey_1719 <- get_hhts(survey = survey_a$survey, 
                        level = "d", 
                        vars = c(delivery_type, days, hh_data)) 
-
 
 
 dsurvey_21 <- get_hhts(survey = survey_b$survey, 
                        level = "d", 
                        vars = c(delivery_type, days, hh_data)) 
 
-
-
-```
-
-```{r, generate datasets}
+# generate datasets
 
 delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
-
-
 delivery_19 <- smp_delivery_combo(dsurvey_19, '2019')
-
-
 delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')
-
-
 delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
 
-
-```
-
-```{r, rename datasets as "joined_df_deliveries_year"}
+# renamed datasets
 
 joined_df_deliveries_17 <-delivery_17
-
 joined_df_deliveries_19 <- delivery_19
-
 joined_df_deliveries_1719 <- delivery_1719
-
 joined_df_deliveries_21 <- delivery_21
 
-```
+# apply weights 
 
-```{r, sum checks to verify population numbers, eval = FALSE}
-
-# Sums should match the number of people in the region
-# In 2021, this represents the number of adults, because didn't observe children's days
-
-sum(joined_df_deliveries_17$day_weight_2017)
-sum(joined_df_deliveries_19$day_weight_2019)
-sum(joined_df_deliveries_21$person_adult_weight_2021)
-
-```
-It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
-```{r, sum checks to verify household numbers, eval = FALSE}
 joined_df_deliveries_1719$day_weight_2017_2019<-joined_df_deliveries_1719$day_weight_2017_2019/2
 sum(joined_df_deliveries_1719$day_weight_2017_2019)
 dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017))
 joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017))
-```
 
-```{r, removing duplicate household member responses}
+# removing duplicate household member responses
 joined_df_deliveries_17<<-joined_df_deliveries_17%>%filter(pernum==1)
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(pernum==1)
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
-```
 
-```{r, sum checks to verify households for the individual years with their new weights, eval = FALSE}
-sum(joined_df_deliveries_17$day_weight_2017)
-sum(joined_df_deliveries_19$day_weight_2019)
-sum(joined_df_deliveries_21$hh_weight_2021) #this weight matches the closest to the annual household count
-# sum(joined_df_deliveries_21$person_adult_weight_2021)
-# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
-```
-
-```{r, removing true non-responses}
+# removing true non-responses
 joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
 
-```
+# descriptive stats for hhsize
+# ggplot(data = deliveries) + 
+  # geom_bar(mapping = aes(x =hhsize))
 
-```{r, descriptive stats for hhsize}
-ggplot(data = deliveries) + 
-  geom_bar(mapping = aes(x =hhsize))
-```
-
-```{r, food deliveries by year alone}
+# food deliveries by year alone
 
 count_food_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_food_all",
                                      spec_wgt = "day_weight_2017")%>%
@@ -295,29 +150,27 @@ count_food_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_food
                                spec_wgt = "hh_weight_2021") %>%
   filter(delivery_food_all == "Delivery Received")
 
-
-# merge data frames for combined 2017/2019 and 2021
-# write csv
+# merge food data frames for combined 2017/2019 and 2021 and write csv
 
 food_freq_separate <- rbind(count_food_17, count_food_19, count_food_21)
-
-
 write.csv(food_freq_separate, 'delivery_by_freq_food2.csv')
 
-# create plot
+# create food by year plot
 
-food_c <-static_column_chart(t=food_freq_separate, x='delivery_food_all', y='share', f='survey', moe='share_moe', 
-                          est ='percent', color = 'psrc_light')+
-  xlab(as.character('Food')) + ylab('Share of Households Receiving These Types of Deliveries')+
-  theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
-  theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
-  theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
+food_column<- static_column_chart(t= food_freq_separate,
+                                     x="delivery_food_all", y="share",
+                                     f="survey",
+                                     moe = "share_moe",
+                                     color="psrc_pairs",
+                                     est ="percent",
+                                     dec=1,
+                                     title="Food/Meal Deliveries",
+                                     subtitle="(e.g., pizza/sushi, Grubhub)",
+                                     source = "regional household travel survey")
 
-print(food_c)
+food_column
 
-```
-
-```{r, package deliveries by year alone}
+# package deliveries by year alone
 
 count_pkgs_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_pkgs_all",
                                      spec_wgt = "day_weight_2017")%>%
@@ -334,28 +187,27 @@ count_pkgs_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_pkgs
   filter(delivery_pkgs_all == "Delivery Received")
 
 
-# merge data frames for combined 2017/2019 and 2021
-# write csv
+# merge package data frames for combined 2017/2019 and 2021 and write csv
 
 pkgs_freq_separate <- rbind(count_pkgs_17, count_pkgs_19, count_pkgs_21)
-
-
 write.csv(pkgs_freq_separate, 'delivery_by_freq_pkgs2.csv')
 
 # create plot
 
-pkgs_c <-static_column_chart(t=pkgs_freq_separate, x='delivery_pkgs_all', y='share', f='survey', moe='share_moe', 
-                          est ='percent', color = 'psrc_light')+
-  xlab(as.character('Packages')) + ylab('Share of Households Receiving These Types of Deliveries')+
-  theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
-  theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
-  theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
+package_column<- static_column_chart(t= pkgs_freq_separate,
+                                     x="delivery_pkgs_all", y="share",
+                                     f="survey",
+                                     moe = "share_moe",
+                                     color="psrc_pairs",
+                                     est ="percent",
+                                     dec=1,
+                                     title="Package Deliveries",
+                                     subtitle="(e.g., FedEx, UPS, USPS)",
+                                     source = "regional household travel survey")
 
-print(pkgs_c)
+package_column
 
-```
-
-```{r, grocery deliveries by year alone}
+# grocery deliveries by year alone
 
 count_grocery_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_grocery_all",
                                      spec_wgt = "day_weight_2017")%>%
@@ -372,24 +224,12 @@ count_grocery_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_g
   filter(delivery_grocery_all == "Delivery Received")
 
 
-# merge data frames for combined 2017/2019 and 2021
-# write csv
+# merge grocery data frames for combined 2017/2019 and 2021 and write csv
 
 grocery_freq_separate <- rbind(count_grocery_17, count_grocery_19, count_grocery_21)
-
-
 write.csv(grocery_freq_separate, 'delivery_by_freq_grocery2.csv')
 
 # create plot
-
-grocery_c<-static_column_chart(t=grocery_freq_separate, x='delivery_grocery_all', y='share', f='survey', moe='share_moe', 
-                          est ='percent', color = 'psrc_light')+
-  xlab(as.character('Grocery')) + ylab('Share of Households Receiving These Types of Deliveries')+
-  theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
-  theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
-  theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
-
-print(grocery_c)
 
 grocery_column<- static_column_chart(t= grocery_freq_separate,
                                                   x="delivery_grocery_all", y="share",
@@ -404,9 +244,7 @@ grocery_column<- static_column_chart(t= grocery_freq_separate,
 
 grocery_column
 
-```
-
-```{r, work/service deliveries by year alone}
+# work/service deliveries by year alone
 count_work_17 <- hhts_count(joined_df_deliveries_17, group_vars = "delivery_work_all",
                                      spec_wgt = "day_weight_2017")%>%
   filter(delivery_work_all== "Delivery Received")
@@ -421,26 +259,13 @@ count_work_21 <- hhts_count(joined_df_deliveries_21, group_vars = "delivery_work
                                spec_wgt = "hh_weight_2021") %>%
   filter(delivery_work_all == "Delivery Received")
 
-
 # merge data frames for combined 2017/2019 and 2021
 # write csv
 
 work_freq_separate <- rbind(count_work_17, count_work_19, count_work_21)
-
-
 write.csv(work_freq_separate, 'delivery_by_freq_work2.csv')
 
 # create plot
-
-work_c<-static_column_chart(t=work_freq_separate, x='delivery_work_all', y='share', f='survey', moe='share_moe', 
-                          est='percent', color = 'psrc_light')+
-  xlab(as.character('Work/Service')) + ylab('Share of Households Receiving These Types of Deliveries')+
-  theme(axis.text.x = element_text(size=14,color="#4C4C4C"))+ 
-  theme(axis.title.x = element_text(size=20,color="#4C4C4C"))+
-  theme(axis.title.y = element_text(size=8,color="#4C4C4C"))
-
-
-print(work_c)
 
 work_column<- static_column_chart(t= work_freq_separate,
                                                   x="delivery_work_all", y="share",
@@ -454,22 +279,17 @@ work_column<- static_column_chart(t= work_freq_separate,
                                          source = "regional household travel survey")
 
 work_column
-```
 
-```{r, facet wrap charts for all deliveries}
+# facet wrap charts for all deliveries
 # pull from Mary's T:\2022September\Mary\EquityTracker\Transportation\HCTaccess_2020_5y_Elmer_CSV.Rmd code
 
 # rename column names so that can bind dfs
 # change response type from Delivery Received to delivery_type (i.e., food, grocery, pkgs, work)
 
 food_freq_separate$delivery_type = c("food/meal", "food/meal", "food/meal")
-
 grocery_freq_separate$delivery_type = c("grocery", "grocery", "grocery")
-
 pkgs_freq_separate$delivery_type = c("packages", "packages", "packages")
-
 work_freq_separate$delivery_type = c("work/service", "work/service", "work/service")
-
 
 # bind all dataframes together 
 
@@ -491,11 +311,12 @@ deliveries_facet1<- create_facet_bar_chart(t= all_deliveries_freq_17_21_new,
                                                   w.scales="fixed",
                                                   w.facet=2,
                                                   w.title="Home Deliveries or Services",
-                                                  w.sub.title="Share of Households on Average Weekday")
+                                                  w.sub.title="Share of Households on Average Weekday")+
+  ggplot2::theme(axis.title = ggplot2::element_blank()) 
 
 deliveries_facet1
 
-deliveries_facet_test<- static_column_chart(t= all_deliveries_freq_17_21_new,
+deliveries_all_column<- static_column_chart(t= all_deliveries_freq_17_21_new,
                                                   x="delivery_type", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -506,351 +327,80 @@ deliveries_facet_test<- static_column_chart(t= all_deliveries_freq_17_21_new,
                                                   subtitle="Share of Households on Average Weekday",
                                          source = "regional household travel survey")
 
-deliveries_facet_test
-```
+deliveries_all_column
 
-```{r, count and share function, eval = FALSE}
-# -- this chunk is essentially what was performed above so not necessary, see eval = FALSE
+# create data frames to run crosstabs for broad income and food deliveries
+# crosstabs for BROAD income and food delivery by share and count (across years)
 
+#food_income_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
+ #                   group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
+  #filter(hhincome_broad != 'Total')%>%
+  #filter(delivery_food_all != 'Total')%>%
+  #filter(delivery_food_all != 'No Delivery')
 
-# crosstabs for income and food delivery by share and count (across years)
-test2 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
-                    group_vars = c('delivery_food_all', 'hhincome_broad')) %>% 
-  filter(hhincome_broad != 'Total')
+#food_income_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
+ #                   group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
+  #filter(hhincome_broad != 'Total')%>%
+  #filter(delivery_food_all != 'Total')%>%
+  #filter(delivery_food_all != 'No Delivery')
+
+#food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
+ #                   group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
+  #filter(hhincome_broad != 'Total')%>%
+  #filter(delivery_food_all != 'Total')%>%
+  #filter(delivery_food_all != 'No Delivery')
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
-all_food_freq_17_21 <- bind_rows(count_food_17, count_food_19, count_food_21) %>%
-  mutate(period = as.factor(survey))
 
-table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
+#all_food_freq_17_21 <- bind_rows(food_income_17, food_income_19, food_income_21) %>%
+ # mutate(period = as.factor(survey))
 
+#table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
 
-# plotting count and share
+# crosstabs for DICHOTOMOUS income and food delivery by share (across years)
 
-count_and_share_plot <- function(dt, grp_var, num_var, legend_name, tbl_name){
- 
-   fill_group <- dt[[grp_var]]
-   x_axis_grp <- dt[[num_var]]
-  
-  count_plot <- ggplot(dt,
-                       aes(x=x_axis_grp,
-                           y=count,
-                           fill = survey)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Number") +
-    scale_y_continuous(labels = scales::comma) +
-    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
-                  position = position_dodge2(width = 0.9, preserve = "single", padding = .5))
-         
-  share_plot <- ggplot(dt,
-                       aes(x=x_axis_grp,
-                           y=share,
-                           fill = survey)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share") +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  position = position_dodge2(width = 0.9, preserve = "single", padding = .5))
-  
-  trips <- ggarrange(count_plot, share_plot, 
-                     # ncol = 2, nrow = 1,
-                     common.legend = TRUE,
-                     legend = "right")
-  
-  annotate_figure(trips, top = text_grob(tbl_name, 
-                                         color = "blue", face = "bold", size = 14))
-}
+food_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
+                                    group_vars = c('hhincome_dichot', 'delivery_food_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
+  filter(delivery_food_all != 'Total')%>%
+  filter(delivery_food_all != 'No Delivery')%>%
+  mutate(hhincome_dichot = fct_relevel(hhincome_dichot,
+                                       "Under $75,000", "$75,000+", "Prefer not to answer"))
 
-count_and_share_plot(all_food_freq_17_21,
-                     "survey",
-                     "delivery_food_all",
-                     "Number of Deliveries per Household",
-                     "Number vs Share of Trips by Destination")
-```
-
-```{r, create data frames to run crosstabs for income and food deliveries}
-# crosstabs for income and food delivery by share and count (across years)
-
-food_income_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
-                    group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
-  filter(hhincome_broad != 'Total')%>%
+food_income_19_dichot <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
+                                    group_vars = c('hhincome_dichot', 'delivery_food_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
-food_income_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
-                    group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
-  filter(hhincome_broad != 'Total')%>%
-  filter(delivery_food_all != 'Total')%>%
-  filter(delivery_food_all != 'No Delivery')
-
-food_income_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
-                    group_vars = c('hhincome_broad', 'delivery_food_all')) %>% 
-  filter(hhincome_broad != 'Total')%>%
+food_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021', 
+                                    group_vars = c('hhincome_dichot', 'delivery_food_all')) %>% 
+  filter(hhincome_dichot != 'Total')%>%
+  filter(hhincome_dichot != 'Prefer not to answer') %>%
   filter(delivery_food_all != 'Total')%>%
   filter(delivery_food_all != 'No Delivery')
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 
-all_food_freq_17_21 <- bind_rows(food_income_17, food_income_19, food_income_21) %>%
+all_food_dichot_17_21 <- bind_rows(food_income_17_dichot, food_income_19_dichot, food_income_21_dichot) %>%
   mutate(period = as.factor(survey))
 
-table(all_food_freq_17_21$delivery_food_all, all_food_freq_17_21$period)
-```
+# crosstab for income and food delivery 
 
-```{r, data visualization function for crosstabs}
-# plot by year and by category
-
-share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  x_axis_grp <- all_food_freq_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~period)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_year2 <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  x_axis_grp <- all_food_freq_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_food_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=period,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_freq_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-count_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=period,
-                                       y=count,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_freq_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Count",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::comma) +
-    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-```
-
-
-```{r, data visualization function for crosstabs}
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year(food_income_17, food_income_19, food_income_21,
-                   'hhincome_broad', 'delivery_food_all', 
-                   'Food Deliveries to Households by Income')
-
-share_plot_by_year2(food_income_17, food_income_19, food_income_21,
-                   'survey', 'hhincome_broad',  
-                    'Food Deliveries by Year')
-
-share_plot_by_cat(food_income_17, food_income_19, food_income_21, 
-                  'hhincome_broad', 'delivery_food_all',
-                  'Income Categories')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-count_plot_by_cat(food_income_17, food_income_19, food_income_21, 
-                  'hhincome_broad', 'delivery_food_all',
-                  'Income Categories')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-```
-
-```{r}
-# crosstabs for lifecycle and food delivery by share and count (across years)
-
-food_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')
-
-food_lifecycle_19 <- hhts_count(joined_df_deliveries_19, spec_wgt = 'day_weight_2019', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')
-
-food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person_adult_weight_2021', 
-                    group_vars = c('delivery_food_all', 'lifecycle')) %>% 
-  filter(lifecycle != 'Total')
-
-# merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
-all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21) %>%
-  mutate(period = as.factor(survey))
-
-table(all_food_lifecycle_17_21$delivery_food_all, all_food_lifecycle_17_21$period)
-
-# plot by year and by category
-
-share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  x_axis_grp <- all_food_freq_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~period)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_year2 <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  x_axis_grp <- all_food_freq_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_food_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_cat <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_freq_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_freq_17_21, aes(x=period,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_freq_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
-                   'hhincome_broad', 'delivery_food_all', 
-                   'Food Deliveries to Households by Income')
-
-share_plot_by_year2(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21,
-                   'survey', 'hhincome_broad', 'Food Deliveries by Year')
-
-share_plot_by_cat(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21, 
-                  'hhincome_broad', 'delivery_food_all',
-                  'Income Categories')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-food_lifecycle_column<- static_column_chart(t= all_food_lifecycle_17_21,
-                                                  x="lifecycle", y="share",
-                                                  f="survey",
-                                            moe = "share_moe",
-                                                  color="psrc_pairs",
-                                                  est ="percent",
-                                                  dec=1,
-                                                  title="Food/Meal Deliveries by Income",
-                                                  subtitle="(e.g.., pizza/sushi, Grubhub)",
+food_income_column<- static_column_chart(t= all_food_dichot_17_21,
+                                         x="hhincome_dichot", y="share",
+                                         f="survey",
+                                         moe = "share_moe",
+                                         color="psrc_pairs",
+                                         est ="percent",
+                                         dec=1,
+                                         title="Food/Meal Deliveries by Income",
+                                         subtitle="(e.g.., pizza/sushi, Grubhub)",
                                          source = "PSRC Regional Household Travel Survey")
 
-food_lifecycle_column
-
-#food_income_column<- static_column_chart(t= all_food_income_dichot_17_21,
- #                                                 x="hhincome_dichot", y="share",
-  #                                                f="survey",
-   #                                         moe = "share_moe",
-    #                                              color="psrc_pairs",
-     #                                             est ="percent",
-      #                                            dec=1,
-       #                                           title="Food/Meal Deliveries by Income",
-        #                                          subtitle="(e.g.., pizza/sushi, Grubhub)",
-         #                                source = "PSRC Regional Household Travel Survey")
-
-#food_income_column
-
-```
-
-```{r, crosstabs for grocery deliveries and income dichotomies, share_plot_by_year2 is favored plot}
+food_income_column
 
 # crosstabs for income and grocery delivery by share and count (across years)
 
@@ -894,36 +444,7 @@ all_grocery_income_dichot_17_21 <- bind_rows(grocery_income_17_dichot, grocery_i
 
 # plot by year and by category
 
-share_plot_by_year2_b <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_grocery_income_dichot_17_21[[grp_var]]
-  x_axis_grp <- all_grocery_income_dichot_17_21[[grp_var2]]
-  
-  ggplot(all_grocery_income_dichot_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_grocery_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-# create crosstab tables
-
-share_plot_by_year2_b(grocery_income_17_dichot, grocery_income_19_dichot, grocery_income_21_dichot,
-                   'survey', 'hhincome_dichot',  
-                    'Grocery Deliveries by Year')+
-  scale_fill_discrete_psrc("psrc_light")
-
-groceries_test<- static_column_chart(t= all_grocery_income_dichot_17_21,
+groceries_income_column<- static_column_chart(t= all_grocery_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -934,13 +455,9 @@ groceries_test<- static_column_chart(t= all_grocery_income_dichot_17_21,
                                                   subtitle="(i.e., Amazon Fresh, Safeway Online, Instacart)",
                                          source = "PSRC Regional Household Travel Survey")
 
-groceries_test
+groceries_income_column
 
-```
-
-```{r, crosstabs for package deliveries and income dichotomies, share_plot_by_year2 is favored plot}
-
-# crosstabs for income and package delivery by share and count (across years)
+# crosstabs for package deliveries and income dichotomies, share_plot_by_year2 is favored plot
 
 pkg_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhincome_dichot', 'delivery_pkgs_all')) %>% 
@@ -982,36 +499,7 @@ all_pkgs_income_dichot_17_21 <- bind_rows(pkg_income_17_dichot, pkg_income_19_di
 
 # plot by year and by category
 
-share_plot_by_year2_c <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_pkgs_income_dichot_17_21[[grp_var]]
-  x_axis_grp <- all_pkgs_income_dichot_17_21[[grp_var2]]
-  
-  ggplot(all_pkgs_income_dichot_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_pkgs_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-# create crosstab tables
-
-share_plot_by_year2_c(pkgs_income_17_dichot, pkgs_income_17_dichot, pkgs_income_21_dichot,
-                   'survey', 'hhincome_dichot',  
-                    'Package Deliveries by Year')+
-  scale_fill_discrete_psrc("psrc_light")
-
-pkgs_test<- static_column_chart(t= all_pkgs_income_dichot_17_21,
+pkgs_income_column<- static_column_chart(t= all_pkgs_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -1022,11 +510,8 @@ pkgs_test<- static_column_chart(t= all_pkgs_income_dichot_17_21,
                                                   subtitle="(i.e., FedEx, UPS, USPS)",
                                          source = "PSRC Regional Household Travel Survey")
 
-pkgs_test
+pkgs_income_column
 
-```
-
-```{r, crosstabs for work/service deliveries and income dichotomies, share_plot_by_year2 is favored plot}
 # crosstabs for income and package delivery by share and count (across years)
 
 work_income_17_dichot <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
@@ -1069,36 +554,7 @@ all_work_income_dichot_17_21 <- bind_rows(work_income_17_dichot, work_income_19_
 
 # plot by year and by category
 
-share_plot_by_year2_d <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_work_income_dichot_17_21[[grp_var]]
-  x_axis_grp <- all_work_income_dichot_17_21[[grp_var2]]
-  
-  ggplot(all_work_income_dichot_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_work_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-# create crosstab tables
-
-share_plot_by_year2_d(work_income_17_dichot, work_income_17_dichot, work_income_21_dichot,
-                   'survey', 'hhincome_dichot',  
-                    'Work Deliveries by Year')+
-  scale_fill_discrete_psrc("psrc_light")
-
-work_test<- static_column_chart(t= all_work_income_dichot_17_21,
+work_income_column<- static_column_chart(t= all_work_income_dichot_17_21,
                                                   x="hhincome_dichot", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -1109,10 +565,7 @@ work_test<- static_column_chart(t= all_work_income_dichot_17_21,
                                                   subtitle="(e.g., landscaping, cable service, house-cleaningcable)",
                                          source = "PSRC Regional Household Travel Survey")
 
-work_test
-```
-
-```{r, crosstabs for food deliveries and lifecycle stages - by year3 code includes combined 17/19, but can revert back to disaggregated if desired}
+work_income_column
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
@@ -1145,11 +598,9 @@ food_lifecycle_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = "hh_weight_2
 all_food_lifecycle_17_21 <- bind_rows(food_lifecycle_17, food_lifecycle_19, food_lifecycle_21) %>%
   mutate(period = as.factor(survey))
 
-table(all_food_lifecycle_17_21$delivery_food_all, all_food_lifecycle_17_21$period)
-
 # plot
 
-lifecycles_test<- static_column_chart(t= all_food_lifecycle_17_21,
+food_lifecycles<- static_column_chart(t= all_food_lifecycle_17_21,
                                                   x="survey", y="share",
                                                   f="lifecycle",
                                             moe = "share_moe",
@@ -1160,12 +611,9 @@ lifecycles_test<- static_column_chart(t= all_food_lifecycle_17_21,
                                                   subtitle="(e.g., pizza/sushi, GrubHub)",
                                          source = "PSRC Regional Household Travel Survey")
 
-lifecycles_test
-```
+food_lifecycles
 
-```{r, crosstabs for grocery deliveries and lifecycle stages}
-
-# crosstabs for lifecycle and food delivery by share and count (across years)
+# crosstabs for grocery deliveries and lifecycle stages
 
 grocery_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('lifecycle', 'delivery_grocery_all')) %>% 
@@ -1197,7 +645,7 @@ all_grocery_lifecycle_17_21 <- bind_rows(grocery_lifecycle_17, grocery_lifecycle
 
 # column chart
 
-lifecycles_grocery_test<- static_column_chart(t= all_grocery_lifecycle_17_21,
+grocery_lifecycles<- static_column_chart(t= all_grocery_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -1208,11 +656,7 @@ lifecycles_grocery_test<- static_column_chart(t= all_grocery_lifecycle_17_21,
                                                   subtitle="(e.g., Amazon Fresh, Safeway Online, Instacart)",
                                          source = "PSRC Regional Household Travel Survey")
 
-lifecycles_grocery_test
-
-```
-
-```{r, crosstabs for package deliveries and lifecycle stages}
+grocery_lifecycles
 
 # crosstabs for lifecycle and food delivery by share and count (across years)
 
@@ -1247,7 +691,7 @@ all_pkgs_lifecycle_17_21 <- bind_rows(pkgs_lifecycle_17, pkgs_lifecycle_19, pkgs
 
 # column chart
 
-lifecycles_pkgs<- static_column_chart(t= all_pkgs_lifecycle_17_21,
+pkgs_lifecycles<- static_column_chart(t= all_pkgs_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -1258,13 +702,9 @@ lifecycles_pkgs<- static_column_chart(t= all_pkgs_lifecycle_17_21,
                                                   subtitle="(e.g., FedEx, UPS, USPS)",
                                          source = "PSRC Regional Household Travel Survey")
 
-lifecycles_pkgs
+pkgs_lifecycles
 
-```
-
-```{r, crosstabs for work/service deliveries and lifecycle stages}
-
-# crosstabs for lifecycle and food delivery by share and count (across years)
+# crosstabs for work/service deliveries and lifecycle stages
 
 work_lifecycle_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('lifecycle', 'delivery_work_all')) %>% 
@@ -1297,7 +737,7 @@ all_work_lifecycle_17_21 <- bind_rows(work_lifecycle_17, work_lifecycle_19, work
 
 # column chart
 
-lifecycles_work<- static_column_chart(t= all_work_lifecycle_17_21,
+work_lifecycles<- static_column_chart(t= all_work_lifecycle_17_21,
                                                   x="lifecycle", y="share",
                                                   f="survey",
                                             moe = "share_moe",
@@ -1308,18 +748,13 @@ lifecycles_work<- static_column_chart(t= all_work_lifecycle_17_21,
                                                   subtitle="(e.g., landscaping, cable service, house-cleaning)",
                                          source = "PSRC Regional Household Travel Survey")
 
-lifecycles_work
+work_lifecycles
 
-```
-
-```{r, rgc facet wrap with fixed scale}
+# lifecycle facet wrap with fixed scale
 
 food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
-
 grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery", "grocery")
-
 pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages", "packages")
-
 work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service", "work/service")
 
 # bind all dataframes together 
@@ -1350,29 +785,20 @@ deliveries_lifecycle_facet
 # facet for suzanne - request on teams
 # 2017
 food_lifecycle_17$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
-
 grocery_lifecycle_17$delivery_type = c("grocery", "grocery", "grocery", "grocery")
-
 pkgs_lifecycle_17$delivery_type = c("packages", "packages", "packages", "packages")
-
 work_lifecycle_17$delivery_type = c("work/service", "work/service", "work/service", "work/service")
 
 #2019
 food_lifecycle_19$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
-
 grocery_lifecycle_19$delivery_type = c("grocery", "grocery", "grocery", "grocery")
-
 pkgs_lifecycle_19$delivery_type = c("packages", "packages", "packages", "packages")
-
 work_lifecycle_19$delivery_type = c("work/service", "work/service", "work/service", "work/service")
 
 #2021
 food_lifecycle_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal")
-
 grocery_lifecycle_21$delivery_type = c("grocery", "grocery", "grocery", "grocery")
-
 pkgs_lifecycle_21$delivery_type = c("packages", "packages", "packages", "packages")
-
 work_lifecycle_21$delivery_type = c("work/service", "work/service", "work/service", "work/service")
 
 # bind all dataframes together 
@@ -1398,8 +824,7 @@ deliveries_lifecycle_facet2<- create_facet_bar_chart(t= all_deliveries_lifecycle
 
 deliveries_lifecycle_facet2
 
-# favored
-?create_facet_bar_chart
+# favored - with free scale instead of fixed
 deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
                                                   w.x="lifecycle", w.y="share",
                                                   f="survey", g="delivery_type",
@@ -1416,11 +841,7 @@ deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle
 
 deliveries_lifecycle_facet3
 
-```
-
-```{r, food deliveries and rgc location/destination}
-
-# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+# food deliveries and rgc location/destination, location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
 
 food_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_food_all')) %>% 
@@ -1444,116 +865,7 @@ food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021',
 all_food_rgc_17_21 <- bind_rows(food_rgc_17, food_rgc_19, food_rgc_21) %>%
   mutate(period = as.factor(survey))
 
-table(all_food_rgc_17_21$delivery_food_all, all_food_rgc_17_21$period)
-
 # plot by year and by category
-
-share_plot_by_year_rgc<- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_rgc_17_21[[grp_var]]
-  x_axis_grp <- all_food_rgc_17_21[[grp_var2]]
-  
-  ggplot(all_food_rgc_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~period)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_year2_rgc <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_rgc_17_21[[grp_var]]
-  x_axis_grp <- all_food_rgc_17_21[[grp_var2]]
-  
-  ggplot(all_food_rgc_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_food_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_cat_rgc<- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_rgc_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_rgc_17_21, aes(x=period,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_rgc_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-count_plot_by_cat_rgc <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_rgc_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_rgc_17_21, aes(x=period,
-                                       y=count,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_rgc_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Count",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::comma) +
-    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
-                   'final_home_is_rgc', 'delivery_food_all', 
-                   'Food Deliveries to Households by RGC location')
-
-
-share_plot_by_year2_rgc(food_rgc_17, food_rgc_19, food_rgc_21,
-                   'final_home_is_rgc', 'survey',  
-                    'Food Deliveries by Year')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-share_plot_by_cat_rgc(food_rgc_17, food_rgc_19, food_rgc_21, 
-                  'final_home_is_rgc', 'delivery_food_all',
-                  'Location')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-#ppsrc plot style
 
 food_rgc_plot<- static_column_chart(t= all_food_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
@@ -1567,11 +879,8 @@ food_rgc_plot<- static_column_chart(t= all_food_rgc_17_21,
                                                   source = "PSRC Regional Household Travel Survey")
 
 food_rgc_plot
-```
 
-```{r, grocery deliveries and rgc location/destination}
-
-# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+# grocery deliveries and rgc location/destination
 
 grocery_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_grocery_all')) %>% 
@@ -1595,44 +904,7 @@ grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021
 all_grocery_rgc_17_21 <- bind_rows(grocery_rgc_17, grocery_rgc_19, grocery_rgc_21) %>%
   mutate(period = as.factor(survey))
 
-table(all_grocery_rgc_17_21$delivery_grocery_all, all_grocery_rgc_17_21$period)
-
 # plot by year and by category
-
-share_plot_by_year2_rgc_groc <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_grocery_rgc_17_21[[grp_var]]
-  x_axis_grp <- all_grocery_rgc_17_21[[grp_var2]]
-  
-  ggplot(all_grocery_rgc_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_grocery_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-
-share_plot_by_year2_rgc_groc(grocery_rgc_17, grocery_rgc_19, grocery_rgc_21,
-                   'final_home_is_rgc', 'survey',  
-                    'Grocery Deliveries by RGC')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-
-
-# with psrcplot style
 
 grocery_rgc_plot<- static_column_chart(t= all_grocery_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
@@ -1646,11 +918,8 @@ grocery_rgc_plot<- static_column_chart(t= all_grocery_rgc_17_21,
                                          source = "PSRC Regional Household Travel Survey")
 
 grocery_rgc_plot
-```
 
-```{r, package deliveries and rgc location/destination}
-
-# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+# package deliveries and rgc location/destination
 
 pkg_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_pkgs_all')) %>% 
@@ -1674,44 +943,7 @@ pkg_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021',
 all_pkg_rgc_17_21 <- bind_rows(pkg_rgc_17, pkg_rgc_19, pkg_rgc_21) %>%
   mutate(period = as.factor(survey))
 
-table(all_pkg_rgc_17_21$delivery_pkgs_all, all_pkg_rgc_17_21$period)
-
 # plot by year and by category
-
-share_plot_by_year2_rgc_pkgs <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_pkg_rgc_17_21[[grp_var]]
-  x_axis_grp <- all_pkg_rgc_17_21[[grp_var2]]
-  
-  ggplot(all_pkg_rgc_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_pkgs_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-
-share_plot_by_year2_rgc_pkgs(pkg_rgc_17, pkg_rgc_19, pkg_rgc_21,
-                   'final_home_is_rgc', 'survey',  
-                    'Package Deliveries by RGC')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-
-
-# with psrcplot style
 
 pkg_rgc_plot<- static_column_chart(t= all_pkg_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
@@ -1721,14 +953,12 @@ pkg_rgc_plot<- static_column_chart(t= all_pkg_rgc_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Package Deliveries by Household Location",
-                                                  subtitle="Share of Households on Average Weekday",
+                                          subtitle="Share of Households on Average Weekday",
                                          source = "PSRC Regional Household Travel Survey")
 
 pkg_rgc_plot
-```
 
-```{r, work deliveries and rgc location/destination}
-# location variables : 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc'
+# work deliveries and rgc location/destination
 
 work_rgc_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('final_home_is_rgc', 'delivery_work_all')) %>% 
@@ -1752,44 +982,7 @@ work_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021',
 all_work_rgc_17_21 <- bind_rows(work_rgc_17, work_rgc_19, work_rgc_21) %>%
   mutate(period = as.factor(survey))
 
-table(all_work_rgc_17_21$delivery_work_all, all_work_rgc_17_21$period)
-
 # plot by year and by category
-
-share_plot_by_year2_rgc_work <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_work_rgc_17_21[[grp_var]]
-  x_axis_grp <- all_work_rgc_17_21[[grp_var2]]
-  
-  ggplot(all_work_rgc_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_work_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-
-share_plot_by_year2_rgc_work(work_rgc_17, work_rgc_19, work_rgc_21,
-                   'final_home_is_rgc', 'survey',  
-                    'Package Deliveries by RGC')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-
-
-# with psrcplot style
 
 work_rgc_plot<- static_column_chart(t= all_work_rgc_17_21,
                                                   x="final_home_is_rgc", y="share",
@@ -1803,16 +996,12 @@ work_rgc_plot<- static_column_chart(t= all_work_rgc_17_21,
                                          source = "PSRC Regional Household Travel Survey")
 
 work_rgc_plot
-```
 
-```{r, rgc facet wrap with fixed scale}
+# rgc facet wrap with fixed scale
 
 all_food_rgc_17_21$delivery_type = c("food/meal", "food/meal", "food/meal", "food/meal", "food/meal", "food/meal")
-
 all_grocery_rgc_17_21$delivery_type = c("grocery", "grocery", "grocery", "grocery", "grocery", "grocery")
-
 all_pkg_rgc_17_21$delivery_type = c("packages", "packages", "packages", "packages", "packages", "packages")
-
 all_work_rgc_17_21$delivery_type = c("work/service", "work/service", "work/service", "work/service", "work/service", "work/service")
 
 # bind all dataframes together 
@@ -1840,10 +1029,7 @@ deliveries_rgc<- create_facet_bar_chart(t= all_deliveries_rgc_new,
 
 deliveries_rgc
 
-```
-
-```{r, hhsize and food deliveries}
-# hh variables: hhsize'
+# hhsize and food deliveries: hhsize'
 
 food_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_food_all')) %>% 
@@ -1867,116 +1053,7 @@ food_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021',
 all_food_hh_17_21 <- bind_rows(food_hh_17, food_hh_19, food_hh_21) %>%
   mutate(period = as.factor(survey))
 
-table(all_food_hh_17_21$delivery_food_all, all_food_hh_17_21$period)
-
-# plot by year and by category
-
-share_plot_by_year_hhsize<- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_hh_17_21[[grp_var]]
-  x_axis_grp <- all_food_hh_17_21[[grp_var2]]
-  
-  ggplot(all_food_hh_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~period)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_year2_hhsize <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_hh_17_21[[grp_var]]
-  x_axis_grp <- all_food_hh_17_21[[grp_var2]]
-  
-  ggplot(all_food_hh_17_21, aes(x=x_axis_grp,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~delivery_food_all)+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-  
-}
-
-share_plot_by_cat_hhsize<- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_hh_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_hh_17_21, aes(x=period,
-                                       y=share,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_hh_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Share",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
-    geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-count_plot_by_cat_hhsize <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name){
-  
-  fill_group <- all_food_hh_17_21[[grp_var]]
-  # facet_group <- all_commute_17_21[[grp_var2]]
-  
-  ggplot(all_food_hh_17_21, aes(x=period,
-                                       y=count,
-                                       fill=fill_group)) +
-    geom_bar(stat="identity",
-             position="dodge2") +
-    facet_wrap(~all_food_hh_17_21[[grp_var2]])+
-    theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1),
-          axis.title.x = element_blank()) +
-    labs(y = "Count",
-         fill = legend_name) +
-    scale_y_continuous(labels = scales::comma) +
-    geom_errorbar(aes(ymin=count-count_moe, ymax=count+count_moe),
-                  size=.5, width=.2,
-                  position=position_dodge(0.9))
-}
-
-# comparative charts/plots
-# share_plot_by_year <- function(dt1, dt2, dt3, grp_var, grp_var2, legend_name)
-share_plot_by_year_hhsize(food_hh_17, food_hh_19, food_hh_21,
-                   'hhsize', 'delivery_food_all', 
-                   'Food Deliveries to Household Size')
-
-
-share_plot_by_year2_hhsize(food_hh_17, food_hh_19, food_hh_21,
-                   'hhsize', 'survey',  
-                    'Food Deliveries by Year')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-share_plot_by_cat_hhsize(food_hh_17, food_hh_19, food_hh_21, 
-                  'hhsize', 'delivery_food_all',
-                  'Location')+
-  psrc_style()+
-  scale_fill_discrete_psrc("psrc_light")
-
-#ppsrc plot style
+# psrc plot style
 
 food_hhsize_plot<- static_column_chart(t= all_food_hh_17_21,
                                                   x="hhsize", y="share",
@@ -1990,9 +1067,8 @@ food_hhsize_plot<- static_column_chart(t= all_food_hh_17_21,
                                                   source = "PSRC Regional Household Travel Survey")
 
 food_hhsize_plot
-```
 
-```{r, hhsize and grocery deliveries}
+#hhsize and grocery deliveries
 
 # hh variables: hhsize'
 
@@ -2032,10 +1108,8 @@ grocery_hhsize_plot<- static_column_chart(t= all_grocery_hh_17_21,
                                                   source = "PSRC Regional Household Travel Survey")
 
 grocery_hhsize_plot
-```
 
-```{r, hhsize and package deliveries}
-# hh variables: hhsize'
+# hhsize and package deliveries
 
 pkgs_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_pkgs_all')) %>% 
@@ -2073,10 +1147,8 @@ pkgs_hhsize_plot<- static_column_chart(t= all_pkgs_hh_17_21,
                                                   source = "PSRC Regional Household Travel Survey")
 
 pkgs_hhsize_plot
-```
 
-```{r, hhsize and work deliveries}
-# hh variables: hhsize'
+# hhsize and work deliveries
 
 work_hh_17 <- hhts_count(joined_df_deliveries_17, spec_wgt = 'day_weight_2017', 
                     group_vars = c('hhsize', 'delivery_work_all')) %>% 
@@ -2100,7 +1172,6 @@ work_hh_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021',
 all_work_hh_17_21 <- bind_rows(work_hh_17, work_hh_19, work_hh_21) %>%
   mutate(period = as.factor(survey))
 
-
 #ppsrc plot style
 
 work_hhsize_plot<- static_column_chart(t= all_work_hh_17_21,
@@ -2115,4 +1186,3 @@ work_hhsize_plot<- static_column_chart(t= all_work_hh_17_21,
                                                   source = "PSRC Regional Household Travel Survey")
 
 work_hhsize_plot
-```

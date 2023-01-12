@@ -32,10 +32,10 @@ header-includes:
 
 ```{r setup, include=FALSE}
 
-devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
-devtools::install_github("psrc/psrccensus", force = TRUE)
-devtools::install_github("psrc/psrcplot", force = TRUE)
-devtools::install_github("psrc/psrctrends", force = TRUE)
+#devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
+#devtools::install_github("psrc/psrccensus", force = TRUE)
+#devtools::install_github("psrc/psrcplot", force = TRUE)
+#devtools::install_github("psrc/psrctrends", force = TRUE)
 
 library(psrc.travelsurvey)
 library(psrccensus)
@@ -50,7 +50,7 @@ library(openxlsx)
 library(tinytex)
 
 # File name for Trend Data file to be created
-setwd("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/")
+output_path <- "C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries"
 xlsx_file <- "trend-equity-202211.xlsx"
 
 # Create Image 
@@ -65,7 +65,7 @@ image_write(trend_image_header, path="trend_image_header.png", format="png")
 
 install_psrc_fonts()
 
-source("freightDelivery2.R")
+#source("freightDelivery2.R")
 ```
 
 \begin{flushleft}
@@ -95,34 +95,28 @@ xlsx_file <- "deliveries.xlsx"
 
 ```{r, overallmodeshare, echo=FALSE, results=TRUE,  fig.dim=c(6,4), fig.dim=c(6,4) }
 
-if(file.exists(paste0(output_path, "/trips_by_mode.csv"))){
+if(file.exists(paste0(output_path, "/delivery_by_freq_food2.csv"))){
   
-  trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
+  delivery_by_freq_food2<-read.csv(paste0(output_path, '/delivery_by_freq_food2.csv'))
 }else{
   # pull the data from Elmer, group, and organize it, write to csv
-  source('bike-ped-data-processing-new-weights.R')
-  trips_by_mode<-read.csv(paste0(output_path, '/trips_by_mode.csv'))
+  source('freightDelivery2.R')
+  delivery_by_freq_food2<-read.csv(paste0(output_path, '/delivery_by_freq_food2.csv'))
 }
 
-trips_by_mode_no_drive<-trips_by_mode%>%filter(!mode_simple %in% c('Drive', 'Other'))
+delivery_by_freq_food2_trend<-interactive_column_chart(t=delivery_by_freq_food2, x='delivery_food_all', y='share', fill='survey', moe='share_moe', est='percent', color = "pgnobgy_5", title="Share of Households Receiving Food Deliveries")
 
-trips_by_mode_trend<-static_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
+saveWidget(delivery_by_freq_food2, 
+           file=paste0(output_path,'/trend_visuals/delivery_by_freq_food2.html'))
 
-trips_by_mode_trend
-
-trips_by_mode_trend_int<-interactive_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', fill='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares")
-
-saveWidget(trips_by_mode_trend_int, 
-           file=paste0(output_path,'/bike_ped_interactive_plots/trips_by_mode_no_drive.html'))
-
-#trips_by_mode_trend_int<-create_column_chart(t=trips_by_mode_no_drive, x='mode_simple', y='share', f='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares", interactive='yes')
+#delivery_by_freq_food2_trend_int<-create_column_chart(t=delivery_by_freq_food2_no_drive, x='mode_simple', y='share', f='year', moe='share_moe', est='percent', color = "pgnobgy_5", title="Non-Driving Trip Mode Shares", interactive='yes')
 
 #%>%layout(xaxis=list(title='Trip Mode'),yaxis=list(title='Percent of All Trips') )
 
-#saveWidget(trips_by_mode_trend_int, file=paste0(output_path, '/trips_by_mode.html'))
+#saveWidget(delivery_by_freq_food2_trend_int, file=paste0(output_path, '/delivery_by_freq_food2.html'))
 
-addWorksheet(wb = wb, sheetName = 'trips_by_mode', gridLines = FALSE)
-writeDataTable(wb = wb, sheet = 'trips_by_mode', x = trips_by_mode_no_drive)
+addWorksheet(wb = wb, sheetName = 'delivery_by_freq_food2', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'delivery_by_freq_food2', x = delivery_by_freq_food2)
 ```
 ## Including Plots
 
