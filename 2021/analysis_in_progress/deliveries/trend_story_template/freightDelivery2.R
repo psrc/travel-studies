@@ -506,7 +506,7 @@ pkgs_income_column<- static_column_chart(t= all_pkgs_income_dichot_17_21,
                                                   color="psrc_pairs",
                                                   est ="percent",
                                                   dec=1,
-                                                  title="Package Deliveries",
+                                                  title="Package Deliveries by Income",
                                                   subtitle="(i.e., FedEx, UPS, USPS)",
                                          source = "PSRC Regional Household Travel Survey")
 

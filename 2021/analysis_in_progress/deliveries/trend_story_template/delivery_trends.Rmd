@@ -71,17 +71,6 @@ source("freightDelivery2.R")
 
 \begin{flushleft}
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household delivery choices in 2021, during COVID-19 conditions, to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
-\end{flushleft}
-
-```{r individual delivery type, echo=FALSE}
-
-food_column
-grocery_column
-package_column
-work_column
-deliveries_all_column
-
-```
 
 ## Food and Grocery Deliveries more than doubled from 2019 to 2021
 \begin{flushleft}
@@ -96,6 +85,29 @@ Work or service deliveries remained consistent at around 5\%.
 When combined visually, it's easy to see the distribution of home deliveries on an average weekday. 
 \end{flushleft}
 
+
+```{r individual delivery type, echo=FALSE}
+
+food_column
+grocery_column
+package_column
+work_column
+deliveries_all_column
+
+```
+
+## Food/Meal and Package Deliveries in Low and High-Income Households Differed.
+\begin{flushleft}
+Higher income households were substantially more likely to get a good or meal delivery,
+as compared to lower income households in 2021, compared to 2017 and 2019. Food or meal deliveries more than tripled between 2021 
+and previous years (1.5\% to 5.5\%).
+
+While both lower income and higher income households had an increase in package deliveries,
+those households with less than \textdollar 75,000 had a significant spike, growing from
+about 18\% to over 30\% in 2021.
+
+\end{flushleft}
+
 ```{r income blocks, echo=FALSE}
 
 food_income_column
@@ -105,17 +117,10 @@ pkgs_income_column
 
 ```
 
-## Food/Meal and Package Deliveries in Low and High-Income Households Differed.
+## Households with Children Received the Most Packages in 2021.
 \begin{flushleft}
-Higher income households were substantially more likely to get a good or meal delivery,
-as compared to lower income households in 2021, compared to 2017 and 2019.
-
-Food or meal deliveries more than tripled between 2021 and previous years (1.5\% to 5.5\%).
-
-While both lower income and higher income households had an increase in package deliveries,
-those households with less than \textdollar 75,000 had a significant spike, growing from
-about 18\% to over 30\% in 2021.
-
+Food or meal, grocery, and work or service deliveries stayed relatively stable regardless of household composition
+or year. However, package deliveries were the highest for households with kids (45\%), and then decreased as household age increased (about 30\%).
 \end{flushleft}
 
 ```{r lifecycle, echo=FALSE}
@@ -125,22 +130,6 @@ about 18\% to over 30\% in 2021.
 #pkgs_lifecycles
 #work_lifecycles
 deliveries_lifecycle_facet3
-
-```
-
-## Households with Children Received the Most Packages in 2021.
-\begin{flushleft}
-Food or meal, grocery, and work or service deliveries stayed relatively stable regardless of household composition
-or year. However, package deliveries were the highest for households with kids (45\%), and then decreased as household age increased (about 30\%).
-\end{flushleft}
-
-````{r rgc, echo=FALSE}
-
-food_rgc_plot
-grocery_rgc_plot
-#pkg_rgc_plot
-#work_rgc_plot
-deliveries_rgc
 
 ```
 
@@ -156,6 +145,21 @@ Work or servicedeliveries remained relatively stable from 2017 and 2019 to 2021 
 although non-RGC households tended to receive more average work or service deliveries than RGC households.
 \end{flushleft}
 
+```{r rgc, echo=FALSE}
+
+food_rgc_plot
+grocery_rgc_plot
+#pkg_rgc_plot
+#work_rgc_plot
+deliveries_rgc
+
+```
+
+## Household Deliveries and Household Size
+\begin{flushleft}
+Still interpreting data here.
+\end{flushleft}
+
 ```{r hhsize, echo=FALSE}
 
 food_hhsize_plot
@@ -164,8 +168,3 @@ pkgs_hhsize_plot
 work_hhsize_plot
 
 ```
-
-## Household Deliveries and Household Size
-\begin{flushleft}
-Still interpreting data here.
-\end{flushleft}
