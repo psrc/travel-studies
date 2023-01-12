@@ -341,8 +341,7 @@ PSRC first began asking survey respondents in which industry they worked in the 
 ```{r industry_work_travel, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 industry_work_travel_chart <- industry_by_work_loc_21 %>% 
   filter(workplace_travel == "Works outside the home") %>% 
-  fct_drop(industry_cond) %>% 
-  arrange(desc(share)) %>% 
+  mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>% 
   static_column_chart(t = .,
                       x = "industry_cond", y = "share",
                       fill = "workplace_travel",
@@ -365,6 +364,7 @@ Of those five industry groups that worked outside the home more than the regiona
 ```{r industry_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 industry_gender_chart <- industry_by_gender_21 %>% 
   filter(gender_group == "Female") %>% 
+  mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>% 
   static_column_chart(t = .,
                       x = "industry_cond", y = "share",
                       fill = "gender_group",
@@ -385,21 +385,23 @@ Of those five industry groups that worked outside the home more than the regiona
 \end{flushleft}
 
 ```{r industry_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
-industry_race_chart <- industry_by_race_21 %>% 
-  filter(race_eth_poc == "POC") %>% 
-  static_column_chart(t = .,
-                      x = "industry_cond", y = "share",
-                      fill = "race_eth_poc",
-                      moe = "share_moe",
-                      href = 0.33,
-                      hrefcl = "green",
-                      color = "pgnobgy_5",
-                      title = "Workers of Color by Industry, Spring 2021") +
-  scale_x_discrete(labels = scales::wrap_format(18),
-                   guide = guide_axis(angle = 90)) +
-  theme(axis.text.x = element_text(size = 8))
-
-industry_race_chart
+# something is off with the numbers -> investigate results
+# industry_race_chart <- industry_by_race_21 %>% 
+#   filter(race_eth_poc == "POC") %>% 
+#   mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>% 
+#   static_column_chart(t = .,
+#                       x = "industry_cond", y = "share",
+#                       fill = "race_eth_poc",
+#                       moe = "share_moe",
+#                       href = 0.33,
+#                       hrefcl = "green",
+#                       color = "pgnobgy_5",
+#                       title = "Workers of Color by Industry, Spring 2021") +
+#   scale_x_discrete(labels = scales::wrap_format(18),
+#                    guide = guide_axis(angle = 90)) +
+#   theme(axis.text.x = element_text(size = 8))
+# 
+# industry_race_chart
 ```
 
 \subsection{Conclusion}
