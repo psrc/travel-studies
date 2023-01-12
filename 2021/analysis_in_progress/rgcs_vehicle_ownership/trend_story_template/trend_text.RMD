@@ -34,18 +34,159 @@ Since the early 1990s, the region has been focused on concentrating growth into 
 This report looks into the travel behaviors residents in RGCs and non-RGC areas.
 \end{flushleft}
 ```{r setup, include=FALSE}
+
+library(psrc.travelsurvey)
+library(scales)
 library(psrcplot)
 library(psrccensus)
 library(tidyverse)
 library(knitr)
 library(magick)
 library(openxlsx)
+library(tidycensus)
+
 options(tinytex.verbose=TRUE)
+
+opts_chunk$set(echo=FALSE, 
+               warning=FALSE, 
+               message=FALSE,
+               fig.align = "center"
+               # out.width = '50%'
+               ) # formatting
 
 install_psrc_fonts()
 
 source("trend_processing.R")
 ```
+
+## Travel Behavior
+
+### Mode shares
+
+```{r test colors in charts}
+static_column_chart(mode_rgc %>% filter(survey=="2021"), x = "final_home_is_rgc", y = "share",
+                      fill = "mode_simple2", color="pognbgy_5")
+# order of columns rewritten to ahpabetically
+
+ggplot(mode_rgc %>% filter(survey=="2021"), 
+        aes(x=final_home_is_rgc, y=share, fill=mode_simple2)) +
+   geom_col(position="dodge") +
+   scale_y_continuous(labels = label_percent()) +
+   psrc_style()+
+   scale_fill_manual(values = psrc_colors$pognbgy_10)
+```
+
+
+```{r test interactive charts}
+# static_bar_chart(mode_rgc %>% filter(survey=="2021"), x = "share", y = "final_home_is_rgc",
+                      # fill = "mode_simple2",pos="stack", color="pognbgy_5")
+
+
+ggplot(mode_rgc %>% filter(survey=="2021"), 
+       aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
+  geom_bar(position=position_stack(reverse = TRUE), stat="identity") + # reverse order (bottom to top instead of top to bottom): position_stack(reverse = TRUE)
+  scale_y_continuous(labels = label_percent()) +
+  psrc_style()+
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  coord_flip()
+
+ggplot(mode_metro %>% filter(survey=="2021"), 
+       aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
+  geom_bar(position=position_stack(reverse = TRUE), stat="identity") + # reverse order (bottom to top instead of top to bottom): position_stack(reverse = TRUE)
+  scale_y_continuous(labels = label_percent()) +
+  psrc_style()+
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  coord_flip()
+
+
+# interactive_bar_chart(mode_rgc %>% filter(survey=="2021"), x = "share", y = "final_home_is_rgc",
+#                       fill = "mode_simple2",pos="stack")
+```
+
+### Change in mode shares
+
+```{r}
+TT <- "Change in mode share in RGCs \n(2021 compared to 2017/2019 HHTS)"
+ggplot(mode_change_rgc, aes(x=mode_simple2, y=share_change, fill=final_home_is_rgc)) +
+  geom_col(position = "dodge")+
+  geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
+                          width=0.2, position = position_dodge(0.9)) +
+  scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2)) +
+  scale_fill_discrete_psrc ("pognbgy_10")+
+  ggtitle(TT)+
+  psrc_style2(text_size = 2)
+
+# TT <- "Change in mode share in metro and urban RGCs \n(2021 compared to 2017/2019 HHTS)"
+# ggplot(mode_change_metro, aes(x=mode_simple2, y=share_change, fill=urban_metro)) +
+#   geom_col(position = "dodge")+
+#   geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
+#                           width=0.2, position = position_dodge(0.9)) +
+#   scale_y_continuous(labels=percent) +
+#   scale_fill_discrete_psrc ("gnbopgy_5")+
+#   ggtitle(TT)+
+#   psrc_style2(text_size = 2)
+```
+
+### Trip travel time and trip distance
+
+```{r}
+TT <- "Average travel time and trip distance (2021 HHTS)"
+ggplot(time_dist_rgc, 
+       aes(x=final_home_is_rgc, y=mean, fill=final_home_is_rgc)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=mean-mean_moe, 
+                    ymax=mean+mean_moe),
+                          width=0.2, position = position_dodge(0.9))+
+  scale_fill_discrete_psrc ("pognbgy_10")+
+  facet_wrap(~label, scales = "free_y") +
+  ggtitle(TT)+
+  psrc_style2(text_size = 2)
+
+TT <- "Average travel time and trip distance (2021 HHTS)"
+ggplot(time_dist_metro, 
+       aes(x=urban_metro, y=mean, fill=urban_metro)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=mean-mean_moe, 
+                    ymax=mean+mean_moe),
+                          width=0.2, position = position_dodge(0.9))+
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  facet_wrap(~label, scales = "free_y") +
+  ggtitle(TT)+
+  psrc_style2(text_size = 2)
+```
+
+### walk and transit frequency
+```{r}
+plot <- hhts_count(freq, 
+                       group_vars=c("urban_metro", "transit_label"),
+                       spec_wgt = "person_adult_weight_2021") %>%
+  filter(transit_label!="Total") 
+TT <- "Transit frequency (2021 HHTS)"
+ggplot(plot, 
+       aes(x=transit_label, y=share, fill=urban_metro)) +
+  geom_col(position = "dodge")+  
+  moe_bars+
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  ggtitle(TT)+
+  psrc_style2(text_size = 2)
+
+plot  <- hhts_count(freq, 
+                    group_vars=c("urban_metro", "walk_label"),
+                    spec_wgt = "person_adult_weight_2021") %>%
+  filter(walk_label!="Total") 
+TT <- "Walk frequency (2021 HHTS)"
+ggplot(plot, 
+       aes(x=walk_label, y=share, fill=urban_metro)) +
+  geom_col(position = "dodge")+  
+  moe_bars+
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  ggtitle(TT)+
+  psrc_style2(text_size = 2)
+
+```
+
 
 ```{r}
 TT <- "Vehicle ownership (2021 ACS 1-year data)"
