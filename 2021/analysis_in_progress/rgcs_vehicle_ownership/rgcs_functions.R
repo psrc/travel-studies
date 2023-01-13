@@ -289,7 +289,7 @@ psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
     #Axis format
     #This sets the text font, size and colour for the axis test, as well as setting the margins and removes lines and ticks. In some cases, axis lines and axis ticks are things we would want to have in the chart - the cookbook shows examples of how to do so.
     axis.title = ggplot2::element_blank(),
-    axis.text = ggplot2::element_text(size=10+text_size+axis_text_size,
+    axis.text = ggplot2::element_text(size=11+text_size+axis_text_size,
                                       color="#2f3030"),
     axis.text.x = ggplot2::element_text(margin=ggplot2::margin(5, b = 10)),
     axis.ticks = ggplot2::element_blank(),
@@ -311,4 +311,33 @@ psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
   )
 }
 
+no_moe <- function(plot){
+  plot <- plot + geom_text(aes(x=.data[[x]],y=.data[[y]], 
+                               label=paste0(p,prettyNum(round(.data[[y]]*fac,dec), big.mark = ","),s)),
+                       check_overlap = TRUE,
+                       position = ggplot2::position_dodge(0.9),
+                       vjust = -0.25,
+                       size = 11*0.36,
+                       family="Poppins") +
+    theme(axis.text.y = element_blank(),
+                   panel.grid.major.y = element_blank(),
+                   axis.line.x = element_line(color="#cbcbcb"))
+  
+  return(plot)
+}
+
+
+add_RGCs <- function(.data){
+  .data <- .data %>%
+    mutate(RGC = case_when(GEOID %in% rgcs_tracts_list$geoid~"RGC",
+                           !GEOID %in% rgcs_tracts_list$geoid~"Not RGC"),
+           urban_metro = case_when(GEOID %in% rgcs_tracts_list[rgcs_tracts_list$urban_metro=="Metro", ]$geoid~"Metro",
+                                   GEOID %in% rgcs_tracts_list[rgcs_tracts_list$urban_metro=="Urban", ]$geoid~"Urban",
+                                   !GEOID %in% rgcs_tracts_list$geoid~"Not RGC"))
+  
+  .data$RGC <- factor(.data$RGC, levels=c("RGC","Not RGC"))
+  .data$urban_metro <- factor(.data$urban_metro, levels=c("Metro","Urban","Not RGC"))
+  
+  return(.data)
+}
 

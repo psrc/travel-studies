@@ -285,6 +285,23 @@ ggplot(plot2, aes(x=vehicle_binary, y=share, fill=urban_metro)) +
   ggtitle(TT)+
   psrc_style2(axis_text_size = 2)
 
+# vehicle ownership
+plot2 <- hhts_count(hh_data_21, group_vars=c("final_home_rgcnum","vehicle_binary"),
+                    spec_wgt = "hh_weight_2021") %>%
+  filter(vehicle_binary=="1 or more") %>%
+  mutate(vehicle_binary="1 vehicle or more")
+
+
+TT <- "Vehicle ownership in a household (2021)"
+ggplot(plot2, aes(x=final_home_rgcnum, y=share)) +
+  geom_col(position = "dodge")+  
+  moe_bars +
+  scale_y_continuous(labels=percent) +
+  # scale_fill_discrete_psrc ("gnbopgy_5")+
+  ggtitle(TT)+
+  psrc_style2(axis_text_size = 2) +
+  coord_flip()
+
 ```
 * Metro and Urban RGCs have similar demographic composition in terms of household size, having children and income ditribution
 * Urban RGCs have more single-family housing and fewer apartments than Metro RGCs
@@ -1605,6 +1622,76 @@ Sys.getenv("CENSUS_API_KEY")
 #              table.names = 'B08201',
 #              years = 2020,
 #              acs.type = 'acs5')
+```
+
+# Age
+
+```{r}
+age <- get_acs_recs(geography = 'tract',
+                    table.names = 'B01001',
+                    years = 2021,
+                    acs.type = 'acs5') %>%
+  add_RGCs() %>%
+  filter(!label %in% c("Estimate!!Total:","Estimate!!Total:!!Male:","Estimate!!Total:!!Female:" )) %>%
+  mutate(label2 = str_remove_all(label,"Estimate!!Total:"),
+         label2 = str_remove_all(label2,"!!Male:"),
+         label2 = str_remove_all(label2,"!!Female:"),
+         label2 = str_remove_all(label2,"!!"),
+         label3 = case_when(label2 %in% c("10 to 14 years","15 to 17 years",
+                                        "5 to 9 years","Under 5 years")~ "< 18 years",
+                            label2 %in% c("18 and 19 years",  
+                                         "20 years",         
+                                         "21 years",         
+                                         "22 to 24 years",   
+                                         "25 to 29 years",   
+                                         "30 to 34 years")~ "18-34 years",
+                            label2 %in% c("35 to 39 years",
+                                          "40 to 44 years",
+                                          "45 to 49 years",
+                                          "50 to 54 years",
+                                          "55 to 59 years",
+                                          "60 and 61 years",
+                                          "62 to 64 years")~ "35-64 years",
+                            label2 %in% c("65 and 66 years",
+                                         "67 to 69 years",
+                                         "70 to 74 years",
+                                         "75 to 79 years",
+                                         "80 to 84 years",
+                                         "85 years and over")~ "65+ years",
+                            TRUE ~ label2)) %>%
+  group_by(label3, RGC) %>%
+  summarise(estimate = sum(estimate),
+            moe = moe_sum(moe, estimate = estimate) )%>%
+  group_by(RGC) %>%
+  mutate(share = estimate/sum(estimate),
+         share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+  ungroup()
+ 
+
+TT <- "Age (2021 ACS 1-year data)"
+ggplot(age, aes(x=label3, y=share, fill=RGC)) +
+  geom_col(position = "dodge")+  
+  # moe_bars +
+  scale_y_continuous(labels=percent,limits = c(0, 0.41)) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  ggtitle(TT)+
+  psrc_style2(axis_text_size = 2) + 
+  geom_text(aes(x=label3,y=share, 
+    label=paste0(prettyNum(round(share*100,0), big.mark = ","),"%")),
+    check_overlap = TRUE,
+    position = position_dodge(0.9),
+    vjust = -0.25,
+    size = 11*0.36,
+    family="Poppins") +
+  theme(axis.text.y = element_blank(),
+        panel.grid.major.y = element_blank()
+        )
+```
+
+
+
+
+```{r}
 test_rgc <- get_acs_recs(geography = 'tract',
              table.names = 'B08201',
              years = 2021,
@@ -1922,14 +2009,14 @@ veh_plot <- function(plot, year){
   
   return(
     ggplot(plot, aes(x=label, y=share, fill=data)) +
-    geom_col(position = "dodge")+  
-    moe_bars +
-    scale_y_continuous(labels=percent) +
-    scale_fill_discrete_psrc ("gnbopgy_5")+
-    facet_grid(cols = vars(group), scales = "free_x", space = "free_x")+
-    # facet_wrap(~group,scales = "free_x", ncol = 4)+
-    ggtitle(TT)+
-    psrc_style2()
+      geom_col(position = "dodge")+  
+      moe_bars +
+      scale_y_continuous(labels=percent) +
+      scale_fill_discrete_psrc ("gnbopgy_5")+
+      facet_grid(cols = vars(group), scales = "free_x", space = "free_x")+
+      # facet_wrap(~group,scales = "free_x", ncol = 4)+
+      ggtitle(TT)+
+      psrc_style2()
   )
 }
 
@@ -1943,17 +2030,59 @@ vehicle_ownership <- plot2017 %>%
   mutate(year = 2019)) %>% 
   add_row(plot2021 %>% 
   mutate(year = 2021))
+
+
 ```
 
 
 # urban and metro rgc counties
 ```{r}
-rgc_county_acs <- rgcs_tracts_list %>%
-  group_by(urban_metro) %>%
-  summarise(num_tracts = n())
+acs <- get_acs_recs(geography = 'block group',
+               table.names = 'B08201',
+               years = 2021,
+               acs.type = 'acs1') %>%
+      filter(label %in% c("Estimate!!Total!!No vehicle available",
+                        "Estimate!!Total!!1 vehicle available",
+                        "Estimate!!Total!!2 vehicles available",
+                        "Estimate!!Total!!3 vehicles available",
+                        "Estimate!!Total!!4 or more vehicles available",
+                        "Estimate!!Total:!!No vehicle available",
+                        "Estimate!!Total:!!1 vehicle available",
+                        "Estimate!!Total:!!2 vehicles available",
+                        "Estimate!!Total:!!3 vehicles available",
+                        "Estimate!!Total:!!4 or more vehicles available")) %>%
+  mutate(GEOID = as.numeric(GEOID)) %>%
+  left_join(rgcs_tracts_list %>%
+              mutate(rgc = name), by =c("GEOID"="geoid")) %>%
+    mutate(label2 = case_when(label %in% c("Estimate!!Total!!1 vehicle available",
+                                           "Estimate!!Total!!2 vehicles available",
+                                           "Estimate!!Total!!3 vehicles available",
+                                           "Estimate!!Total!!4 or more vehicles available",
+                                           "Estimate!!Total:!!1 vehicle available",
+                                           "Estimate!!Total:!!2 vehicles available",
+                                           "Estimate!!Total:!!3 vehicles available",
+                                           "Estimate!!Total:!!4 or more vehicles available")~"1 or more vehicle(s)",
+                              label %in% c("Estimate!!Total!!No vehicle available",
+                                           "Estimate!!Total:!!No vehicle available")~"No vehicle"),
+           rgc = ifelse(is.na(rgc),"Not RGC",rgc))%>%
+      group_by(label2,rgc) %>%
+      summarise(estimate = sum(estimate),
+                moe = moe_sum(moe, estimate = estimate)) %>%
+      group_by(rgc) %>%
+      mutate(share = estimate/sum(estimate),
+             share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+      ungroup() %>%
+      filter(label2 == "1 or more vehicle(s)") 
 
-rgc_county_hhts <- hh_data_17 %>%
-  group_by(urban_metro) %>%
-  summarise(num_tracts = length(unique(final_home_tract10)))
+ggplot(acs, aes(x=reorder(rgc,-share), y=share)) +
+      geom_col(position = "dodge")+  
+      moe_bars +
+      scale_y_continuous(labels=percent) +
+      scale_fill_discrete_psrc ("gnbopgy_5")+
+      # facet_grid(cols = vars(group), scales = "free_x", space = "free_x")+
+      # facet_wrap(~group,scales = "free_x", ncol = 4)+
+      ggtitle(TT)+
+      psrc_style2() +
+  coord_flip()
 ```
 

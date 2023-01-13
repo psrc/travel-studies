@@ -2,37 +2,14 @@
 output: 
   pdf_document:
     latex_engine: lualatex
+    includes:
+      in_header: trend_format.tex
 fontsize: 12pt
-
-header-includes:
-  - \usepackage{xcolor}
-  - \usepackage{hyperref}
-  - \usepackage{pdfcomment}
-  - \usepackage{fancyhdr}
-   \pagestyle{fancy}
-   \setlength{\headheight}{75pt}
-   \setlength{\textheight}{600pt}
-   \fancyhead[C]{}
-   \fancyhead[L]{\includegraphics{X:/DSA/shiny-uploads/images/trends-header.png}}
-   \fancyhead[R]{}
-   \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. November 2022}
-   \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
-   \fancyfoot[C]{}
-   \renewcommand{\headrulewidth}{0pt}
-   \renewcommand{\footrulewidth}{4pt}
-   \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
-  - \usepackage{fontspec}
-
+bibliography: reference.bib 
 ---
+
 \setmainfont{Poppins}
 
-# Trends in Regional Growth Centers
-
-\begin{flushleft}
-Since the early 1990s, the region has been focused on concentrating growth into centers. Regional growth centers represent a small share of the region's land that are planned for dense, walkable, mixed-used areas.
-
-This report looks into the travel behaviors residents in RGCs and non-RGC areas.
-\end{flushleft}
 ```{r setup, include=FALSE}
 
 library(psrc.travelsurvey)
@@ -59,44 +36,71 @@ install_psrc_fonts()
 source("trend_processing.R")
 ```
 
-## Travel Behavior
 
-### Mode shares
+# Regional Growth Centers in Central Puget Sound
 
-```{r test colors in charts}
-static_column_chart(mode_rgc %>% filter(survey=="2021"), x = "final_home_is_rgc", y = "share",
-                      fill = "mode_simple2", color="pognbgy_5")
-# order of columns rewritten to ahpabetically
+\begin{flushleft}
+Since the early 1990s, the central Puget Sound region has adopted a strategy that focus future population and employment growth in designated \href{https://www.psrc.org/our-work/centers}{centers} within the region's urban growth area. Currently, there are 29 dense, walkable, mixed-used areas called  \textbf{regional growth centers (RGCs)}, as well as into 9 dense concentrations of employment called  \textbf{regional manufacturing/industrial centers (MICs)}. RGCs are places that higher density and population and employment growth is planned. Based on the most recent findings in 2016, RGCs constitute only 1\% of the region's land area, but contain 5\% share of population and 28\% of employment, as well as 7\% of population growth and 12\% of employment growth. The main function of RGCs is to accommodate significant population and employment growth, as well as to focus regional's investments on housing, services and public transportation to accommodate the large demand that comes with the projected growth.
+<!-- However, findings throughout the years have shown that growth across the centers is uneven.  -->
+\end{flushleft}
 
-ggplot(mode_rgc %>% filter(survey=="2021"), 
-        aes(x=final_home_is_rgc, y=share, fill=mode_simple2)) +
-   geom_col(position="dodge") +
-   scale_y_continuous(labels = label_percent()) +
-   psrc_style()+
-   scale_fill_manual(values = psrc_colors$pognbgy_10)
+## RGC Demographics
+
+Figure \@ref(plot_age) profiles the age of RGC residents. The data shows a higher percentage of 18- to 34-year-olds residing in RGCs, compared to the non-RGC areas. This hints RGCs' attraction to the young workforce, as RGCs offers more rental housing, employment and transit. Also, RGCs have fewer children than the non-RGC areas, while the share of seniors have the same share across RGCs and non-RGCs.
+
+```{r plot_age, fig.cap= "Regional Growth Center Age", fig.dim=c(5,3)}
+plot_age + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
+```
+
+Figure \@ref(hhsize) shows a share of 35% single-person households in RGCs and 26% of single-person households in non-RGCs, reflecting smaller household sizes in RGCs compared to non-RGCs. 
+
+```{r hhsize, fig.cap= "Regional Growth Center Household Size", fig.dim=c(2,3.5)}
+plot_hhsize + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
+
 ```
 
 
-```{r test interactive charts}
+
+```{r income, fig.cap= "Regional Growth Center Household Income", fig.dim=c(4,3.5)}
+plot_income + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
+```
+
+Across all RGCs, 
+
+```{r v_own, fig.cap= "Regional Growth Center Vehicle Ownership", fig.dim=c(2,3.5)}
+plot_veh_own + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
+```
+
+
+
+## Travel Behavior
+
+This report applied 2017, 2019 and 2021 Household travel survey data to describe the travel behaviors of residents in RGCs and how their travel behavior is different than residents in other non-RGC areas.
+
+To support projected growth in RGCs, the region's plans call for an efficient multi-modal transportation system that increases accessibility in the region. It is anticipated that the RGCs will be connected with high-capacity transit. In addition, a more efficient urban environment will be created to provide multiple travel choices, including walking, biking and taking transit.
+
+### Mode shares
+
+```{r mode share, fig.dim=c(6,4), fig.dim=c(6,4)}
 # static_bar_chart(mode_rgc %>% filter(survey=="2021"), x = "share", y = "final_home_is_rgc",
-                      # fill = "mode_simple2",pos="stack", color="pognbgy_5")
+# fill = "mode_simple2",pos="stack", color="pognbgy_5")
 
 
 ggplot(mode_rgc %>% filter(survey=="2021"), 
        aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
-  geom_bar(position=position_stack(reverse = TRUE), stat="identity") + # reverse order (bottom to top instead of top to bottom): position_stack(reverse = TRUE)
+  geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
   scale_y_continuous(labels = label_percent()) +
   psrc_style()+
   scale_fill_manual(values = psrc_colors$pognbgy_5) +
   coord_flip()
 
-ggplot(mode_metro %>% filter(survey=="2021"), 
-       aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
-  geom_bar(position=position_stack(reverse = TRUE), stat="identity") + # reverse order (bottom to top instead of top to bottom): position_stack(reverse = TRUE)
-  scale_y_continuous(labels = label_percent()) +
-  psrc_style()+
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  coord_flip()
+# ggplot(mode_metro %>% filter(survey=="2021"), 
+#        aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
+#   geom_bar(position=position_stack(reverse = TRUE), stat="identity") + 
+#   scale_y_continuous(labels = label_percent()) +
+#   psrc_style()+
+#   scale_fill_manual(values = psrc_colors$pognbgy_5) +
+#   coord_flip()
 
 
 # interactive_bar_chart(mode_rgc %>% filter(survey=="2021"), x = "share", y = "final_home_is_rgc",
@@ -188,15 +192,7 @@ ggplot(plot,
 ```
 
 
-```{r}
-TT <- "Vehicle ownership (2021 ACS 1-year data)"
-p_veh_own + ggtitle(TT)
-```
 
-```{r}
-TT <- "Household size (2021 ACS 1-year data)"
-p_hh_size + ggtitle(TT)
-```
 
 
 <!-- ![](C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%} -->
