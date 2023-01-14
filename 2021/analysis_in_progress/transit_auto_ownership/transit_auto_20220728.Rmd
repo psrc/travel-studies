@@ -472,6 +472,15 @@ psurvey_21 <- get_hhts(survey = survey_c$survey,
                        level="p",
                        vars=all_vars_p)
 
+# test_data <- get_hhts("2017_2019", "p", c("commute_mode", "race_eth_broad"))
+# test_data <- get_hhts("2021", "p", all_vars_p)
+# 
+# c <- hhts_count(test_data, 
+#                 group_vars="race_eth_broad")
+# d <- hhts_count(test_data, 
+#                 group_vars="race_eth_broad",
+#                 spec_wgt="hh_weight_2017_2019_v2021")
+
 # table(psurvey_21$final_cnty)
 # test <- get_hhts(survey = "2019", level="p",
 #                  vars=c("final_cnty", "vehicle_count"))
@@ -1536,19 +1545,15 @@ veh_reg_PSRC <- bind_rows(King_21, Kitsap_21,
 spn<- 2285
 wgs_84<-4326
 
-# ElmerGeo
+# Connecting to ElmerGeo trial #1 ----
 # geodatabase_server <- "AWS-PROD-SQL\\Sockeye"
 # geodatabase_name <- "ElmerGeo"
 # gdb_nm <- paste0("MSSQL:server=",geodatabase_server,";database=",geodatabase_name,";trusted_connection=yes")
 # tbl_nm <- "dbo.tract2020_nowater"
 # tracts_layer<- st_read(gdb_nm, tbl_nm)
 # tracts_layer<- st_transform(tracts_layer, crs=wgs_84)
-
-# option for when ElmerGeo not working
-tbl_nm <- "T:/2022August/Mary/HHTS/output_data/tracts_2020.shp"
-tracts_layer <- st_read(tbl_nm)
-tracts_layer <- st_transform(tracts_layer, crs=wgs_84)
-
+# 
+# Connecting to ElmerGeo trial #2 ----
 # elmer_geo_connection <- dbConnect(odbc::odbc(),
 #                                   driver = "SQL Server",
 #                                   server = "AWS-PROD-SQL\\Sockeye",
@@ -1561,6 +1566,24 @@ tracts_layer <- st_transform(tracts_layer, crs=wgs_84)
 #                         type = 6)
 
 # plot(tracts_layer)
+
+# option for when ElmerGeo not working
+tbl_nm <- "T:/2022August/Mary/HHTS/geo_data/tracts_2020.shp"
+tracts_layer <- st_read(tbl_nm)
+tracts_layer <- st_transform(tracts_layer, crs=wgs_84)
+
+tbl_nm <- "T:/2022August/Mary/HHTS/geo_data/ElmerGeo_hct_stops.shp"
+stops_layer <- st_read(tbl_nm)
+hct_stops <- st_transform(stops_layer, crs=wgs_84)
+
+tbl_nm <- "T:/2022August/Mary/HHTS/geo_data/ElmerGeo_hct_trans.shp"
+trans_layer <- st_read(tbl_nm)
+hct_trans <- st_transform(trans_layer, crs=wgs_84)
+
+tbl_nm <- "T:/2022August/Mary/HHTS/geo_data/ElmerGeo_urban_growth_area.shp"
+uga_layer <- st_read(tbl_nm)
+urbangrowtharea <- st_transform(uga_layer, crs=wgs_84)
+
 
 # Join DoL data to 2020 tract shapefile ----
 # add leading 0's to join to shapefile's tract numbers
@@ -1616,20 +1639,33 @@ map.lon<- -122.257
 map.zoom<- 8
 
 # set up palettes
-pop_pal <- leaflet::colorNumeric(palette="Purples", 
-                             domain = veh_num_tracts_pop$total_pop2)
+pop_pal <- leaflet::colorNumeric(palette="Purples",
+                                 domain = veh_num_tracts_pop$total_pop2)
 
-veh_pal <- leaflet::colorNumeric(palette="Greens", 
-                             domain = veh_num_tracts_pop$veh_by_tract)
+veh_pal <- leaflet::colorNumeric(palette="Greens",
+                                 domain = veh_num_tracts_pop$veh_by_tract)
 
-vbp_pal <- leaflet::colorNumeric("Blues", veh_num_tracts_pop$veh_by_pop_tract)
+vbp_pal <- leaflet::colorNumeric(palette="Blues",
+                                 veh_num_tracts_pop$veh_by_pop_tract)
+
+stops_pal <- leaflet::colorNumeric(palette="Red",
+                                   hct_stops$brt_tod)
+
+trans_pal <- leaflet::colorNumeric(palette="Orange",
+                                   hct_trans$new_facili)
+
+uga_pal <- leaflet::colorFactor(palette=c("Pink"),
+                                urbangrowtharea$objectid)
 
 # map settings
 veh_registration_map <- leaflet() %>%
   addProviderTiles(providers$CartoDB.Positron) %>%
   addLayersControl(baseGroups = "Vehicles per person",
                    overlayGroups = c("Vehicle registrations",
-                                     "Population per tract"),
+                                     "Population per tract",
+                                     "HCT stops",
+                                     "HCT transit",
+                                     "Urban growth area"),
                    options = layersControlOptions(collapsed = FALSE)) %>%
   # polygon layers
   addPolygons(data=veh_num_tracts_pop,
@@ -1647,12 +1683,29 @@ veh_registration_map <- leaflet() %>%
               group = "Population per tract",
               label = ~total_pop2) %>%
   addPolygons(data=veh_num_tracts_pop,
-               fillColor = vbp_pal(veh_num_tracts_pop$veh_by_pop_tract),
+              fillColor = vbp_pal(veh_num_tracts_pop$veh_by_pop_tract),
               stroke=FALSE, 
               smoothFactor = 0.2,
               fillOpacity = 1.0,
               group = "Vehicles per person",
               label = ~veh_by_pop_tract) %>% 
+  addCircles(data=hct_stops,
+              color = stops_pal(hct_stops$brt_tod),
+              opacity = 0.7,
+              group = "HCT stops",
+              label = ~brt_tod) %>%
+  addPolygons(data=hct_trans,
+              color = ~trans_pal(new_facili),
+              stroke=TRUE,
+              opacity = 0.5,
+              group = "HCT transit") %>%
+  addPolygons(data=urbangrowtharea,
+              fillColor = uga_pal(urbangrowtharea$objectid),
+              stroke=FALSE, 
+              smoothFactor = 0.2,
+              fillOpacity = 0.6,
+              group = "Urban growth area",
+              label = ~objectid)%>%
   # legends
   leaflet::addLegend(pal = vbp_pal,
                      values = veh_num_tracts_pop$veh_by_pop_tract,
@@ -1672,6 +1725,9 @@ veh_registration_map <- leaflet() %>%
   #default hide overlap groups
   hideGroup("Vehicle registrations") %>% 
   hideGroup("Population per tract") %>%
+  hideGroup("HCT stops") %>%
+  hideGroup("HCT transit") %>%
+  hideGroup("Urban growth area") %>% 
   #set view extent
   leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
   # addHomeButton(group = "Vehicles per person",
