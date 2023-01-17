@@ -165,8 +165,8 @@ food_column<- static_column_chart(t= food_freq_separate,
                                      est ="percent",
                                      dec=1,
                                      title="Food/Meal Deliveries",
-                                     subtitle="(e.g., pizza/sushi, Grubhub)",
-                                     source = "regional household travel survey")
+                                     subtitle="(e.g., pizza/sushi, Grubhub)")
+                                    # source = "regional household travel survey")
 
 food_column
 
@@ -202,8 +202,8 @@ package_column<- static_column_chart(t= pkgs_freq_separate,
                                      est ="percent",
                                      dec=1,
                                      title="Package Deliveries",
-                                     subtitle="(e.g., FedEx, UPS, USPS)",
-                                     source = "regional household travel survey")
+                                     subtitle="(e.g., FedEx, UPS, USPS)")
+                                    # source = "regional household travel survey")
 
 package_column
 
@@ -239,8 +239,8 @@ grocery_column<- static_column_chart(t= grocery_freq_separate,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Grocery Deliveries",
-                                                  subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online)",
-                                                  source = "regional household travel survey")
+                                                  subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online)")
+                                                 # source = "regional household travel survey")
 
 grocery_column
 
@@ -275,8 +275,8 @@ work_column<- static_column_chart(t= work_freq_separate,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Work/Service Deliveries",
-                                                  subtitle="(e.g., landscaping, cable service, house-cleaning)",
-                                         source = "regional household travel survey")
+                                                  subtitle="(e.g., landscaping, cable service, house-cleaning)")
+                                        # source = "regional household travel survey")
 
 work_column
 
@@ -324,8 +324,8 @@ deliveries_all_column<- static_column_chart(t= all_deliveries_freq_17_21_new,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Home Deliveries or Services",
-                                                  subtitle="Share of Households on Average Weekday",
-                                         source = "regional household travel survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                        # source = "regional household travel survey")
 
 deliveries_all_column
 
@@ -397,8 +397,8 @@ food_income_column<- static_column_chart(t= all_food_dichot_17_21,
                                          est ="percent",
                                          dec=1,
                                          title="Food/Meal Deliveries by Income",
-                                         subtitle="(e.g.., pizza/sushi, Grubhub)",
-                                         source = "PSRC Regional Household Travel Survey")
+                                         subtitle="(e.g.., pizza/sushi, Grubhub)")
+                                        # source = "PSRC Regional Household Travel Survey")
 
 food_income_column
 
@@ -507,8 +507,8 @@ pkgs_income_column<- static_column_chart(t= all_pkgs_income_dichot_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Package Deliveries by Income",
-                                                  subtitle="(i.e., FedEx, UPS, USPS)",
-                                         source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="(i.e., FedEx, UPS, USPS)")
+                                        # source = "PSRC Regional Household Travel Survey")
 
 pkgs_income_column
 
@@ -828,6 +828,7 @@ deliveries_lifecycle_facet2
 deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
                                                   w.x="lifecycle", w.y="share",
                                                   f="survey", g="delivery_type",
+                                                  w.moe = "share_moe",
                                                   w.color="purples_inc",
                                                   est.type ="percent",
                                                   w.interactive="no",
@@ -875,8 +876,8 @@ food_rgc_plot<- static_column_chart(t= all_food_rgc_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Food/Meal Deliveries by Household Location",
-                                                  subtitle="Share of Households on Average Weekday",
-                                                  source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                                  #source = "PSRC Regional Household Travel Survey")
 
 food_rgc_plot
 
@@ -914,8 +915,8 @@ grocery_rgc_plot<- static_column_chart(t= all_grocery_rgc_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Grocery Deliveries by Household Location",
-                                                  subtitle="Share of Households on Average Weekday",
-                                         source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                        # source = "PSRC Regional Household Travel Survey")
 
 grocery_rgc_plot
 
@@ -1025,7 +1026,8 @@ deliveries_rgc<- create_facet_bar_chart(t= all_deliveries_rgc_new,
                                                   w.scales="fixed",
                                                   w.facet=4,
                                                   w.title="Home Deliveries or Services by RGC",
-                                                  w.sub.title="Share of Households on Average Weekday")
+                                                  w.sub.title="Share of Households on Average Weekday")+ 
+  ggplot2::theme(axis.title = ggplot2::element_blank())
 
 deliveries_rgc
 
@@ -1063,8 +1065,8 @@ food_hhsize_plot<- static_column_chart(t= all_food_hh_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Food/Meal Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday",
-                                                  source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                                #  source = "PSRC Regional Household Travel Survey")
 
 food_hhsize_plot
 
@@ -1104,8 +1106,8 @@ grocery_hhsize_plot<- static_column_chart(t= all_grocery_hh_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Grocery Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday",
-                                                  source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                             #     source = "PSRC Regional Household Travel Survey")
 
 grocery_hhsize_plot
 
@@ -1143,8 +1145,8 @@ pkgs_hhsize_plot<- static_column_chart(t= all_pkgs_hh_17_21,
                                                   est ="percent",
                                                   dec=1,
                                                   title="Package Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday",
-                                                  source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                                #  source = "PSRC Regional Household Travel Survey")
 
 pkgs_hhsize_plot
 
@@ -1180,9 +1182,9 @@ work_hhsize_plot<- static_column_chart(t= all_work_hh_17_21,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
+                                                  dec=0,
                                                   title="Work/Service Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday",
-                                                  source = "PSRC Regional Household Travel Survey")
+                                                  subtitle="Share of Households on Average Weekday")
+                                               #   source = "PSRC Regional Household Travel Survey")
 
 work_hhsize_plot
