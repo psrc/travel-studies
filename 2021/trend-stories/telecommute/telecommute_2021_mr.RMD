@@ -2,39 +2,39 @@
 output:
   pdf_document:
     latex_engine: lualatex
-  includes:
-    in_header: telecommute_2021.tex
-  html_document:
-    df_print: paged
+    includes:
+      in_header: trend_format.tex
 fontsize: 12pt
 ---
 \setmainfont{Poppins}
 
-# Trends in Employment and Telecommuting
 ```{r setup, include = FALSE}
-# knitr::opts_chunk$set(echo=FALSE,
-#                       warning=FALSE,
-#                       message=FALSE,
-#                       fig.align = "center"
-#                       # out.width = '50%'
-#                       ) # formatting
-
 library(psrc.travelsurvey)
+library(scales)
 library(psrcplot)
 library(psrccensus)
 library(tidyverse)
 library(knitr)
 library(magick)
 library(openxlsx)
-library(htmlwidgets)
+library(tidycensus)
+
+options(tinytex.verbose=TRUE)
+
+opts_chunk$set(echo=FALSE, 
+               warning=FALSE, 
+               message=FALSE,
+               fig.align = "center"
+               # out.width = '50%'
+               ) # formatting
+
+install_psrc_fonts()
 
 source("telecommute_function.R")
 # OR
 #load("telecommute_tables.RData")
 
 output_path <- "~/GitHub/travel-studies/2021/trend-stories/telecommute/"
-options(tinytex.verbose = TRUE)
-install_psrc_fonts()
 
 # Create Image 
 image1 <- image_read("photos/highway_times.jpg")
@@ -47,9 +47,13 @@ input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale
 
 commute_image_header <- image_append(input)
 image_write(commute_image_header, path = "photos/commute_image_header.png", format = "png")
-commute_image_header
+# commute_image_header
 ```
+![](C:/Users/mrichards/Documents/GitHub/travel-studies/2021/trend-stories/telecommute/photos/commute_image_header.png){width=100%}
 
+The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+
+# Trends in Employment and Telecommuting
 ```{r load_tables, echo=FALSE, include=FALSE}
 # Workplace
 workplace_17_19 <- get_telecommute_data(survey = "2017_2019",
