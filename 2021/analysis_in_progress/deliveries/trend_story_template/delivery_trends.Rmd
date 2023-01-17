@@ -52,33 +52,33 @@ library(tinytex)
 # File name for Trend Data file to be created
 setwd("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template")
 output_path <- "C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template"
-xlsx_file <- "trend-equity-202211.xlsx"
+#xlsx_file <- "trend-equity-202211.xlsx"
 
 # Create Image 
-image1 <- image_read("X:/DSA/shiny-uploads/images/49092697947_3dff1acb35_w.jpg")
-image2 <- image_read("X:/DSA/shiny-uploads/images/49091985828_9909c9bda3_w.jpg")
-image3 <- image_read("X:/DSA/shiny-uploads/images/51118193503_ae9e0064d1_w.jpg")
+image1 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/49092697947_3dff1acb35_w.jpg")
+image2 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/49091985828_9909c9bda3_w.jpg")
+image3 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/51118193503_ae9e0064d1_w.jpg")
 
 input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
 
 trend_image_header <- image_append(input)
 image_write(trend_image_header, path="trend_image_header.png", format="png")
 
-input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"),  image_scale(image4, "x200"),  image_scale(image5, "x200"))
-walking_image_header <- image_append(input)
-image_write(walking_image_header, path="walking_image_header.png", format="png")
-install_psrc_fonts()
-walking_image_header
-
-(C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%}
+input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
+trend_image_header <- image_append(input)
+image_write(trend_image_header, path="trend_image_header.png", format="png")
+trend_image_header
 
 install_psrc_fonts()
 
 source("freightDelivery2.R")
 ```
+![](C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_image_header.png){width=100%}
 
 \begin{flushleft}
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household delivery choices in 2021, during COVID-19 conditions, to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+
+In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis.
 \end{flushleft}
 
 ## Food and Grocery Deliveries more than doubled from 2019 to 2021.
