@@ -64,6 +64,14 @@ input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale
 trend_image_header <- image_append(input)
 image_write(trend_image_header, path="trend_image_header.png", format="png")
 
+input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"),  image_scale(image4, "x200"),  image_scale(image5, "x200"))
+walking_image_header <- image_append(input)
+image_write(walking_image_header, path="walking_image_header.png", format="png")
+install_psrc_fonts()
+walking_image_header
+
+(C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%}
+
 install_psrc_fonts()
 
 source("freightDelivery2.R")
