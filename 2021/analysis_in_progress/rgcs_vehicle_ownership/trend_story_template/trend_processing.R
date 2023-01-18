@@ -358,6 +358,7 @@ plot_hhsize <- get_acs_recs(geography = 'tract',
   filter(label2 =="Single-person")%>%
   ggplot(aes(x=label2, y=share, fill=RGC)) +
     geom_col(position = "dodge")+  
+    moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
     psrc_style2() + 
@@ -398,7 +399,7 @@ plot_income <- get_acs_recs(geography = 'tract',
   ungroup() %>%
   ggplot(aes(x=label2, y=share, fill=RGC)) +
     geom_col(position = "dodge")+
-    # moe_bars +
+    moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
     # ggtitle(TT)+

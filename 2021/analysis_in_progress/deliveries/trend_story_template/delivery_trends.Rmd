@@ -4,8 +4,12 @@ date: "2022-12-29"
 output: 
   pdf_document:
     latex_engine: lualatex
+  includes:
+    in_header: trend_format.tex
+  html_document:
+    df_print: paged  
 fontsize: 12pt
-  
+
 header-includes:
   - \usepackage{xcolor}
   - \usepackage{hyperref}
@@ -24,7 +28,6 @@ header-includes:
    \renewcommand{\footrulewidth}{4pt}
    \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
   - \usepackage{fontspec}
-
 ---
 \setmainfont{Poppins}
 
@@ -45,6 +48,7 @@ library(tidyverse)
 library(knitr)
 library(magick)
 library(openxlsx)
+library(imager)
 
 #tinytex::install_tinytex()
 library(tinytex)
@@ -52,50 +56,67 @@ library(tinytex)
 # File name for Trend Data file to be created
 setwd("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template")
 output_path <- "C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template"
-xlsx_file <- "trend-equity-202211.xlsx"
+#xlsx_file <- "trend-equity-202211.xlsx"
 
 # Create Image 
-image1 <- image_read("X:/DSA/shiny-uploads/images/49092697947_3dff1acb35_w.jpg")
-image2 <- image_read("X:/DSA/shiny-uploads/images/49091985828_9909c9bda3_w.jpg")
-image3 <- image_read("X:/DSA/shiny-uploads/images/51118193503_ae9e0064d1_w.jpg")
+image1 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/49092697947_3dff1acb35_w.jpg")
+image2 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/49091985828_9909c9bda3_w.jpg")
+image3 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/51118193503_ae9e0064d1_w.jpg")
 
 input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
 
 trend_image_header <- image_append(input)
 image_write(trend_image_header, path="trend_image_header.png", format="png")
 
+input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
+trend_image_header <- image_append(input)
+image_write(trend_image_header, path="trend_image_header.png", format="png")
+trend_image_header
+
 install_psrc_fonts()
 
 source("freightDelivery2.R")
 ```
+![](C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_image_header.png){width=100%}
 
 \begin{flushleft}
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household delivery choices in 2021, during COVID-19 conditions, to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+
+In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis.
 \end{flushleft}
 
 ## Food and Grocery Deliveries more than doubled from 2019 to 2021.
 \begin{flushleft}
 In 2021, although the average food/meal or grocery delivery share was only 4 or 5\%, 
 that represents twice the share of these type of deliveries in both 2017 and 2019.
-
-Package deliveries, which represent the highest share of deliveries on an average weekday
-for households, had a growth rate that doubles from 2019 to 2021.
-
-Work or service deliveries remained consistent at around 5\%.
-
-When combined visually, it's easy to see the distribution of home deliveries on an average weekday. 
 \end{flushleft}
 
 
-```{r individual delivery type, echo=FALSE}
+```{r individual delivery type, fig.dim=c(6,4), echo=FALSE}
 
 food_column
 grocery_column
+```
+
+\begin{flushleft} Package deliveries, which represent the highest share of deliveries on an average weekday
+for households, had a growth rate that doubles from 2019 to 2021.
+
+Work or service deliveries remained consistent at around 5\%.
+\end{flushleft}
+
+```{r delivery type others, fig.dim=c(6,4), echo=FALSE}
+
 package_column
 work_column
-deliveries_all_column
-
 ```
+
+\begin{flushleft}When combined visually, it's easy to see the distribution of home deliveries on an average weekday. 
+\end{flushleft}
+
+```{r deliveries, fig.dim=c(9,6), echo=FALSE}
+deliveries_all_column
+```
+
 
 ## Food/Meal and Package Deliveries in Low and High-Income Households Differed.
 \begin{flushleft}
@@ -108,7 +129,7 @@ those households with less than \textdollar 75,000 had a significant spike, grow
 about 18\% to over 30\% in 2021.
 \end{flushleft}
 
-```{r income blocks, echo=FALSE}
+```{r income blocks, fig.dim=c(6,4), echo=FALSE}
 
 food_income_column
 #groceries_income_column
@@ -123,7 +144,7 @@ Food or meal, grocery, and work or service deliveries stayed relatively stable r
 or year. However, package deliveries were the highest for households with kids (45\%), and then decreased as household age increased (about 30\%).
 \end{flushleft}
 
-```{r lifecycle, echo=FALSE}
+```{r lifecycle, fig.dim=c(12,9), echo=FALSE}
 
 #food_lifecycles
 #grocery_lifecycles
@@ -135,24 +156,30 @@ deliveries_lifecycle_facet3
 
 ## Food and Grocery Deliveries Doubled Outside of RGCs in 2021.
 \begin{flushleft}
-In 2021, the average food/meal or grocery delivery share more than doubled in households
+Since the early 1990s, the central Puget Sound region has adopted a strategy that focus future population and employment growth in designated \href{https://www.psrc.org/our-work/centers}{centers} within the region's urban growth area. Currently, there are 29 dense, walkable, mixed-used areas called  \textbf{regional growth centers (RGCs)}. RGCs are places that higher density and population and employment growth is planned. Based on the most recent findings in 2016, RGCs constitute only 1\% of the region's land area, but contain 5\% share of population and 28\% of employment, as well as 7\% of population growth and 12\% of employment growth. The main function of RGCs is to accommodate significant population and employment growth, as well as to focus regional's investments on housing, services and public transportation to accommodate the large demand that comes with the projected growth. Typically, RGCs are also located in closer proximity to amenities, shops, and resources that, we speculate, typically diminish the need to have deliveries made.
+
+Here we can see that in 2021, the average food/meal or grocery delivery share more than doubled in households
 outside of the Regional Growth Centers (RGCs) from nearly 2\% to over 4\%.
-
-Package deliveries increased for both RGC and non-RGC households, but package deliveries increased
-more significantly in RGCs, from less than 20\% in 2017 and 2019 to almost 20\% in 2021.
-
-Work or servicedeliveries remained relatively stable from 2017 and 2019 to 2021 in both RGCs and non-RGC households, 
-although non-RGC households tended to receive more average work or service deliveries than RGC households.
 \end{flushleft}
 
-```{r rgc, echo=FALSE}
+```{r rgc, fig.dim=c(6,4), echo=FALSE}
 
 food_rgc_plot
 grocery_rgc_plot
 #pkg_rgc_plot
 #work_rgc_plot
-deliveries_rgc
+```
 
+\begin{flushleft}
+Package deliveries increased for both RGC and non-RGC households, but package deliveries increased
+more significantly in RGCs, from less than 20\% in 2017 and 2019 to almost 20\% in 2021.
+
+Work or service deliveries remained relatively stable from 2017 and 2019 to 2021 in both RGCs and non-RGC households, 
+although non-RGC households tended to receive more average work or service deliveries than RGC households.
+\end{flushleft}
+
+```{r, fig.dim=c(9,6), echo=FALSE}
+deliveries_rgc
 ```
 
 ## Household Deliveries and Household Size
@@ -160,7 +187,7 @@ deliveries_rgc
 Still interpreting data here.
 \end{flushleft}
 
-```{r hhsize, echo=FALSE}
+```{r hhsize, fig.dim=c(6,4), echo=FALSE}
 
 food_hhsize_plot
 grocery_hhsize_plot
