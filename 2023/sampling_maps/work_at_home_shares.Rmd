@@ -1,0 +1,123 @@
+Making a map of work at home shares by tract
+ACS 2017-2021
+
+```{r setup, include=FALSE}
+library(psrcplot)
+library(psrccensus)
+library(psrc.travelsurvey)
+library(sf)
+library(leaflet)
+library(dplyr)
+library(psrcelmer)
+library(scales)
+```
+
+
+
+
+```{r}
+mode_to_work <- psrccensus::get_acs_recs(geography='tract',table.names=c('B08006'),years=c(2021))
+all_workers_tract<-mode_to_work%>%filter(label=='Estimate!!Total:')
+transit_workers_tract<-mode_to_work%>%filter(label=='Estimate!!Total:!!Public transportation (excluding taxicab):')
+
+transit_workers_join<-merge(all_workers_tract, transit_workers_tract, by= 'GEOID', suffixes=c('_all', '_home'))
+```
+
+
+```{r}
+transit_workers_share<- transit_workers_join%>%mutate(work_at_home_share=estimate_home/estimate_all)
+```
+
+```{r}
+Sys.getenv("CENSUS_API_KEY")
+
+
+tract.lyr<-st_read_elmergeo('TRACT2020_NOWATER')
+```
+
+
+```{r cars}
+create_tract_map_transit <- function(census.tbl, census.lyr,
+                                map.title = NULL, map.subtitle = NULL,
+                                map.title.position = "topright",
+                                legend.title = NULL, legend.subtitle = NULL,
+                                map.lat=47.615, map.lon=-122.257, map.zoom=8.5, wgs84=4326){
+  
+  
+  tbl <- census.tbl 
+  
+  c.layer <- dplyr::left_join(census.lyr,census.tbl, by = c('geoid20'='GEOID')) %>%
+    sf::st_transform(wgs84)
+  
+  #purples_inc = c("#E3C9E3", "#C388C2", "#AD5CAB", "#91268F", "#630460", "#4A0048")
+  color.ramp <- colorRamp(psrcplot::psrc_colors$purples_inc, interpolate="spline")
+  pal <- leaflet::colorNumeric(palette=color.ramp, domain = c.layer$work_at_home_share)
+  
+  
+  labels <- paste0( "Work at Home Share: ", percent(c.layer$work_at_home_share, accuracy=1)) %>% 
+    lapply(htmltools::HTML)
+  
+
+  
+  
+  m <- leaflet::leaflet() %>%
+    leaflet::addMapPane(name = "polygons", zIndex = 410) %>%
+    leaflet::addMapPane(name = "maplabels", zIndex = 500) %>% # higher zIndex rendered on top
+    leaflet::addProviderTiles("CartoDB.VoyagerNoLabels") %>%
+    leaflet::addProviderTiles("CartoDB.VoyagerOnlyLabels",
+                              options = leaflet::leafletOptions(pane = "maplabels"),
+                              group = "Labels") %>%
+    
+    leaflet::addEasyButton(leaflet::easyButton(icon="fa-globe",
+                                               title="Region",
+                                               onClick=leaflet::JS("function(btn, map){map.setView([47.615,-122.257],8.5); }"))) %>%
+    leaflet::addPolygons(data=c.layer,
+                         fillOpacity = 0.9,
+                         fillColor = pal(c.layer$work_at_home_share),
+                         weight = 0.7,
+                         color = "#BCBEC0",
+                         group="Population",
+                         opacity = 0,
+                         stroke=FALSE,
+                         options = leaflet::leafletOptions(pane = "polygons"),
+                         dashArray = "",
+                         highlight = leaflet::highlightOptions(
+                           weight =5,
+                           color = "76787A",
+                           dashArray ="",
+                           fillOpacity = 0.9,
+                           bringToFront = TRUE),
+                         label = labels,
+                         labelOptions = leaflet::labelOptions(
+                           style = list("font-weight" = "normal", padding = "3px 8px"),
+                           textsize = "15px",
+                           direction = "auto",
+                           font="Poppins")) %>%
+    
+    leaflet::addLegend(pal = pal,
+                       values = c.layer$work_at_home_share,
+                       labFormat = labelFormat(
+                         suffix = "%",
+                         transform = function(x) 100 * x
+                       ),
+                       position = "bottomright",
+                       title = paste(legend.title, '<br>', legend.subtitle)) %>%
+    
+    leaflet::addLayersControl(baseGroups = "CartoDB.PositronNoLabels",
+                              overlayGroups = c("Labels", "Population")) %>%
+    
+    leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom)
+  
+  return(m)
+} 
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+transit_share_map<-create_tract_map_transit(transit_workers_share, tract.lyr)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

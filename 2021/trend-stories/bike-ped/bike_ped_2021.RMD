@@ -51,7 +51,7 @@ walking_image_header
 ```
 ![](C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%}
 \begin{flushleft}
-The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region, such as how we traveled, where we went, how long it took—even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 to previous survey years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019 and 2021 data.
 \end{flushleft}
 
 ## People walked more and used transit less in 2021
@@ -63,10 +63,7 @@ walking and biking trips increased and transit trips decreased.
 The walk trip mode share was over 30\% in 2021 for social,
 recreational, and meal trips. A greater proportion of trips was made
 for these purposes in 2021 when compared to 2017/2019 survey responses.  
-
-Driving remained around 80\% of trips, consistent with previous years.
-
-2017 and 2019 survey samples have been combined in this analysis to strengthen the statistical validity of the findings by increasing the number of respondents in each calculation.
+Driving remained around 80\% of trips, consistent with previous years. The 2017 and 2019 survey samples have been combined in this analysis to strengthen the statistical validity of the findings by increasing the number of respondents in each calculation. Lines above the columns in each chart indicate the margin of error.
 \end{flushleft}
 
 
@@ -111,9 +108,9 @@ writeDataTable(wb = wb, sheet = 'trips_by_mode', x = trips_by_mode_no_drive)
 
 ```
 
-### More Social-Recreation Trips, Less Work and School Trips
+### More social-recreation Trips, Fewer work and school trips
 \begin{flushleft}
-The average number of trips per day per person decreased modestly from 4.4 trips in 2017/2019 to 4.1 trips. The types of trips people took shifted towards social-recreation trips away from work and school.
+The average number of trips per day per person decreased modestly from 4.4 trips in 2017/2019 to 4.1 trips. People took more social-recreation trips and fewer work and school trips.
 \end{flushleft}
 
 
@@ -132,9 +129,9 @@ trips_by_purpose_trend
 
 ### A greater share of social-recreation trips were made by walking in 2021
 \begin{flushleft}
-Walking mode shares increased for social, recreation, and meal purposes but decreased for work and school purposes in 2021, as compared to 2017/2019.
+Walking mode shares increased for social, recreation, and meal purposes but decreased for work and school in 2021, as compared to 2017/2019.
 
-In 2021, walking accounted for about one-third of social, recreation, and meal related trips up from one-fourth of these types of trips in 2017/2019. 
+In 2021, walking accounted for about one-third of social, recreation and meal-related trips up from a fourth of these types of trips in 2017/2019. 
 \end{flushleft}
 
 ```{r walkpurpose, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
@@ -152,7 +149,7 @@ writeDataTable(wb = wb, sheet = 'trips_by_purpose_walk', x = trips_by_purpose_wa
 
 ### 75% of transit trips were accessed by walking
 \begin{flushleft}
-Approximately 75\% of all transit trips were accessed by walk, jog, or wheelchair.  Access by biking accounted for less than 5\% of trips to transit in both years.  The remaining transit trips were accessed by several other modes, including driving and parking, getting dropped off, and other. 
+Approximately 75\% of all transit trips were accessed by walk, jog or wheelchair.  Access by biking accounted for less than 5\% of trips to transit in both years.  The remaining transit trips were accessed by several other modes, including driving oneself and getting dropped off.
 \end{flushleft}
 ```{r transit-access, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
 transit_access_mode<-read.csv(paste0(output_path, '/transit_access.csv'))
@@ -164,12 +161,12 @@ transit_access_chart
 
 ### More people going for walks and bike rides
 \begin{flushleft}
-Most people, at around 70\%, reported going for walks, even before COVID-19. During COVID-19 the share of people who reported going for walks increased about 10\% to 80\% of adults. 
+Around 70\% of people reported going for walks even before COVID-19. During COVID-19 the share of people who reported going for walks increased about 10\% to 80\% of adults. 
 
-In 2021, the highest share of people reported walking 2-4 days/week, while in 2017/2019, the highest share of people reported never walking. 
+In 2021, the highest share of people reported walking two to four days a week, in 2017/2019, the highest share of people reported never walking. 
 \end{flushleft}
 \begin{flushleft}
-People were biking a little more frequently in 2021 than in 2017/2019. More people in the region biked sometimes, but less than monthly in 2021. 
+People biked a little more frequently in 2021 than in 2017/2019. More people in the region biked sometimes, but less than monthly in 2021. 
 \end{flushleft}
 
 
@@ -179,6 +176,12 @@ walk_freq_chart<-static_bar_chart(t=walk_freq , y='mode_freq_3', x='share', fill
 walk_freq_chart
 addWorksheet(wb = wb, sheetName = 'walk_freq', gridLines = FALSE)
 writeDataTable(wb = wb, sheet = 'walk_freq', x = walk_freq)
+
+walkfreq_trend_int<-interactive_bar_chart(t=walk_freq, y='mode_freq_3', x='share', fill='survey', est='percent',color="pgnobgy_5", title ='Share of People Going for Walks')
+
+saveWidget(walkfreq_trend_int, 
+           file=paste0(output_path,'/bike_ped_interactive_plots/walkfreq_trend_int.html'))
+
 ```
 
 
@@ -190,24 +193,24 @@ addWorksheet(wb = wb, sheetName = 'bike_freq', gridLines = FALSE)
 writeDataTable(wb = wb, sheet = 'bike_freq', x = bike_freq)
 ```
 
-## Walking Trends for People by Race, Income, and Where they live
+## Walking trends for by race, income and home location
 
 \begin{flushleft}
 As walking rates were up in 2021, we also explored:
   \begin{itemize}
-\item How much were different demographics walking as percent of all their trips in 2021?
+\item How much were different demographic groups walking as percent of all their trips in 2021?
   \item How did people's walk mode shares change from 2017 to 2021?
 \end{itemize}
 
 \textbf{Regional Growth Centers}
 
-People who live in regional growth centers walk on about \textbf{32\%} their trips as compared to people who live outside regional growth centers who walk on only \textbf{13\%} of their trips. People who live in regional growth centers and outside of growth centers  both increased their walking mode shares from 2017/2019 to 2021.
+People who lived in regional growth centers walked on about 32\% their trips. By comparison, to people who lived outside of regional growth centers who walk on only 13\% of their trips. Both groups increased their walking mode shares from 2017/2019 to 2021.
 
 \end{flushleft}
 
 ```{r, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
 rgc_walk_mode<-read.csv(paste0(output_path, 'final_home_is_rgcwalk_mode_share.csv'))
-rgc_walk_mode_chart<-static_column_chart(t=rgc_walk_mode , x='final_home_is_rgc', y='share', f='survey', moe='share_moe', est='percent', color="pgnobgy_5", title = 'Walking Trip Shares by Home Location')
+rgc_walk_mode_chart<-static_bar_chart(t=rgc_walk_mode , y='final_home_is_rgc', x='share', f='survey', moe='share_moe', est='percent', color="pgnobgy_5", title = 'Walking Trip Shares by Home Location')
 rgc_walk_mode_chart
 
 addWorksheet(wb = wb, sheetName = 'rgc_walk_mode', gridLines = FALSE)
@@ -216,9 +219,9 @@ writeDataTable(wb = wb, sheet = 'rgc_walk_mode', x = rgc_walk_mode)
 
 ```
 \begin{flushleft}
-\textbf{Walking by Vehicle Ownership}
+\textbf{Walking by vehicle ownership}
 
-People living in regional growth centers may walk more than others because they own fewer cars. People with no vehicles in their household walked on nearly \textbf{50\%} of their trips, as compared to people who have vehicle in their household walking on \textbf{13\%} of their trips.
+People living in regional growth centers may walk more than others because they own fewer cars. People with no vehicles in their household walked on nearly 50\% of their trips. People who have vehicle in their household walking on 13\% of their trips.
 
 \end{flushleft}
 
@@ -241,7 +244,8 @@ In 2021, all racial groups had higher walking shares than in 2017/2019. Interpre
 
 ```{r, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
 race_walk_mode<-read.csv(paste0(output_path, 'race_eth_broadwalk_mode_share.csv'))
-race_walk_mode_chart<-static_column_chart(t=race_walk_mode , x='race_eth_broad', y='share', f='survey', moe='share_moe', est='percent', color="pgnobgy_5", title='Walking Trip Mode Shares by Race and Ethnicity')
+
+race_walk_mode_chart<-static_bar_chart(t=race_walk_mode , y='race_eth_broad', x='share', f='survey', moe='share_moe', est='percent', color="pgnobgy_5", title='Walking Trip Mode Shares by Race and Ethnicity')+scale_x_discrete(limits=rev)
 race_walk_mode_chart
 
 addWorksheet(wb = wb, sheetName = 'race_walk_mode', gridLines = FALSE)
@@ -250,9 +254,9 @@ writeDataTable(wb = wb, sheet = 'race_walk_mode', x = race_walk_mode)
 
 ```
 
-### Going for Walks and Bike Rides
+### Going for walks and bike rides
 \begin{flushleft}
-The previous analysis showed how people made a higher percent of their trips by walking in 2021 than before.  The travel survey also asks people about recreational walking and biking in terms of how frequently they "go for a walk or a bike ride". The 2021 survey results showed \textbf{all of the following types of people walked more frequently}:
+The previous analysis showed how people made a higher percent of their trips by walking in 2021 than before.  The travel survey examines recreational walking and biking by asking people how frequently they go for a walk or a bike ride. The 2021 survey results showed all of the following types of people walked more frequently:
   \begin{itemize}
 \item all racial groups
 \item all income groups
@@ -260,7 +264,7 @@ The previous analysis showed how people made a higher percent of their trips by 
 \item living in all four counties
 \end{itemize}
 
-People of all race groups also went for bike rides more frequently in 2021 than in 2017/2019.
+People of all racial groups also went for bike rides more frequently in 2021 than in 2017/2019.
 \end{flushleft}
 
 ```{r, echo=FALSE, results=TRUE,  fig.dim=c(6,4)}
@@ -270,6 +274,6 @@ saveWorkbook(wb=wb, file=xlsx_file, overwrite = TRUE)
 
 \subsection{Conclusion}
 \begin{flushleft}
-People were walking and biking more in 2021 than in previous years, but using transit less. COVID-19 conditions contributed to this substantial shift in behavior across most demographic groups. The 2023 household travel survey will show whether these patterns continue.
+People were walking and biking more in 2021 than in previous years but using transit less. COVID-19 conditions contributed to this substantial shift in behavior across most demographic groups. The 2023 household travel survey will show whether these patterns continue.
 \end{flushleft}
 

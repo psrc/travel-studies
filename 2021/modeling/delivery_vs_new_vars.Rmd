@@ -1,0 +1,298 @@
+---
+title: "model shopping trips"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(tidycensus)
+library(psrcslides)
+library(officer)
+library(DBI)
+library(foreign)
+library(ggplot2)
+library(MASS)
+library(Hmisc)
+library(reshape2)
+library(jtools)
+install_psrc_fonts()
+```
+Read in the data from Elmer
+
+```{r}
+ elmer_connect<-DBI::dbConnect(odbc::odbc(),
+                 driver = "ODBC Driver 17 for SQL Server",
+                 server = "AWS-PROD-SQL\\Sockeye",
+                 database = "Elmer",
+                 trusted_connection = "yes",
+                 port = 1433)
+  
+
+
+```
+
+We are getting household variables and trip variables to understand how
+1. household characteristics relate to gettin deliveries
+2. trip making characteristics relate to getting deliveries
+```{r}
+
+household_vars<-c('vehicle_count',  "hhincome_broad", 'broadband', 'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults')
+
+```
+
+Get all three years of data and bind it together.
+```{r}
+
+
+household_data_17<- get_hhts("2017", "h", vars=household_vars)
+household_data_19<- get_hhts("2019", "h", vars=household_vars)
+household_data_21<- get_hhts("2021", "h", vars=household_vars)
+
+```
+
+
+
+
+
+A function for grouping household characteristics
+```{r}
+
+household_grouping<-function(household_data){
+household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%mutate(hhincome_100= case_when(
+    hhincome_broad=="Under $25,000" ~ "Under $75,000",
+    hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
+    hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
+    hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
+    hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
+                                 TRUE~hhincome_broad))%>%mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
+                                  hhsize == "2 people"  ~ '2 people', 
+                                   hhsize == "3 people" ~ '3 people',
+                                   hhsize == "4 people" | 
+                                  hhsize == "5 people" | 
+                                  hhsize == "6 people" | 
+                                  hhsize == "7 people" |
+                                  hhsize == "8 people" | 
+                                  hhsize == "12 people" ~ "4+ people"))%>%
+     mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+"  
+                                 ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
+                                 ~ '35-64, no kids',
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" 
+                                   ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids'))
+
+household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
+
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
+household_data
+                                  
+}
+```
+
+```{r}
+household_data_17<-household_grouping(household_data_17)
+household_data_19<-household_grouping(household_data_19)
+household_data_21<-household_grouping(household_data_21)
+
+```
+
+
+
+This set of code is for summarizing whether a household received a delivery or not.
+```{r}
+
+
+survey_a <- list(survey = '2017_2019', label = '2017/2019')
+survey_b <- list(survey = '2021', label = '2021')
+survey_c <- list(survey = '2017', label = '2017')
+survey_d <- list(survey = '2019', label = '2019')
+
+# look at variable names and which years they were collected/documented
+
+# hhts_varsearch("delivery")
+# hhts_varsearch("traveldate")
+# hhts_varsearch("race")
+# hhts_varsearch('income')
+# hhts_varsearch('age')
+# hhts_varsearch('county')
+# hhts_varsearch('home')
+# hhts_varsearch('race')
+
+
+
+# create variables that would like to group by for analysis of deliveries by household
+
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+days <- c("dayofweek", "typical_day", "daynum", "pernum")
+
+
+```
+
+
+
+```{r, getting survey data with pre-identified variables for households}
+
+# -- How frequently is someone having a delivery made?? 
+# -- 2017, 2019, 2017/2019, 2021
+
+# pull datasets from two separate dataframes per year
+
+dsurvey_17 <- get_hhts(survey = survey_c$survey, 
+                        level = "d", 
+                        vars = c(delivery_type, days)) 
+
+
+
+dsurvey_19 <- get_hhts(survey = survey_d$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days)) 
+
+
+
+dsurvey_1719 <- get_hhts(survey = survey_a$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days)) 
+
+
+
+dsurvey_21 <- get_hhts(survey = survey_b$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days)) 
+
+
+
+```
+
+
+
+
+```{r, visualization functions}
+
+# function combining the delivery and household functions into one and ordering income by levels
+
+smp_delivery_combo <- function(data, year) {
+  ## rewriting labels of responses to be more concise
+  temp_table <- data %>%
+    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_food=='No' ~ 'No Delivery',
+                                        
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_package=='No' ~ 'No Delivery',
+                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_grocery=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_work =='No' ~ 'No Delivery',
+                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
+                                         TRUE ~ 'Delivery Received'))
+  temp_table<-temp_table%>%filter(pernum==1)%>% dplyr::select(survey,household_id,daynum, delivery_pkgs_all, delivery_grocery_all, delivery_food_all )
+  temp_table
+}
+```
+
+```{r, generate datasets}
+
+
+delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
+
+
+delivery_19 <- smp_delivery_combo(dsurvey_19, '2019')
+
+
+
+
+delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
+```
+
+
+
+
+
+
+Finally joining the households with demographics and number of shopping trips, to the delivery info.
+```{r}
+household_data_17<-merge(household_data_17, delivery_17, by=c('household_id'))%>%filter(daynum==1)%>%filter(delivery_pkgs_all%in% c('Delivery Received', 'No Delivery'))%>%mutate('delivery_pkg'=ifelse(delivery_pkgs_all=='Delivery Received', 1, 0))
+
+household_data_19<-merge(household_data_19, delivery_19, by=c('household_id'))%>%filter(daynum==1)%>%filter(delivery_pkgs_all%in% c('Delivery Received', 'No Delivery'))%>%mutate('delivery_pkg'=ifelse(delivery_pkgs_all=='Delivery Received', 1, 0))
+
+household_data_21<-merge(household_data_21, delivery_21, by=c('household_id'))%>%filter(daynum==1)%>%filter(delivery_pkgs_all%in% c('Delivery Received', 'No Delivery'))%>%mutate('delivery_pkg'=ifelse(delivery_pkgs_all=='Delivery Received', 1, 0))
+```
+
+Reading in data about Census Tracts to understand how characteristics of the home geography relate to the propensity to receive deliveries.
+```{r}
+displ_index_data<- 'C:/GitHub/travel-studies/2019/analysis/zero_veh_hh/displacement_risk_estimation.csv'
+tract_data<-read.csv(displ_index_data)
+
+```
+
+```{r}
+household_data_17$final_home_tract10<-as.character(household_data_17$final_home_tract10)
+household_data_19$final_home_tract10<-as.character(household_data_19$final_home_tract10)
+household_data_21$final_home_tract10<-as.character(household_data_21$final_home_tract10)
+```
+
+Join tract level data to household data at the home end.
+```{r}
+hh_tract_17<-merge(household_data_17, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE)
+hh_tract_19<-merge(household_data_19, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE)
+hh_tract_21<-merge(household_data_21, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE)
+```
+
+
+```{r}
+hh_tract_17<-hh_tract_17%>%mutate(good_transit=ifelse(transit_qt_mile>0.3, 1, 0))%>%rename(survey=survey.x)%>%mutate(good_transit=as.character(good_transit))
+hh_tract_19<-hh_tract_19%>%mutate(good_transit=ifelse(transit_qt_mile>0.3, 1, 0))%>%mutate(good_transit=as.character(good_transit))%>%rename(survey=survey.x)
+hh_tract_21<-hh_tract_21%>%mutate(good_transit=ifelse(transit_qt_mile>0.3, 1, 0))%>%mutate(good_transit=as.character(good_transit))%>%rename(survey=survey.x)
+
+pkg_transit_17<-hhts_count(hh_tract_17, group_vars=c('good_transit','delivery_pkgs_all'), spec_wgt='hh_weight_2017')
+pkg_transit_19<-hhts_count(hh_tract_19, group_vars=c('good_transit','delivery_pkgs_all'), spec_wgt='hh_weight_2019')
+pkg_transit_21<-hhts_count(hh_tract_21, group_vars=c('good_transit','delivery_pkgs_all'), spec_wgt='hh_weight_2021')
+
+```
+
+
+```{r}
+hh_tract_17<-hh_tract_17%>%mutate(low_english=ifelse(poor_english>0.3, 1, 0))%>%mutate(low_english=as.character(low_english))
+hh_tract_19<-hh_tract_19%>%mutate(low_english=ifelse(poor_english>0.3, 1, 0))%>%mutate(low_english=as.character(low_english))
+hh_tract_21<-hh_tract_21%>%mutate(low_english=ifelse(poor_english>0.3, 1, 0))%>%mutate(low_english=as.character(low_english))
+
+pkg_low_eng_17<-hhts_count(hh_tract_17, group_vars=c('low_english','delivery_pkgs_all'), spec_wgt='hh_weight_2017')
+pkg_low_eng_19<-hhts_count(hh_tract_19, group_vars=c('low_english','delivery_pkgs_all'), spec_wgt='hh_weight_2019')
+pkg_low_eng_21<-hhts_count(hh_tract_21, group_vars=c('low_english','delivery_pkgs_all'), spec_wgt='hh_weight_2021')
+
+
+```
+
+```{r}
+pkg_low_eng<-rbind(pkg_low_eng_17,pkg_low_eng_19, pkg_low_eng_21)%>%filter(delivery_pkgs_all=='Delivery Received')
+
+static_bar_chart(pkg_low_eng,x='low_english', y='share', fill='survey')
+```
+
