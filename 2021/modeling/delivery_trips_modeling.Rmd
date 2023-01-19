@@ -48,20 +48,20 @@ We are getting household variables and trip variables to understand how
 2. trip making characteristics relate to getting deliveries
 ```{r}
 trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'age_category', 'daynum', 'sample_source', 'hhgroup' )
-household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults')
+household_vars<-c('vehicle_count',  "hhincome_broad", 'broadband', 'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults')
 
 ```
 
 Get all three years of data and bind it together.
 ```{r}
-trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2017)
+trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::rename(trip_weight_2017)
 trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2019)
 trip_data_21<- get_hhts("2021", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & sample_source=='ABS')%>%dplyr::select(-c(trip_adult_weight_2021, trip_respondent_weight_2021))
 trip_data_17_19_21<-rbind(trip_data_17, trip_data_19, trip_data_21)
 
-household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2017)
-household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2019)
-household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_source=='ABS')%>%dplyr::select(-hh_weight_2021)
+household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::rename(hh_weight=hh_weight_2017)
+household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::rename(hh_weight=hh_weight_2019)
+household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_source=='ABS')%>%dplyr::rename(hh_weight=hh_weight_2021)
 household_data_17_19_21<-rbind(household_data_17, household_data_19, household_data_21)
 ```
 
@@ -314,7 +314,7 @@ hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_ho
 
 Make a big old model and see what stands out
 ```{r}
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30,family=binomial(), data=hh_shop_tract)
+deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband,family=binomial(), data=hh_shop_tract)
 summary(deliv_model)
 
 ```
@@ -322,7 +322,7 @@ summary(deliv_model)
 A smaller model with only statistically significant variables.
 
 ```{r}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+poor_english+prox_high_inc+transit_qt_mile+shop_trips,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+poor_english+prox_high_inc+transit_qt_mile+shop_trips+broadband,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
