@@ -51,7 +51,7 @@ walking_image_header
 ```
 ![](C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%}
 \begin{flushleft}
-The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region, such as how we traveled, where we went, how long it took—even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 to previous survey years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019 and 2021 data.
+The 2021 household travel survey collected day-to-day information from households in the central Puget Sound region, such as how we traveled, where we went, how long it took—even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 to previous survey years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019 and 2021 data.
 \end{flushleft}
 
 ## People walked more and used transit less in 2021
@@ -59,11 +59,6 @@ The 2021 regional travel survey collected day-to-day information from households
 In 2021, the regional walk mode share was 15\% and 
 the regional bike mode share was 1\%. Compared to previous surveys, 
 walking and biking trips increased and transit trips decreased.  
-
-The walk trip mode share was over 30\% in 2021 for social,
-recreational, and meal trips. A greater proportion of trips was made
-for these purposes in 2021 when compared to 2017/2019 survey responses.  
-Driving remained around 80\% of trips, consistent with previous years. The 2017 and 2019 survey samples have been combined in this analysis to strengthen the statistical validity of the findings by increasing the number of respondents in each calculation. Lines above the columns in each chart indicate the margin of error.
 \end{flushleft}
 
 
@@ -75,7 +70,7 @@ xlsx_file <- "bike_ped_hhts_2021.xlsx"
 ```
 
 
-```{r overallmodeshare, echo=FALSE, results=TRUE,  fig.dim=c(6,4), fig.dim=c(6,4) }
+```{r overallmodeshare, echo=FALSE, results=TRUE,  fig.dim=c(6,3), fig.dim=c(6,3) }
 
 if(file.exists(paste0(output_path, "/trips_by_mode.csv"))){
   
@@ -107,6 +102,13 @@ addWorksheet(wb = wb, sheetName = 'trips_by_mode', gridLines = FALSE)
 writeDataTable(wb = wb, sheet = 'trips_by_mode', x = trips_by_mode_no_drive)
 
 ```
+
+\begin{flushleft}
+The walk trip mode share was over 30\% in 2021 for social,
+recreational, and meal trips. A greater proportion of trips was made
+for these purposes in 2021 when compared to 2017/2019 survey responses.  
+Driving remained around 80\% of trips, consistent with previous years. The 2017 and 2019 survey samples have been combined in this analysis to strengthen the statistical validity of the findings by increasing the number of respondents in each calculation. Lines above the columns in each chart indicate the margin of error.
+\end{flushleft}
 
 ### More social-recreation Trips, Fewer work and school trips
 \begin{flushleft}
@@ -193,7 +195,7 @@ addWorksheet(wb = wb, sheetName = 'bike_freq', gridLines = FALSE)
 writeDataTable(wb = wb, sheet = 'bike_freq', x = bike_freq)
 ```
 
-## Walking trends for by race, income and home location
+## Walking trends for by home location, income, and race
 
 \begin{flushleft}
 As walking rates were up in 2021, we also explored:
