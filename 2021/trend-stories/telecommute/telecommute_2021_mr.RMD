@@ -46,16 +46,19 @@ image4 <- image_read("photos/kitsap_ferry.jpg")
 image5 <- image_read("photos/parked_cars.jpg")
 
 input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"),  image_scale(image4, "x200"),  image_scale(image5, "x200"))
-
+getwd()
 commute_image_header <- image_append(input)
 image_write(commute_image_header, path = "photos/commute_image_header.png", format = "png")
 # commute_image_header
+# ![](C:/Users/mrichards/Documents/GitHub/travel-studies/2021/trend-stories/telecommute/photos/commute_image_header.png){width=100%}
 ```
 
 # Trends in Employment and Telecommuting
-![](C:/Users/mrichards/Documents/GitHub/travel-studies/2021/trend-stories/telecommute/photos/commute_image_header.png){width=100%}
+![](photos/commute_image_header.png){width=100%}
 
+\begin{flushleft}
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+\end{flushleft}
 
 ```{r load_tables, echo=FALSE, include=FALSE}
 # Workplace
