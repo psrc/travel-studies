@@ -3,7 +3,9 @@ output:
   pdf_document:
     latex_engine: lualatex
     includes:
-      in_header: X:/DSA/shiny-uploads/images/trend_format.tex
+      in_header: "X:/DSA/shiny-uploads/images/trend_format.tex"
+  html_document:
+    df_print: paged
 fontsize: 12pt
 ---
 
@@ -49,11 +51,12 @@ commute_image_header <- image_append(input)
 image_write(commute_image_header, path = "photos/commute_image_header.png", format = "png")
 # commute_image_header
 ```
+
+# Trends in Employment and Telecommuting
 ![](C:/Users/mrichards/Documents/GitHub/travel-studies/2021/trend-stories/telecommute/photos/commute_image_header.png){width=100%}
 
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
 
-# Trends in Employment and Telecommuting
 ```{r load_tables, echo=FALSE, include=FALSE}
 # Workplace
 workplace_17_19 <- get_telecommute_data(survey = "2017_2019",
@@ -216,7 +219,7 @@ industry_by_race_21 <- get_telecommute_data(survey = "2021",
 
 ## Major workplace changes happened in 2021
 \begin{flushleft}
-In the regional travel surveys from 2017 to 2021, respondents with jobs were asked to select their current work location from a list of options. In the 2017/2019 combined survey, people that worked from home comprised only 6\% of all workers in the region. By spring of 2021, the portion of people working from home increased dramatically to 27\% of all workers in the region. Combined with the portion of people that teleworked some days and traveled to work some days, we saw 37\% of workers in the region working from home at least part of the time. However, the majority of workers in 2021 still traveled to a work location outside of the home.
+In the regional travel surveys from 2017 to 2021, respondents with jobs were asked to select their current work location from a list of options. In the 2017/2019 combined survey, people  who from home comprised only 6\% of all workers in the region. By spring of 2021, the portion of people working from home increased dramatically to 27\% of all workers in the region. Combined with the portion of people that teleworked some days and traveled to work some days, we saw 37\% of workers in the region working from home at least part of the time. However, the majority of workers in 2021 still traveled to a work location outside of the home.
 \end{flushleft}
 
 ```{r workplace, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
@@ -268,7 +271,7 @@ telecommute_times_per_week_chart <- static_column_chart(t = telecommute_times_pe
 telecommute_times_per_week_chart
 ```
 
-### Telecommute frequency also varied by gender
+### Telecommute frequency varied by gender
 \begin{flushleft}
 When telecommute frequency is broken down by gender, there was little difference in the shares of female workers reporting telecommuting 1-2 days per week (11\%), 3-4 days per week (12\%), and 5+ days per week (10\%). There was a slightly larger difference for male workers, with the largest share reporting 5+ days per week (12\%) compared to 9\% and 8\% for 1-2 days per week and 3-4 days per week, respectively. For both genders, the largest increase in telecommuting frequency between 2017/2019 and 2021 was for 3-4 days per week; the share of female workers increased from 2\% to 12\% and the share of male workers increased from 3\% to 8\%. There was also a large increase in male workers who reported telecommuting 5+ days per week, an increase from 7\% to 12\%.
 \end{flushleft}
@@ -286,9 +289,12 @@ telecommute_freq_gender_chart <- static_column_chart(t = telecommute_freq_gender
 telecommute_freq_gender_chart
 ```
 
+### Telecommute frequency also varied by race and ethnicity
 \begin{flushleft}
-\textbf{Telecommute frequency by race and ethnicity}
 When telecommute frequency is broken down by race and ethnicity, the number of workers telecommuting at least once per week increased the most for white workers, while telecommuting remained the same for workers of color. By the 2021, there were similar shares of workers of color and white workers telecommuting.
+
+**SHOULD WE INCLUDE A GRAPH HERE SHOWING THIS TREND?**
+
 \end{flushleft}
 
 ## Trends in workplace travel and worker industry in 2021
@@ -296,7 +302,7 @@ When telecommute frequency is broken down by race and ethnicity, the number of w
 As discussed above, 37\% of workers in the region worked at home in 2021, while 63\% of workers still worked at a location outside the home. However, we did see differences in the survey data when cross-tabulating differences in workplace travel by gender and by race and ethnicity.
 \end{flushleft}
 
-### Men working outside the home more than women
+### Males working outside the home more than females
 \begin{flushleft}
 Overall, there was a greater proportion of male workers (66\%) who reported working outside the home than female workers (59\%). However, both groups deviate only slightly from the regional average of 63\% of workers.
 \end{flushleft}
@@ -356,6 +362,9 @@ industry_work_travel_chart
 
 \begin{flushleft}
 Of those five industry groups that worked outside the home more than the regional average, two had greater proportions of female workers than the regional average (45\%; green bar in chart below): Health Care, Social Services \& Childcare (73\%) and Personal Services (69\%).
+
+**MORE DETAIL ABOUT THE REMAINING BREAKDOWN FOR THE OTHER THREE**
+
 \end{flushleft}
 
 ```{r industry_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
@@ -379,26 +388,29 @@ industry_gender_chart
 
 \begin{flushleft}
 Of those five industry groups that worked outside the home more than the regional average, three had greater proportions of workers of color than the regional average (33\%; green bar in chart below): Health Care, Social Services \& Childcare (42\%); Hospitality \& Retail (41\%); and Personal Services (39\%).
+
+**CHART NUMBERS STILL OFF?**
+
 \end{flushleft}
 
 ```{r industry_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 # something is off with the numbers -> investigate results
-# industry_race_chart <- industry_by_race_21 %>% 
-#   filter(race_eth_poc == "POC") %>% 
-#   mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>% 
-#   static_column_chart(t = .,
-#                       x = "industry_cond", y = "share",
-#                       fill = "race_eth_poc",
-#                       moe = "share_moe",
-#                       href = 0.33,
-#                       hrefcl = "green",
-#                       color = "pgnobgy_5",
-#                       title = "Workers of Color by Industry, Spring 2021") +
-#   scale_x_discrete(labels = scales::wrap_format(18),
-#                    guide = guide_axis(angle = 90)) +
-#   theme(axis.text.x = element_text(size = 8))
-# 
-# industry_race_chart
+industry_race_chart <- industry_by_race_21 %>%
+  filter(race_eth_poc == "POC") %>%
+  mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>%
+  static_column_chart(t = .,
+                      x = "industry_cond", y = "share",
+                      fill = "race_eth_poc",
+                      moe = "share_moe",
+                      href = 0.33,
+                      hrefcl = "green",
+                      color = "pgnobgy_5",
+                      title = "Workers of Color by Industry, Spring 2021") +
+  scale_x_discrete(labels = scales::wrap_format(18),
+                   guide = guide_axis(angle = 90)) +
+  theme(axis.text.x = element_text(size = 8))
+
+industry_race_chart
 ```
 
 \subsection{Conclusion}
