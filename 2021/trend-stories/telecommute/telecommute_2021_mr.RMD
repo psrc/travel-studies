@@ -3,7 +3,7 @@ output:
   pdf_document:
     latex_engine: lualatex
     includes:
-      in_header: "X:/DSA/shiny-uploads/images/trend_format.tex"
+      in_header: "X:/DSA/Trends/household-travel-survey/headers/trend_format_hts.tex"
   html_document:
     df_print: paged
 fontsize: 12pt
@@ -22,6 +22,7 @@ library(openxlsx)
 library(tidycensus)
 
 options(tinytex.verbose=TRUE)
+tinytex::tlmgr_install('datetime')
 
 opts_chunk$set(echo=FALSE, 
                warning=FALSE, 
