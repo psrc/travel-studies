@@ -251,7 +251,8 @@ moe_bars <- geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe),
 
 
 # change legend
-psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
+psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom",
+                        m.t=0,m.r=0,m.l=0) {
   font <- "Poppins"
   
   ggplot2::theme(
@@ -259,7 +260,7 @@ psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
     #Text format:
     #This sets the font, size, type and color of text for the chart's title
     plot.title = ggplot2::element_text(family=font,
-                                       face="bold",
+                                       # face="bold",
                                        size=14+text_size),
     plot.title.position = "plot",
     
@@ -297,7 +298,7 @@ psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
     
     #Grid lines
     #This removes all minor gridlines and adds major y gridlines. In many cases you will want to change this to remove y gridlines and add x gridlines.
-    panel.grid.minor = ggplot2::element_blank(),
+    # panel.grid.minor = ggplot2::element_blank(),
     panel.grid.major.y = ggplot2::element_line(color="#cbcbcb"),
     panel.grid.major.x = ggplot2::element_blank(),
     
@@ -307,7 +308,9 @@ psrc_style2 <- function(text_size=0,axis_text_size=0, loc="bottom") {
     
     #Strip background sets the panel background for facet-wrapped plots to PSRC Gray and sets the title size of the facet-wrap title
     strip.background = ggplot2::element_rect(fill="#BCBEC0"),
-    strip.text = ggplot2::element_text(size  = 12+text_size,  hjust = 0)
+    strip.text = ggplot2::element_text(size  = 12+text_size,  hjust = 0),
+    
+    plot.margin = margin(m.t, m.r, 0, m.l, "cm"),
   )
 }
 
