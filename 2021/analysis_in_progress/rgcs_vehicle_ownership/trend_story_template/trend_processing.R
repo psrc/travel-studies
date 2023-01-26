@@ -3,6 +3,7 @@ library(psrccensus)
 library(psrcplot)
 library(psrctrends)
 library(tidycensus)
+library(psrcelmer)
 
 library(tidyverse)
 library(stringr)
@@ -10,6 +11,7 @@ library(rlang)
 library(chron)
 library(scales)
 library(gridExtra)
+library(sf)
 
 install_psrc_fonts()
 
@@ -24,7 +26,7 @@ rgcs_tracts_list <- read_csv("rgc_tracts.csv") %>% select(-1) %>%
 urban_metro <- read_csv("urban_metro.csv") %>% select(3,13)
 
 # functions
-source("rgcs_functions.R")
+source("C:/Joanne_PSRC/data_science/travel-studies/2021/analysis_in_progress/rgcs_vehicle_ownership/rgcs_functions.R")
 
 # import HHTS data ####
 hh_vars=c("survey_year",
@@ -101,7 +103,15 @@ mode_rgc <- hhts_count(trip_data_21 %>%
   ) %>% 
   filter(final_home_is_rgc != 'Total',
          !is.na(mode_simple2),
-         mode_simple2 != 'Total')
+         mode_simple2 != 'Total',
+         survey=="2021") %>%
+  mutate(survey = factor(survey, levels = c("2017","2019","2021"))) %>%
+  ggplot(aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
+    geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
+    scale_y_continuous(labels = label_percent()) +
+    psrc_style2()+
+    scale_fill_manual(values = psrc_colors$pognbgy_5) +
+    coord_flip()
 
 mode_metro <- hhts_count(trip_data_21 %>%
                            filter(race_eth_broad != "Child -- no race specified"),
@@ -121,10 +131,11 @@ mode_metro <- hhts_count(trip_data_21 %>%
   ) %>% 
   filter(urban_metro != 'Total',
          !is.na(mode_simple2),
-         mode_simple2 != 'Total')
+         mode_simple2 != 'Total') %>%
+  mutate(survey = factor(survey, levels = c("2017","2019","2021"))) 
 
-mode_metro$survey <- factor(mode_metro$survey, levels = c("2017","2019","2021"))
-mode_rgc$survey <- factor(mode_rgc$survey, levels = c("2017","2019","2021"))
+# mode_metro$survey <- factor(mode_metro$survey, levels = c("2017","2019","2021"))
+# mode_rgc$survey <- factor(mode_rgc$survey, levels = c("2017","2019","2021"))
 
 ### 2. change in mode share ####
 mode_change_rgc <- hhts_count(trip_data_17_19 %>%
@@ -149,7 +160,15 @@ mode_change_rgc <- mode_change_rgc %>%
   mutate(
     share_change = (share-share_base) / share_base,
     share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
-  ) 
+  ) %>%
+  ggplot(aes(x=mode_simple2, y=share_change, fill=final_home_is_rgc)) +
+    geom_col(position = "dodge")+
+    geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
+                  width=0.2, position = position_dodge(0.9)) +
+    scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2)) +
+    scale_fill_discrete_psrc ("pognbgy_10")+
+    # ggtitle("Change in mode share in RGCs \n(2021 compared to 2017/2019 HHTS)")+
+    psrc_style2()
 
 mode_change_metro <- hhts_count(trip_data_17_19 %>%
                             filter(race_eth_broad != "Child -- no race specified"),
@@ -190,7 +209,17 @@ time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
             filter(final_home_is_rgc!='Total') %>%
             mutate(label = "Travel time (minutes)") %>%
             rename(mean = google_duration_mean,
-                   mean_moe = google_duration_mean_moe))
+                   mean_moe = google_duration_mean_moe)) %>%
+  ggplot(aes(x=final_home_is_rgc, y=mean, fill=final_home_is_rgc)) +
+    geom_col(position = "dodge")+  
+    geom_errorbar(aes(ymin=mean-mean_moe, 
+                      ymax=mean+mean_moe),
+                  width=0.2, position = position_dodge(0.9))+
+    scale_fill_discrete_psrc ("pognbgy_10")+
+    facet_wrap(~label, scales = "free_y") +
+    psrc_style2(text_size = 2) + 
+    theme(plot.title = element_blank())
+
 time_dist_metro <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
                   group_vars=c('urban_metro'),
                   spec_wgt='trip_adult_weight_2021') %>%
@@ -218,6 +247,30 @@ freq <- per_data_21 %>%
                                                        "5 days/week",
                                                        "6-7 days/week")~"at least 1 day/week",
                                    TRUE~ "less than 1 day/week"))
+
+freq_transit <- hhts_count(freq, 
+                   group_vars=c("urban_metro", "transit_label"),
+                   spec_wgt = "person_adult_weight_2021") %>%
+  filter(transit_label!="Total")  %>%
+  ggplot(aes(x=transit_label, y=share, fill=urban_metro)) +
+  geom_col(position = "dodge")+  
+  moe_bars+
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  psrc_style2() + 
+  theme(plot.title = element_blank())
+
+freq_walk  <- hhts_count(freq, 
+                    group_vars=c("urban_metro", "walk_label"),
+                    spec_wgt = "person_adult_weight_2021") %>%
+  filter(walk_label!="Total") %>%
+  ggplot(aes(x=walk_label, y=share, fill=urban_metro)) +
+    geom_col(position = "dodge")+  
+    moe_bars+
+    scale_y_continuous(labels=percent) +
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+    psrc_style2() + 
+  theme(plot.title = element_blank())
 
 
 ## demographics ####
@@ -278,20 +331,11 @@ plot_age <- get_acs_recs(geography = 'tract',
   ungroup() %>% 
   ggplot(aes(x=label3, y=share, fill=RGC)) +
     geom_col(position = "dodge")+  
-    # moe_bars +
+    moe_bars +
     scale_y_continuous(labels=percent,limits = c(0, 0.41)) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
     psrc_style2() + 
-    geom_text(aes(
-              label=paste0(prettyNum(round(share*100,0), big.mark = ","),"%")),
-              check_overlap = TRUE,
-              position = position_dodge(0.9),
-              vjust = -0.25,
-              size = 11*0.36,
-              family="Poppins") +
-    theme(plot.title = element_blank(),
-          axis.text.y = element_blank(),
-          panel.grid.major.y = element_blank())
+    theme(plot.title = element_blank())
 
 
 ### 2. vehicle ownership ####
@@ -321,19 +365,11 @@ plot_veh_own <- get_acs_recs(geography = 'tract',
   filter(label2 == "1 or more vehicle(s)") %>%
   ggplot(aes(x=label2, y=share, fill=RGC)) +
     geom_col(position = "dodge")+  
+    moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    psrc_style2() + 
-  geom_text(aes(
-    label=paste0(prettyNum(round(share*100,0), big.mark = ","),"%")),
-    check_overlap = TRUE,
-    position = position_dodge(0.9),
-    vjust = -0.25,
-    size = 11*0.36,
-    family="Poppins") +
-  theme(plot.title = element_blank(),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank())
+    psrc_style2(m.r=3,m.l=3) + 
+    theme(plot.title = element_blank())
 
 ### 2. household size ####
 plot_hhsize <- get_acs_recs(geography = 'tract',
@@ -362,16 +398,8 @@ plot_hhsize <- get_acs_recs(geography = 'tract',
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
     psrc_style2() + 
-  geom_text(aes(
-    label=paste0(prettyNum(round(share*100,0), big.mark = ","),"%")),
-    check_overlap = TRUE,
-    position = position_dodge(0.9),
-    vjust = -0.25,
-    size = 11*0.36,
-    family="Poppins") +
-  theme(plot.title = element_blank(),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank())
+    # psrc_style2(m.r=3,m.l=3) + 
+    theme(plot.title = element_blank())
 
 #income
 plot_income <- get_acs_recs(geography = 'tract',
@@ -389,7 +417,8 @@ plot_income <- get_acs_recs(geography = 'tract',
                                          "Estimate!!Total:!!$35,000 to $39,999",
                                          "Estimate!!Total:!!$40,000 to $44,999",
                                          "Estimate!!Total:!!$45,000 to $49,999") ~ "Under $50,000",
-                            TRUE~"$50,000 and over")) %>%
+                            TRUE~"$50,000 and over"),
+         label2 = factor(label2, levels=c("Under $50,000","$50,000 and over"))) %>%
   group_by(label2,RGC) %>%
   summarise(estimate = sum(estimate),
             moe = moe_sum(moe, estimate = estimate)) %>%
@@ -402,15 +431,242 @@ plot_income <- get_acs_recs(geography = 'tract',
     moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    # ggtitle(TT)+
-    psrc_style2(axis_text_size = 2) + 
-  geom_text(aes(
-    label=paste0(prettyNum(round(share*100,0), big.mark = ","),"%")),
-    check_overlap = TRUE,
-    position = position_dodge(0.9),
-    vjust = -0.25,
-    size = 11*0.36,
-    family="Poppins") +
-  theme(plot.title = element_blank(),
-        axis.text.y = element_blank(),
-        panel.grid.major.y = element_blank())
+    # psrc_style2() + 
+    psrc_style2(m.r=3,m.l=3) +
+    theme(plot.title = element_blank())
+
+#-- ACS 2021 with block groups ----
+sf_use_s2(FALSE)
+
+rgc_blkgrp20 <- st_join(st_read_elmergeo('BLOCKGRP2020'),st_read_elmergeo('URBAN_CENTERS')) %>%
+  mutate(name = ifelse(is.na(name),"Not RGC", name),
+         category = ifelse(is.na(category),"Not RGC", category),
+         RGC = ifelse(category=="Not RGC", "Not RGC", "RGC")) %>%
+  select(geoid20,county_name,namelsad20,name,category,RGC)
+
+# B01001
+plot_age21 <- get_acs_recs(geography = 'block group',
+                               table.names = 'B01001',
+                               years = 2021,
+                               acs.type = 'acs1')%>%
+  mutate(age = case_when(grepl("Under 5 years|5 to 9 years|10 to 14 years|15 to 17 years",label) ~ "< 18 years",
+                         grepl("18 and 19 years|20|21|22|25|30 to 34 years",label) ~ "18-34 years",
+                         grepl("35 to 39 years|40 to 44 years|45 to 49 years|50 to 54 years|55 to 59 years|60 and 61 years|62 to 64 years",label) ~ "35-64 years",
+                         grepl("65|67|70|75|80|85",label) ~ "65+ years",
+                         label == "Estimate!!Total:"~ "total population"),
+         .after="variable") %>%
+  filter(!is.na(age)) %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  group_by(RGC, age) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[age=="total population"],
+         total_moe = sum_moe[age=="total population"]) %>%
+  ungroup() %>%
+  filter(age!="total population") %>%
+  mutate(RGC = factor(RGC, levels=c("RGC", "Not RGC")),
+         share = sum_est/total_est, 
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>% 
+  ggplot(aes(x=age, y=share, fill=RGC)) +
+    geom_col(position = "dodge")+  
+    moe_bars +
+    scale_y_continuous(labels=percent#,limits = c(0, 0.41)
+                       ) +
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+    psrc_style2() + 
+    theme(plot.title = element_blank())
+
+plot_hhsize21 <- get_acs_recs(geography = 'block group',
+                         table.names = 'B11016',
+                         years = 2021,
+                         acs.type = 'acs1') %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  mutate(hh_size = case_when(label == "Estimate!!Total:"~ "total population",
+                             grepl("1-person household",label)~ "Single-person",
+                             grepl("2-person household",label)~ "2-person",
+                             grepl("3-person|4-person|5-person|6-person|7-or-more",label)~ "3(+)-person"),
+         hh_size = factor(hh_size, levels = c("total population","Single-person","2-person","3(+)-person")),
+         .after="variable") %>%
+  filter(!is.na(hh_size)) %>%
+  group_by(RGC, hh_size) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[hh_size=="total population"],
+         total_moe = sum_moe[hh_size=="total population"])%>%
+  ungroup() %>%
+  filter(hh_size!="total population") %>%
+  mutate(RGC = factor(RGC, levels=c("RGC", "Not RGC")),
+         share = sum_est/total_est, 
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>%
+  ggplot(aes(x=hh_size, y=share, fill=RGC)) +
+    geom_col(position = "dodge")+  
+    moe_bars +
+    scale_y_continuous(labels=percent) +
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+    psrc_style2(m.r=3,m.l=3) +
+    theme(plot.title = element_blank())
+    # ggtitle("(b) household size")
+
+plot_veh21_rgc <- get_acs_recs(geography = 'block group',
+                                  table.names = 'B25044',
+                                  years = 2021,
+                                  acs.type = 'acs1')%>%
+  mutate(vehicle = case_when(
+    grepl("No vehicle",label) ~ "No vehicle",
+    grepl("1 vehicle|2 vehicles|3 vehicles|4 vehicles|5 or more vehicles",label) ~ "1+ vehicle(s)",
+    label == "Estimate!!Total:" ~ "total population")) %>%
+  filter(!is.na(vehicle)) %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  group_by(RGC, vehicle) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[vehicle=="total population"],
+         total_moe = sum_moe[vehicle=="total population"]) %>%
+  ungroup() %>%
+  filter(vehicle=="1+ vehicle(s)") %>%
+  mutate(RGC = factor(RGC, levels=c("RGC", "Not RGC")),
+         share = sum_est/total_est, 
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))  %>%
+  ggplot(aes(x=vehicle, y=share, fill=RGC)) +
+  geom_col(position = "dodge")+  
+  moe_bars +
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  psrc_style2(m.t=0.5,m.r=5,m.l=5) + 
+  theme(plot.title = element_blank())
+  # ggtitle("(d) vehicle ownership")
+
+##-- metro and urban RGCs ----
+
+
+plot_age21_mu <- get_acs_recs(geography = 'block group',
+                           table.names = 'B01001',
+                           years = 2021,
+                           acs.type = 'acs1')%>%
+  mutate(age = case_when(grepl("Under 5 years|5 to 9 years|10 to 14 years|15 to 17 years",label) ~ "< 18 years",
+                         grepl("18 and 19 years|20|21|22|25|30 to 34 years",label) ~ "18-34 years",
+                         grepl("35 to 39 years|40 to 44 years|45 to 49 years|50 to 54 years|55 to 59 years|60 and 61 years|62 to 64 years",label) ~ "35-64 years",
+                         grepl("65|67|70|75|80|85",label) ~ "65+ years",
+                         label == "Estimate!!Total:"~ "total population"),
+         .after="variable") %>%
+  filter(!is.na(age)) %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  group_by(category, age) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[age=="total population"],
+         total_moe = sum_moe[age=="total population"]) %>%
+  ungroup() %>%
+  filter(age!="total population") %>%
+  mutate(category = factor(category, levels=c("Metro", "Urban", "Not RGC")),
+         share = sum_est/total_est, 
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>% 
+  ggplot(aes(x=age, y=share, fill=category)) +
+  geom_col(position = "dodge")+  
+  moe_bars +
+  scale_y_continuous(labels=percent#,limits = c(0, 0.41)
+  ) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  psrc_style2() + 
+  theme(plot.title = element_blank())
+
+plot_income_mu <- get_acs_recs(geography = 'tract',
+                            table.names = 'B19001',
+                            years = 2021,
+                            acs.type = 'acs1') %>%
+  add_RGCs() %>%
+  filter(label != "Estimate!!Total:") %>%
+  mutate(label2 = case_when(label %in% c("Estimate!!Total:!!Less than $10,000",
+                                         "Estimate!!Total:!!$10,000 to $14,999",
+                                         "Estimate!!Total:!!$15,000 to $19,999",
+                                         "Estimate!!Total:!!$20,000 to $24,999",
+                                         "Estimate!!Total:!!$25,000 to $29,999",
+                                         "Estimate!!Total:!!$30,000 to $34,999",
+                                         "Estimate!!Total:!!$35,000 to $39,999",
+                                         "Estimate!!Total:!!$40,000 to $44,999",
+                                         "Estimate!!Total:!!$45,000 to $49,999") ~ "Under $50,000",
+                            TRUE~"$50,000 and over"),
+         label2 = factor(label2, levels=c("Under $50,000","$50,000 and over"))) %>%
+  group_by(label2,urban_metro) %>%
+  summarise(estimate = sum(estimate),
+            moe = moe_sum(moe, estimate = estimate)) %>%
+  group_by(urban_metro) %>%
+  mutate(share = estimate/sum(estimate),
+         share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
+  ungroup() %>%
+  ggplot(aes(x=label2, y=share, fill=urban_metro)) +
+  geom_col(position = "dodge")+
+  moe_bars +
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  # psrc_style2() + 
+  psrc_style2(m.r=3,m.l=3) +
+  theme(plot.title = element_blank())
+
+plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
+                              table.names = 'B11016',
+                              years = 2021,
+                              acs.type = 'acs1') %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  mutate(hh_size = case_when(label == "Estimate!!Total:"~ "total population",
+                             grepl("1-person household",label)~ "Single-person",
+                             grepl("2-person household",label)~ "2-person",
+                             grepl("3-person|4-person|5-person|6-person|7-or-more",label)~ "3(+)-person"),
+         hh_size = factor(hh_size, levels = c("total population","Single-person","2-person","3(+)-person")),
+         .after="variable") %>%
+  filter(!is.na(hh_size)) %>%
+  group_by(category, hh_size) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[hh_size=="total population"],
+         total_moe = sum_moe[hh_size=="total population"])%>%
+  ungroup() %>%
+  filter(hh_size!="total population") %>%
+  mutate(category = factor(category, levels=c("Metro", "Urban", "Not RGC")),
+         share = sum_est/total_est, 
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>%
+  ggplot(aes(x=hh_size, y=share, fill=category)) +
+  geom_col(position = "dodge")+  
+  moe_bars +
+  scale_y_continuous(labels=percent) +
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  psrc_style2(m.r=2,m.l=2) +
+  theme(plot.title = element_blank())
+
+plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
+                      table.names = 'B25044',
+                      years = 2021,
+                      acs.type = 'acs1')%>%
+  mutate(vehicle = case_when(
+    grepl("No vehicle",label) ~ "No vehicle",
+    grepl("1 vehicle|2 vehicles|3 vehicles|4 vehicles|5 or more vehicles",label) ~ "1+ vehicle(s)",
+    label == "Estimate!!Total:" ~ "total population")) %>%
+  filter(!is.na(vehicle)) %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  group_by(category, vehicle) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[vehicle=="total population"],
+         total_moe = sum_moe[vehicle=="total population"]) %>%
+  ungroup() %>%
+  filter(vehicle=="1+ vehicle(s)") %>%
+  mutate(category = factor(category, levels=c("Metro", "Urban", "Not RGC")),
+         share = sum_est/total_est, 
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))  %>%
+  ggplot(aes(x=vehicle, y=share, fill=category)) +
+    geom_col(position = "dodge")+  
+    moe_bars +
+    scale_y_continuous(labels=percent) +
+    scale_fill_discrete_psrc ("gnbopgy_5")+
+    psrc_style2(m.t=0.5,m.r=4,m.l=4) + 
+    theme(plot.title = element_blank())
+
+
+get_legend<-function(myggplot){
+  tmp <- ggplot_gtable(ggplot_build(myggplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)
+}
+
+demo_legend <- get_legend(plot_veh21_rgc)

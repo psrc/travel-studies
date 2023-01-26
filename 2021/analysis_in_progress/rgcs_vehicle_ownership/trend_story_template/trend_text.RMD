@@ -3,9 +3,9 @@ output:
   pdf_document:
     latex_engine: lualatex
     includes:
-      in_header: trend_format.tex
+      in_header: trend_format_hts.tex
 fontsize: 12pt
-bibliography: reference.bib 
+bibliography: reference.bib     
 ---
 
 
@@ -20,6 +20,7 @@ library(knitr)
 library(magick)
 library(openxlsx)
 library(tidycensus)
+library(gridExtra)
 
 options(tinytex.verbose=TRUE)
 
@@ -27,8 +28,7 @@ opts_chunk$set(echo=FALSE,
                warning=FALSE, 
                message=FALSE,
                fig.align = "center"
-               # out.width = '50%'
-               ) # formatting
+               )
 
 install_psrc_fonts()
 
@@ -36,9 +36,10 @@ source("trend_processing.R")
 ```
 
 
-![](C:/Users/JLin/Downloads/image.png){width=100%}
+![](image.png){width=100%}
 
-The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
+
 
 # Regional Growth Centers in Central Puget Sound
 
@@ -47,28 +48,41 @@ Since the early 1990s, the central Puget Sound region has adopted a strategy tha
 
 ## RGC Demographics
 
-Figure \@ref(plot_age) profiles the age of RGC residents. The data shows a higher percentage of 18- to 34-year-olds residing in RGCs, compared to the non-RGC areas. This hints RGCs' attraction to the young workforce, as RGCs offers more rental housing, employment and transit. Also, RGCs have fewer children than the non-RGC areas, while the share of seniors have the same share across RGCs and non-RGCs.
+RGCs, on average, have a much higher percentage of 18- to 34-year-olds compared to the non-RGC regions, as well as fewer children and equal share of seniors. Also, This hints RGCs' attraction to the young workforce, as RGCs offers more rental housing, employment and transit.the percentage of single-person family in RGCs is double the non-RGCs'. The percentage for households with median income lower than $50,000 in the RGC is slightly higher than the non-RGC regions. But, RGCs have smaller household sizes on average. Lastly, as RGCs offer more multimodal travel options, figure 1.d shows that RGCs have a lower vehicle ownership than non-RGCs. In the next section, we will look more closely into the differences in travel behaviors of residents living in RGCs and non-RGC regions.
 
-```{r plot_age, fig.cap= "Regional Growth Center Age", fig.dim=c(5,3)}
-plot_age + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
+
+```{r plot_demo_rgc, fig.cap= "Regional Growth Center Demographics (Source: U.S. Census Bureau - American Community Survey, 2021 Block Group Estimates)", fig.subcap=c('Age', 'Income', 'Household Size', 'Vehicle Ownership'), fig.ncol = 2, out.width = "50%",out.height = "150%"}
+
+plot_age21
+plot_income
+plot_hhsize21
+plot_veh21_rgc
+```
+```{r plot_demo_mu, fig.cap= "Metro and Urban Regional Growth Center Demographics (Source: U.S. Census Bureau - American Community Survey, 2021 Block Group Estimates)", fig.subcap=c('Age', 'Income', 'Household Size', 'Vehicle Ownership'), fig.ncol = 2, out.width = "50%",out.height = "150%"}
+
+plot_age21_mu
+plot_income_mu
+plot_hhsize21_mu
+plot_veh21_rgc_mu
 ```
 
-Figure \@ref(hhsize) shows a share of 35% single-person households in RGCs and 26% of single-person households in non-RGCs, reflecting smaller household sizes in RGCs compared to non-RGCs. 
 
-```{r hhsize, fig.cap= "Regional Growth Center Household Size", fig.dim=c(2,3.5)}
+```{r, fig.height=6, fig.width = 7, include=FALSE}
+grid.arrange(plot_age+ theme(legend.position="none"),
+             plot_hhsize21+ theme(legend.position="none"),
+             plot_income+ theme(legend.position="none"),
+             plot_veh21_rgc+ theme(legend.position="none"), 
+             demo_legend, 
+             ncol=2, nrow = 3, 
+             layout_matrix = rbind(c(1,2), 
+                                   c(3,4),
+                                   c(5,5)),
+             widths = c(5.5, 3), heights = c(2.5,2.5, 0.2))
+
 plot_hhsize + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
 
-```
-
-
-
-```{r income, fig.cap= "Regional Growth Center Household Income", fig.dim=c(4,3.5)}
 plot_income + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
-```
 
-Across all RGCs, 
-
-```{r v_own, fig.cap= "Regional Growth Center Vehicle Ownership", fig.dim=c(2,3.5)}
 plot_veh_own + labs(caption = "U.S. Census Bureau - American Community Survey, 2017-2021 Census Tract Estimates.")
 ```
 
@@ -76,50 +90,23 @@ plot_veh_own + labs(caption = "U.S. Census Bureau - American Community Survey, 2
 
 ## Travel Behavior
 
-This report applied 2017, 2019 and 2021 Household travel survey data to describe the travel behaviors of residents in RGCs and how their travel behavior is different than residents in other non-RGC areas.
+To support projected growth in RGCs, the region's plans call for an efficient multimodal transportation system that increases accessibility in the region. It is anticipated that the RGCs will be connected with high-capacity transit. In addition, a more efficient urban environment will be created to provide multiple travel choices, including cars, transit, walking, biking and ride-sharing. 
 
-To support projected growth in RGCs, the region's plans call for an efficient multi-modal transportation system that increases accessibility in the region. It is anticipated that the RGCs will be connected with high-capacity transit. In addition, a more efficient urban environment will be created to provide multiple travel choices, including walking, biking and taking transit.
+This report applied 2017, 2019 and 2021 Household Travel Survey data to measure the travel behaviors of residents in RGCs and how their travel behavior is different than residents in non-RGC areas.
 
 ### Mode shares
 
-```{r mode share, fig.dim=c(6,4), fig.dim=c(6,4)}
-# static_bar_chart(mode_rgc %>% filter(survey=="2021"), x = "share", y = "final_home_is_rgc",
-# fill = "mode_simple2",pos="stack", color="pognbgy_5")
+In figure 2, RGCs have significantly less driving trips, which includes trips traveling with SOV and HOV, in 2021 compared to non-RGC regions. The reduced driving trips in RGCs are replaced by more transit and walking/biking trips. This matches with the residents in RGCs having lower vehicle ownership
 
-
-ggplot(mode_rgc %>% filter(survey=="2021"), 
-       aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
-  geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
-  scale_y_continuous(labels = label_percent()) +
-  psrc_style()+
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  coord_flip()
-
-# ggplot(mode_metro %>% filter(survey=="2021"), 
-#        aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
-#   geom_bar(position=position_stack(reverse = TRUE), stat="identity") + 
-#   scale_y_continuous(labels = label_percent()) +
-#   psrc_style()+
-#   scale_fill_manual(values = psrc_colors$pognbgy_5) +
-#   coord_flip()
-
-
-# interactive_bar_chart(mode_rgc %>% filter(survey=="2021"), x = "share", y = "final_home_is_rgc",
-#                       fill = "mode_simple2",pos="stack")
+```{r mode share, fig.cap="Mode Share (Source: PSRC 2021 Household Travel Survey)", fig.height=2, fig.width = 5}
+mode_rgc
 ```
 
 ### Change in mode shares
+Although the mode share 
 
-```{r}
-TT <- "Change in mode share in RGCs \n(2021 compared to 2017/2019 HHTS)"
-ggplot(mode_change_rgc, aes(x=mode_simple2, y=share_change, fill=final_home_is_rgc)) +
-  geom_col(position = "dodge")+
-  geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
-                          width=0.2, position = position_dodge(0.9)) +
-  scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2)) +
-  scale_fill_discrete_psrc ("pognbgy_10")+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
+```{r, fig.height = 3, fig.width = 4, fig.cap= "Change in mode share in RGCs (Source: PSRC 2017/2019/2021 Household Travel Survey)"}
+mode_change_rgc
 
 # TT <- "Change in mode share in metro and urban RGCs \n(2021 compared to 2017/2019 HHTS)"
 # ggplot(mode_change_metro, aes(x=mode_simple2, y=share_change, fill=urban_metro)) +
@@ -134,76 +121,25 @@ ggplot(mode_change_rgc, aes(x=mode_simple2, y=share_change, fill=final_home_is_r
 
 ### Trip travel time and trip distance
 
-```{r}
-TT <- "Average travel time and trip distance (2021 HHTS)"
-ggplot(time_dist_rgc, 
-       aes(x=final_home_is_rgc, y=mean, fill=final_home_is_rgc)) +
-  geom_col(position = "dodge")+  
-  geom_errorbar(aes(ymin=mean-mean_moe, 
-                    ymax=mean+mean_moe),
-                          width=0.2, position = position_dodge(0.9))+
-  scale_fill_discrete_psrc ("pognbgy_10")+
-  facet_wrap(~label, scales = "free_y") +
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
+```{r, fig.height = 4, fig.width = 4.65, fig.cap= "Average Travel time and trip distance (Source: PSRC 2021 Household Travel Survey)"}
 
-TT <- "Average travel time and trip distance (2021 HHTS)"
-ggplot(time_dist_metro, 
-       aes(x=urban_metro, y=mean, fill=urban_metro)) +
-  geom_col(position = "dodge")+  
-  geom_errorbar(aes(ymin=mean-mean_moe, 
-                    ymax=mean+mean_moe),
-                          width=0.2, position = position_dodge(0.9))+
-  scale_fill_discrete_psrc ("gnbopgy_5")+
-  facet_wrap(~label, scales = "free_y") +
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
+time_dist_rgc
+
 ```
 
 ### walk and transit frequency
-```{r}
-plot <- hhts_count(freq, 
-                       group_vars=c("urban_metro", "transit_label"),
-                       spec_wgt = "person_adult_weight_2021") %>%
-  filter(transit_label!="Total") 
-TT <- "Transit frequency (2021 HHTS)"
-ggplot(plot, 
-       aes(x=transit_label, y=share, fill=urban_metro)) +
-  geom_col(position = "dodge")+  
-  moe_bars+
-  scale_y_continuous(labels=percent) +
-  scale_fill_discrete_psrc ("gnbopgy_5")+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
+```{r, fig.height = 3, fig.width = 4, fig.cap= "Transit Frequency (Source: PSRC 2021 Household Travel Survey)"}
+freq_transit
+```
 
-plot  <- hhts_count(freq, 
-                    group_vars=c("urban_metro", "walk_label"),
-                    spec_wgt = "person_adult_weight_2021") %>%
-  filter(walk_label!="Total") 
-TT <- "Walk frequency (2021 HHTS)"
-ggplot(plot, 
-       aes(x=walk_label, y=share, fill=urban_metro)) +
-  geom_col(position = "dodge")+  
-  moe_bars+
-  scale_y_continuous(labels=percent) +
-  scale_fill_discrete_psrc ("gnbopgy_5")+
-  ggtitle(TT)+
-  psrc_style2(text_size = 2)
+
+```{r, fig.height = 3, fig.width = 4, fig.cap= "Walking Frequency (Source: PSRC 2021 Household Travel Survey)"}
+freq_walk
 
 ```
 
 
-
-
-
-<!-- ![](C:/GitHub/travel-studies/2021/trend-stories/bike-ped/walking_image_header.png){width=100%} -->
-\begin{flushleft}
-The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
-\end{flushleft}
-
-
-
 \subsection{Conclusion}
-\begin{flushleft}
+
 People were walking and biking more in 2021 than in previous years, but using transit less. COVID-19 conditions contributed to this substantial shift in behavior across most demographic groups. The 2023 household travel survey will show whether these patterns continue.
-\end{flushleft}
+\end{flushright}
