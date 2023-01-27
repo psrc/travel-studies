@@ -12,7 +12,6 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                              "workplace",
                              "gender",
                              "race_category",
-                             "race_eth_poc",
                              "telecommute_freq",
                              "benefits_1",
                              "benefits_2",
@@ -34,6 +33,9 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
              gender_group = case_when(gender %in% c("Not listed here / prefer not to answer", "Non-Binary")
                                         ~ "Prefer not to answer / Another",
                                       !is.na(gender) ~ gender),
+             race_group = case_when(race_category %in% c("African American", "Asian", "Hispanic", "Other") ~ "POC",
+                                    race_category == "White Only" ~ "White",
+                                    !is.na(race_category) ~ race_category),
              industry = str_trim(industry)) %>% 
       mutate(industry_cond = case_when(
         industry %in% c("Construction", "Natural resources (e.g., forestry, fishery, energy)")
@@ -75,7 +77,6 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                              "workplace",
                              "gender",
                              "race_category",
-                             "race_eth_poc",
                              "telecommute_freq",
                              "benefits_1",
                              "benefits_2",
@@ -99,12 +100,14 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                                           !is.na(workplace) ~ "Missing"),
              gender_group = case_when(gender %in% c("Prefer not to answer", "Another")
                                         ~ "Prefer not to answer / Another",
-                                      !is.na(gender) ~ gender))
+                                      !is.na(gender) ~ gender),
+             race_group = case_when(race_category %in% c("African American", "Asian", "Hispanic", "Other") ~ "POC",
+                                    race_category == "White Only" ~ "White",
+                                    !is.na(race_category) ~ race_category))
   }
   
   sdf$survey <- recode(sdf$survey, `2017_2019` = "2017/2019", .default = levels(sdf$survey))
   sdf$race_category <- recode(sdf$race_category, `White Only` = "White", .default = levels(sdf$race_category))
-  sdf$race_eth_poc <- recode(sdf$race_eth_poc, `Non-POC` = "White", .default = levels(sdf$race_eth_poc))
   
   stats <- hhts_count(df = sdf,
                       stat_var = stat_var,
