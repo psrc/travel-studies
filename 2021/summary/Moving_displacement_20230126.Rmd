@@ -1,0 +1,1108 @@
+---
+title: "Moving and displacement numbers"
+author: "Mary Richards"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+---
+
+```{r rmarkdown setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE) # formatting
+```
+
+```{r libraries, include=FALSE}
+devtools::install_github("psrc/psrccensus",
+                         force=TRUE)
+devtools::install_github("psrc/psrcplot") #requires updated version of rlang
+# devtools::install_github("psrc/psrctrends")
+
+# remove.packages("rlang") 
+# install.packages("rlang", dependencies = TRUE)
+
+library(tidyverse)
+library(psrccensus)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(psrctrends)
+# library(rlang) #required for psrccensus
+# library(emmeans) #required for rlang
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+
+library(summarytools) #freq
+library(table1)  #nice descriptive summary table
+library(scales) #number formatting
+library(ggpubr) #graphing - ggarrange fx
+library(forcats) #for factor re-leveling
+library(plotly) #for interactive charts
+library(htmlwidgets) #exporting interactive charts
+library(svglite) #exporting interactive charts - svg
+library(sjPlot) #exporting interactive charts - svg
+library(readxl)
+
+library(odbc) #connect to ElmerGeo
+library(DBI) #connect to ElmerGeo
+# library(sf)
+
+# install_psrc_fonts()
+# library(showtext) #trying to fix PSRC font issues
+# library(sysfonts) #required for showtext
+# library(showtextdb) #required for showtext
+```
+
+```{r variable setup}
+output_dir_html <- "T:/2023January/Mary/Travel Stories/Moving_displacement_outputs/R-htmls/"
+output_dir_csv <- "T:/2023January/Mary/Travel Stories/Moving_displacement_outputs/R-csvs/"
+```
+
+# Reasons for Moving (HTS)
+## Data Preparation
+*These reasons can include negative factors (displacement) or positive factors.* 
+```{r prep, include=FALSE}
+count_prep_fx <- function(data, grp1, grp2) {
+  
+  hhts_count(data,
+             group_vars = c(grp1, grp2)) %>%
+    filter(!!sym(grp1)!="Missing" &
+             !!sym(grp1)!="Total") %>% 
+    filter(!!sym(grp2)!="Total")
+}
+# survey_a <- list(survey = '2017', label = '2017')
+survey_b <- list(survey = '2019', label = '2019')
+survey_ab <- list(survey = '2017_2019', label = '2017/2019')
+survey_c <- list(survey = '2021', label = '2021')
+
+hh_race_other <- c("hh_race_apoc",
+                   "hh_race_category",
+                   "hh_race_poc",
+                   "res_dur",
+                   "prev_home_wa")
+
+hh_race_other_df <- as.data.frame(hh_race_other) %>% 
+  rename(var_name=hh_race_other)
+
+# all_res_var <- hhts_varsearch("res_factors") %>% 
+#   filter(grepl("2021",surveys)) %>% #fvariables included in 2021 analysis
+#   select(var_name)
+# 
+# all_res_var_race <- rbind(hh_race_df,
+#                           all_res_var)
+# 
+# all_res_var_race <- as.character(all_res_var_race[,])
+```
+
+```{r}
+prev_res_var <- hhts_varsearch("prev_res_factors") %>% # Important factor in decision to move away from prior residence
+  dplyr::filter(grepl("2021",surveys)) %>% # variables included in 2021 analysis
+  dplyr:: select(var_name) %>% # only keep variable names 
+  top_n(-15) # removing open-ended specify column
+
+prev_res_var_race <- rbind(hh_race_other_df,
+                           prev_res_var) # creating list of variables - move reasons + race/other
+
+prev_res_var_race <- as.character(prev_res_var_race[,])
+  
+
+# get survey 2019/2021 survey data
+hsurvey_19 <- get_hhts(survey = survey_b$survey,
+                       level="h",
+                       vars=prev_res_var_race)
+hsurvey_21 <- get_hhts(survey = survey_c$survey,
+                       level="h",
+                       vars=prev_res_var_race)
+```
+
+```{r}
+hsurvey_19_movers <- hsurvey_19 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") # only want recent movers previously living in WA
+
+hsurvey_21_movers <- hsurvey_21 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") # only want recent movers previously living in WA
+
+# hsurvey_21_movers <- hsurvey_21 %>% 
+#   filter(res_dur=="Less than a year" |
+#            res_dur == "Between 1 and 2 years" & # only want recent movers - within last 2 years
+#            prev_home_wa=="Yes, previous home was in Washington") # only want recent movers previously living in WA
+```
+
+## Residential Displacement Factors by Race/ethnicity   
+*Percent of recent movers*
+\
+survey response options: housing cost, forced to move, income change, community leaving vs. upgrade, more space, better schools, less crime
+\
+
+### Displacement factors separate
+#### All race categories
+```{r}
+cost <- count_prep_fx(hsurvey_19_movers, 
+                      "hh_race_category", 
+                      "prev_res_factors_housing_cost") %>% 
+  rename(select=prev_res_factors_housing_cost) %>% 
+  mutate(Reason="Housing cost")
+
+forced <- count_prep_fx(hsurvey_19_movers, 
+                        "hh_race_category", 
+                        "prev_res_factors_forced") %>% 
+  rename(select=prev_res_factors_forced) %>% 
+  mutate(Reason="Forced to move")
+
+income <- count_prep_fx(hsurvey_19_movers, 
+                        "hh_race_category", 
+                        "prev_res_factors_income_change") %>% 
+  rename(select=prev_res_factors_income_change) %>% 
+  mutate(Reason="Income change")
+
+community <- count_prep_fx(hsurvey_19_movers, 
+                           "hh_race_category", 
+                           "prev_res_factors_community_change") %>% 
+  rename(select=prev_res_factors_community_change) %>% 
+  mutate(Reason="Community leaving")
+
+
+displacement <- rbind(cost,
+                      forced,
+                      income,
+                      community)
+
+
+displacement_selected <- displacement %>% 
+  filter(select=="Selected",
+         hh_race_category!="Other") #remove 'Other' race category
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_displacement19_allrace'
+
+# create csv
+write.csv(displacement_selected,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# generate facet bar chart
+# disp_plot_all <- create_facet_bar_chart(t=displacement_selected,
+#                                         w.x="hh_race_category", w.y="share",
+#                                         f="hh_race_category", g="Reason",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=4,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static column chart
+disp_plot_all <- static_column_chart(t=displacement_selected, 
+                                     x="Reason", y="share", 
+                                     fill="hh_race_category",
+                                     pos="dodge",
+                                     est="percent",
+                                     moe=NULL,
+                                     href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                     title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+                                     subtitle="(% of recent movers, wihtin last 5 years)", 
+                                     source="PSRC Household Travel Survey (2019)",
+                                     alt=NULL,
+                                     xlabel=NULL, ylabel=NULL,
+                                     dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static column chart
+disp_plot_all_moe <- static_column_chart(t=displacement_selected, 
+                                         x="Reason", y="share", 
+                                         fill="hh_race_category",
+                                         pos="dodge",
+                                         est="percent",
+                                         moe="share_moe",
+                                         href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                         title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+                                         subtitle="(% of recent movers, wihtin last 5 years)", 
+                                         source="PSRC Household Travel Survey (2019)",
+                                         alt=NULL,
+                                         xlabel=NULL, ylabel=NULL,
+                                         dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# disp_plot_all <-interactive_bar_chart(t=displacement_selected, 
+#                                        x="share", y="Reason", 
+#                                        fill="hh_race_category",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+disp_plot_all
+disp_plot_all_moe
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(disp_plot_all, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+
+#### 3 race categories: Asian POC, Non-Asian POC, and Non-POC
+```{r}
+cost <- count_prep_fx(hsurvey_19_movers, 
+                      "hh_race_apoc", 
+                      "prev_res_factors_housing_cost") %>% 
+  rename(select=prev_res_factors_housing_cost) %>% 
+  mutate(Reason="Housing cost")
+
+forced <- count_prep_fx(hsurvey_19_movers, 
+                        "hh_race_apoc", 
+                        "prev_res_factors_forced") %>% 
+  rename(select=prev_res_factors_forced) %>% 
+  mutate(Reason="Forced to move")
+
+income <- count_prep_fx(hsurvey_19_movers, 
+                        "hh_race_apoc", 
+                        "prev_res_factors_income_change") %>% 
+  rename(select=prev_res_factors_income_change) %>% 
+  mutate(Reason="Income change")
+
+community <- count_prep_fx(hsurvey_19_movers, 
+                           "hh_race_apoc", 
+                           "prev_res_factors_community_change") %>% 
+  rename(select=prev_res_factors_community_change) %>% 
+  mutate(Reason="Community leaving")
+
+
+displacement <- rbind(cost,
+                      forced,
+                      income,
+                      community)
+
+
+displacement_selected <- displacement %>% 
+  filter(select=="Selected")
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_displacement19_3race'
+
+# create csv
+write.csv(displacement_selected,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# generate facet bar chart
+# disp_plot_3 <- create_facet_bar_chart(t=displacement_selected,
+#                                         w.x="hh_race_apoc", w.y="share",
+#                                         f="hh_race_apoc", g="Reason",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=4,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static bar chart
+disp_plot_3 <- static_bar_chart(t=displacement_selected, 
+                                x="share", y="Reason", 
+                                fill="hh_race_apoc",
+                                pos="dodge",
+                                est="percent",
+                                moe=NULL,
+                                href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+                                subtitle="(% of recent movers, wihtin last 5 years)", 
+                                source="PSRC Household Travel Survey, 2019",
+                                alt=NULL,
+                                xlabel=NULL, ylabel=NULL,
+                                dec = 0, color="psrc_light") + scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# disp_plot_3 <-interactive_bar_chart(t=displacement_selected, 
+#                                        x="share", y="Reason", 
+#                                        fill="hh_race_apoc",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+disp_plot_3
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(disp_plot_3, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+
+#### 2 race categories: POC and Non-POC
+```{r}
+cost <- count_prep_fx(hsurvey_19_movers, 
+                      "hh_race_poc", 
+                      "prev_res_factors_housing_cost") %>% 
+  rename(select=prev_res_factors_housing_cost) %>% 
+  mutate(Reason="Housing cost")
+
+forced <- count_prep_fx(hsurvey_19_movers, 
+                        "hh_race_poc", 
+                        "prev_res_factors_forced") %>% 
+  rename(select=prev_res_factors_forced) %>% 
+  mutate(Reason="Forced to move")
+
+income <- count_prep_fx(hsurvey_19_movers, 
+                        "hh_race_poc", 
+                        "prev_res_factors_income_change") %>% 
+  rename(select=prev_res_factors_income_change) %>% 
+  mutate(Reason="Income change")
+
+community <- count_prep_fx(hsurvey_19_movers, 
+                           "hh_race_poc", 
+                           "prev_res_factors_community_change") %>% 
+  rename(select=prev_res_factors_community_change) %>% 
+  mutate(Reason="Community leaving")
+
+
+displacement <- rbind(cost,
+                      forced,
+                      income,
+                      community)
+
+
+displacement_selected <- displacement %>% 
+  filter(select=="Selected")
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_displacement19_2race'
+
+# create csv
+write.csv(displacement_selected,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# generate facet bar chart
+# disp_plot_2 <- create_facet_bar_chart(t=displacement_selected,
+#                                         w.x="hh_race_poc", w.y="share",
+#                                         f="hh_race_poc", g="Reason",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=4,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static bar chart
+disp_plot_2 <- static_bar_chart(t=displacement_selected, 
+                                x="share", y="Reason", 
+                                fill="hh_race_poc",
+                                pos="dodge",
+                                est="percent",
+                                moe=NULL,
+                                href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+                                subtitle="(% of recent movers, wihtin last 5 years)", 
+                                source="PSRC Household Travel Survey, 2019",
+                                alt=NULL,
+                                xlabel=NULL, ylabel=NULL,
+                                dec = 0, color="psrc_light") + scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# disp_plot_2 <-interactive_bar_chart(t=displacement_selected, 
+#                                        x="share", y="Reason", 
+#                                        fill="hh_race_poc",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2019",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+disp_plot_2
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(disp_plot_3, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+\
+
+### Displacement factors combined  
+*Combine 4 displacement survey responses*
+
+#### All race categories, 2019 and 2021
+```{r}
+hsurvey_19_movers_disp <- hsurvey_19 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") %>% # only want recent movers previously living in WA
+  mutate(displaced=case_when(prev_res_factors_housing_cost=="Selected" |
+                               prev_res_factors_forced=="Selected" |
+                               prev_res_factors_income_change=="Selected" |
+                               prev_res_factors_community_change=="Selected" ~ "Displaced",
+                             TRUE~ "Not displaced"))
+
+all_displaced_19 <- count_prep_fx(hsurvey_19_movers_disp, 
+                                  "hh_race_category", 
+                                  "displaced")%>% 
+  rename(Race=hh_race_category) %>% 
+  filter(displaced=="Displaced")
+
+hsurvey_21_movers_disp <- hsurvey_21 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") %>% # only want recent movers previously living in WA
+  mutate(displaced=case_when(prev_res_factors_housing_cost=="Selected" |
+                               prev_res_factors_forced=="Selected" |
+                               prev_res_factors_income_change=="Selected" |
+                               prev_res_factors_community_change=="Selected" ~ "Displaced",
+                             TRUE~ "Not displaced"))
+
+all_displaced_21 <- count_prep_fx(hsurvey_21_movers_disp, 
+                               "hh_race_category", 
+                               "displaced")%>% 
+  rename(Race=hh_race_category) %>% 
+  filter(displaced=="Displaced")
+
+all_displaced <- rbind(all_displaced_19,
+                       all_displaced_21) #%>% 
+  #filter(Race!="Other")
+
+# checking % of movers were displaced
+# table(hsurvey_19_movers_disp$displaced) #0.277 displaced
+# table(hsurvey_21_movers_disp$displaced) #0.329 displaced
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_comb_displacement1921_allrace'
+
+# create csv
+write.csv(all_displaced,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# generate static bar chart
+# all_disp_plot <- static_bar_chart(t=all_displaced,
+#                                   x="share", y="Race",
+#                                   fill="survey",
+#                                   est="percent",
+#                                   moe="share_moe",
+#                                   # interactive="yes",
+#                                   title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+#                                   subtitle="(% of recent movers, wihtin last 5 years)",
+#                                   source="PSRC Household Travel Survey (2019, 2021)",
+#                                   color="psrc_light",
+#                                   dec=2) #+ ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+
+# generate static column chart
+all_disp_plot <- static_column_chart(t=all_displaced, 
+                                     x="Race", y="share", 
+                                     fill="survey",
+                                     pos="dodge",
+                                     est="percent",
+                                     # moe="share_moe",
+                                     href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                     title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+                                     subtitle="(% of recent movers, wihtin last 5 years)", 
+                                     source="PSRC Household Travel Survey (2019)",
+                                     # alt=NULL,
+                                     # xlabel=NULL, ylabel=NULL,
+                                     dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static column chart with moe
+all_disp_plot_moe <- static_column_chart(t=all_displaced,
+                                         x="Race", y="share", 
+                                         fill="survey",
+                                         pos="dodge",
+                                         est="percent",
+                                         moe="share_moe",
+                                         href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                         title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+                                         subtitle="(% of recent movers, wihtin last 5 years)", 
+                                         source="PSRC Household Travel Survey (2019)",
+                                         # alt=NULL,
+                                         # xlabel=NULL, ylabel=NULL,
+                                         dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive column chart
+# all_disp_plot <-interactive_column_chart(t=all_displaced, 
+#                                        x="Race", y="share", 
+#                                        fill="survey",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+all_disp_plot
+all_disp_plot_moe
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(all_disp_plot, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+
+#### 4 race/ethnicity categories, 2019
+```{r}
+# just 2019 data
+all_displaced_19$Race <- recode_factor(all_displaced_19$Race,
+                                       Other="More comprehensive list")
+
+all_displaced_19$Race<-factor(all_displaced_19$Race, 
+                           levels= c('White Only',
+                                     'More comprehensive list',
+                                     'Hispanic',
+                                     'Asian',
+                                     'African American')) 
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_comb_displacement19_4race'
+
+# create csv
+write.csv(all_displaced_19,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# # generate facet bar chart
+# all_disp_plot <- create_facet_bar_chart(t=all_displaced_19,
+#                                         w.x="survey", w.y="share",
+#                                         f="survey", g="Race",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Displacement by Race and Hispanic/Latinx Origin, 2019",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=5,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static column chart
+all_disp_plot <- static_column_chart(t=all_displaced_19, 
+                                     x="Race", y="share", 
+                                     fill="survey",
+                                     pos="dodge",
+                                     est="percent",
+                                     moe=NULL,
+                                     href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                     title="Displacement by Race and Hispanic/Latinx Origin, 2019",
+                                     subtitle="(% of recent movers, wihtin last 5 years)", 
+                                     source="PSRC Household Travel Survey (2019)",
+                                     alt=NULL,
+                                     xlabel=NULL, ylabel=NULL,
+                                     dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static column chart with moe
+all_disp_plot_moe <- static_column_chart(t=all_displaced_19, 
+                                         x="Race", y="share", 
+                                         fill="survey",
+                                         pos="dodge",
+                                         est="percent",
+                                         moe="share_moe",
+                                         href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                         title="Displacement by Race and Hispanic/Latinx Origin, 2019",
+                                         subtitle="(% of recent movers, wihtin last 5 years)", 
+                                         source="PSRC Household Travel Survey (2019)",
+                                         alt=NULL,
+                                         xlabel=NULL, ylabel=NULL,
+                                         dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# all_disp_plot <-interactive_bar_chart(t=all_displaced_19, 
+#                                        x="share", y="Race", 
+#                                        fill="survey",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement by Race and Hispanic/Latinx Origin, 2019",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+all_disp_plot
+all_disp_plot_moe
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(all_disp_plot, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+
+#### 3 race/ethnicity categories, 2019 and 2021
+```{r}
+hsurvey_19_movers_disp <- hsurvey_19 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") %>% # only want recent movers previously living in WA
+  mutate(displaced=case_when(prev_res_factors_housing_cost=="Selected" |
+                               prev_res_factors_forced=="Selected" |
+                               prev_res_factors_income_change=="Selected" |
+                               prev_res_factors_community_change=="Selected" ~ "Displaced",
+                             TRUE~ "Not displaced"))
+
+all_displaced_19 <- count_prep_fx(hsurvey_19_movers_disp, 
+                                  "hh_race_apoc", 
+                                  "displaced")%>% 
+  rename(Race=hh_race_apoc) %>% 
+  filter(displaced=="Displaced")
+
+hsurvey_21_movers_disp <- hsurvey_21 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") %>% # only want recent movers previously living in WA
+  mutate(displaced=case_when(prev_res_factors_housing_cost=="Selected" |
+                               prev_res_factors_forced=="Selected" |
+                               prev_res_factors_income_change=="Selected" |
+                               prev_res_factors_community_change=="Selected" ~ "Displaced",
+                             TRUE~ "Not displaced"))
+
+all_displaced_21 <- count_prep_fx(hsurvey_21_movers_disp, 
+                                  "hh_race_apoc", 
+                                  "displaced")%>% 
+  rename(Race=hh_race_apoc) %>% 
+  filter(displaced=="Displaced")
+
+all_displaced <- rbind(all_displaced_19,
+                       all_displaced_21)
+
+# rename and reorganize
+# all_displaced$Race <- recode_factor(all_displaced$Race,
+#                                     Non-POC="Non-Hispanic white")
+
+all_displaced$Race<-factor(all_displaced$Race,
+                           levels= c('Non-POC',
+                                     'Non-Asian POC',
+                                     'Asian POC')) 
+```
+
+```{r, include=FALSE, eval=FALSE}
+# add relative reliability or coefficient of variation (CV) calculations (http://aws-linux/mediawiki/index.php/Understanding_Error_and_Determining_Statistical_Significance)
+all_displaced <- all_displaced %>% 
+  mutate(rel_reliability_cv=((share_moe/1.645)/share)*100) %>% 
+  mutate(CV_rec=case_when(rel_reliability_cv>50~"examine with great caution",
+                          rel_reliability_cv>30 ~"use with caution",
+                          rel_reliability_cv>15 ~"fair",
+                          rel_reliability_cv<=15~"good"))
+
+all_displaced
+
+# adjust race labels based on rel. reliability/CV - >15 mark with *
+all_displaced <- all_displaced %>%
+  mutate(Race=case_when(Race=="Asian POC"~"Asian POC*",
+                         Race=="Non-Asian POC"~"Non-Asian POC*",
+                         Race=="Non-POC"~"Non-POC*",
+                         TRUE ~as.character(Race)))
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_comb_displacement1921_3race'
+
+# create csv
+write.csv(all_displaced_19,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+##### 2019 and 2021
+```{r}
+# generate facet bar chart
+# all_disp_plot_3 <- create_facet_bar_chart(t=all_displaced,
+#                                         w.x="survey", w.y="share",
+#                                         f="survey", g="Race",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=5,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static column chart
+all_disp_plot_3 <- static_column_chart(t=all_displaced, 
+                                       x="Race", y="share", 
+                                       fill="survey",
+                                       pos="dodge",
+                                       est="percent",
+                                       moe=NULL,
+                                       href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                       title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+                                       subtitle="(% of recent movers, wihtin last 5 years)", 
+                                       source="PSRC Household Travel Survey (2019)",
+                                       alt=NULL,
+                                       xlabel=NULL, ylabel=NULL,
+                                       dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static column chart with moe
+all_disp_plot_3_moe <- static_column_chart(t=all_displaced, 
+                                           x="Race", y="share", 
+                                           fill="survey",
+                                           pos="dodge",
+                                           est="percent",
+                                           moe="share_moe",
+                                           href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                           title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+                                           subtitle="(% of recent movers, wihtin last 5 years)", 
+                                           source="PSRC Household Travel Survey (2019)",
+                                           alt=NULL,
+                                           xlabel=NULL, ylabel=NULL,
+                                           dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# all_disp_plot_3 <-interactive_bar_chart(t=all_displaced, 
+#                                        x="share", y="Race", 
+#                                        fill="survey",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+all_disp_plot_3
+all_disp_plot_3_moe
+``` 
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(all_disp_plot_3, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+
+##### 2019
+```{r}
+all_displaced_19 <- all_displaced %>% 
+  filter(survey==2019)
+
+# generate facet bar chart
+# all_disp_plot_3 <- create_facet_bar_chart(t=all_displaced_19,
+#                                         w.x="survey", w.y="share",
+#                                         f="survey", g="Race",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Regional Displacement by Race and Hispanic/Latinx Origin, 2019",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=5,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank()) + theme(legend.position = "none")
+
+# generate static column chart
+all_disp_plot_3 <- static_column_chart(t=all_displaced_19, 
+                                       x="Race", y="share", 
+                                       fill="survey",
+                                       pos="dodge",
+                                       est="percent",
+                                       moe=NULL,
+                                       href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                       title="Regional Displacement by Race and Hispanic/Latinx Origin, 2019",
+                                       subtitle="(% of recent movers, wihtin last 5 years)", 
+                                       source="PSRC Household Travel Survey (2019)",
+                                       alt=NULL,
+                                       xlabel=NULL, ylabel=NULL,
+                                       dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static column chart with moe
+all_disp_plot_3_moe <- static_column_chart(t=all_displaced_19, 
+                                           x="Race", y="share", 
+                                           fill="survey",
+                                           pos="dodge",
+                                           est="percent",
+                                           moe="share_moe",
+                                           href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                           title="Regional Displacement by Race and Hispanic/Latinx Origin, 2019",
+                                           subtitle="(% of recent movers, wihtin last 5 years)", 
+                                           source="PSRC Household Travel Survey (2019)",
+                                           alt=NULL,
+                                           xlabel=NULL, ylabel=NULL,
+                                           dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# all_disp_plot_3 <-interactive_bar_chart(t=all_displaced_19, 
+#                                        x="share", y="Race", 
+#                                        fill="survey",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Regional Displacement by Race and Hispanic/Latinx Origin, 2019",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+all_disp_plot_3
+all_disp_plot_3_moe
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(all_disp_plot_3, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+
+#### 2 race/ethnicity categories, 2019 and 2021
+```{r}
+hsurvey_19_movers_disp <- hsurvey_19 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") %>% # only want recent movers previously living in WA
+  mutate(displaced=case_when(prev_res_factors_housing_cost=="Selected" |
+                               prev_res_factors_forced=="Selected" |
+                               prev_res_factors_income_change=="Selected" |
+                               prev_res_factors_community_change=="Selected" ~ "Displaced",
+                             TRUE~ "Not displaced"))
+
+all_displaced_19 <- count_prep_fx(hsurvey_19_movers_disp, 
+                                  "hh_race_poc", 
+                                  "displaced")%>% 
+  rename(Race=hh_race_poc) %>% 
+  filter(displaced=="Displaced")
+
+hsurvey_21_movers_disp <- hsurvey_21 %>%
+  filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years') &
+           # !is.na(prev_res_factors_community_change) & # only want recent movers - within last 5 years
+           prev_home_wa=="Yes, previous home was in Washington") %>% # only want recent movers previously living in WA
+  mutate(displaced=case_when(prev_res_factors_housing_cost=="Selected" |
+                               prev_res_factors_forced=="Selected" |
+                               prev_res_factors_income_change=="Selected" |
+                               prev_res_factors_community_change=="Selected" ~ "Displaced",
+                             TRUE~ "Not displaced"))
+
+all_displaced_21 <- count_prep_fx(hsurvey_21_movers_disp, 
+                                  "hh_race_poc", 
+                                  "displaced")%>% 
+  rename(Race=hh_race_poc) %>% 
+  filter(displaced=="Displaced")
+
+all_displaced <- rbind(all_displaced_19,
+                       all_displaced_21)
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_comb_displacement1921_2race'
+
+# create csv
+write.csv(all_displaced,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# generate facet bar chart
+# all_disp_plot_2 <- create_facet_bar_chart(t=all_displaced,
+#                                         w.x="survey", w.y="share",
+#                                         f="survey", g="Race",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=5,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static column chart
+all_disp_plot_2 <- static_column_chart(t=all_displaced, 
+                                       x="Race", y="share", 
+                                       fill="survey",
+                                       pos="dodge",
+                                       est="percent",
+                                       moe=NULL,
+                                       href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                       title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+                                       subtitle="(% of recent movers, wihtin last 5 years)", 
+                                       source="PSRC Household Travel Survey, 2019",
+                                       alt=NULL,
+                                       xlabel=NULL, ylabel=NULL,
+                                       dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static column chart with moe
+all_disp_plot_2_moe <- static_column_chart(t=all_displaced, 
+                                           x="Race", y="share", 
+                                           fill="survey",
+                                           pos="dodge",
+                                           est="percent",
+                                           moe="share_moe",
+                                           href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                           title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+                                           subtitle="(% of recent movers, wihtin last 5 years)", 
+                                           source="PSRC Household Travel Survey, 2019",
+                                           alt=NULL,
+                                           xlabel=NULL, ylabel=NULL,
+                                           dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# all_disp_plot_2 <-interactive_bar_chart(t=all_displaced, 
+#                                        x="share", y="Race", 
+#                                        fill="survey",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Displacement by Race and Hispanic/Latinx Origin, 2019 and 2021",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+all_disp_plot_2
+all_disp_plot_2_moe
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(all_disp_plot_2, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+\
+
+## Positive Factors in Relocation by Race/ethnicity  
+*Percent of recent movers*
+\
+survey response options: upgrade, more space, better schools, less crime
+
+### 3 race categories: Asian POC, Non-Asian POC, and Non-POC
+```{r}
+upgrade <- count_prep_fx(hsurvey_21_movers, 
+                         "hh_race_apoc", 
+                         "prev_res_factors_quality") %>% 
+  rename(select=prev_res_factors_quality) %>% 
+  mutate(Reason="Upgrade")
+
+more_space <- count_prep_fx(hsurvey_21_movers, 
+                            "hh_race_apoc", 
+                            "prev_res_factors_more_space") %>% 
+  rename(select=prev_res_factors_more_space) %>% 
+  mutate(Reason="More space")
+
+schools <- count_prep_fx(hsurvey_21_movers, 
+                         "hh_race_apoc", 
+                         "prev_res_factors_school") %>% 
+  rename(select=prev_res_factors_school) %>% 
+  mutate(Reason="Better schools")
+
+crime <- count_prep_fx(hsurvey_21_movers, 
+                       "hh_race_apoc", 
+                       "prev_res_factors_crime") %>% 
+  rename(select=prev_res_factors_crime) %>% 
+  mutate(Reason="Less crime")
+
+
+positive <- rbind(upgrade,
+                  more_space,
+                  schools,
+                  crime)
+
+
+positive_selected <- positive %>% 
+  filter(select=="Selected")
+```
+
+```{r, include=FALSE, eval=FALSE}
+data_nm <- 'moving_positive19_3race'
+
+# create csv
+write.csv(positive_selected,
+          paste0(output_dir_csv, data_nm,'.csv'),
+          row.names = TRUE)
+```
+
+```{r}
+# generate facet bar chart
+# positive_plot_3 <- create_facet_bar_chart(t=positive_selected,
+#                                         w.x="hh_race_apoc", w.y="share",
+#                                         f="hh_race_apoc", g="Reason",
+#                                         est.type="percent",
+#                                         # w.interactive="yes",
+#                                         w.title="Positive Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2021",
+#                                         w.sub.title="(% of recent movers, wihtin last 5 years)",
+#                                         w.color="psrc_light",
+#                                         w.scales="fixed",
+#                                         w.facet=5,
+#                                         w.dec=2) + ggplot2::theme(axis.title = ggplot2::element_blank(), axis.text.x=element_blank())
+
+# generate static bar chart
+positive_plot_3 <- static_bar_chart(t=positive_selected, 
+                                    x="share", y="Reason", 
+                                    fill="hh_race_apoc",
+                                    pos="dodge",
+                                    est="percent",
+                                    moe=NULL,
+                                    href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                    title="Positive Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2021",
+                                    subtitle="(% of recent movers, wihtin last 5 years)", 
+                                    source="PSRC Household Travel Survey, 2019",
+                                    alt=NULL,
+                                    xlabel=NULL, ylabel=NULL,
+                                    dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate static bar chart with moe
+positive_plot_3_moe <- static_bar_chart(t=positive_selected, 
+                                        x="share", y="Reason", 
+                                        fill="hh_race_apoc",
+                                        pos="dodge",
+                                        est="percent",
+                                        moe="share_moe",
+                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+                                        title="Positive Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2021",
+                                        subtitle="(% of recent movers, wihtin last 5 years)", 
+                                        source="PSRC Household Travel Survey, 2019",
+                                        alt=NULL,
+                                        xlabel=NULL, ylabel=NULL,
+                                        dec = 0, color="psrc_light") #+ scale_x_discrete(limits=rev) #alphabetical order
+
+# generate interactive bar chart
+# positive_plot_3 <-interactive_bar_chart(t=positive_selected, 
+#                                        x="share", y="Reason", 
+#                                        fill="hh_race_apoc",
+#                                        pos="dodge", est="percent", moe=NULL,
+#                                        href=NULL, hrefnm=NULL, hrefcl=NULL,
+#                                        title="Positive Factors in Decision Relocation by Race and Hispanic/Latinx Origin, 2021",
+#                                        dec = 0, color="psrc_light") %>% layout(showlegend = FALSE) # remove the legend from interactive chart
+```
+
+```{r}
+positive_plot_3
+positive_plot_3_moe
+```
+
+```{r, include=FALSE, eval=FALSE}
+# export html to folder 
+htmltools::save_html(positive_plot_3, 
+                     paste0(output_dir_html,data_nm,'.html'))
+```
+\
+\
+
+<a href="#top">Back to top of the page</a>
