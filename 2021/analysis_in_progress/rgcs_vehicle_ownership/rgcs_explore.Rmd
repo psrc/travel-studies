@@ -636,41 +636,39 @@ trip_purpose <- function(trip_data, person_data, year){
     filter(race_eth_broad != "Child -- no race specified")
   
   # total trips
-  plot <- hhts_count(trip_data,group_vars = c('final_home_is_rgc', 'simple_purpose'),
+  plot <- hhts_count(trip_data,group_vars = c('urban_metro', 'simple_purpose'),
                      spec_wgt = trip_w[[ix]]) %>%
-    drop_na(c('final_home_is_rgc', 'simple_purpose')) %>% 
+    drop_na(c('urban_metro', 'simple_purpose')) %>% 
     filter(simple_purpose != 'Total')
   
   #  to calculate total number of people
-  plot2 <- hhts_count(person_data, group_vars=c("final_home_is_rgc"),
+  plot2 <- hhts_count(person_data, group_vars=c("urban_metro"),
                       spec_wgt = person_w[[ix]]) %>%
-    filter(final_home_is_rgc != 'Total')
+    filter(urban_metro != 'Total')
   
   # number of trips and total population
   plot3 <- plot %>%
-    left_join(plot2, by="final_home_is_rgc", suffix = c('_trips', '_person')) %>% 
+    left_join(plot2, by="urban_metro", suffix = c('_trips', '_person')) %>% 
     mutate(
       trips_per_person = count_trips / count_person,
       moe_trips_person = moe_ratio(count_trips, count_person, count_moe_trips, count_moe_person)
     ) 
   
-  TT <- paste("Trips by purpose in RGCs",year)
   
   p1<- ggplot(plot3, 
-         aes(x=simple_purpose, y=trips_per_person, fill=final_home_is_rgc)) +
+         aes(x=simple_purpose, y=trips_per_person, fill=urban_metro)) +
     geom_col(position = "dodge")+  
     geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
                             width=0.2, position = position_dodge(0.9))+
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    ggtitle(TT)+
-    psrc_style2(text_size = 2, loc="top")
+    psrc_style2(loc="top")
   
-  data_table <- ggplot(plot3, aes(x = simple_purpose, y = final_home_is_rgc,
+  data_table <- ggplot(plot3, aes(x = simple_purpose, y = urban_metro,
                                   label = sample_size_trips)) +
     geom_text() +
     scale_y_discrete(limits=rev)+
     theme(panel.background = element_rect(fill = "white", colour = "white"),
-          panel.grid.major = NULL, legend.position = NULL, axis.ticks = element_blank(),#panel.border = NULL, 
+          panel.grid.major = NULL, legend.position = NULL, axis.ticks = element_blank(),
           axis.text.x = element_blank()) +
     xlab(NULL) + ylab(NULL)
   

@@ -109,9 +109,13 @@ mode_rgc <- hhts_count(trip_data_21 %>%
   ggplot(aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
     geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
     scale_y_continuous(labels = label_percent()) +
-    psrc_style2()+
+    psrc_style2() +
     scale_fill_manual(values = psrc_colors$pognbgy_5) +
-    coord_flip()
+    coord_flip()+
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(color="#cbcbcb")
+    )
 
 mode_metro <- hhts_count(trip_data_21 %>%
                            filter(race_eth_broad != "Child -- no race specified"),
@@ -131,8 +135,19 @@ mode_metro <- hhts_count(trip_data_21 %>%
   ) %>% 
   filter(urban_metro != 'Total',
          !is.na(mode_simple2),
-         mode_simple2 != 'Total') %>%
-  mutate(survey = factor(survey, levels = c("2017","2019","2021"))) 
+         mode_simple2 != 'Total',
+         survey=="2021") %>%
+  # mutate(survey = factor(survey, levels = c("2017","2019","2021")))  %>%
+  ggplot(aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
+    geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
+    scale_y_continuous(labels = label_percent()) +
+    psrc_style2() +
+    scale_fill_manual(values = psrc_colors$pognbgy_5) +
+    coord_flip()+
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(color="#cbcbcb")
+    )
 
 # mode_metro$survey <- factor(mode_metro$survey, levels = c("2017","2019","2021"))
 # mode_rgc$survey <- factor(mode_rgc$survey, levels = c("2017","2019","2021"))
@@ -161,14 +176,18 @@ mode_change_rgc <- mode_change_rgc %>%
     share_change = (share-share_base) / share_base,
     share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
   ) %>%
-  ggplot(aes(x=mode_simple2, y=share_change, fill=final_home_is_rgc)) +
+  ggplot(aes(x=fct_rev(final_home_is_rgc), y=share_change, fill=mode_simple2)) +
     geom_col(position = "dodge")+
     geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
                   width=0.2, position = position_dodge(0.9)) +
-    scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2)) +
+    scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2),limits = c(-0.6, 0.6)) +
     scale_fill_discrete_psrc ("pognbgy_10")+
-    # ggtitle("Change in mode share in RGCs \n(2021 compared to 2017/2019 HHTS)")+
-    psrc_style2()
+    psrc_style2() +
+    coord_flip()+
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(color="#cbcbcb")
+    )
 
 mode_change_metro <- hhts_count(trip_data_17_19 %>%
                             filter(race_eth_broad != "Child -- no race specified"),
@@ -193,7 +212,19 @@ mode_change_metro <- mode_change_metro %>%
   mutate(
     share_change = (share-share_base) / share_base,
     share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
-  ) 
+  ) %>%
+  ggplot(aes(x=fct_rev(urban_metro), y=share_change, fill=mode_simple2)) +
+    geom_col(position = "dodge")+
+    geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
+                            width=0.2, position = position_dodge(0.9)) +
+    scale_y_continuous(labels=percent,limits = c(-0.75, 0.5)) +
+    scale_fill_discrete_psrc ("pognbgy_5")+
+    psrc_style2() +
+    coord_flip()+
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(color="#cbcbcb")
+    )
 
 ### 3. trip travel time and distance ####
 time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
@@ -217,7 +248,7 @@ time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
                   width=0.2, position = position_dodge(0.9))+
     scale_fill_discrete_psrc ("pognbgy_10")+
     facet_wrap(~label, scales = "free_y") +
-    psrc_style2(text_size = 2) + 
+    psrc_style2() + 
     theme(plot.title = element_blank())
 
 time_dist_metro <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
@@ -234,6 +265,45 @@ time_dist_metro <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
             mutate(label = "Travel time (minutes)") %>%
             rename(mean = google_duration_mean,
                    mean_moe = google_duration_mean_moe))
+### trip purpose ####
+
+# to calculate total number of people
+plot2 <- hhts_count(per_data_21 %>% filter(race_eth_broad != "Child -- no race specified"),
+                    group_vars=c("urban_metro"),
+                    spec_wgt = "person_adult_weight_2021") %>%
+  filter(urban_metro != 'Total')
+
+# number of trips and total population
+# total trips
+plot <- hhts_count(trip_data_21 %>% filter(race_eth_broad != "Child -- no race specified"),
+                   group_vars = c('urban_metro', 'simple_purpose'),
+                   spec_wgt = "trip_adult_weight_2021") %>%
+  drop_na(c('urban_metro', 'simple_purpose')) %>% 
+  filter(simple_purpose != 'Total') %>%
+  left_join(plot2, by="urban_metro", suffix = c('_trips', '_person')) %>% 
+  mutate(
+    trips_per_person = count_trips / count_person,
+    moe_trips_person = moe_ratio(count_trips, count_person, count_moe_trips, count_moe_person)
+  ) 
+
+p1<- ggplot(plot, 
+            aes(x=simple_purpose, y=trips_per_person, fill=urban_metro)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
+                width=0.2, position = position_dodge(0.9))+
+  scale_fill_discrete_psrc ("gnbopgy_5")+
+  psrc_style2(loc="top")
+
+data_table <- ggplot(plot, aes(x = simple_purpose, y = urban_metro,
+                                label = sample_size_trips)) +
+  geom_text() +
+  scale_y_discrete(limits=rev)+
+  theme(panel.background = element_rect(fill = "white", colour = "white"),
+        panel.grid.major = NULL, legend.position = NULL, axis.ticks = element_blank(),
+        axis.text.x = element_blank()) +
+  xlab(NULL) + ylab(NULL)
+
+
 
 ### 4. walking and transit frequencies ####
 freq <- per_data_21 %>%
@@ -432,7 +502,7 @@ plot_income <- get_acs_recs(geography = 'tract',
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
     # psrc_style2() + 
-    psrc_style2(m.r=3,m.l=3) +
+    psrc_style2(m.r=1,m.l=1) +
     theme(plot.title = element_blank())
 
 #-- ACS 2021 with block groups ----
@@ -503,7 +573,7 @@ plot_hhsize21 <- get_acs_recs(geography = 'block group',
     moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    psrc_style2(m.r=3,m.l=3) +
+    psrc_style2(m.r=0.5,m.l=0.5) +
     theme(plot.title = element_blank())
     # ggtitle("(b) household size")
 
@@ -532,7 +602,7 @@ plot_veh21_rgc <- get_acs_recs(geography = 'block group',
   moe_bars +
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
-  psrc_style2(m.t=0.5,m.r=5,m.l=5) + 
+  psrc_style2(m.t=0.5,m.r=2.3,m.l=2.3) + 
   theme(plot.title = element_blank())
   # ggtitle("(d) vehicle ownership")
 
@@ -600,7 +670,7 @@ plot_income_mu <- get_acs_recs(geography = 'tract',
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
   # psrc_style2() + 
-  psrc_style2(m.r=3,m.l=3) +
+  psrc_style2(m.r=1.2,m.l=1.2) +
   theme(plot.title = element_blank())
 
 plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
@@ -630,7 +700,7 @@ plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
   moe_bars +
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
-  psrc_style2(m.r=2,m.l=2) +
+  psrc_style2(m.r=1,m.l=1) +
   theme(plot.title = element_blank())
 
 plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
@@ -658,7 +728,7 @@ plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
     moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    psrc_style2(m.t=0.5,m.r=4,m.l=4) + 
+    psrc_style2(m.t=0.5,m.r=2,m.l=2) + 
     theme(plot.title = element_blank())
 
 
