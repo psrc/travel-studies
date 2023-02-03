@@ -6,6 +6,7 @@ output:
       in_header: "X:/DSA/Trends/household-travel-survey/headers/trend_format_hts.tex"
   html_document:
     df_print: paged
+  word_document: default
 fontsize: 12pt
 ---
 
@@ -307,9 +308,6 @@ telecommute_freq_gender_chart
 ### Telecommute frequency also varied by race and ethnicity
 \begin{flushleft}
 When telecommute frequency is broken down by race and ethnicity, the number of workers telecommuting at least once per week increased the most for white workers, while telecommuting remained the same for workers of color. By 2021, there were similar shares of workers of color and white workers telecommuting.
-
-**SHOULD WE INCLUDE A GRAPH HERE SHOWING THIS TREND?**
-
 \end{flushleft}
 
 ## Trends in workplace travel and worker industry in 2021
@@ -323,15 +321,15 @@ Overall, there was a greater proportion of male workers (66\%) who reported work
 \end{flushleft}
 
 ```{r work_travel_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
-# travel_by_gender_chart <- static_column_chart(t = travel_by_gender_21,
-#                                               x = "gender_group", y = "share",
-#                                               fill = "workplace_travel",
-#                                               pos = "stack",  # fix bar stack issue
-#                                               moe = "share_moe",
-#                                               color = "pgnobgy_5",
-#                                               title = "Workplace Travel by Gender, Spring 2021")
-# 
-# travel_by_gender_chart
+travel_by_gender_chart <- static_column_chart(t = travel_by_gender_21,
+                                              x = "gender_group", y = "share",
+                                              fill = "workplace_travel",
+                                              pos = "stack",  # fix bar stack issue
+                                              moe = "share_moe",
+                                              color = "pgnobgy_5",
+                                              title = "Workplace Travel by Gender, Spring 2021")
+
+travel_by_gender_chart
 ```
 
 ### More African American and Hispanic workers working outside the home
@@ -340,15 +338,15 @@ When broken down by race and ethnicity, a greater proportion of African American
 \end{flushleft}
 
 ```{r work_travel_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
-# travel_by_race_chart <- static_column_chart(t = travel_by_race_21,
-#                                             x = "race_category", y = "share",
-#                                             fill = "workplace_travel",
-#                                             pos = "stack",
-#                                             moe = "share_moe",
-#                                             color = "pgnobgy_5",
-#                                             title = "Workplace Travel by Race/Ethnicity, Spring 2021")
-# 
-# travel_by_race_chart
+travel_by_race_chart <- static_column_chart(t = travel_by_race_21,
+                                            x = "race_category", y = "share",
+                                            fill = "workplace_travel",
+                                            pos = "stack",
+                                            moe = "share_moe",
+                                            color = "pgnobgy_5",
+                                            title = "Workplace Travel by Race/Ethnicity, Spring 2021")
+
+travel_by_race_chart
 ```
 
 ### Differences seen in workplace travel based on worker industry
@@ -377,9 +375,6 @@ industry_work_travel_chart
 
 \begin{flushleft}
 Of those five industry groups that worked outside the home more than the regional average, two had greater proportions of female workers than the regional average (45\%; green bar in chart below): Health Care, Social Services \& Childcare (73\%) and Personal Services (69\%).
-
-**MORE DETAIL ABOUT THE REMAINING BREAKDOWN FOR THE OTHER THREE**
-
 \end{flushleft}
 
 ```{r industry_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
@@ -426,6 +421,6 @@ industry_race_chart
 
 \subsection{Conclusion}
 \begin{flushleft}
-Telecommuting has increased significantly from 2019 to 2021, due in no small part to the COVID-19 pandemic. However, the analyses above show that telecommute rates are not evenly distributed across gender, race and ethnicity, or even occupation. We anticipate that data from the 2023 Household Travel Survey will show how telecommute rates have changed since the middle of 2021, and if the composition of who telecommutes has changed, as well.
+Telecommuting has increased significantly from 2019 to 2021, due in no small part to the COVID-19 pandemic. However, the analyses above show that telecommute rates are not evenly distributed across gender, race and ethnicity, or even occupation. We anticipate that data from the 2023 Household Travel Survey will show how telecommute rates have changed since the middle of 2021, and if the composition of telecommuters has changed, as well.
 \end{flushleft}
 
