@@ -1,12 +1,12 @@
 ---
 output:
+  word_document: default
+  html_document:
+    df_print: paged
   pdf_document:
     latex_engine: lualatex
     includes:
       in_header: "X:/DSA/Trends/household-travel-survey/headers/trend_format_hts.tex"
-  html_document:
-    df_print: paged
-  word_document: default
 fontsize: 12pt
 ---
 
@@ -66,6 +66,7 @@ image_write(commute_image_header, path = paste0(output_path,
 # ![](photos/commute_image_header.png){width=100%}
 ```
 
+\thispagestyle{firstpage}
 # Trends in Employment and Telecommuting
 ![](X:/DSA/Trends/household-travel-survey/images/employment_telecommuting_header.png){width=100%}
 
@@ -238,6 +239,7 @@ industry_by_race_21 <- get_telecommute_data(survey = "2021",
 In the regional travel surveys from 2017 to 2021, respondents with jobs were asked to select their current work location from a list of options. In the 2017/2019 combined survey, people who worked at home comprised only 6\% of all workers in the region. By spring of 2021, the portion of people working from home increased dramatically to 27\% of all workers in the region. Combined with the portion of people that teleworked some days and traveled to work some days, we saw 37\% of workers in the region working from home at least part of the time. However, the majority of workers in 2021 still traveled to a work location outside of the home.
 \end{flushleft}
 
+\pagestyle{otherpages}
 ```{r workplace, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 workplace_chart <- static_column_chart(t = workplace,
                                        x = "workplace", y = "share",
