@@ -62,11 +62,6 @@ image2 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysi
 image3 <- image_read("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template/trend_visuals/51118193503_ae9e0064d1_w.jpg")
 
 input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
-
-trend_image_header <- image_append(input)
-image_write(trend_image_header, path="trend_image_header.png", format="png")
-
-input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
 trend_image_header <- image_append(input)
 image_write(trend_image_header, path="trend_image_header.png", format="png")
 trend_image_header

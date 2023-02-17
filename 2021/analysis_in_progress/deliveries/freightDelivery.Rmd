@@ -627,19 +627,22 @@ food_hhincome_broad_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'person
 
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 all_food_hhincome_broad_17_21 <- bind_rows(food_hhincome_broad_17, food_hhincome_broad_19, food_hhincome_broad_21) %>%
-  mutate(period = as.factor(survey))
+  mutate(period = as.factor(survey)) %>%
+  filter(delivery_food_all != 'No Delivery')
 
-income_broad_facet <- create_facet_bar_chart(t= all_all_food_hhincome_broad_17_21,
+income_broad_facet <- create_facet_bar_chart(t= all_food_hhincome_broad_17_21,
                                                   w.x="survey", w.y="share",
-                                                  f="survey", g="delivery_type",
-                                                  w.color="blues_inc",
+                                                  f="survey", g="hhincome_broad",
+                                                  w.color="psrc_light",
                                                   est.type ="percent",
                                                   w.interactive="no",
                                                   w.dec=2,
                                                   w.scales="fixed",
-                                                  w.facet=2,
+                                                  w.facet=6,
                                                   w.title="Home Deliveries or Services by Income (Broad)",
-                                                  w.sub.title="Share of Households on Average Weekday")
+                                                  w.sub.title="Share of Households on Average Weekday")+ 
+  ggplot2::theme(axis.title = ggplot2::element_blank()) +
+  scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
 
 income_broad_facet
 

@@ -238,6 +238,7 @@ trip_group_data <- function(.data,per_data){
 
 
 # for wrapping the labels in x-axis
+# scale_x_discrete(labels = label_wrap(10))
 wrap_axis <- function(.data, fields, w=11){
   
   .data %>%
