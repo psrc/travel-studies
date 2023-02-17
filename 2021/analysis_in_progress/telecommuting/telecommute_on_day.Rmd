@@ -1,0 +1,47 @@
+---
+title: "telecommute-summary"
+author: "suzanne"
+date: "2023-02-17"
+output: pdf_document
+---
+
+I'm comparing estimates of telecommuting on an average weekday from the 2019/2021 household travel surveys to Replica data.
+
+Differences- Replica data is Fall 2019 and Fall 2021; ours is from Spring 2019 and Spring 2021.
+Their data is labeled with work from home (on an average weekday). We just have a field for telework_time. A person can telework at home, and go into work. In 2021, I'd guess that happened frequently.  For example, I usually work from home on days that I go into work.
+
+```{r}
+library(psrcplot)
+library(psrc.travelsurvey)
+
+```
+
+
+# Read in Replica data for Working at home by income and race and ethnicity, 2019 and 2021
+```{r setup, include=FALSE}
+replica_data_fldr<- 'C:/GitHub/travel-studies/2021/analysis_in_progress/telecommuting/replica-estimates'
+telecommute_2019_inc <- read.csv(file.path(replica_data_fldr, 'northwest-2019_Q4-thursday-household-income.csv'))
+telecommute_2021_inc <- read.csv(file.path(replica_data_fldr, 'northwest-2021_Q4-thursday-household-income.csv'))
+telecommute_2019_race_eth <- read.csv(file.path(replica_data_fldr, 'northwest-2019_Q4-thursday-race-and-ethnicity.csv'))
+telecommute_2021_race_eth <- read.csv(file.path(replica_data_fldr, 'northwest-2021_Q4-thursday-race-and-ethnicity.csv'))
+
+
+```
+
+## R Markdown
+
+
+# Read in Household Travel Survey data on the same items
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
