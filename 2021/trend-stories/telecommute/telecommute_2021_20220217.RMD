@@ -461,7 +461,7 @@ Of those five industry groups that worked outside the home more than the regiona
 
 ```{r industry_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 industry_race_chart <- industry_by_race_21 %>% 
-  filter(race_group == "POC") %>% 
+  filter(race_group == "People of color") %>% 
   mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>% 
   static_bar_chart(t = .,
                    x = "share", y = "industry_cond",
