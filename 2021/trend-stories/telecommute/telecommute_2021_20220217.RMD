@@ -406,7 +406,7 @@ travel_by_race_chart2
 ```
 
 ### Differences seen in workplace travel based on worker industry
-PSRC first began asking survey respondents in which industry they worked in the 2021 household travel survey. We used industry groups to see differences in workplace travel based on workers' fields of employment. We found that there were five industry groups with workers reporting that they worked outside the home more than the regional average (63\%; green bar in chart below): Military (98\%); Personal Services (85\%); Hospitality \& Retail (81\%); Health Care, Social Services \& Childcare (81\%); and Construction \& Resources (79\%).
+PSRC first began asking survey respondents in which industry they worked in the 2021 household travel survey. We used industry groups to see differences in workplace travel based on workers' fields of employment. We found that there were five industry groups (excluding "Other") with workers reporting that they worked outside the home more than the regional average (63\%; blue bar in chart below): Military (98\%); Personal Services (85\%); Hospitality \& Retail (81\%); Health Care, Social Services \& Childcare (81\%); and Construction \& Resources (79\%).
 
 ```{r industry_work_travel, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 industry_work_travel_chart <- industry_by_work_loc_21 %>% 
@@ -432,7 +432,7 @@ industry_work_travel_chart_ref <- industry_work_travel_chart +
 industry_work_travel_chart_ref
 ```
 
-Of those five industry groups that worked outside the home more than the regional average, two had greater proportions of female workers than the regional average (45\%; green bar in chart below): Health Care, Social Services \& Childcare (73\%) and Personal Services (69\%).
+Of those five industry groups that worked outside the home more than the regional average, two had greater proportions of female workers than the regional average (45\%; blue bar in chart below): Health Care, Social Services \& Childcare (73\%) and Personal Services (69\%).
 
 ```{r industry_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 industry_gender_chart <- industry_by_gender_21 %>% 
@@ -457,7 +457,7 @@ industry_gender_chart_ref <- industry_gender_chart +
 industry_gender_chart_ref
 ```
 
-Of those five industry groups that worked outside the home more than the regional average, three had greater proportions of workers of color than the regional average (33\%; green bar in chart below): Health Care, Social Services \& Childcare (42\%); Hospitality \& Retail (41\%); and Personal Services (39\%).
+Of those five industry groups that worked outside the home more than the regional average, three had greater proportions of workers of color than the regional average (33\%; blue bar in chart below): Health Care, Social Services \& Childcare (42\%); Hospitality \& Retail (41\%); and Personal Services (39\%).
 
 ```{r industry_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 industry_race_chart <- industry_by_race_21 %>% 
