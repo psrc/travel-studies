@@ -1610,13 +1610,13 @@ hh_2021_counts<- hhts_count(df=hh_2021,
 
 counts_2019_2021_2<-rbind(hh_2019_counts, hh_2021_counts) %>% 
   # mutate(type="survey") %>% 
-  select(-c(share, share_moe, sample_size)) %>% 
+  dplyr::select(-c(share, share_moe, sample_size)) %>% 
   dplyr::rename(total_count=count,
                 total_count_moe=count_moe)
 
 counts_2017_2021_2<-rbind(hh_2017_counts, hh_2019_counts, hh_2021_counts) %>% 
   # mutate(type="survey") %>% 
-  select(-c(share, share_moe, sample_size)) %>% 
+  dplyr::select(-c(share, share_moe, sample_size)) %>% 
   dplyr::rename(total_count=count,
                 total_count_moe=count_moe)
 
@@ -1657,7 +1657,7 @@ movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hh
 
 movers_2019_2021_counts_2<-rbind(movers_hh_2019_counts, movers_hh_2021_counts) %>% 
   # mutate(type="movers") %>% 
-  select(-c(res_dur, share, share_moe, sample_size)) %>% 
+  dplyr::select(-c(res_dur, share, share_moe, sample_size)) %>% 
   dplyr::rename(mover_count=count,
                 mover_count_moe=count_moe)
 
@@ -1665,7 +1665,7 @@ movers_2017_2021_counts_2<-rbind(movers_hh_2017_counts,
                                  movers_hh_2019_counts, 
                                  movers_hh_2021_counts) %>% 
   # mutate(type="movers") %>% 
-  select(-c(res_dur, share, share_moe, sample_size)) %>% 
+  dplyr::select(-c(res_dur, share, share_moe, sample_size)) %>% 
   dplyr::rename(mover_count=count,
                 mover_count_moe=count_moe)
 
@@ -1677,15 +1677,7 @@ movers_2017_2021_counts_2<-rbind(movers_hh_2017_counts,
 ```{r}
 # Displaced movers - 2 race categories
 
-#2017
-displaced_hh_2017<-get_hhts(survey='2017', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
-
-displaced_hh_2017_counts<- hhts_count(df=displaced_hh_2017, group_vars=c('prev_res_factors_displaced','hh_race_poc')) %>%
-  filter(prev_res_factors_displaced!='Total')%>%
-  filter(prev_res_factors_displaced=='Displaced')%>%
-  filter(hh_race_poc!='Total') %>%
-  filter(hh_race_poc != 'Missing') %>%
-  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+#2017 - not available in dataset - will generate data based on 2019 dataframe, replacing counts with 0
 
 #2019
 displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
@@ -1696,6 +1688,15 @@ displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_r
   filter(hh_race_poc!='Total') %>%
   filter(hh_race_poc != 'Missing') %>%
   mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+# create dummy 2017 data
+displaced_hh_2017_counts <- displaced_hh_2019_counts %>% 
+  mutate(survey=2017,
+         count=0,
+         count_moe=0,
+         share=0,
+         share_moe=0,
+         sample_size=0)
 
 #2021
 displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
@@ -1709,7 +1710,7 @@ displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_r
 
 displaced_2019_2021_counts_2<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts) %>% 
   # mutate(type="displaced") %>% 
-  select(-c(prev_res_factors_displaced, share, share_moe, sample_size)) %>% 
+  dplyr::select(-c(prev_res_factors_displaced, share, share_moe, sample_size)) %>% 
   dplyr::rename(displaced_count=count,
                 displaced_count_moe=count_moe)
 
@@ -1717,7 +1718,7 @@ displaced_2017_2021_counts_2<-rbind(displaced_hh_2017_counts,
                                     displaced_hh_2019_counts, 
                                     displaced_hh_2021_counts) %>% 
   # mutate(type="displaced") %>% 
-  select(-c(prev_res_factors_displaced, share, share_moe, sample_size)) %>% 
+  dplyr::select(-c(prev_res_factors_displaced, share, share_moe, sample_size)) %>% 
   dplyr::rename(displaced_count=count,
                 displaced_count_moe=count_moe)
 
@@ -1727,8 +1728,7 @@ displaced_2017_2021_counts_2<-rbind(displaced_hh_2017_counts,
 ```
 
 ```{r}
-# conbine datasets into one dataframe
-
+# combine datasets into one dataframe
 race_2_2019_2021 <- cbind(counts_2019_2021_2,
                           movers_2019_2021_counts_2,
                           displaced_2019_2021_counts_2)
@@ -1741,10 +1741,10 @@ race_2_2017_2021 <- cbind(counts_2017_2021_2,
 ```{r}
 # drop duplicate columns
 race_2_2019_2021 <- race_2_2019_2021 %>% 
-  select(unique(colnames(.)))
+  dplyr::select(unique(colnames(.)))
 
 race_2_2017_2021 <- race_2_2017_2021 %>% 
-  select(unique(colnames(.)))
+  dplyr::select(unique(colnames(.)))
 
 # calculations
 # isolate the denominator - total number of all people represented by survey by race/year - use this for calculating % of movers, % displaced
@@ -1756,9 +1756,10 @@ test_calculate <- race_2_2019_2021 %>%
 
 test_calculate <- race_2_2017_2021 %>% 
   dplyr::mutate(mover_perc=(mover_count/total_count)) %>% 
-  dplyr::mutate(disp_perc=(displaced_count/total_count)) %>% 
-  dplyr::mutate(non_mover_perc=((total_count/total_count)-(mover_perc+disp_perc))) %>% 
-  dplyr::select(survey, hh_race_poc, non_mover_perc, mover_perc, disp_perc)
+  dplyr::mutate(disp_perc=(displaced_count/total_count)) %>%
+  dplyr::mutate(non_mover_perc=((total_count/total_count)-(mover_perc+disp_perc))) %>%
+  dplyr::select(survey, hh_race_poc, non_mover_perc, mover_perc, disp_perc) %>% 
+  dplyr::mutate(disp_perc= na_if(disp_perc, disp_perc < 0))
 
 test_pivot <- test_calculate %>% 
   pivot_longer(
