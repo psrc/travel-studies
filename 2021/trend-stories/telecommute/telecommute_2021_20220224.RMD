@@ -9,6 +9,25 @@ output:
     - setspace
   word_document: default
 fontsize: 12pt
+header-includes:
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{pdfcomment}
+  - \usepackage{fancyhdr}
+   \pagestyle{fancy}
+   \setlength{\headheight}{75pt}
+   \setlength{\textheight}{600pt}
+   \fancyhead[C]{}
+   \fancyhead[L]{\includegraphics{X:/DSA/shiny-uploads/images/PST_2021_HTS_header.png}}
+   \fancyhead[R]{}
+   \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. November 2022}
+   \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
+   \fancyfoot[C]{}
+   \renewcommand{\headrulewidth}{0pt}
+   \renewcommand{\footrulewidth}{4pt}
+   \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
+  - \usepackage{fontspec}
+
 ---
 
 
@@ -59,10 +78,10 @@ input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale
 # getwd()
 commute_image_header <- image_append(input)
 # image_write(commute_image_header, path = "photos/commute_image_header.png", format = "png")
-image_write(commute_image_header, path = paste0(network_path,
-                                                "employment_telecommuting_header.png"), format = "png")
-image_write(commute_image_header, path = paste0(output_path,
-                                                "photos/employment_telecommuting_header.png"), format = "png")
+#image_write(commute_image_header, path = paste0(network_path,
+                                               # "employment_telecommuting_header.png"), format = "png")
+#image_write(commute_image_header, path = paste0(output_path,
+                                                #"photos/employment_telecommuting_header.png"), format = "png")
 # commute_image_header
 # ![](C:/Users/mrichards/Documents/GitHub/travel-studies/2021/trend-stories/telecommute/photos/commute_image_header.png){width=100%}
 # ![](photos/commute_image_header.png){width=100%}
@@ -72,12 +91,10 @@ image_write(commute_image_header, path = paste0(output_path,
 
 ![](X:/DSA/Trends/household-travel-survey/images/employment_telecommuting_header.png){width=100%}
 
-\thispagestyle{firstpage}
+
 \onehalfspacing
 
 The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.
-
-
 ```{r load_tables, echo=FALSE, include=FALSE}
 # Workplace
 workplace_17_19 <- get_telecommute_data(survey = "2017_2019",
@@ -294,14 +311,7 @@ industry_by_race_21 <- get_telecommute_data(survey = "2021",
   mutate(race_group=case_when(race_group=="POC" ~ "People of color",
                               TRUE ~as.character(race_group)))
 ```
-\newpage
-\pagestyle{otherpages}
-\setlength{\headheight}{10pt}
-\setlength{\textheight}{665pt}
-\fancyhead[L]{}
-
-## Working at home increased from 6% to 27% from 2017 to 2021
-In the regional travel surveys from 2017 to 2021, respondents with jobs were asked to select their current work location from a list of options. In the 2017/2019 combined data, people who always worked at home comprised only 6\% of all workers in the region. By spring of 2021, the portion of people always working from home increased dramatically to 27\% of all workers in the region.   
+### Working at home increased from 6% to 27% from 2017 to 2021
 ```{r workplace, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
 new_row = list(survey = "2017/2019", workplace="Telework some days and travel to a work location some days", count = NA, count_moe = NA, share = NA, share_moe = NA, sample_size = NA)
 workplace_edit <- rbind(workplace,new_row)
@@ -311,12 +321,21 @@ workplace_chart <- static_column_chart(t = workplace_edit,
                                        fill = "survey",
                                        moe = "share_moe",
                                        color = "pgnobgy_5",
-                                       title = "Change in Work Location",
-                                       source = paste("The option 'Telework some days and travel to a work location some days' was added","\n", "in the 2021 survey.")) +
+                                       title = "Change in Work Location"
+                                      ) +
   scale_x_discrete(labels = scales::wrap_format(18))
 
 workplace_chart
 ```
+
+\newpage
+\pagestyle{otherpages}
+\setlength{\headheight}{10pt}
+\setlength{\textheight}{665pt}
+\fancyhead[L]{}
+
+In the regional travel surveys from 2017 to 2021, respondents with jobs were asked to select their current work location from a list of options. In the 2017/2019 combined data, people who always worked at home comprised only 6\% of all workers in the region. By spring of 2021, the portion of people always working from home increased dramatically to 27\% of all workers in the region.   
+
 Combined with the portion of people that teleworked some days and traveled to work some days, 37\% of workers in the region worked from home at least part of the time. However, most workers in 2021 still traveled to a work location outside of the home.
 
 ## Large changes seen in teleworking
@@ -325,7 +344,7 @@ Working remotely from home, also called teleworking, has been a feature of the w
 ### Yearly increases in weekly rates of teleworking
 In the travel surveys, people who responded that they traveled to a primary work location or, in 2021, teleworked some days and traveled to work some days were asked to state how often they had substituted a work trip with teleworking in the past week. In 2017, 16\% of those workers teleworked at least once per week; this increased slightly to 20\% in 2019, followed by a large increase to 31\% in 2021.
 
-```{r telecommute_over_year, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r telecommute_over_year, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3)}
 telecommute_frequency_chart <- static_column_chart(t = telecommute_frequency,
                                                    x = "telecommute_freq_cond", y = "share",
                                                    fill = "survey",
@@ -339,7 +358,7 @@ telecommute_frequency_chart
 ### Telework frequencies did not increase evenly
 When looking at a more detailed view of teleworking frequency, the largest increase occurred for workers who said they teleworked 3-4 days per week, increasing from around 2\% in 2017 to 10\% in 2021. Teleworking five or more days per week also saw a large increase, while teleworking only one or two times per week did not increase after 2019.
 
-```{r times_per_week, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r times_per_week, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3)}
 telecommute_times_per_week_chart <- static_column_chart(t = telecommute_times_per_week,
                                                         x = "telecommute_freq", y = "share",
                                                         fill = "survey",
@@ -353,7 +372,7 @@ telecommute_times_per_week_chart
 ### Telework frequency varied by gender
 When telework frequency is broken down by gender, there was little difference in the shares of female workers reporting teleworking 1-2 days per week (11\%), 3-4 days per week (12\%), and 5+ days per week (10\%). There was a slightly larger difference for male workers, with the largest share reporting 5+ days per week (12\%) compared to 9\% and 8\% for 1-2 days per week and 3-4 days per week, respectively. For both genders, the largest increase in teleworking frequency between 2017/2019 and 2021 was for 3-4 days per week; the share of female workers increased from 2\% to 12\% and the share of male workers increased from 3\% to 8\%. There was also a large increase in male workers who reported teleworking 5+ days per week, an increase from 7\% in 2019 to 12\% in 2021.
 
-```{r telecommute_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r telecommute_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3)}
 telecommute_freq_gender_chart <- static_column_chart(t = telecommute_freq_gender,
                                                      x = "telecommute_freq", y = "share",
                                                      fill = "survey",
@@ -369,7 +388,7 @@ telecommute_freq_gender_chart
 ### Telework frequency also varied by race and ethnicity
 When telework frequency is broken down by race and ethnicity, the number of workers teleworking at least once per week increased the most for white workers, while teleworking remained the same for workers of color. By 2021, there were similar shares of workers of color and white workers teleworking.
 
-```{r telecommute_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r telecommute_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3)}
 telecommute_freq_race_chart <- static_column_chart(t = telecommute_freq_race,
                                                    x = "telecommute_freq", y = "share",
                                                    fill = "survey",
@@ -387,7 +406,7 @@ As discussed above, 37\% of workers in the region worked at home in 2021, while 
 ### Males working outside the home more than females
 Overall, there was a greater proportion of male workers (66\%) who reported working outside the home than female workers (59\%). However, both groups deviate only slightly from the regional average of 63\% of workers.
 
-```{r work_travel_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r work_travel_gender, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3)}
 # option 1 - default dodge because 'stack' isn't rendering correctly
 # travel_by_gender_chart <- static_column_chart(t = travel_by_gender_21,
 #                                               x = "gender_group", y = "share",
@@ -418,7 +437,7 @@ travel_by_gender_chart2
 ### More African American and Hispanic workers working outside the home
 When broken down by race and ethnicity, a greater proportion of Hispanic (78\%) and African American (71\%) workers reported working outside the home than the regional average.
 
-```{r work_travel_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r work_travel_race, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3)}
 # option 1 - default dodge because 'stack' isn't rendering correctly
 # travel_by_race_chart <- static_column_chart(t = travel_by_race_21,
 #                                             x = "race_category", y = "share",
@@ -449,7 +468,7 @@ travel_by_race_chart2
 ### Differences seen in workplace travel based on worker industry
 PSRC first began asking survey respondents in which industry they worked in the 2021 household travel survey. We used industry groups to see differences in workplace travel based on workers' fields of employment. We found that there were seven industry groups (including "Other") with workers reporting that they worked outside the home more than the regional average (63\%; blue bar in chart below): Military (98\%); Hospitality \& Retail (87\%); Personal Services (85\%); Construction \& Resources (82\%); Health Care, Social Services \& Childcare (81\%); Transportation \& Utilities (72\%), and Other (70\%).
 
-```{r industry_work_travel, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r industry_work_travel, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 5)}
 industry_work_travel_chart <- industry_by_work_loc_21 %>% 
   filter(workplace_travel == "Works outside the home") %>% 
   mutate(industry_cond = fct_reorder(industry_cond, desc(share))) %>% 
