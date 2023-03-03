@@ -292,7 +292,7 @@ p1<- ggplot(plot,
   geom_errorbar(aes(ymin=trips_per_person-moe_trips_person, ymax=trips_per_person+moe_trips_person),
                 width=0.2, position = position_dodge(0.9))+
   scale_fill_discrete_psrc ("gnbopgy_5")+
-  psrc_style2(loc="top")
+  psrc_style2()
 
 data_table <- ggplot(plot, aes(x = simple_purpose, y = urban_metro,
                                 label = sample_size_trips)) +
