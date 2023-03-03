@@ -312,7 +312,7 @@ industry_by_race_21 <- get_telecommute_data(survey = "2021",
                               TRUE ~as.character(race_group)))
 ```
 ### Working at home increased from 6% to 27% from 2017 to 2021
-```{r workplace, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 4)}
+```{r workplace, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(6, 3.5)}
 new_row = list(survey = "2017/2019", workplace="Telework some days and travel to a work location some days", count = NA, count_moe = NA, share = NA, share_moe = NA, sample_size = NA)
 workplace_edit <- rbind(workplace,new_row)
 
