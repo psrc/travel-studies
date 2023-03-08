@@ -163,9 +163,9 @@ food_column<- static_column_chart(t= food_freq_separate,
                                      moe = "share_moe",
                                      color="psrc_pairs",
                                      est ="percent",
-                                     dec=1,
-                                     title="Food/Meal Deliveries",
-                                     subtitle="(e.g., pizza/sushi, Grubhub)")
+                                     dec=1)
+                                    # title="Food/Meal Deliveries",
+                                     #subtitle="(e.g., pizza/sushi, Grubhub)")
                                     # source = "regional household travel survey")
 
 food_column
@@ -200,9 +200,9 @@ package_column<- static_column_chart(t= pkgs_freq_separate,
                                      moe = "share_moe",
                                      color="psrc_pairs",
                                      est ="percent",
-                                     dec=1,
-                                     title="Package Deliveries",
-                                     subtitle="(e.g., FedEx, UPS, USPS)")
+                                     dec=1)
+                                   #  title="Package Deliveries",
+                                    # subtitle="(e.g., FedEx, UPS, USPS)")
                                     # source = "regional household travel survey")
 
 package_column
@@ -237,9 +237,9 @@ grocery_column<- static_column_chart(t= grocery_freq_separate,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Grocery Deliveries",
-                                                  subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online)")
+                                                  dec=1)
+                                                 # title="Grocery Deliveries",
+                                                  #subtitle="(e.g., Amazon Fresh, Instacart, Safeway Online)")
                                                  # source = "regional household travel survey")
 
 grocery_column
@@ -273,9 +273,9 @@ work_column<- static_column_chart(t= work_freq_separate,
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Work/Service Deliveries",
-                                                  subtitle="(e.g., landscaping, cable service, house-cleaning)")
+                                                  dec=1)
+                                                 # title="Work/Service Deliveries",
+                                                  #subtitle="(e.g., landscaping, cable, house-cleaning)")
                                         # source = "regional household travel survey")
 
 work_column
@@ -301,20 +301,21 @@ all_deliveries_freq_17_21_new <- all_deliveries_freq_17_21[, -c(2, 9, 10, 11)]
 
 # create facet bar chart
 
-deliveries_facet1<- create_facet_bar_chart(t= all_deliveries_freq_17_21_new,
-                                                  w.x="survey", w.y="share",
-                                                  f="survey", g="delivery_type",
-                                                  w.color="blues_inc",
-                                                  est.type ="percent",
-                                                  w.interactive="no",
-                                                  w.dec=2,
-                                                  w.scales="fixed",
-                                                  w.facet=2,
-                                                  w.title="Home Deliveries or Services",
-                                                  w.sub.title="Share of Households on Average Weekday")+
-  ggplot2::theme(axis.title = ggplot2::element_blank()) 
+#deliveries_facet1<- static_facet_column_chart(t= all_deliveries_freq_17_21_new,
+ #                                                 x="survey", y="share",
+  #                                                fill="delivery_type", #g="delivery_type",
+   #                                               facet = 2,
+    #                                              est ="percent",
+     #                                             scales = "fixed",
+      #                                            dec = 2,
+       #                                           color="blues_inc",
+        #                                          title="Home Deliveries or Services",
+         #                                         subtitle="Share of Households on Average Weekday")+
+  #ggplot2::theme(axis.title = ggplot2::element_blank()) 
 
-deliveries_facet1
+#?static_facet_column_chart()
+
+#deliveries_facet1
 
 deliveries_all_column<- static_column_chart(t= all_deliveries_freq_17_21_new,
                                                   x="delivery_type", y="share",
@@ -322,9 +323,9 @@ deliveries_all_column<- static_column_chart(t= all_deliveries_freq_17_21_new,
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Home Deliveries or Services",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=1)
+                                                  #title="Home Deliveries or Services",
+                                                  #subtitle="Share of Households on Average Weekday")
                                         # source = "regional household travel survey")
 
 deliveries_all_column
@@ -767,18 +768,17 @@ all_deliveries_lifecycle_new <- all_deliveries_lifecycle[, -c(3, 10, 11, 12)]
 
 # create facet bar chart
 
-deliveries_lifecycle_facet<- create_facet_bar_chart(t= all_deliveries_lifecycle_new,
-                                                  w.x="delivery_type", w.y="share",
-                                                  f="lifecycle", g="survey",
-                                                  w.moe = "share_moe",
-                                                  w.color="greens_inc",
-                                                  est.type ="percent",
-                                                  w.interactive="no",
-                                                  w.dec=2,
-                                                  w.scales="fixed",
-                                                  w.facet=4,
-                                                  w.title="Home Deliveries or Services by Age Group",
-                                                  w.sub.title="Share of Households on Average Weekday")
+deliveries_lifecycle_facet<- static_facet_column_chart(t= all_deliveries_lifecycle_new,
+                                                  x="delivery_type", y="share",
+                                                  fill="lifecycle", facet="survey",
+                                                  moe = "share_moe",
+                                                  color="greens_inc",
+                                                  est ="percent",
+                                                  dec=2,
+                                                  scales="fixed",
+                                                  ncol = 4,
+                                                  title="Home Deliveries or Services by Age Group",
+                                                  subtitle="Share of Households on Average Weekday")
 
 deliveries_lifecycle_facet
 
@@ -809,34 +809,36 @@ all_deliveries_lifecycle2 <- rbind(food_lifecycle_17, grocery_lifecycle_17, pkgs
 
 all_deliveries_lifecycle_new2 <- all_deliveries_lifecycle2[, -c(3, 10, 11, 12)]
 
-deliveries_lifecycle_facet2<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
-                                                  w.x="survey", w.y="share",
-                                                  f="lifecycle", g="delivery_type",
-                                                  w.color="greens_inc",
-                                                  est.type ="percent",
-                                                  w.interactive="no",
-                                                  w.dec=2,
-                                                  w.scales="fixed",
-                                                  w.facet=2,
-                                                  w.title="Home Deliveries or Services by Year and by Type",
-                                                  w.sub.title="Share of Households on Average Weekday")+ 
+deliveries_lifecycle_facet2<- static_facet_column_chart(t= all_deliveries_lifecycle_new2,
+                                                  x="survey", 
+                                                  y="share",
+                                                  fill="lifecycle", 
+                                                  facet="delivery_type",
+                                                  color="greens_inc",
+                                                  est ="percent",
+                                                  dec=2,
+                                                  scales="fixed",
+                                                  ncol=2,
+                                                  title="Home Deliveries or Services by Year and by Type",
+                                                  subtitle="Share of Households on Average Weekday")+ 
   ggplot2::theme(axis.title = ggplot2::element_blank())
 
 deliveries_lifecycle_facet2
 
 # favored - with free scale instead of fixed
-deliveries_lifecycle_facet3<- create_facet_bar_chart(t= all_deliveries_lifecycle_new2,
-                                                  w.x="lifecycle", w.y="share",
-                                                  f="survey", g="delivery_type",
-                                                  w.moe = "share_moe",
-                                                  w.color="purples_inc",
-                                                  est.type ="percent",
-                                                  w.interactive="no",
-                                                  w.dec=2,
-                                                  w.scales="free",
-                                                  w.facet=2,
-                                                  w.title="Home Deliveries or Services by Year and by Type",
-                                                  w.sub.title="Share of Households on Average Weekday")+ 
+deliveries_lifecycle_facet3<- static_facet_column_chart(t= all_deliveries_lifecycle_new2,
+                                                  x="lifecycle", 
+                                                  y="share",
+                                                  fill="survey", 
+                                                  facet="delivery_type",
+                                                  moe = "share_moe",
+                                                  color="purples_inc",
+                                                  est ="percent",
+                                                  dec=2,
+                                                  scales="free",
+                                                  ncol=2)
+                                                  #title="Home Deliveries or Services by Year and by Type",
+                                                  #subtitle="Share of Households on Average Weekday")+ 
   ggplot2::theme(axis.title = ggplot2::element_blank()) +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
 
@@ -874,9 +876,9 @@ food_rgc_plot<- static_column_chart(t= all_food_rgc_17_21,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Food/Meal Deliveries by Household Location",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=1)
+                                                  #title="Food/Meal Deliveries by Household Location",
+                                                  #subtitle="Share of Households on Average Weekday")
                                                   #source = "PSRC Regional Household Travel Survey")
 
 food_rgc_plot
@@ -913,9 +915,9 @@ grocery_rgc_plot<- static_column_chart(t= all_grocery_rgc_17_21,
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Grocery Deliveries by Household Location",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=1)
+                                                #  title="Grocery Deliveries by Household Location",
+                                                 # subtitle="Share of Households on Average Weekday")
                                         # source = "PSRC Regional Household Travel Survey")
 
 grocery_rgc_plot
@@ -952,10 +954,10 @@ pkg_rgc_plot<- static_column_chart(t= all_pkg_rgc_17_21,
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Package Deliveries by Household Location",
-                                          subtitle="Share of Households on Average Weekday",
-                                         source = "PSRC Regional Household Travel Survey")
+                                                  dec=1)
+                                                  #title="Package Deliveries by Household Location",
+                                          #subtitle="Share of Households on Average Weekday",
+                                         #source = "PSRC Regional Household Travel Survey")
 
 pkg_rgc_plot
 
@@ -1015,18 +1017,19 @@ all_deliveries_rgc_new <- all_deliveries_rgc[, -c(3, 11, 12, 13)]
 
 # create facet bar chart
 
-deliveries_rgc<- create_facet_bar_chart(t= all_deliveries_rgc_new,
-                                                  w.x="final_home_is_rgc", w.y="share",
-                                                  f="survey", g="delivery_type",
-                                                  w.moe = "share_moe",
-                                                  w.color="psrc_pairs",
-                                                  est.type ="percent",
-                                                  w.interactive="no",
-                                                  w.dec=2,
-                                                  w.scales="fixed",
-                                                  w.facet=4,
-                                                  w.title="Home Deliveries or Services by RGC",
-                                                  w.sub.title="Share of Households on Average Weekday")+ 
+deliveries_rgc<- static_facet_column_chart(t= all_deliveries_rgc_new,
+                                                  x="final_home_is_rgc",
+                                                  y="share",
+                                                  fill = "delivery_type",
+                                                  facet = "survey",
+                                                  moe = "share_moe",
+                                                  color="psrc_pairs",
+                                                  est ="percent",
+                                                  dec=2,
+                                                  scales="fixed",
+                                                  ncol = 4,
+                                                  title="Home Deliveries or Services by RGC",
+                                                  subtitle="Share of Households on Average Weekday")+ 
   ggplot2::theme(axis.title = ggplot2::element_blank())
 
 deliveries_rgc
