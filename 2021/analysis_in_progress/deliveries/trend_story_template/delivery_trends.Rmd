@@ -75,12 +75,9 @@ package_column
 work_column
 ```
 
-\begin{flushleft} 
-As previously seen, package deliveries represent the highest share of home delivery types, and when combined on a fixed scale, it's easy to see the distribution of home delivery or service types (Figure 2). 
-\end{flushleft}
 
-```{r deliveries, fig.dim=c(6,4), fig.cap= "Trends in Home Deliveries or Services (Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
-deliveries_all_column + labs(y= "Share of Households/Weekday") 
+```{r deliveries, fig.dim=c(6,4), fig.cap= "Share of Home Deliveries or Services per Average Weekday (Source: PSRC Household Travel Survey (2017, 2019, 2021))", eval = FALSE, echo=FALSE}
+deliveries_all_column  
 ```
 
 \newpage
@@ -90,7 +87,7 @@ deliveries_all_column + labs(y= "Share of Households/Weekday")
 
 ## Households with Income Below $75,000 or Over $75,000 and Food and Package Deliveries
 \begin{flushleft}
-Higher income households (over \textdollar 75,000) were \textbf{substantially more likely} to get a food or meal delivery, as compared to lower income households in 2021, but not in previous years. These food or meal deliveries \textbf{more than tripled} between 2021 and previous years (from 1.5\% to 5.5\%) (Figure 3 (a)). On the flip side, while both lower income and higher income-bracket households had an increase in package deliveries, those households receiving less than \textdollar 75,000 had a significant spike in package deliveries, growing from about 18\% to over 30\% in 2021 (Figure 3 (b)).
+Higher income households (over \textdollar 75,000) were \textbf{substantially more likely} to get a food or meal delivery, as compared to lower income households in 2021, but not in previous years. These food or meal deliveries \textbf{more than tripled} between 2021 and previous years (from 1.5\% to 5.5\%) (Figure 2 (a)). On the flip side, while both lower income and higher income-bracket households had an increase in package deliveries, those households receiving less than \textdollar 75,000 had a significant spike in package deliveries, growing from about 18\% to over 30\% in 2021 (Figure 2 (b)).
 \end{flushleft}
 
 ```{r income blocks, fig.height = 3.3, fig.width = 5, fig.cap= "Types of Delivery by Income (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal', 'Package'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
@@ -104,7 +101,7 @@ pkgs_income_column
 
 ## Households with Children Received the Most Packages in 2021.
 \begin{flushleft}
-As we take a step back and look at the difference in household composition for the year 2021 alone, we find that food or meal, grocery, and work or service deliveries stayed relatively stable regardless of household composition, age, or whether or not children were part of the household dynamic. However, a distinct difference could be seen for package deliveries in household with children (about 45\%) compared to those households that did not have children present (ranging from about 40\% to under 30\%) (Figure 4).
+As we take a step back and look at the difference in household composition for the year 2021 alone, we find that food or meal, grocery, and work or service deliveries stayed relatively stable regardless of household composition, age, or whether or not children were part of the household dynamic. However, a distinct difference could be seen for package deliveries in household with children (about 45\%) compared to those households that did not have children present (ranging from about 40\% to under 30\%) (Figure 3).
 \end{flushleft}
 
 ```{r lifecycle, fig.dim=c(6,4), fig.cap= "Types of Delivery based on Age Group and Lifecycle Stage (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
@@ -120,7 +117,7 @@ deliveries_lifecycle_facet
 
 ## Food and Grocery Deliveries Doubled Outside of RGCs in 2021.
 \begin{flushleft}
-Since the early 1990s, the central Puget Sound region has adopted a strategy that focus future population and employment growth in designated \href{https://www.psrc.org/our-work/centers}{centers} within the region's urban growth area. Currently, there are 29 dense, walkable, mixed-used areas called  \textbf{regional growth centers (RGCs)}. RGCs are places that higher density and population and employment growth is planned. Based on the most recent findings in 2016, RGCs constitute only 1\% of the region's land area, but contain 5\% share of population and 28\% of employment, as well as 7\% of population growth and 12\% of employment growth. The main function of RGCs is to accommodate significant population and employment growth, as well as to focus regional's investments on housing, services and public transportation to accommodate the large demand that comes with the projected growth. Typically, RGCs are also located in closer proximity to amenities, shops, and resources that, we speculate, typically diminish the need to have deliveries made.
+Since the early 1990s, the central Puget Sound region has adopted a strategy that focus future population and employment growth in designated \href{https://www.psrc.org/our-work/centers}{centers} within the region's urban growth area. Currently, there are 29 dense, walkable, mixed-used areas called  \textbf{regional growth centers (RGCs)}. RGCs are places that higher density and population and employment growth is planned. Based on the most recent findings in 2016, RGCs constitute only 1\% of the region's land area, but contain 5\% share of population and 28\% of employment, as well as 7\% of population growth and 12\% of employment growth (Figure 4). The main function of RGCs is to accommodate significant population and employment growth, as well as to focus regional's investments on housing, services and public transportation to accommodate the large demand that comes with the projected growth. Typically, RGCs are also located in closer proximity to amenities, shops, and resources that, we speculate, typically diminish the need to have deliveries made.
 \end{flushleft}
 
 
@@ -131,10 +128,10 @@ grocery_rgc_plot
 ```
 
 \begin{flushleft}
-Here we can see that in 2021, the average food/meal or grocery delivery share \textbf{more than doubled} in households \textbf{outside} of the Regional Growth Center (RGC) from nearly 2\% to over 4\%. However, food/meal or grocery deliveries remained relatively stable in comparison. Package deliveries increased for both RGC and non-RGC households, but package deliveries increased more significantly in RGCs, from less than 20\% in 2017 and 2019 to almost 20\% in 2021. Work or service deliveries also remained relatively stable from 2017 and 2019 to 2021 in both RGCs and non-RGC households, although non-RGC households tended to receive more average work or service deliveries than RGC households.
+Here we can see that in 2021, the average food/meal or grocery delivery share \textbf{more than doubled} in households \textbf{outside} of the Regional Growth Center (RGC) from nearly 2\% to over 4\%. However, food/meal or grocery deliveries remained relatively stable in comparison. Package deliveries increased for both RGC and non-RGC households, but package deliveries increased more significantly in RGCs, from less than 20\% in 2017 and 2019 to almost 20\% in 2021. Work or service deliveries also remained relatively stable from 2017 and 2019 to 2021 in both RGCs and non-RGC households, although non-RGC households tended to receive more average work or service deliveries than RGC households (Figure 5).
 \end{flushleft}
 
-```{r, fig.dim=c(9,6), echo=FALSE}
+```{r, fig.dim=c(6,4), echo=FALSE}
 deliveries_rgc
 ```
 
