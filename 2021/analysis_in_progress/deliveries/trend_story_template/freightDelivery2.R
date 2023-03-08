@@ -396,9 +396,9 @@ food_income_column<- static_column_chart(t= all_food_dichot_17_21,
                                          moe = "share_moe",
                                          color="psrc_pairs",
                                          est ="percent",
-                                         dec=1,
-                                         title="Food/Meal Deliveries by Income",
-                                         subtitle="(e.g.., pizza/sushi, Grubhub)")
+                                         dec=1)
+                                         #title="Food/Meal Deliveries by Income",
+                                         #subtitle="(e.g.., pizza/sushi, Grubhub)")
                                         # source = "PSRC Regional Household Travel Survey")
 
 food_income_column
@@ -506,9 +506,9 @@ pkgs_income_column<- static_column_chart(t= all_pkgs_income_dichot_17_21,
                                             moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Package Deliveries by Income",
-                                                  subtitle="(i.e., FedEx, UPS, USPS)")
+                                                  dec=1)
+                                                #  title="Package Deliveries by Income",
+                                                 # subtitle="(i.e., FedEx, UPS, USPS)")
                                         # source = "PSRC Regional Household Travel Survey")
 
 pkgs_income_column
@@ -832,13 +832,13 @@ deliveries_lifecycle_facet3<- static_facet_column_chart(t= all_deliveries_lifecy
                                                   fill="survey", 
                                                   facet="delivery_type",
                                                   moe = "share_moe",
-                                                  color="purples_inc",
+                                                  color="psrc_pairs",
                                                   est ="percent",
                                                   dec=2,
                                                   scales="free",
-                                                  ncol=2)
-                                                  #title="Home Deliveries or Services by Year and by Type",
-                                                  #subtitle="Share of Households on Average Weekday")+ 
+                                                  ncol=2,
+                                                  title="Home Deliveries or Services by Year and by Type",
+                                                  subtitle="Share of Households on Average Weekday")+ 
   ggplot2::theme(axis.title = ggplot2::element_blank()) +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 10))
 
@@ -1023,7 +1023,7 @@ deliveries_rgc<- static_facet_column_chart(t= all_deliveries_rgc_new,
                                                   fill = "delivery_type",
                                                   facet = "survey",
                                                   moe = "share_moe",
-                                                  color="psrc_pairs",
+                                                  color="gnbopgy_5",
                                                   est ="percent",
                                                   dec=2,
                                                   scales="fixed",

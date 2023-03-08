@@ -10,7 +10,7 @@ fontsize: 11pt
 ---
 \setmainfont{Poppins}
 
-# Delivery Trends for Different Types of Packages
+# Delivery Trends for The Puget Sound Region
 
 ```{r setup, include=FALSE}
 
@@ -59,13 +59,13 @@ The 2021 regional travel survey collected day-to-day information from households
 In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis.
 \end{flushleft}
 
-## Trends in Home Delivery
+## Trends in Home Delivery and Services
 \begin{flushleft}
-Food and grocery deliveries more than doubled from 2019 to 2021. In 2021, although the average food/meal or grocery delivery share was only 4 or 5\%, that represents twice the share of these types of deliveries in both 2017 or 2019. Package deliveries, which represent the highest share of deliveries on an average weekday for households, had a growth rate that doubles from 2019 to 2021. Work or service deliveries remained consistent at around 5\% (Figure 1).
+One of the questions that the Household Travel Survey QUestionnaire focused on was the frequency of deliveries or services that households received on an average day. The deliveries or services were divided into four major groupings; food or meal delivery (i.e., pizza, prepared meals, Grubhub), grocery delivery (i.e., Amazon Fresh, Instacart, Safeway online), package delivery (i.e., FedEx, UPS, USPS package), or at-home services (i.e., landscaping, cable service, house-cleaning). Across the three data sets (2017, 2019, and 2021), food and grocery deliveries \textbf{more than doubled} from 2019 to 2021 (although, these types of deliveries still only represent a small percentage of households at about 5\%). Package deliveries had a growth rate that doubled between 2019 to 2021. Package deliveries also represent the highest share of delivery types on a average weekday for households. Work or service deliveries remained consistent at around 5\% (Figure 1).
 \end{flushleft}
 
 
-```{r individual delivery type, fig.height = 3.3, fig.width = 5, fig.cap= "Trends in Home Delivery Types (Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal (i.e., Grubhub)', 'Grocery (i.e., Instacart)', 'Package (i.e., UPS, FedEx)', 'Work or Service (i.e., landscaping)'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
+```{r individual delivery type, fig.height = 3.3, fig.width = 5, fig.cap= "Trends in Home Delivery Types (Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal', 'Grocery', 'Package', 'Work or Service'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
 
 food_column
 grocery_column
@@ -79,7 +79,7 @@ work_column
 \fancyhead[L]{}
 
 \begin{flushleft} 
-When combined visually, it's easy to see the distribution of home deliveries on an average weekday. 
+As previously seen, package deliveries represent the highest share of home delivery types, and when combined on a fixed scale, it's easy to see the distribution of home delivery or service types (Figure 2). 
 \end{flushleft}
 
 ```{r deliveries, fig.dim=c(9,6), fig.cap= "Trends in Home Deliveries or Services (Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
@@ -87,15 +87,9 @@ deliveries_all_column + labs(y= "Share of Households/Average Weekday")
 ```
 
 
-## Food/Meal and Package Deliveries in Low and High-Income Households Differed.
+## How Income Impacted Food and Package Deliveries
 \begin{flushleft}
-Higher income households were substantially more likely to get a good or meal delivery,
-as compared to lower income households in 2021, compared to 2017 and 2019. Food or meal deliveries more than tripled between 2021 
-and previous years (1.5\% to 5.5\%).
-
-While both lower income and higher income households had an increase in package deliveries,
-those households with less than \textdollar 75,000 had a significant spike, growing from
-about 18\% to over 30\% in 2021.
+Higher income households (over \textdollar 75,000) were \textbf{substantially more likely} to get a food or meal delivery, as compared to lower income households in 2021, but not in previous years. These food or meal deliveries \textbf{more than tripled} between 2021 and previous years (from 1.5\% to 5.5\%). On the flip side, while both lower income and higher income-bracket households had an increase in package deliveries, those households receiving less than \textdollar 75,000 had a significant spike in package deliveries, growing from about 18\% to over 30\% in 2021 (Figure 3).
 \end{flushleft}
 
 ```{r income blocks, fig.height = 3.3, fig.width = 5, fig.cap= "Types of Delivery by Income (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", , fig.subcap=c('Food or Meal', 'Package'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
@@ -165,6 +159,12 @@ work_hhsize_plot
 
 ```
 
+## Conclusion
+
 \begin{flushleft}
+With increased emotional labor and care-taking demands, and with women more likely to live in poverty and having less employment and lower incomes than men, there are many aspects of transit and transportation modalities that need to be reassessed to support women's needs. Women of color need a robust transit network with more reliable service throughout the day. Biking, walking, and transit don't always feel accessible or safe, and access to a vehicle isn't always available to women. While an increase in telework has removed some of the additional burden to trip-chaining for women, we need to consider how we create and manage transportation so that it may be equitable to all. Transit especially needs to be designed around women of color, since they use transit more than other groups.
+
+While we are working towards a more non-binary understanding of gendered data, we acknowledge that much of the data presented above does analyze information and patterns in a binary manner.
+
 Download the data used in this Trend.
 \end{flushleft}
