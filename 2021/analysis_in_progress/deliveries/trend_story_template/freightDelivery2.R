@@ -776,9 +776,9 @@ deliveries_lifecycle_facet<- static_facet_column_chart(t= all_deliveries_lifecyc
                                                   est ="percent",
                                                   dec=2,
                                                   scales="fixed",
-                                                  ncol = 4,
-                                                  title="Home Deliveries or Services by Age Group",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  ncol = 4)
+                                                  #title="Home Deliveries or Services by Age Group",
+                                                  #subtitle="Share of Households on Average Weekday")
 
 deliveries_lifecycle_facet
 
@@ -1066,9 +1066,9 @@ food_hhsize_plot<- static_column_chart(t= all_food_hh_17_21,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Food/Meal Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=1)
+                                                  #title="Food/Meal Deliveries by Household Size",
+                                                  #subtitle="Share of Households on Average Weekday")
                                                 #  source = "PSRC Regional Household Travel Survey")
 
 food_hhsize_plot
@@ -1107,9 +1107,9 @@ grocery_hhsize_plot<- static_column_chart(t= all_grocery_hh_17_21,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Grocery Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=1)
+                                                 # title="Grocery Deliveries by Household Size",
+                                                  #subtitle="Share of Households on Average Weekday")
                                              #     source = "PSRC Regional Household Travel Survey")
 
 grocery_hhsize_plot
@@ -1146,9 +1146,9 @@ pkgs_hhsize_plot<- static_column_chart(t= all_pkgs_hh_17_21,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=1,
-                                                  title="Package Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=1)
+                                                #  title="Package Deliveries by Household Size",
+                                                 # subtitle="Share of Households on Average Weekday")
                                                 #  source = "PSRC Regional Household Travel Survey")
 
 pkgs_hhsize_plot
@@ -1185,9 +1185,9 @@ work_hhsize_plot<- static_column_chart(t= all_work_hh_17_21,
                                                   moe = "share_moe",
                                                   color="psrc_pairs",
                                                   est ="percent",
-                                                  dec=0,
-                                                  title="Work/Service Deliveries by Household Size",
-                                                  subtitle="Share of Households on Average Weekday")
+                                                  dec=0)
+                                                #  title="Work/Service Deliveries by Household Size",
+                                                #  subtitle="Share of Households on Average Weekday")
                                                #   source = "PSRC Regional Household Travel Survey")
 
 work_hhsize_plot

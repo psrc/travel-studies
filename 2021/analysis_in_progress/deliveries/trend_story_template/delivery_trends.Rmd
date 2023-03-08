@@ -61,7 +61,7 @@ The 2021 regional travel survey collected day-to-day information from households
 In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis.
 \end{flushleft}
 
-## Trends in Home Delivery and Services
+## Trends in Home Delivery and Service Categories
 \begin{flushleft}
 One of the questions that the Household Travel Survey QUestionnaire focused on was the frequency of deliveries or services that households received on an average day. The deliveries or services were divided into four major groupings; food or meal delivery (i.e., pizza, prepared meals, Grubhub), grocery delivery (i.e., Amazon Fresh, Instacart, Safeway online), package delivery (i.e., FedEx, UPS, USPS package), or at-home services (i.e., landscaping, cable service, house-cleaning). Across the three data sets (2017, 2019, and 2021), food and grocery deliveries \textbf{more than doubled} from 2019 to 2021 (although, these types of deliveries still only represent a small percentage of households at about 5\%). Package deliveries had a growth rate that doubled between 2019 to 2021. Package deliveries also represent the highest share of delivery types on a average weekday for households. Work or service deliveries remained consistent at around 5\% (Figure 1).
 \end{flushleft}
@@ -75,23 +75,22 @@ package_column
 work_column
 ```
 
+\begin{flushleft} 
+As previously seen, package deliveries represent the highest share of home delivery types, and when combined on a fixed scale, it's easy to see the distribution of home delivery or service types (Figure 2). 
+\end{flushleft}
+
+```{r deliveries, fig.dim=c(6,4), fig.cap= "Trends in Home Deliveries or Services (Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
+deliveries_all_column + labs(y= "Share of Households/Weekday") 
+```
+
 \newpage
 \setlength{\headheight}{10pt}
 \setlength{\textheight}{665pt}
 \fancyhead[L]{}
 
-\begin{flushleft} 
-As previously seen, package deliveries represent the highest share of home delivery types, and when combined on a fixed scale, it's easy to see the distribution of home delivery or service types (Figure 2). 
-\end{flushleft}
-
-```{r deliveries, fig.dim=c(9,6), fig.cap= "Trends in Home Deliveries or Services (Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
-deliveries_all_column + labs(y= "Share of Households/Average Weekday") 
-```
-
-
-## How Income Impacted Food and Package Deliveries
+## Households with Income Below $75,000 or Over $75,000 and Food and Package Deliveries
 \begin{flushleft}
-Higher income households (over \textdollar 75,000) were \textbf{substantially more likely} to get a food or meal delivery, as compared to lower income households in 2021, but not in previous years. These food or meal deliveries \textbf{more than tripled} between 2021 and previous years (from 1.5\% to 5.5\%). On the flip side, while both lower income and higher income-bracket households had an increase in package deliveries, those households receiving less than \textdollar 75,000 had a significant spike in package deliveries, growing from about 18\% to over 30\% in 2021 (Figure 3).
+Higher income households (over \textdollar 75,000) were \textbf{substantially more likely} to get a food or meal delivery, as compared to lower income households in 2021, but not in previous years. These food or meal deliveries \textbf{more than tripled} between 2021 and previous years (from 1.5\% to 5.5\%) (Figure 3 (a)). On the flip side, while both lower income and higher income-bracket households had an increase in package deliveries, those households receiving less than \textdollar 75,000 had a significant spike in package deliveries, growing from about 18\% to over 30\% in 2021 (Figure 3 (b)).
 \end{flushleft}
 
 ```{r income blocks, fig.height = 3.3, fig.width = 5, fig.cap= "Types of Delivery by Income (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal', 'Package'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
@@ -105,54 +104,41 @@ pkgs_income_column
 
 ## Households with Children Received the Most Packages in 2021.
 \begin{flushleft}
-Food or meal, grocery, and work or service deliveries stayed relatively stable regardless of household composition
-or year. However, package deliveries were the highest for households with kids (45\%), and then decreased as household age increased (about 30\%).
+As we take a step back and look at the difference in household composition for the year 2021 alone, we find that food or meal, grocery, and work or service deliveries stayed relatively stable regardless of household composition, age, or whether or not children were part of the household dynamic. However, a distinct difference could be seen for package deliveries in household with children (about 45\%) compared to those households that did not have children present (ranging from about 40\% to under 30\%) (Figure 4).
 \end{flushleft}
 
-```{r lifecycle, fig.dim=c(12,9), fig.cap= "Types of Delivery based on Age Group and Lifecycle Stage (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
+```{r lifecycle, fig.dim=c(6,4), fig.cap= "Types of Delivery based on Age Group and Lifecycle Stage (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", echo=FALSE}
 
-#food_lifecycles
-#grocery_lifecycles
-#pkgs_lifecycles
-#work_lifecycles
-deliveries_lifecycle_facet3
+deliveries_lifecycle_facet
 
 ```
+
+\newpage
+\setlength{\headheight}{10pt}
+\setlength{\textheight}{665pt}
+\fancyhead[L]{}
 
 ## Food and Grocery Deliveries Doubled Outside of RGCs in 2021.
 \begin{flushleft}
 Since the early 1990s, the central Puget Sound region has adopted a strategy that focus future population and employment growth in designated \href{https://www.psrc.org/our-work/centers}{centers} within the region's urban growth area. Currently, there are 29 dense, walkable, mixed-used areas called  \textbf{regional growth centers (RGCs)}. RGCs are places that higher density and population and employment growth is planned. Based on the most recent findings in 2016, RGCs constitute only 1\% of the region's land area, but contain 5\% share of population and 28\% of employment, as well as 7\% of population growth and 12\% of employment growth. The main function of RGCs is to accommodate significant population and employment growth, as well as to focus regional's investments on housing, services and public transportation to accommodate the large demand that comes with the projected growth. Typically, RGCs are also located in closer proximity to amenities, shops, and resources that, we speculate, typically diminish the need to have deliveries made.
-
-Here we can see that in 2021, the average food/meal or grocery delivery share more than doubled in households
-outside of the Regional Growth Centers (RGCs) from nearly 2\% to over 4\%.
 \end{flushleft}
+
 
 ```{r rgc, fig.height = 3.3, fig.width = 5, fig.cap= "Types of Food or Grocery Deliveries by Household Location (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal', 'Grocery'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
 
 food_rgc_plot
 grocery_rgc_plot
-#pkg_rgc_plot
-#work_rgc_plot
 ```
 
 \begin{flushleft}
-Package deliveries increased for both RGC and non-RGC households, but package deliveries increased
-more significantly in RGCs, from less than 20\% in 2017 and 2019 to almost 20\% in 2021.
-
-Work or service deliveries remained relatively stable from 2017 and 2019 to 2021 in both RGCs and non-RGC households, 
-although non-RGC households tended to receive more average work or service deliveries than RGC households.
+Here we can see that in 2021, the average food/meal or grocery delivery share \textbf{more than doubled} in households \textbf{outside} of the Regional Growth Center (RGC) from nearly 2\% to over 4\%. However, food/meal or grocery deliveries remained relatively stable in comparison. Package deliveries increased for both RGC and non-RGC households, but package deliveries increased more significantly in RGCs, from less than 20\% in 2017 and 2019 to almost 20\% in 2021. Work or service deliveries also remained relatively stable from 2017 and 2019 to 2021 in both RGCs and non-RGC households, although non-RGC households tended to receive more average work or service deliveries than RGC households.
 \end{flushleft}
 
 ```{r, fig.dim=c(9,6), echo=FALSE}
 deliveries_rgc
 ```
 
-## Household Deliveries and Household Size
-\begin{flushleft}
-Still interpreting data here.
-\end{flushleft}
-
-```{r hhsize, fig.height = 3.3, fig.width = 5, fig.cap= "Types of Delivery by Household Size (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal', 'Grocery', 'Package', 'Work or Service'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE}
+```{r hhsize, fig.height = 3.3, fig.width = 5, fig.cap= "Types of Delivery by Household Size (Source: Source: PSRC Household Travel Survey (2017, 2019, 2021))", fig.subcap=c('Food or Meal', 'Grocery', 'Package', 'Work or Service'), fig.ncol = 2, out.width = "50%", fig.pos = "H", echo=FALSE, eval = FALSE}
 
 food_hhsize_plot
 grocery_hhsize_plot
@@ -164,9 +150,9 @@ work_hhsize_plot
 ## Conclusion
 
 \begin{flushleft}
-With increased emotional labor and care-taking demands, and with women more likely to live in poverty and having less employment and lower incomes than men, there are many aspects of transit and transportation modalities that need to be reassessed to support women's needs. Women of color need a robust transit network with more reliable service throughout the day. Biking, walking, and transit don't always feel accessible or safe, and access to a vehicle isn't always available to women. While an increase in telework has removed some of the additional burden to trip-chaining for women, we need to consider how we create and manage transportation so that it may be equitable to all. Transit especially needs to be designed around women of color, since they use transit more than other groups.
 
-While we are working towards a more non-binary understanding of gendered data, we acknowledge that much of the data presented above does analyze information and patterns in a binary manner.
+
+While some distinct changes can be seen from 2017/2019 to 2021, it is important to note that the 2021 survey was conducted during a period in which we were still seeing economic impacts to the region, as compared to pre-COVID levels. Additionally, while this analysis outlines some differences in the delivery data, we want to be mindful of the conclusions that we draw regarding how deliveries impact shopping trips made by households. We looked into shopping trips, but there weren’t significant changes, and as shopping trips may reduce deliveries, we cannot confirm that causality, and due to the survey only capturing weekdays, it is difficult to tell whether weekend behaviors changed. This does, however, have future applications and an opportunity to continue and gather data to support national efforts and better understand the needs of the region. 
 
 Download the data used in this Trend.
 \end{flushleft}
