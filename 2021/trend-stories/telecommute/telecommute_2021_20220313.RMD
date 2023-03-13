@@ -312,6 +312,8 @@ industry_by_race_21 <- get_telecommute_data(survey = "2021",
   filter(race_group != "Total") %>% 
   mutate(race_group=case_when(race_group=="POC" ~ "People of color",
                               TRUE ~as.character(race_group)))
+
+wb <- openxlsx::createWorkbook()
 ```
 ### Working at home increased from 6% to 27% between 2017 and 2021
 ```{r workplace, echo=FALSE, results=TRUE, warning=FALSE, fig.dim=c(7, 3.55)}
@@ -328,6 +330,9 @@ workplace_chart <- static_column_chart(t = workplace_edit,
   scale_x_discrete(labels = scales::wrap_format(18))
 
 workplace_chart
+
+openxlsx::addWorksheet(wb, sheetName = "Work Location")
+openxlsx::writeDataTable(wb, sheet = 1, x = workplace, tableStyle = "none", withFilter = FALSE)
 ```
 
 \newpage
@@ -353,6 +358,9 @@ telecommute_frequency_chart <- static_column_chart(t = telecommute_frequency,
 png("telecommute_frequency_chart.png")
 plot(telecommute_frequency_chart) 
 dev.off()
+
+openxlsx::addWorksheet(wb, sheetName = "Telecommute Frequency")
+openxlsx::writeDataTable(wb, sheet = 2, x = telecommute_frequency, tableStyle = "none", withFilter = FALSE)
 ```
 \renewcommand{\columnsep}{25pt}
 \begin{wrapfigure}{right}{0.46\textwidth}
@@ -378,6 +386,9 @@ telecommute_times_per_week_chart <- static_column_chart(t = telecommute_times_pe
                                                         title = "Telework Frequency: Times per Week")
 
 telecommute_times_per_week_chart
+
+openxlsx::addWorksheet(wb, sheetName = "Telecommute Times")
+openxlsx::writeDataTable(wb, sheet = 3, x = telecommute_times_per_week, tableStyle = "none", withFilter = FALSE)
 ```
 
 \newpage
@@ -398,6 +409,9 @@ telecommute_freq_gender_chart <- static_column_chart(t = telecommute_freq_gender
   facet_wrap(vars(gender_group))
 
 telecommute_freq_gender_chart
+
+openxlsx::addWorksheet(wb, sheetName = "Telecommute-Gender")
+openxlsx::writeDataTable(wb, sheet = 4, x = telecommute_freq_gender, tableStyle = "none", withFilter = FALSE)
 ```
 
 \newpage
@@ -417,6 +431,9 @@ telecommute_freq_race_chart <- static_column_chart(t = telecommute_freq_race,
   facet_wrap(vars(race_group))
 
 telecommute_freq_race_chart
+
+openxlsx::addWorksheet(wb, sheetName = "Telecommute-Race")
+openxlsx::writeDataTable(wb, sheet = 5, x = telecommute_freq_race, tableStyle = "none", withFilter = FALSE)
 ```
 
 ## Trends in workplace travel and worker industry in 2021
@@ -452,6 +469,9 @@ travel_by_gender_chart2 <- static_column_chart(t = travel_by_gender_21_outside,
   scale_x_discrete(labels = scales::wrap_format(25))
 
 travel_by_gender_chart2
+
+openxlsx::addWorksheet(wb, sheetName = "Travel-Gender")
+openxlsx::writeDataTable(wb, sheet = 6, x = travel_by_gender_21, tableStyle = "none", withFilter = FALSE)
 ```
 
 ### More African American and Hispanic workers working outside the home
@@ -484,6 +504,9 @@ travel_by_race_chart2 <- static_bar_chart(t = travel_by_race_21_outside,
                                             title = "Work Outside the Home by Race/Ethnicity, Spring 2021")
 
 travel_by_race_chart2
+
+openxlsx::addWorksheet(wb, sheetName = "Travel-Race")
+openxlsx::writeDataTable(wb, sheet = 7, x = travel_by_race_21, tableStyle = "none", withFilter = FALSE)
 ```
 
 ### Differences seen in workplace travel based on worker industry
@@ -513,6 +536,9 @@ industry_work_travel_chart_ref <- industry_work_travel_chart +
   ggplot2::annotate("text", x = 1.4, y = 0.92, label = "Regional average", angle='0', color='#00A7A0')
 
 industry_work_travel_chart_ref
+
+openxlsx::addWorksheet(wb, sheetName = "Industry-Travel")
+openxlsx::writeDataTable(wb, sheet = 8, x = industry_by_work_loc_21, tableStyle = "none", withFilter = FALSE)
 ```
 
 \newpage
@@ -543,6 +569,9 @@ industry_gender_chart_ref <- industry_gender_chart +
 # label = paste("Regional", "\n", "average")
 
 industry_gender_chart_ref
+
+openxlsx::addWorksheet(wb, sheetName = "Industry-Gender")
+openxlsx::writeDataTable(wb, sheet = 9, x = industry_by_gender_21, tableStyle = "none", withFilter = FALSE)
 ```
 
 Of those seven industry groups that worked outside the home more than the regional average of all workers, three had greater proportions of workers of color than the regional average of workers of color (34\% of all workers): Health Care, Social Services \& Childcare (42\%), Hospitality \& Retail (40\%), and Personal Services (39\%).
@@ -570,8 +599,14 @@ industry_race_chart_ref <- industry_race_chart +
   ggplot2::annotate("text", x = 1.4, y = 0.47, label = "Regional average", angle='0', color='#00A7A0') + theme(axis.text.y = element_text(size = 8)) + theme(plot.title = element_text(size=12))
 
 industry_race_chart_ref
+
+openxlsx::addWorksheet(wb, sheetName = "Industry-Race")
+openxlsx::writeDataTable(wb, sheet = 10, x = industry_by_race_21, tableStyle = "none", withFilter = FALSE)
 ```
 
+```{r output_spreadsheet, echo=FALSE}
+openxlsx::saveWorkbook(wb, file = paste0(output_path, "telecommute_trend_story_data.xlsx"), overwrite = TRUE)
+```
 \subsection{Conclusion}
 Teleworking has increased significantly from 2019 to 2021, due in no small part to the COVID-19 pandemic. However, the analyses above show that telework rates are not evenly distributed across gender, race and ethnicity, or occupation. We anticipate that data from the 2023 Household Travel Survey will show how telework rates have changed since spring 2021, and if the composition of teleworkers has changed, as well.
 
