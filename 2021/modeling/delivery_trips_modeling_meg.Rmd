@@ -132,22 +132,19 @@ household_data<-household_data%>%
                                   hhsize == "8 people" | 
                                   hhsize == "12 people" ~ "4+ people"))%>%
   mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"  
-                                 ~ '65 years or older', 
+                                  lifecycle == "Household size = 1, Householder age 65+"~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
-                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
-                                 ~ '35-64, no kids',
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  ~ '35-64, no kids',
                                    lifecycle == "Household size > 1, Householder under age 35" | 
-                                   lifecycle == "Household size = 1, Householder under age 35" 
-                                   ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
                                    lifecycle == "Household includes children age 5-17" | 
-                                   lifecycle == "Household includes children under 5" ~ 'Household has kids'))%>%
- # mutate(broadband=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
-  #                             broadband == 'Broadband service is not available where I live' | 
-   #                            broadband == 'Don’t know' | 
-    #                           broadband == 'No' ~ 'No',
-     #                          broadband == 'Yes, my current residence has broadband service' | 
-      #                         broadband == 'Yes' ~ 'Yes')%>%
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
+  mutate(broadband2=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
+                               broadband == 'Broadband service is not available where I live' | 
+                               broadband == 'Don’t know' | 
+                               broadband == 'No' ~ 'No',
+                               broadband == 'Yes, my current residence has broadband service' | 
+                               broadband == 'Yes' ~ 'Yes'))%>%
            mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' |
                                         rent_own == 'Provided by family, relative, or friend without payment or rent' |
                                         rent_own == 'Provided by job or military' ~ 'Own',
@@ -345,7 +342,10 @@ household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data
 
 Join tract level data to household data at the home end.
 ```{r}
-hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE)
+hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) %>%
+  mutate(broadband2=case_when(broadband2 == '0'| 
+                                broadband2 == 'No' ~'No',
+                              broadband2 == 'Yes' ~ 'Yes'))
 
 ```
 
@@ -360,26 +360,26 @@ summary(deliv_model)
 
 ```{r, broadband}
 # packages + broadband
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband,family=binomial(), data=hh_shop_tract)
-summary(deliv_model)
+deliv_model_broad<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband2,family=binomial(), data=hh_shop_tract)
+summary(deliv_model_broad)
 ```
 
 ```{r, mobile}
 # packages + mobile_device
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+mobile_device,family=binomial(), data=hh_shop_tract)
-summary(deliv_model)
+deliv_model_mobile<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+mobile_device,family=binomial(), data=hh_shop_tract)
+summary(deliv_model_mobile)
 ```
 
 ```{r, rent tenure}
 # packages + rent_own
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own,family=binomial(), data=hh_shop_tract)
-summary(deliv_model)
+deliv_model_rent<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own,family=binomial(), data=hh_shop_tract)
+summary(deliv_model_rent)
 ```
 
 ```{r, vehicle access}
 # packages + NoVehicles
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+NoVehicles,family=binomial(), data=hh_shop_tract)
-summary(deliv_model)
+deliv_model_car<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+NoVehicles,family=binomial(), data=hh_shop_tract)
+summary(deliv_model_car)
 ```
 A smaller model with only statistically significant variables.
 
@@ -391,7 +391,7 @@ plot_summs(deliv_model_sig, scale=TRUE)
 ```
 
 ```{r, broadband}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband2,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
