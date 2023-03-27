@@ -65,8 +65,13 @@ trip_data_17_19_21<-rbind(trip_data_17, trip_data_19, trip_data_21)
 household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2017)
 household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2019)
 household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_source=='ABS')%>%dplyr::select(-hh_weight_2021)
-household_data_17_19_21<-rbind(household_data_17, household_data_19, household_data_21)%>%
-  mutate(as.factor(household_data_17_19_21$broadband))
+household_data_17_19_21<-rbind(household_data_17, household_data_19, household_data_21)
+
+#is.data.frame(household_data_17_19_21$broadband)
+
+#library(dplyr)
+household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21
+class(household_data_17_19_21$broadband)
 ```
 
 
@@ -137,18 +142,17 @@ household_data<-household_data%>%
                                    ~ 'Under 35 years, no kids',
                                    lifecycle == "Household includes children age 5-17" | 
                                    lifecycle == "Household includes children under 5" ~ 'Household has kids'))%>%
-  mutate(broadband=factor(case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
-                               broadband == 'Broadband service is not available where I live' | 
-                               broadband == 'Don’t know' | 
-                               broadband == 'No' | 
-                               broadband == 0 ~ 'No',
-                               broadband == 'Yes, my current residence has broadband service' | 
-                               broadband == 'Yes' ~ 'Yes')%>%
+ # mutate(broadband=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
+  #                             broadband == 'Broadband service is not available where I live' | 
+   #                            broadband == 'Don’t know' | 
+    #                           broadband == 'No' ~ 'No',
+     #                          broadband == 'Yes, my current residence has broadband service' | 
+      #                         broadband == 'Yes' ~ 'Yes')%>%
            mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' |
                                         rent_own == 'Provided by family, relative, or friend without payment or rent' |
                                         rent_own == 'Provided by job or military' ~ 'Own',
                                       rent_own == 'Rent' ~ 'Rent',
-                                      rent_own == 'Prefer not to answer' ~ 'No answer'))))
+                                      rent_own == 'Prefer not to answer' ~ 'No answer'))
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
 
