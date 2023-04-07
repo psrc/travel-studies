@@ -1,0 +1,63 @@
+---
+title: "analyzing multiperson trips"
+author: "suzanne"
+date: "2023-04-06"
+output: html_document
+---
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+library(psrc.travelsurvey)
+library(dplyr)
+all_vars<- c('travelers_hh', 'household_id', 'person_id', 'trip_id', 'arrival_time_hhmm', 'o_block', 'd_block', 'survey_year', 'hhgroup')
+trip_data<- get_hhts("2017_2019", "t", vars=all_vars)
+trip_data_multi<-trip_data%>%filter(travelers_hh>1)%>%arrange('arrival_time_hhmm', 'household_id')
+
+trip_data_multi_grp<-trip_data_multi%>%group_by(household_id, o_block, d_block,arrival_time_hhmm, travelers_hh, survey_year, hhgroup)%>%
+  arrange('arrival_time_hhmm', 'household_id')%>%count()
+
+trip_data_multi_count<-trip_data_multi_grp%>%group_by(survey_year, hhgroup)%>%count()
+
+trip_data_missing_trips<-trip_data_multi_grp%>%filter(travelers_hh!=n)
+
+trip_data_missing_trips_summary<-trip_data_missing_trips%>%group_by(survey_year, hhgroup)%>%count()
+
+merge(trip_data_missing_trips_summary, trip_data_multi_count, by=c('survey_year', 'hhgroup'), suffixes=c('non matching travelers_hh and num trips', 'all joint trips'))
+
+
+```
+```{r}
+#less stringent trip id
+library(psrc.travelsurvey)
+library(dplyr)
+library(lubridate)
+
+all_vars<- c('travelers_hh', 'household_id', 'person_id', 'trip_id', 'arrival_time_hhmm', 'o_tract10', 'd_tract10', 'survey_year', 'hhgroup')
+trip_data<- get_hhts("2017_2019", "t", vars=all_vars)%>%mutate(time=parse_date_time(arrival_time_hhmm, "%H:%M% %p"))
+trip_data_multi<-trip_data%>%filter(travelers_hh>1)%>%arrange('arrival_time_hhmm', 'household_id')%>%mutate(hr=lubridate::hour(time))
+
+trip_data_multi_grp<-trip_data_multi%>%group_by(household_id, hr, o_tract10, d_tract10, travelers_hh, survey_year, hhgroup)%>%
+  arrange('arrival_time_hhmm', 'household_id')%>%count()
+
+trip_data_multi_count<-trip_data_multi_grp%>%group_by(survey_year, hhgroup)%>%count()
+
+trip_data_missing_trips<-trip_data_multi_grp%>%filter(travelers_hh!=n)
+
+trip_data_missing_trips_summary<-trip_data_missing_trips%>%group_by(survey_year, hhgroup)%>%count()
+
+summar<-merge(trip_data_missing_trips_summary, trip_data_multi_count, by=c('survey_year', 'hhgroup'), suffixes=c('non matching travelers_hh and num trips', 'all joint trips'))
+summar
+
+```
+
+```
+
+
