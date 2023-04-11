@@ -27,6 +27,8 @@ library(MASS)
 library(Hmisc)
 library(reshape2)
 library(jtools)
+install.packages("lessR")
+library(lessR)
 install_psrc_fonts()
 ```
 Read in the data from Elmer
@@ -314,12 +316,9 @@ delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
 delivery_17_19_21<- rbind(delivery_17, delivery_19, delivery_21)
 ```
 
-
-
 ```{r}
 household_data_17_19_21_shop<- household_data_17_19_21_shop %>%mutate(daynum=ifelse(daynum==0,1,daynum))
 ```
-
 
 Finally joining the households with demographics and number of shopping trips, to the delivery info.
 ```{r}
@@ -349,12 +348,22 @@ hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_ho
 
 ```
 
-
 ** Make a big old model and see what stands out
-```{r}
-# packages
+```{r, eval = FALSE}
+# packages - what we'd like to look at but need to break down further with bivariate analysis
 deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle2+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30,family=binomial(), data=hh_shop_tract)
 summary(deliv_model)
+
+```
+
+```{r, income}
+# packages + income levels
+deliv_model<-glm(formula= delivery_pkg~hhincome_detailed,family=binomial(), data=hh_shop_tract)
+summary(deliv_model)
+
+deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed,family=binomial(), data=hh_shop_tract)
+summary(deliv_model_sig)
+plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
