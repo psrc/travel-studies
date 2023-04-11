@@ -70,14 +70,20 @@ rgc_hct <- c("Auburn","Bellevue","Bothell Canyon Park","Burien",
              "Redmond-Overlake","Redmond Downtown","Renton",
              "Seattle Northgate","Seattle South Lake Union","Seattle Uptown","Tukwila")
 
-# match_names <- data_rgc_mode_17_19 %>%
-#   mutate(RGCs = case_when(d_rgcname %in% rgc_light_rail ~ "RGC with light rail",
-#                              d_rgcname %in% rgc_hct ~ "RGC with HCT",
-#                              !is.na(d_rgcname) ~ "RGC with neither",
-#                              is.na(d_rgcname) ~ "outside of RGCs"))
+# add "Seattle Northgate" to light rail
+rgc_light_rail_update <- c("SeaTac","Seattle Downtown","Seattle First Hill/Capitol Hill",
+                    "Seattle University Community","Tacoma Downtown","Seattle Northgate")
+# add "Bremerton","Lakewood","Puyallup Downtown" to HCT
+rgc_hct_update <- c("Auburn","Bellevue","Bothell Canyon Park","Burien",
+             "Everett","Federal Way","Kent","Kirkland Totem Lake",
+             "Redmond-Overlake","Redmond Downtown","Renton",
+             "Seattle Northgate","Seattle South Lake Union","Seattle Uptown","Tukwila",
+             "Bremerton","Lakewood","Puyallup Downtown")
+
+
 mode_share <- hhts_count(data_rgc_mode_17_19 %>%
-                           mutate(RGCs = case_when(d_rgcname %in% rgc_light_rail ~ "RGC with light rail",
-                                                      d_rgcname %in% rgc_hct ~ "RGC with HCT",
+                           mutate(RGCs = case_when(d_rgcname %in% rgc_light_rail_update ~ "RGC with light rail",
+                                                      d_rgcname %in% rgc_hct_update ~ "RGC with HCT",
                                                       !is.na(d_rgcname) ~ "RGC with neither",
                                                       is.na(d_rgcname) ~ "outside of RGCs")),
                          group_vars = c('RGCs', 'mode'),
@@ -85,8 +91,8 @@ mode_share <- hhts_count(data_rgc_mode_17_19 %>%
                          incl_na=FALSE) %>%
   add_row(
     hhts_count(data_rgc_mode_21 %>%
-                 mutate(RGCs = case_when(d_rgcname %in% rgc_light_rail ~ "RGC with light rail",
-                                            d_rgcname %in% rgc_hct ~ "RGC with HCT",
+                 mutate(RGCs = case_when(d_rgcname %in% rgc_light_rail_update ~ "RGC with light rail",
+                                            d_rgcname %in% rgc_hct_update ~ "RGC with HCT",
                                             !is.na(d_rgcname) ~ "RGC with neither",
                                             is.na(d_rgcname) ~ "outside of RGCs")),
                group_vars = c('RGCs', 'mode'),
@@ -96,8 +102,9 @@ mode_share <- hhts_count(data_rgc_mode_17_19 %>%
   mutate(survey = case_when(survey=="2017_2019"~"2017/2019",
                             survey=="2021"~"2021"))
 test <- mode_share %>%
-  filter(mode_fp != "Total") %>%
-  group_by(survey,rgc_cat) %>%
+  filter(mode != "Total") %>%
+  group_by(survey,RGCs) %>%
   summarise(sum(share))
 
-write.csv(mode_share,"C:/Users/JLin/Downloads/rgc_mode_share.csv",row.names = FALSE)
+write.csv(mode_share,"C:/Users/JLin/Downloads/rgc_mode_share_updated.csv",row.names = FALSE)
+mode_share_old <- read_csv("C:/Users/JLin/Downloads/rgc_mode_share.csv")
