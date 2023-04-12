@@ -1,0 +1,137 @@
+---
+title: "time_regression"
+author: "suzanne"
+date: "2023-03-20"
+output: html_document
+---
+http://bayes.acs.unt.edu:8083/BayesContent/class/Jon/Benchmarks/LinearMixedModels_JDS_Dec2010.pdf
+
+https://quantdev.ssri.psu.edu/tutorials/r-bootcamp-introduction-multilevel-model-and-interactions
+
+
+
+
+
+```{r cars}
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(stats)
+library(lme4)
+
+
+
+
+db.connect <- function(adatabase) {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\SOCKEYE",
+                                database = adatabase,
+                                trusted_connection = "yes"
+  )
+}
+
+# read table
+read.dt <- function(adatabase, atable) {
+  elmer_connection <- db.connect(adatabase)
+  dtelm <- dbReadTable(elmer_connection, SQL(atable))
+  dbDisconnect(elmer_connection)
+  return(dtelm)
+}
+
+output_dir<-file.path(getwd(), 'outputs')
+
+
+
+if(!dir.exists(output_dir)){ 
+  dir.create(output_dir)
+}
+
+
+# read-in variable metadata table for levels
+vars_meta <- read.dt('Elmer', 'HHSurvey.variable_metadata')
+
+
+mode_vars<-c('mode_1', 'mode_simple')
+other_vars<-c('sample_segment', 'household_id', 'person_id', 'daynum', 'final_home_rgcnum', 'hhsize', 'vehicle_count',  "hhincome_broad", 'rent_own', 'res_dur', 'student', 'education',  'hhincome_detailed', "age", "age_category", 'race_category', 'race_eth_broad', 'gender', 'employment',  'lifecycle', 'mode_acc', 'dest_purpose_cat', 'origin_purpose_cat', 'final_home_is_rgc')
+trip_path_dist<-'trip_path_distance'
+all_vars<-c(mode_vars, other_vars, trip_path_dist)
+
+trip_data_17_19<- get_hhts("2017_2019", "t", vars=all_vars)%>% mutate(year=ifelse(survey=='2017_2019', '2017/2019', '2021'))
+
+
+
+trip_data_17_19<-trip_data_17_19%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+  mutate(hhsize_simple=case_when(hhsize== '4 people' ~'4 or more people',                                                                     hhsize== '5 people' ~'4 or more people',
+                                 hhsize== '6 people' ~'4 or more people',
+                                 hhsize== '7 people' ~'4 or more people',
+                                 hhsize== '8 people' ~'4 or more people',
+                                 hhsize== '12 people' ~'4 or more people',
+                                 TRUE ~ hhsize))%>%
+  mutate(hhincome_100= case_when(hhincome_broad=='$100,000-$199,000' ~ '$100,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$100,000 or more',
+                                 TRUE~hhincome_broad))%>%
+  mutate(edu_simple= case_when(education=='Bachelor degree' ~ 'Bachelors or higher', 
+                               education=='Graduate/Post-graduate degree' ~ 'Bachelors or higher',
+                               TRUE ~ 'Less than Bachelors degree'))%>%
+  mutate(age_grp= case_when(age=='75-84 years' ~ '75 years or older', 
+                            age == '85 or years older' ~ '75 years or older',
+                            TRUE ~ age))%>%
+  mutate(gender_grp= case_when(gender == 'Prefer not to answer' ~ 'Non-binary, another, prefer not to answer',
+                               gender=='Not listed here / prefer not to answer' ~ 'Non-binary, another, prefer not to answer',
+                               gender=='Non-Binary'~ 'Non-binary, another, prefer not to answer',
+                               gender=='Another'~ 'Non-binary, another, prefer not to answer',
+                               TRUE ~ gender))%>%mutate(work_purpose=ifelse(dest_purpose_cat=='Work', 'Work', 'Not Work'))%>%
+  
+  mutate(race_short= str_extract(race_eth_broad,  "^[^ ]+"))%>%
+  mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
+  mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
+                                  simple_purpose=='School'~ 'Work/School',
+                                  simple_purpose=='Work-related'~ 'Work/School',
+                                  simple_purpose=='Shop'~ 'Shop and Errands',
+                                  simple_purpose=='Escort'~ 'Shop and Errands',
+                                  simple_purpose=='Errand/Other'~ 'Shop and Errands',
+                                  simple_purpose=='Change mode'~ 'Shop and Errands',
+                                  simple_purpose=='Social/Recreation' ~ 'Social/Recreation/Meal',
+                                  simple_purpose=='Meal' ~ 'Social/Recreation/Meal',
+                                  simple_purpose=='Home' ~'Shop and Errands',
+                                  is.na(simple_purpose) ~ 'Shop and Errands',
+                                  TRUE ~ simple_purpose))%>%mutate(rgc=as.factor(final_home_is_rgc))%>%
+  mutate(non_motorized_mode=ifelse((mode_simple=='Walk'|mode_simple=='Bike'),'Walk/Bike', 'Not Walk/Bike'))%>%
+  mutate(mode_acc_walk=ifelse(mode_acc=='Walked or jogged', 'Walked or jogged', 'Other Access Mode'))
+
+
+trip_data_17_19$hhincome_100_f=factor(trip_data_17_19$hhincome_100, levels=c("Prefer not to answer",  "$100,000 or more","$75,000-$99,999", "$50,000-$74,999" ,"$25,000-$49,999" , "Under $25,000"  ))
+
+
+```
+```{r}
+trip_data_17_19$household_id<-as.factor(trip_data_17_19$household_id)
+
+```
+
+```{r}
+trip_data_17_19<-trip_data_17_19%>%filter(trip_path_distance>0)%>%filter(trip_path_distance<100)
+```
+just do a small subset
+
+```{r}
+
+trip_data_17_19<-trip_data_17_19%>%filter(trip_path_distance>0)%>%filter(trip_path_distance<100)
+
+```
+
+
+```{r}
+fit_hhid_dist<- lmer(formula=trip_path_distance ~ 1+(1|sample_segment/household_id/person_id/daynum), data= trip_data_17_19, na.action=na.exclude,control = lmerControl(optimizer ="Nelder_Mead"))
+summary(fit_hhid_dist)
+```
+```{r}
+
+```
+
