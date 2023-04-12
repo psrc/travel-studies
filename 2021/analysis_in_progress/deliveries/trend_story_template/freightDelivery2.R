@@ -36,7 +36,7 @@ library(psrctrends)
 
 install_psrc_fonts()
 setwd("C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template")
-#output_path <- "C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_visuals"
+output_path <- "C:/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/analysis_in_progress/deliveries/trend_story_template"
 
 # for Elmer connection
 
@@ -129,6 +129,7 @@ joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
 joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
 joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
+
 
 # descriptive stats for hhsize
 # ggplot(data = deliveries) + 
@@ -388,6 +389,9 @@ food_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weig
 all_food_dichot_17_21 <- bind_rows(food_income_17_dichot, food_income_19_dichot, food_income_21_dichot) %>%
   mutate(period = as.factor(survey))
 
+write.csv(all_food_dichot_17_21, 'delivery_by_food_income.csv')
+
+
 # crosstab for income and food delivery 
 
 food_income_column<- static_column_chart(t= all_food_dichot_17_21,
@@ -497,6 +501,9 @@ pkg_income_21_dichot <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weigh
 
 all_pkgs_income_dichot_17_21 <- bind_rows(pkg_income_17_dichot, pkg_income_19_dichot, pkg_income_21_dichot) %>%
   mutate(period = as.factor(survey))
+
+write.csv(all_pkgs_income_dichot_17_21, 'delivery_by_pkgs_income.csv')
+
 
 # plot by year and by category
 
@@ -766,6 +773,8 @@ all_deliveries_lifecycle <- rbind(food_lifecycle_21, grocery_lifecycle_21, pkgs_
 
 all_deliveries_lifecycle_new <- all_deliveries_lifecycle[, -c(3, 10, 11, 12)]
 
+write.csv(all_deliveries_lifecycle_new, 'delivery_by_lifecycle_delivery.csv')
+
 # create facet bar chart
 
 deliveries_lifecycle_facet<- static_facet_column_chart(t= all_deliveries_lifecycle_new,
@@ -868,6 +877,8 @@ food_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021',
 all_food_rgc_17_21 <- bind_rows(food_rgc_17, food_rgc_19, food_rgc_21) %>%
   mutate(period = as.factor(survey))
 
+write.csv(all_food_rgc_17_21, 'delivery_by_food_rgc.csv')
+
 # plot by year and by category
 
 food_rgc_plot<- static_column_chart(t= all_food_rgc_17_21,
@@ -906,6 +917,8 @@ grocery_rgc_21 <- hhts_count(joined_df_deliveries_21, spec_wgt = 'hh_weight_2021
 # merge dfs for 2017, 2017/2019, and 2021 - alternate approach for crosstabs
 all_grocery_rgc_17_21 <- bind_rows(grocery_rgc_17, grocery_rgc_19, grocery_rgc_21) %>%
   mutate(period = as.factor(survey))
+
+write.csv(all_grocery_rgc_17_21, 'delivery_by_grocery_rgc.csv')
 
 # plot by year and by category
 
@@ -1014,6 +1027,8 @@ all_deliveries_rgc <- rbind(all_food_rgc_17_21, all_grocery_rgc_17_21, all_pkg_r
 # remove unnecessary columns
 
 all_deliveries_rgc_new <- all_deliveries_rgc[, -c(3, 11, 12, 13)]
+
+write.csv(all_deliveries_rgc_new, 'delivery_by_rgc_delivery.csv')
 
 # create facet bar chart
 

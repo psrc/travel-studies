@@ -5,6 +5,7 @@ library(psrctrends)
 library(tidycensus)
 library(psrcelmer)
 
+library(openxlsx)
 library(tidyverse)
 library(stringr)
 library(rlang)
@@ -14,6 +15,11 @@ library(gridExtra)
 library(sf)
 
 install_psrc_fonts()
+
+# create workbook for data download
+wb <- createWorkbook()
+xlsx_file <- "data_ref.xlsx"
+
 
 Sys.setenv(CENSUS_API_KEY = '3fc20d0d6664692c0becc323b82c752408d843d9')
 Sys.getenv("CENSUS_API_KEY")
@@ -85,7 +91,7 @@ trip_data_21<-    get_hhts("2021", "t", vars=trip_vars) %>%      trip_group_data
 
 ## travel behavior ####
 ### 1. mode share ####
-mode_rgc <- hhts_count(trip_data_21 %>%
+data_mode_rgc <- hhts_count(trip_data_21 %>%
                          filter(race_eth_broad != "Child -- no race specified"),
                        group_vars = c('final_home_is_rgc', 'mode_simple2'),
                        spec_wgt = 'trip_adult_weight_2021') %>% 
@@ -105,8 +111,10 @@ mode_rgc <- hhts_count(trip_data_21 %>%
          !is.na(mode_simple2),
          mode_simple2 != 'Total',
          survey=="2021") %>%
-  mutate(survey = factor(survey, levels = c("2017","2019","2021"))) %>%
-  ggplot(aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
+  mutate(survey = factor(survey, levels = c("2017","2019","2021"))) 
+
+
+mode_rgc <- ggplot(data_mode_rgc,aes(x=fct_rev(final_home_is_rgc), y=share, fill=mode_simple2)) +
     geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
     scale_y_continuous(labels = label_percent()) +
     psrc_style2() +
@@ -117,7 +125,7 @@ mode_rgc <- hhts_count(trip_data_21 %>%
       panel.grid.major.x = element_line(color="#cbcbcb")
     )
 
-mode_metro <- hhts_count(trip_data_21 %>%
+data_mode_metro <- hhts_count(trip_data_21 %>%
                            filter(race_eth_broad != "Child -- no race specified"),
                          group_vars = c('urban_metro', 'mode_simple2'),
                          spec_wgt = 'trip_adult_weight_2021') %>% 
@@ -136,9 +144,12 @@ mode_metro <- hhts_count(trip_data_21 %>%
   filter(urban_metro != 'Total',
          !is.na(mode_simple2),
          mode_simple2 != 'Total',
-         survey=="2021") %>%
-  # mutate(survey = factor(survey, levels = c("2017","2019","2021")))  %>%
-  ggplot(aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
+         survey=="2021") 
+
+addWorksheet(wb = wb, sheetName = 'mode share', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'mode share', x = data_mode_metro)
+
+mode_metro <- ggplot(data_mode_metro,aes(x=fct_rev(urban_metro), y=share, fill=mode_simple2)) +
     geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
     scale_y_continuous(labels = label_percent()) +
     psrc_style2() +
@@ -153,7 +164,7 @@ mode_metro <- hhts_count(trip_data_21 %>%
 # mode_rgc$survey <- factor(mode_rgc$survey, levels = c("2017","2019","2021"))
 
 ### 2. change in mode share ####
-mode_change_rgc <- hhts_count(trip_data_17_19 %>%
+data_mode_change_rgc <- hhts_count(trip_data_17_19 %>%
                           filter(race_eth_broad != "Child -- no race specified"),
                         group_vars = c('final_home_is_rgc', 'mode_simple2'),
                         spec_wgt = 'trip_weight_2017_2019') %>%  
@@ -165,8 +176,8 @@ mode_change_rgc <- hhts_count(trip_data_17_19 %>%
          !is.na(mode_simple2),
          mode_simple2 != 'Total') 
 
-mode_change_rgc <- mode_change_rgc %>%
-  left_join(mode_change_rgc[mode_change_rgc$survey=="2017_2019",c(2,3,6,7)] %>% 
+data_mode_change_rgc <- data_mode_change_rgc %>%
+  left_join(data_mode_change_rgc[data_mode_change_rgc$survey=="2017_2019",c(2,3,6,7)] %>% 
               rename(share_base = share,
                      share_moe_base = share_moe),
             by = c("final_home_is_rgc", "mode_simple2")) %>%
@@ -175,8 +186,13 @@ mode_change_rgc <- mode_change_rgc %>%
   mutate(
     share_change = (share-share_base) / share_base,
     share_moe_change = moe_ratio(share, share_base, share_moe, share_moe_base)
-  ) %>%
-  ggplot(aes(x=fct_rev(final_home_is_rgc), y=share_change, fill=mode_simple2)) +
+  ) 
+
+addWorksheet(wb = wb, sheetName = 'mode share change', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'mode share change', x = data_mode_change_rgc)
+
+
+mode_change_rgc <- ggplot(data_mode_change_rgc, aes(x=fct_rev(final_home_is_rgc), y=share_change, fill=mode_simple2)) +
     geom_col(position = "dodge")+
     geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
                   width=0.2, position = position_dodge(0.9)) +
@@ -227,7 +243,7 @@ mode_change_metro <- mode_change_metro %>%
     )
 
 ### 3. trip travel time and distance ####
-time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
+data_time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
                   group_vars=c('final_home_is_rgc'),
                   spec_wgt='trip_adult_weight_2021') %>%
   filter(final_home_is_rgc!='Total') %>%
@@ -240,8 +256,13 @@ time_dist_rgc <- hhts_mean(trip_data_21, stat_var = 'trip_path_distance',
             filter(final_home_is_rgc!='Total') %>%
             mutate(label = "Travel time (minutes)") %>%
             rename(mean = google_duration_mean,
-                   mean_moe = google_duration_mean_moe)) %>%
-  ggplot(aes(x=final_home_is_rgc, y=mean, fill=final_home_is_rgc)) +
+                   mean_moe = google_duration_mean_moe))
+
+
+addWorksheet(wb = wb, sheetName = 'trip travel time and distance', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'trip travel time and distance', x = data_time_dist_rgc)
+
+time_dist_rgc <- ggplot(data_time_dist_rgc, aes(x=final_home_is_rgc, y=mean, fill=final_home_is_rgc)) +
     geom_col(position = "dodge")+  
     geom_errorbar(aes(ymin=mean-mean_moe, 
                       ymax=mean+mean_moe),
@@ -285,6 +306,11 @@ plot <- hhts_count(trip_data_21 %>% filter(race_eth_broad != "Child -- no race s
     trips_per_person = count_trips / count_person,
     moe_trips_person = moe_ratio(count_trips, count_person, count_moe_trips, count_moe_person)
   ) 
+
+
+addWorksheet(wb = wb, sheetName = 'trip purpose', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'trip purpose', x = plot)
+
 
 p1<- ggplot(plot, 
             aes(x=simple_purpose, y=trips_per_person, fill=urban_metro)) +
@@ -342,6 +368,19 @@ freq_walk  <- hhts_count(freq,
     psrc_style2() + 
   theme(plot.title = element_blank())
 
+data_freq_transit <- hhts_count(freq, 
+                           group_vars=c("urban_metro", "transit_label"),
+                           spec_wgt = "person_adult_weight_2021") %>%
+  filter(transit_label!="Total")
+addWorksheet(wb = wb, sheetName = 'transit frequencies', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'transit frequencies', x = data_freq_transit)
+
+data_freq_walk <- hhts_count(freq, 
+                             group_vars=c("urban_metro", "walk_label"),
+                             spec_wgt = "person_adult_weight_2021") %>%
+  filter(walk_label!="Total")
+addWorksheet(wb = wb, sheetName = 'walking frequencies', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'walking frequencies', x = data_freq_walk)
 
 ## demographics ####
 add_RGCs <- function(.data){
@@ -472,7 +511,7 @@ plot_hhsize <- get_acs_recs(geography = 'tract',
     theme(plot.title = element_blank())
 
 #income
-plot_income <- get_acs_recs(geography = 'tract',
+data_plot_income <- get_acs_recs(geography = 'tract',
                          table.names = 'B19001',
                          years = 2021,
                          acs.type = 'acs1') %>%
@@ -495,8 +534,12 @@ plot_income <- get_acs_recs(geography = 'tract',
   group_by(RGC) %>%
   mutate(share = estimate/sum(estimate),
          share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
-  ungroup() %>%
-  ggplot(aes(x=label2, y=share, fill=RGC)) +
+  ungroup() 
+
+addWorksheet(wb = wb, sheetName = 'income center', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'income center', x = data_plot_income)
+
+plot_income <- ggplot(data_plot_income, aes(x=label2, y=share, fill=RGC)) +
     geom_col(position = "dodge")+
     moe_bars +
     scale_y_continuous(labels=percent) +
@@ -504,6 +547,7 @@ plot_income <- get_acs_recs(geography = 'tract',
     # psrc_style2() + 
     psrc_style2(m.r=1,m.l=1) +
     theme(plot.title = element_blank())
+
 
 #-- ACS 2021 with block groups ----
 sf_use_s2(FALSE)
@@ -515,7 +559,7 @@ rgc_blkgrp20 <- st_join(st_read_elmergeo('BLOCKGRP2020'),st_read_elmergeo('URBAN
   select(geoid20,county_name,namelsad20,name,category,RGC)
 
 # B01001
-plot_age21 <- get_acs_recs(geography = 'block group',
+data_plot_age21 <- get_acs_recs(geography = 'block group',
                                table.names = 'B01001',
                                years = 2021,
                                acs.type = 'acs1')%>%
@@ -536,8 +580,12 @@ plot_age21 <- get_acs_recs(geography = 'block group',
   filter(age!="total population") %>%
   mutate(RGC = factor(RGC, levels=c("RGC", "Not RGC")),
          share = sum_est/total_est, 
-         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>% 
-  ggplot(aes(x=age, y=share, fill=RGC)) +
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))
+
+addWorksheet(wb = wb, sheetName = 'age centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'age centers', x = data_plot_age21)
+
+plot_age21 <- ggplot(data_plot_age21,aes(x=age, y=share, fill=RGC)) +
     geom_col(position = "dodge")+  
     moe_bars +
     scale_y_continuous(labels=percent#,limits = c(0, 0.41)
@@ -546,7 +594,7 @@ plot_age21 <- get_acs_recs(geography = 'block group',
     psrc_style2() + 
     theme(plot.title = element_blank())
 
-plot_hhsize21 <- get_acs_recs(geography = 'block group',
+data_plot_hhsize21 <- get_acs_recs(geography = 'block group',
                          table.names = 'B11016',
                          years = 2021,
                          acs.type = 'acs1') %>%
@@ -567,8 +615,12 @@ plot_hhsize21 <- get_acs_recs(geography = 'block group',
   filter(hh_size!="total population") %>%
   mutate(RGC = factor(RGC, levels=c("RGC", "Not RGC")),
          share = sum_est/total_est, 
-         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>%
-  ggplot(aes(x=hh_size, y=share, fill=RGC)) +
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))
+
+addWorksheet(wb = wb, sheetName = 'household size centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'household size centers', x = data_plot_hhsize21)
+
+plot_hhsize21 <- ggplot(data_plot_hhsize21,aes(x=hh_size, y=share, fill=RGC)) +
     geom_col(position = "dodge")+  
     moe_bars +
     scale_y_continuous(labels=percent) +
@@ -577,7 +629,7 @@ plot_hhsize21 <- get_acs_recs(geography = 'block group',
     theme(plot.title = element_blank())
     # ggtitle("(b) household size")
 
-plot_veh21_rgc <- get_acs_recs(geography = 'block group',
+data_plot_veh21_rgc <- get_acs_recs(geography = 'block group',
                                   table.names = 'B25044',
                                   years = 2021,
                                   acs.type = 'acs1')%>%
@@ -596,20 +648,23 @@ plot_veh21_rgc <- get_acs_recs(geography = 'block group',
   filter(vehicle=="1+ vehicle(s)") %>%
   mutate(RGC = factor(RGC, levels=c("RGC", "Not RGC")),
          share = sum_est/total_est, 
-         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))  %>%
-  ggplot(aes(x=vehicle, y=share, fill=RGC)) +
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) 
+
+addWorksheet(wb = wb, sheetName = 'vehicle ownership centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'vehicle ownership centers', x = data_plot_veh21_rgc)
+
+
+plot_veh21_rgc <- ggplot(data_plot_veh21_rgc, aes(x=vehicle, y=share, fill=RGC)) +
   geom_col(position = "dodge")+  
   moe_bars +
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
   psrc_style2(m.t=0.5,m.r=2.3,m.l=2.3) + 
   theme(plot.title = element_blank())
-  # ggtitle("(d) vehicle ownership")
+
 
 ##-- metro and urban RGCs ----
-
-
-plot_age21_mu <- get_acs_recs(geography = 'block group',
+data_plot_age21_mu <- get_acs_recs(geography = 'block group',
                            table.names = 'B01001',
                            years = 2021,
                            acs.type = 'acs1')%>%
@@ -630,8 +685,12 @@ plot_age21_mu <- get_acs_recs(geography = 'block group',
   filter(age!="total population") %>%
   mutate(category = factor(category, levels=c("Metro", "Urban", "Not RGC")),
          share = sum_est/total_est, 
-         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>% 
-  ggplot(aes(x=age, y=share, fill=category)) +
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))
+
+addWorksheet(wb = wb, sheetName = 'age urban and metro centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'age urban and metro centers', x = data_plot_age21_mu)
+
+plot_age21_mu <- ggplot(data_plot_age21_mu, aes(x=age, y=share, fill=category)) +
   geom_col(position = "dodge")+  
   moe_bars +
   scale_y_continuous(labels=percent#,limits = c(0, 0.41)
@@ -640,7 +699,7 @@ plot_age21_mu <- get_acs_recs(geography = 'block group',
   psrc_style2() + 
   theme(plot.title = element_blank())
 
-plot_income_mu <- get_acs_recs(geography = 'tract',
+data_plot_income_mu <- get_acs_recs(geography = 'tract',
                             table.names = 'B19001',
                             years = 2021,
                             acs.type = 'acs1') %>%
@@ -663,8 +722,12 @@ plot_income_mu <- get_acs_recs(geography = 'tract',
   group_by(urban_metro) %>%
   mutate(share = estimate/sum(estimate),
          share_moe = moe_ratio(estimate, sum(estimate), moe, moe_sum(moe, estimate = estimate))) %>%
-  ungroup() %>%
-  ggplot(aes(x=label2, y=share, fill=urban_metro)) +
+  ungroup() 
+
+addWorksheet(wb = wb, sheetName = 'income urban and metro centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'income urban and metro centers', x = data_plot_income_mu)
+
+plot_income_mu <- ggplot(data_plot_income_mu, aes(x=label2, y=share, fill=urban_metro)) +
   geom_col(position = "dodge")+
   moe_bars +
   scale_y_continuous(labels=percent) +
@@ -673,7 +736,7 @@ plot_income_mu <- get_acs_recs(geography = 'tract',
   psrc_style2(m.r=1.2,m.l=1.2) +
   theme(plot.title = element_blank())
 
-plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
+data_plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
                               table.names = 'B11016',
                               years = 2021,
                               acs.type = 'acs1') %>%
@@ -694,8 +757,12 @@ plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
   filter(hh_size!="total population") %>%
   mutate(category = factor(category, levels=c("Metro", "Urban", "Not RGC")),
          share = sum_est/total_est, 
-         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>%
-  ggplot(aes(x=hh_size, y=share, fill=category)) +
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))
+
+addWorksheet(wb = wb, sheetName = 'household size u&m centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'household size u&m centers', x = data_plot_hhsize21_mu)
+
+plot_hhsize21_mu <- ggplot(data_plot_hhsize21_mu, aes(x=hh_size, y=share, fill=category)) +
   geom_col(position = "dodge")+  
   moe_bars +
   scale_y_continuous(labels=percent) +
@@ -703,7 +770,7 @@ plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
   psrc_style2(m.r=1,m.l=1) +
   theme(plot.title = element_blank())
 
-plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
+data_plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
                       table.names = 'B25044',
                       years = 2021,
                       acs.type = 'acs1')%>%
@@ -722,8 +789,12 @@ plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
   filter(vehicle=="1+ vehicle(s)") %>%
   mutate(category = factor(category, levels=c("Metro", "Urban", "Not RGC")),
          share = sum_est/total_est, 
-         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))  %>%
-  ggplot(aes(x=vehicle, y=share, fill=category)) +
+         share_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe))
+
+addWorksheet(wb = wb, sheetName = 'vehicle ownership u&m centers', gridLines = FALSE)
+writeDataTable(wb = wb, sheet = 'vehicle ownership u&m centers', x = data_plot_veh21_rgc_mu)
+
+plot_veh21_rgc_mu <- ggplot(data_plot_veh21_rgc_mu, aes(x=vehicle, y=share, fill=category)) +
     geom_col(position = "dodge")+  
     moe_bars +
     scale_y_continuous(labels=percent) +
@@ -740,3 +811,8 @@ get_legend<-function(myggplot){
 }
 
 demo_legend <- get_legend(plot_veh21_rgc)
+
+
+
+
+saveWorkbook(wb, xlsx_file, overwrite = TRUE)

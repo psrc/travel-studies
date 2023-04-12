@@ -27,6 +27,8 @@ library(MASS)
 library(Hmisc)
 library(reshape2)
 library(jtools)
+#install.packages("lessR")
+library(lessR)
 install_psrc_fonts()
 ```
 Read in the data from Elmer
@@ -71,7 +73,8 @@ household_data_17_19_21<-rbind(household_data_17, household_data_19, household_d
 
 #library(dplyr)
 household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21
-class(household_data_17_19_21$broadband)
+#unique(household_data_17_19_21$hhincome_broad)
+unique(household_data_17_19_21$hhincome_detailed)
 ```
 
 
@@ -122,17 +125,22 @@ household_data<-household_data%>%
     hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
     hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
                                  TRUE~hhincome_broad))%>%
+  mutate(hhincome_detailed2 = case_when(hhincome_detailed == "$Under $10,000" |
+                                         hhincome_detailed == "$10,000-$24,999" |
+                                         hhincome_detailed == "$25,000-$34,999" |
+                                         hhincome_detailed == "$35,000-$49,999" ~ "Under $50,000",
+                                          TRUE~ hhincome_detailed))%>%
   mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
                                   hhsize == "2 people"  ~ '2 people', 
-                                   hhsize == "3 people" ~ '3 people',
-                                   hhsize == "4 people" | 
+                                  hhsize == "3 people" ~ '3 people',
+                                  hhsize == "4 people" | 
                                   hhsize == "5 people" | 
                                   hhsize == "6 people" | 
                                   hhsize == "7 people" |
                                   hhsize == "8 people" | 
                                   hhsize == "12 people" ~ "4+ people"))%>%
   mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"~ '65 years or older', 
+                                  lifecycle == "Household size = 1, Householder age 65+" ~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
                                    lifecycle == "Household size = 1, Householder age 35 - 64"  ~ '35-64, no kids',
                                    lifecycle == "Household size > 1, Householder under age 35" | 
@@ -142,30 +150,33 @@ household_data<-household_data%>%
   mutate(broadband2=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
                                broadband == 'Broadband service is not available where I live' | 
                                broadband == 'Don’t know' | 
+                               broadband == "NA" |
                                broadband == 'No' ~ 'No',
                                broadband == 'Yes, my current residence has broadband service' | 
                                broadband == 'Yes' ~ 'Yes'))%>%
-           mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' |
-                                        rent_own == 'Provided by family, relative, or friend without payment or rent' |
-                                        rent_own == 'Provided by job or military' ~ 'Own',
-                                      rent_own == 'Rent' ~ 'Rent',
-                                      rent_own == 'Prefer not to answer' ~ 'No answer'))
+           mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' ~ 'Own',
+                                      rent_own == 'Rent' ~ 'Rent'))
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
 
-household_data$hhincome_detailed = factor(household_data$hhincome_detailed, 
-                                          levels = c("Under $10,000", 
-                                          "$25,000-$34,999",
-                                          "$35,000-$49,999",
-                                          "$50,000-$74,999", 
-                                          "$75,000-$99,999", 
-                                          "$100,000-$149,999",
-                                          "$150,000-$199,999",
-                                          "$200,000-$249,999",
-                                          "$250,000 or more",
-                                          "Prefer not to answer"))
+#household_data$hhincome_detailed2 = factor(household_data$hhincome_detailed2, 
+ #                                         levels = c("$Under $50,000",
+  #                                        "$50,000-$74,999", 
+   #                                       "$75,000-$99,999", 
+    #                                      "$100,000-$149,999",
+     #                                     "$150,000-$199,999",
+      #                                    "$200,000-$249,999",
+       #                                   "$250,000 or more"))
 
-household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
+household_data$hhincome_broad = factor(household_data$hhincome_broad, 
+                                          levels = c("$Under $25,000",
+                                                     "$25,000-$49,999",
+                                                     "$50,000-$74,999",
+                                                     "$75,000-$99,999",
+                                                     "$100,000 or more",
+                                                     "$200,000 or more"))
+
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64, no kids', '65 years or older' ))
 
 household_data
                                   
@@ -314,12 +325,9 @@ delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
 delivery_17_19_21<- rbind(delivery_17, delivery_19, delivery_21)
 ```
 
-
-
 ```{r}
 household_data_17_19_21_shop<- household_data_17_19_21_shop %>%mutate(daynum=ifelse(daynum==0,1,daynum))
 ```
-
 
 Finally joining the households with demographics and number of shopping trips, to the delivery info.
 ```{r}
@@ -342,21 +350,40 @@ household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data
 
 Join tract level data to household data at the home end.
 ```{r}
-hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) %>%
-  mutate(broadband2=case_when(broadband2 == '0'| 
-                                broadband2 == 'No' ~'No',
-                              broadband2 == 'Yes' ~ 'Yes'))
+hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) 
 
 ```
 
-
 ** Make a big old model and see what stands out
-```{r}
-# packages
+```{r, eval = FALSE}
+# packages - what we'd like to look at but need to break down further with bivariate analysis
 deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle2+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30,family=binomial(), data=hh_shop_tract)
 summary(deliv_model)
 
 ```
+
+```{r, income}
+# packages + income levels
+#count(hh_shop_tract, hhincome_broad)
+
+hh_shop_tract2 <- hh_shop_tract %>%
+  filter(hhincome_detailed2 != c("Prefer not to answer"))
+
+deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
+summary(deliv_model_income)
+plot_summs(deliv_model_income, scale=TRUE)
+
+```
+
+
+
+
+
+
+
+
+
+
 
 ```{r, broadband}
 # packages + broadband
