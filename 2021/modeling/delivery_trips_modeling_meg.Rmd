@@ -27,7 +27,7 @@ library(MASS)
 library(Hmisc)
 library(reshape2)
 library(jtools)
-install.packages("lessR")
+#install.packages("lessR")
 library(lessR)
 install_psrc_fonts()
 ```
@@ -73,7 +73,8 @@ household_data_17_19_21<-rbind(household_data_17, household_data_19, household_d
 
 #library(dplyr)
 household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21
-class(household_data_17_19_21$broadband)
+unique(household_data_17_19_21$hhincome_broad)
+unique(household_data_17_19_21$hhincome_detailed)
 ```
 
 
@@ -126,15 +127,15 @@ household_data<-household_data%>%
                                  TRUE~hhincome_broad))%>%
   mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
                                   hhsize == "2 people"  ~ '2 people', 
-                                   hhsize == "3 people" ~ '3 people',
-                                   hhsize == "4 people" | 
+                                  hhsize == "3 people" ~ '3 people',
+                                  hhsize == "4 people" | 
                                   hhsize == "5 people" | 
                                   hhsize == "6 people" | 
                                   hhsize == "7 people" |
                                   hhsize == "8 people" | 
                                   hhsize == "12 people" ~ "4+ people"))%>%
   mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"~ '65 years or older', 
+                                  lifecycle == "Household size = 1, Householder age 65+" ~ '65 years or older', 
                                    lifecycle == "Household size > 1, Householder age 35 - 64" |
                                    lifecycle == "Household size = 1, Householder age 35 - 64"  ~ '35-64, no kids',
                                    lifecycle == "Household size > 1, Householder under age 35" | 
@@ -144,30 +145,29 @@ household_data<-household_data%>%
   mutate(broadband2=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
                                broadband == 'Broadband service is not available where I live' | 
                                broadband == 'Don’t know' | 
+                               broadband == "NA" |
                                broadband == 'No' ~ 'No',
                                broadband == 'Yes, my current residence has broadband service' | 
                                broadband == 'Yes' ~ 'Yes'))%>%
-           mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' |
-                                        rent_own == 'Provided by family, relative, or friend without payment or rent' |
-                                        rent_own == 'Provided by job or military' ~ 'Own',
-                                      rent_own == 'Rent' ~ 'Rent',
-                                      rent_own == 'Prefer not to answer' ~ 'No answer'))
+           mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' ~ 'Own',
+                                      rent_own == 'Rent' ~ 'Rent')) %>%
+  filter(rent_own != c('Provided by family, relative, or friend without payment or rent' , 'Provided by job or military', 'Prefer not to answer'))
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
 
 household_data$hhincome_detailed = factor(household_data$hhincome_detailed, 
-                                          levels = c("Under $10,000", 
+                                          levels = c("$100,000-$149,999", 
+                                          "$Under $10,000",
+                                          "$10,000-$24,999",
                                           "$25,000-$34,999",
                                           "$35,000-$49,999",
                                           "$50,000-$74,999", 
                                           "$75,000-$99,999", 
-                                          "$100,000-$149,999",
                                           "$150,000-$199,999",
                                           "$200,000-$249,999",
-                                          "$250,000 or more",
-                                          "Prefer not to answer"))
+                                          "$250,000 or more"))
 
-household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64, no kids', '65 years or older' ))
 
 household_data
                                   
@@ -341,10 +341,7 @@ household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data
 
 Join tract level data to household data at the home end.
 ```{r}
-hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) %>%
-  mutate(broadband2=case_when(broadband2 == '0'| 
-                                broadband2 == 'No' ~'No',
-                              broadband2 == 'Yes' ~ 'Yes'))
+hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) 
 
 ```
 
@@ -358,14 +355,27 @@ summary(deliv_model)
 
 ```{r, income}
 # packages + income levels
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed,family=binomial(), data=hh_shop_tract)
-summary(deliv_model)
+count(hh_shop_tract, hhincome_broad)
+unique(hh_shop_tract$hhincome_broad)
 
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed,family=binomial(), data=hh_shop_tract)
-summary(deliv_model_sig)
-plot_summs(deliv_model_sig, scale=TRUE)
+hh_shop_tract2 <- hh_shop_tract %>%
+  filter(hhincome_broad != c("Prefer not to answer"))
+
+deliv_model_income<-glm(formula= delivery_pkg~hhincome_broad, family=binomial(), data=hh_shop_tract2)
+summary(deliv_model_income)
+plot_summs(deliv_model_income, scale=TRUE)
 
 ```
+
+
+
+
+
+
+
+
+
+
 
 ```{r, broadband}
 # packages + broadband
