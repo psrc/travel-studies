@@ -37,6 +37,7 @@ library(psrcplot)
 library(ggplot2)
 library(forcats)
 library(data.table)
+library(DBI)
 
 res_dur_2019<-get_hhts(survey='2019', level="h", vars="res_dur")
 res_dur_2019_counts<- hhts_count(df=res_dur_2019, group_vars='res_dur')
@@ -95,6 +96,22 @@ displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hhinco
 filter(prev_res_factors_displaced!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced=='Displaced')
 
 static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced', y='share', fill='hhincome_100_f',color=  "pognbgy_10")
+```
+
+
+```{r}
+
+group_vals<- function(df, var, survey_yr){
+  #do commonly needed groupings
+  # code to get values
+  sql_code <- paste0("SELECT variable, value_text, value_group_1 FROM v_value_metadata               
+                     WHERE variable =", var, "AND survey_year = ', survey_yr );")
+  var_values <- DBI::dbGetQuery(db_connection, DBI::SQL(sql_code))
+  df<-left_join(df, value_values, by.x=var, by.y=value_text)
+  df_val_group<-tbl%>% rename(group= paste0(var), '_group')
+                     return(tbl_grouped)
+}
+
 
 
 ```

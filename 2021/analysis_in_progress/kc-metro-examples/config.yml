@@ -1,0 +1,15 @@
+default:
+  hhts_datasource:
+    driver: "ODBC Driver 17 for SQL Server" 
+    server: "AWS-PROD-SQL\\Sockeye"
+    database: "Elmer"
+    trusted_connection: "yes"
+    port: 1433
+    
+shinyapps:
+  hhts_datasource:
+    driver: RSQLite::SQLite()
+    database: 'hh_survey.db'
+
+  
+  

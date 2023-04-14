@@ -50,7 +50,7 @@ trip_data_multi_grp<-trip_data_multi%>%group_by(household_id, hr, o_taz2010, d_t
 
 trip_data_multi_count<-trip_data_multi_grp%>%group_by(survey_year, hhgroup)%>%count()
 
-trip_data_missing_trips<-trip_data_multi_grp%>%filter(travelers_hh!=n)
+trip_data_missing_trips<-trip_data_multi_grp%>%filter(travelers_hh>n)
 
 trip_data_missing_trips_summary<-trip_data_missing_trips%>%group_by(survey_year, hhgroup)%>%count()
 
