@@ -18,6 +18,7 @@ library(odbc)
 library(DBI)
 library(tidyr)
 library(tidycensus)
+#install.packages("psrcslides")
 #library(psrcslides)
 library(officer)
 library(DBI)
@@ -74,7 +75,7 @@ household_data_17_19_21<-rbind(household_data_17, household_data_19, household_d
 #library(dplyr)
 household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21
 #unique(household_data_17_19_21$hhincome_broad)
-unique(household_data_17_19_21$hhincome_detailed)
+#unique(household_data_17_19_21$hhincome_detailed)
 ```
 
 
@@ -125,7 +126,7 @@ household_data<-household_data%>%
     hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
     hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
                                  TRUE~hhincome_broad))%>%
-  mutate(hhincome_detailed2 = case_when(hhincome_detailed == "$Under $10,000" |
+  mutate(hhincome_detailed2 = case_when(hhincome_detailed == "Under $10,000" |
                                          hhincome_detailed == "$10,000-$24,999" |
                                          hhincome_detailed == "$25,000-$34,999" |
                                          hhincome_detailed == "$35,000-$49,999" ~ "Under $50,000",
@@ -159,7 +160,7 @@ household_data<-household_data%>%
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
 
-#household_data$hhincome_detailed2 = factor(household_data$hhincome_detailed2, 
+#household_data$hhincome_detailed = factor(household_data$hhincome_detailed, 
  #                                         levels = c("$Under $50,000",
   #                                        "$50,000-$74,999", 
    #                                       "$75,000-$99,999", 
@@ -357,14 +358,19 @@ hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_ho
 ** Make a big old model and see what stands out
 ```{r, eval = FALSE}
 # packages - what we'd like to look at but need to break down further with bivariate analysis
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle2+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30,family=binomial(), data=hh_shop_tract)
-summary(deliv_model)
+hh_shop_tract1 <- hh_shop_tract %>%
+  filter(hhincome_detailed2 != c("Prefer not to answer"))%>%
+  filter(hh_race_apoc != "Missing")
 
+deliv_model<-glm(formula= delivery_pkg~hhincome_detailed2+lifecycle2+final_home_is_rgc+hh_race_apoc+poor_english+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own+NoVehicles+broadband2,family=binomial(), data=hh_shop_tract1)
+summary(deliv_model)
+plot_summs(deliv_model, scale=TRUE)
 ```
 
+* A smaller model with only statistically significant variables.
 ```{r, income}
 # packages + income levels
-#count(hh_shop_tract, hhincome_broad)
+# default 100-149,000
 
 hh_shop_tract2 <- hh_shop_tract %>%
   filter(hhincome_detailed2 != c("Prefer not to answer"))
@@ -372,74 +378,99 @@ hh_shop_tract2 <- hh_shop_tract %>%
 deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
 summary(deliv_model_income)
 plot_summs(deliv_model_income, scale=TRUE)
-
 ```
 
+```{r, lifecycle}
+# default under 35 with kids
 
+deliv_model_lifecycle<-glm(formula= delivery_pkg~lifecycle2, family=binomial(), data=hh_shop_tract)
+summary(deliv_model_lifecycle)
+plot_summs(deliv_model_lifecycle, scale=TRUE)
+```
 
+```{r, numworkers}
+# unsure why not showing range of numeric 0-5???
 
+deliv_model_numworkers<-glm(formula= delivery_pkg~numworkers, family=binomial(), data=hh_shop_tract)
+summary(deliv_model_numworkers)
+plot_summs(deliv_model_numworkers, scale=TRUE)
+```
 
+```{r, shop_trips}
+# default 0 or 1, and unsure of default
 
+deliv_model_shop<-glm(formula= delivery_pkg~shop_trips, family=binomial(), data=hh_shop_tract)
+summary(deliv_model_shop)
+plot_summs(deliv_model_shop, scale=TRUE)
+```
 
+```{r, final home is rgc}
+#default is NOT in rgc
 
+deliv_model_rgc<-glm(formula= delivery_pkg~final_home_is_rgc, family=binomial(), data=hh_shop_tract)
+summary(deliv_model_rgc)
+plot_summs(deliv_model_rgc, scale=TRUE)
+```
 
+```{r, race}
+# default is Asian-POC
+
+hh_shop_tract3 <- hh_shop_tract %>%
+  filter(hh_race_apoc != c("Missing"))
+
+deliv_model_race<-glm(formula= delivery_pkg~hh_race_apoc, family=binomial(), data=hh_shop_tract3)
+summary(deliv_model_race)
+plot_summs(deliv_model_race, scale=TRUE)
+```
+
+```{r, income}
+# packages + income levels
+# default 100-149,000
+
+hh_shop_tract2 <- hh_shop_tract %>%
+  filter(hhincome_detailed2 != c("Prefer not to answer"))
+
+deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
+summary(deliv_model_income)
+plot_summs(deliv_model_income, scale=TRUE)
+```
+
+```{r, income}
+# packages + income levels
+# default 100-149,000
+
+hh_shop_tract2 <- hh_shop_tract %>%
+  filter(hhincome_detailed2 != c("Prefer not to answer"))
+
+deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
+summary(deliv_model_income)
+plot_summs(deliv_model_income, scale=TRUE)
+```
 
 
 ```{r, broadband}
-# packages + broadband
-deliv_model_broad<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband2,family=binomial(), data=hh_shop_tract)
-summary(deliv_model_broad)
-```
-
-```{r, mobile}
-# packages + mobile_device
-deliv_model_mobile<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+mobile_device,family=binomial(), data=hh_shop_tract)
-summary(deliv_model_mobile)
-```
-
-```{r, rent tenure}
-# packages + rent_own
-deliv_model_rent<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own,family=binomial(), data=hh_shop_tract)
-summary(deliv_model_rent)
-```
-
-```{r, vehicle access}
-# packages + NoVehicles
-deliv_model_car<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+NoVehicles,family=binomial(), data=hh_shop_tract)
-summary(deliv_model_car)
-```
-A smaller model with only statistically significant variables.
-
-```{r}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle2+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_pkg~+broadband2,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
-```{r, broadband}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+broadband2,family=binomial(), data=hh_shop_tract)
-summary(deliv_model_sig)
-plot_summs(deliv_model_sig, scale=TRUE)
-
-```
-
 ```{r, mobile}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+mobile_device,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_pkg~mobile_device,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
 ```{r, rent own}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_pkg~rent_own,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
 ```{r, vehicles}
-deliv_model_sig<-glm(formula= delivery_pkg~hhincome_detailed+lifecycle+survey.x+numworkers+shop_trips+final_home_is_rgc+hh_race_apoc+numchildren+numadults+nonwhite+poor_english+rent+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+NoVehicles,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_pkg~NoVehicles,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
