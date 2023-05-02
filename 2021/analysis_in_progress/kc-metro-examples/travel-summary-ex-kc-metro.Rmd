@@ -14,7 +14,7 @@ Put the sqlite database called hhsurvey.db in the directory where this code resi
 ```{r}
 # read in libraries
 library(psrc.travelsurvey)
-library(psrcplot)
+#library(psrcplot)
 library(ggplot2)
 library(RSQLite)
 library(config)
@@ -24,7 +24,7 @@ library(dplyr)
 
 Set your configuration to use sqlite connection properties. This way the psrc.travelsurvey package knows to access the data from the sqlite database, instead of an internal SQL Server database.
 ```{r}
-#Sys.setenv(R_CONFIG_ACTIVE = 'shinyapps')
+Sys.setenv(R_CONFIG_ACTIVE = 'shinyapps')
 #Sys.setenv(R_CONFIG_ACTIVE='default')
 
 ```
@@ -42,7 +42,7 @@ work_transitpass_person_df_17_19<-get_hhts(survey = '2017_2019',
                              "gender",
                              "hhincome_broad",
                              "industry", 
-                             "final_cnty",
+                             "sample_county",
                               "benefits_3"))%>%filter(work_county=='King County')
 
 
@@ -62,7 +62,7 @@ work_transitpass_person_df_21<-get_hhts(survey = '2021',
                              "hhincome_broad",
                              "industry",
                              "benefits_3",
-                     'final_cnty'))%>%filter(work_county=='KING')
+                     'sample_county'))%>%filter(work_county=='KING')
 
 
 
@@ -82,7 +82,7 @@ work_transitpass_trend<- rbind(work_transitpass_sum_17_19, work_transitpass_sum_
 
 ```{r}
 
-work_transitpass_trend_chart<-static_column_chart(t=work_transitpass_trend, x='benefits_3', y='share', fill='survey', moe='share_moe')
-work_transitpass_trend_chart
+#work_transitpass_trend_chart<-static_column_chart(t=work_transitpass_trend, x='benefits_3', #y='share', fill='survey', moe='share_moe')
+#work_transitpass_trend_chart
 ```
 
