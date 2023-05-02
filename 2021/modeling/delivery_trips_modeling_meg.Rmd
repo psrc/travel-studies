@@ -53,6 +53,7 @@ We are getting household variables and trip variables to understand how
 ```{r}
 trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'age_category', 'daynum', 'sample_source', 'hhgroup')
 household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults', 'broadband', 'mobile_device', 'res_factors_transit', 'res_factors_walk', 'rent_own')
+vehicle_vars <- c('household_id', 'disability')
 ```
 
 Get all three years of data and bind it together.
@@ -68,12 +69,24 @@ trip_data_17_19_21<-rbind(trip_data_17, trip_data_19, trip_data_21)
 household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2017)
 household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2019)
 household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_source=='ABS')%>%dplyr::select(-hh_weight_2021)
-household_data_17_19_21<-rbind(household_data_17, household_data_19, household_data_21)
+
+household_data_17_19_21_combo<-rbind(household_data_17, household_data_19, household_data_21)
+
+vehicle_data_17<- get_hhts("2017", "v", vars=vehicle_vars)
+
+vehicle_data_19<- get_hhts("2019", "v", vars=vehicle_vars)
+
+vehicle_data_21<- get_hhts("2021", "v", vars=vehicle_vars)
+
+vehicle_data_17_19_21<-rbind(vehicle_data_17, vehicle_data_19, vehicle_data_21)
 
 #is.data.frame(household_data_17_19_21$broadband)
 
+household_data_17_19_21<-full_join(household_data_17_19_21_combo, vehicle_data_17_19_21, by=c('household_id', 'survey'))%>%
+  mutate_all(~replace(., is.na(.), 0))
+
 #library(dplyr)
-household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21
+household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21 # no zeros
 #unique(household_data_17_19_21$hhincome_broad)
 #unique(household_data_17_19_21$hhincome_detailed)
 ```
@@ -119,13 +132,13 @@ household_grouping<-function(household_data){
 household_data<-household_data%>%
   mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
   mutate(hhincome_100= case_when(
-    hhincome_broad=="Under $25,000" ~ "Under $75,000",
-    hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
+    hhincome_broad=="Under $25,000" |
+    hhincome_broad=="$25,000-$49,999" |
     hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
-    hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
-    hhincome_broad=='$100,000 or more' ~ '$75,000 or more',
+    hhincome_broad=='$75,000-$99,999' |
+    hhincome_broad=='$100,000 or more' | 
     hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
-                                 TRUE~hhincome_broad))%>%
+    hhincome_broad=='Prefer not to answer' ~ 'NA'))%>%
   mutate(hhincome_detailed2 = case_when(hhincome_detailed == "Under $10,000" |
                                          hhincome_detailed == "$10,000-$24,999" |
                                          hhincome_detailed == "$25,000-$34,999" |
@@ -148,6 +161,8 @@ household_data<-household_data%>%
                                    lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
                                    lifecycle == "Household includes children age 5-17" | 
                                    lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
+    mutate(numchildren_bin= case_when(numchildren == 0 ~ "None",
+                                  numchildren >= 1 ~ "Has kids")) %>%
   mutate(broadband2=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
                                broadband == 'Broadband service is not available where I live' | 
                                broadband == 'Don’t know' | 
@@ -160,17 +175,9 @@ household_data<-household_data%>%
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
 
-#household_data$hhincome_detailed = factor(household_data$hhincome_detailed, 
- #                                         levels = c("$Under $50,000",
-  #                                        "$50,000-$74,999", 
-   #                                       "$75,000-$99,999", 
-    #                                      "$100,000-$149,999",
-     #                                     "$150,000-$199,999",
-      #                                    "$200,000-$249,999",
-       #                                   "$250,000 or more"))
-
 household_data$hhincome_broad = factor(household_data$hhincome_broad, 
-                                          levels = c("$Under $25,000",
+                                          levels = c("Prefer not to answer",
+                                                     "Under $25,000",
                                                      "$25,000-$49,999",
                                                      "$50,000-$74,999",
                                                      "$75,000-$99,999",
@@ -193,10 +200,12 @@ household_data_17_19_21<-household_grouping(household_data_17_19_21)
 Joining households to the number of shopping trips they made
 
 ```{r}
-household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_hh_day, by='household_id')%>%mutate_all(~replace(., is.na(.), 0)) 
+household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_hh_day, by='household_id')%>%
+  mutate_all(~replace(., is.na(.), 0)) 
 
 household_data_17_19_21_shop%>%group_by(survey)%>%summarise(mean=mean(n,na.rm=TRUE))
 ```
+
 ```{r}
 household_data_17_19_21_shop<- household_data_17_19_21_shop%>%mutate(shop_trips=ifelse(n>0, 1, 0))
 ```
@@ -394,10 +403,10 @@ hh_shop_tract2 <- hh_shop_tract %>%
 # DEFAULT VARIABLE/CATEGORY IS CHOSEN BY FIRST ALPHABETICAL OR NUMERICAL
 
 # look at frequency of variable responses
-table(hhincome_detailed2)
+table(hh_shop_tract2$hhincome_detailed2)
 
-# relevel the variables
-hhincome_detailed2 <- relevel(hhincome_detailed2, ref ="100,000-$149,999")
+# relevel the variables - not needed for income
+# hhincome_detailed2 <- relevel(hh_shop_tract2$hhincome_detailed2, ref ="100,000-$149,999")
 
 # run model with new relevel
   
