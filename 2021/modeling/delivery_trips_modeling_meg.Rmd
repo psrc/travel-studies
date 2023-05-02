@@ -333,8 +333,8 @@ household_data_17_19_21_shop<- household_data_17_19_21_shop %>%mutate(daynum=ife
 Finally joining the households with demographics and number of shopping trips, to the delivery info.
 ```{r}
 household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_17_19_21, by=c('household_id', 'daynum'))%>%
-  filter(delivery_pkgs_all%in% c('Delivery Received', 'No Delivery'))%>%
-  mutate('delivery_pkg'=ifelse(delivery_pkgs_all=='Delivery Received', 1, 0))
+  filter(delivery_food_all%in% c('Delivery Received', 'No Delivery'))%>%
+  mutate('delivery_food'=ifelse(delivery_food_all=='Delivery Received', 1, 0))
 
 ```
 
@@ -362,9 +362,22 @@ hh_shop_tract1 <- hh_shop_tract %>%
   filter(hhincome_detailed2 != c("Prefer not to answer"))%>%
   filter(hh_race_apoc != "Missing")
 
-deliv_model<-glm(formula= delivery_pkg~hhincome_detailed2+lifecycle2+final_home_is_rgc+hh_race_apoc+poor_english+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own+NoVehicles+broadband2,family=binomial(), data=hh_shop_tract1)
+deliv_model<-glm(formula= delivery_food~hhincome_detailed2+lifecycle2+final_home_is_rgc+hh_race_apoc+poor_english+severe_cost_burdened+poverty_200+prox_high_inc+transit_qt_mile+dist_super+ln_jobs_auto_30+rent_own+NoVehicles+broadband2,family=binomial(), data=hh_shop_tract1)
 summary(deliv_model)
 plot_summs(deliv_model, scale=TRUE)
+```
+
+```{r, separate by years 2017, 2019, 2021}
+
+hh_shop_tract_17 <- hh_shop_tract %>%
+  filter(survey.x == '2017')
+
+hh_shop_tract_19 <- hh_shop_tract %>%
+  filter(survey.x == '2019')
+
+hh_shop_tract_21 <- hh_shop_tract %>%
+  filter(survey.x == '2021')
+
 ```
 
 * A smaller model with only statistically significant variables.
@@ -375,15 +388,39 @@ plot_summs(deliv_model, scale=TRUE)
 hh_shop_tract2 <- hh_shop_tract %>%
   filter(hhincome_detailed2 != c("Prefer not to answer"))
 
-deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
+# changing the default in the regression model
+# use ~ to show what you are determining the relationship to (for instance, relating food deliveries to household income)
+# new dataset <- glm(formula = delivery_food ~ hhincome_detailed2)
+# DEFAULT VARIABLE/CATEGORY IS CHOSEN BY FIRST ALPHABETICAL OR NUMERICAL
+
+# look at frequency of variable responses
+table(hhincome_detailed2)
+
+# relevel the variables
+hhincome_detailed2 <- relevel(hhincome_detailed2, ref ="100,000-$149,999")
+
+# run model with new relevel
+  
+deliv_model_income<-glm(formula = delivery_food ~ hhincome_detailed2,
+                        family=binomial(), 
+                        data=hh_shop_tract2)
 summary(deliv_model_income)
+
 plot_summs(deliv_model_income, scale=TRUE)
+```
+
+```{r, kids or not}
+# default under 35 with kids
+
+deliv_model_lifecycle<-glm(formula= delivery_food~lifecycle2, family=binomial(), data=hh_shop_tract)
+summary(deliv_model_lifecycle)
+plot_summs(deliv_model_lifecycle, scale=TRUE)
 ```
 
 ```{r, lifecycle}
 # default under 35 with kids
 
-deliv_model_lifecycle<-glm(formula= delivery_pkg~lifecycle2, family=binomial(), data=hh_shop_tract)
+deliv_model_lifecycle<-glm(formula= delivery_food~lifecycle2, family=binomial(), data=hh_shop_tract)
 summary(deliv_model_lifecycle)
 plot_summs(deliv_model_lifecycle, scale=TRUE)
 ```
@@ -391,7 +428,7 @@ plot_summs(deliv_model_lifecycle, scale=TRUE)
 ```{r, numworkers}
 # unsure why not showing range of numeric 0-5???
 
-deliv_model_numworkers<-glm(formula= delivery_pkg~numworkers, family=binomial(), data=hh_shop_tract)
+deliv_model_numworkers<-glm(formula= delivery_food~numworkers, family=binomial(), data=hh_shop_tract)
 summary(deliv_model_numworkers)
 plot_summs(deliv_model_numworkers, scale=TRUE)
 ```
@@ -399,7 +436,7 @@ plot_summs(deliv_model_numworkers, scale=TRUE)
 ```{r, shop_trips}
 # default 0 or 1, and unsure of default
 
-deliv_model_shop<-glm(formula= delivery_pkg~shop_trips, family=binomial(), data=hh_shop_tract)
+deliv_model_shop<-glm(formula= delivery_food~shop_trips, family=binomial(), data=hh_shop_tract)
 summary(deliv_model_shop)
 plot_summs(deliv_model_shop, scale=TRUE)
 ```
@@ -407,7 +444,7 @@ plot_summs(deliv_model_shop, scale=TRUE)
 ```{r, final home is rgc}
 #default is NOT in rgc
 
-deliv_model_rgc<-glm(formula= delivery_pkg~final_home_is_rgc, family=binomial(), data=hh_shop_tract)
+deliv_model_rgc<-glm(formula= delivery_food~final_home_is_rgc, family=binomial(), data=hh_shop_tract)
 summary(deliv_model_rgc)
 plot_summs(deliv_model_rgc, scale=TRUE)
 ```
@@ -418,59 +455,34 @@ plot_summs(deliv_model_rgc, scale=TRUE)
 hh_shop_tract3 <- hh_shop_tract %>%
   filter(hh_race_apoc != c("Missing"))
 
-deliv_model_race<-glm(formula= delivery_pkg~hh_race_apoc, family=binomial(), data=hh_shop_tract3)
+deliv_model_race<-glm(formula= delivery_food~hh_race_apoc, family=binomial(), data=hh_shop_tract3)
 summary(deliv_model_race)
 plot_summs(deliv_model_race, scale=TRUE)
 ```
 
-```{r, income}
-# packages + income levels
-# default 100-149,000
-
-hh_shop_tract2 <- hh_shop_tract %>%
-  filter(hhincome_detailed2 != c("Prefer not to answer"))
-
-deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
-summary(deliv_model_income)
-plot_summs(deliv_model_income, scale=TRUE)
-```
-
-```{r, income}
-# packages + income levels
-# default 100-149,000
-
-hh_shop_tract2 <- hh_shop_tract %>%
-  filter(hhincome_detailed2 != c("Prefer not to answer"))
-
-deliv_model_income<-glm(formula= delivery_pkg~hhincome_detailed2, family=binomial(), data=hh_shop_tract2)
-summary(deliv_model_income)
-plot_summs(deliv_model_income, scale=TRUE)
-```
-
-
 ```{r, broadband}
-deliv_model_sig<-glm(formula= delivery_pkg~+broadband2,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_food~+broadband2,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
 ```{r, mobile}
-deliv_model_sig<-glm(formula= delivery_pkg~mobile_device,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_food~mobile_device,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
 ```{r, rent own}
-deliv_model_sig<-glm(formula= delivery_pkg~rent_own,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_food~rent_own,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
 ```
 
 ```{r, vehicles}
-deliv_model_sig<-glm(formula= delivery_pkg~NoVehicles,family=binomial(), data=hh_shop_tract)
+deliv_model_sig<-glm(formula= delivery_food~NoVehicles,family=binomial(), data=hh_shop_tract)
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
 
