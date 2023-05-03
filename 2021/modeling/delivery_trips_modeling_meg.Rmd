@@ -82,7 +82,7 @@ vehicle_data_17_19_21<-rbind(vehicle_data_17, vehicle_data_19, vehicle_data_21)
 
 #is.data.frame(household_data_17_19_21$broadband)
 
-household_data_17_19_21<-full_join(household_data_17_19_21_combo, vehicle_data_17_19_21, by=c('household_id', 'survey'))%>%
+household_data_17_19_21<-left_join(household_data_17_19_21_combo, vehicle_data_17_19_21, by='household_id')%>%
   mutate_all(~replace(., is.na(.), 0))
 
 #library(dplyr)
@@ -193,7 +193,8 @@ household_data
 
 ```{r}
 household_data_17_19_21<-household_grouping(household_data_17_19_21)
-
+length(unique(vehicle_data_17_19_21$household_id))
+length(unique(household_data_17_19_21$household_id))
 ```
 
 
@@ -203,7 +204,7 @@ Joining households to the number of shopping trips they made
 household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_hh_day, by='household_id')%>%
   mutate_all(~replace(., is.na(.), 0)) 
 
-household_data_17_19_21_shop%>%group_by(survey)%>%summarise(mean=mean(n,na.rm=TRUE))
+household_data_17_19_21_shop%>%group_by(survey.x)%>%summarise(mean=mean(n,na.rm=TRUE))
 ```
 
 ```{r}
@@ -211,7 +212,7 @@ household_data_17_19_21_shop<- household_data_17_19_21_shop%>%mutate(shop_trips=
 ```
 
 ```{r}
-ggplot(household_data_17_19_21_shop, aes(x=shop_trips, fill=survey))+geom_histogram(stat='count')
+ggplot(household_data_17_19_21_shop, aes(x=shop_trips, fill=survey.x))+geom_histogram(stat='count')
 
 
 ```
@@ -360,7 +361,7 @@ household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data
 
 Join tract level data to household data at the home end.
 ```{r}
-hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data,by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) 
+hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data, by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) 
 
 ```
 
