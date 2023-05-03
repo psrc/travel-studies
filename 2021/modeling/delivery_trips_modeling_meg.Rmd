@@ -191,7 +191,7 @@ household_data
 }
 ```
 
-```{r}
+```{r, eval = FALSE}
 household_data_17_19_21<-household_grouping(household_data_17_19_21)
 length(unique(vehicle_data_17_19_21$household_id))
 length(unique(household_data_17_19_21$household_id))
@@ -381,30 +381,52 @@ plot_summs(deliv_model, scale=TRUE)
 
 hh_shop_tract_17 <- hh_shop_tract %>%
   filter(survey.x == '2017')%>%
-  filter(hhincome_detailed2 != "Prefer not to answer")
+  filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  mutate(numworkers=case_when(numworkers==0~"No workers",
+                                  numworkers == 1~"1 worker",
+                                  numworkers==2~"2 workers",
+                                  numworkers>=3~"3 or more workers",
+                                  TRUE ~ as.character(numworkers)))
 
-hh_shop_tract_17$hhincome_detailed2 <- factor(hh_shop_tract_17$hhincome_detailed2, levels = c("100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
+hh_shop_tract_17$hhincome_detailed2 <- factor(hh_shop_tract_17$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
                                                                                               "$75,000-$99,999", "$150,000-$199,999", "$200,000-$249,999",
                                                                                               "$250,000 or more"))
 hh_shop_tract_17$numchildren_bin <-  factor(hh_shop_tract_17$numchildren_bin, levels = c("None", "Has kids"))
+hh_shop_tract_17$disability <-  factor(hh_shop_tract_17$disability, levels = c("No", "Yes"))
+hh_shop_tract_17$numworkers <-  factor(hh_shop_tract_17$numworkers, levels = c("No workers", "1 worker", "2 workers", "3 or more workers"))
+
 
 hh_shop_tract_19 <- hh_shop_tract %>%
   filter(survey.x == '2019')%>%
-  filter(hhincome_detailed2 != "Prefer not to answer")
+  filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  mutate(numworkers=case_when(numworkers==0~"No workers",
+                                  numworkers == 1~"1 worker",
+                                  numworkers==2~"2 workers",
+                                  numworkers>=3~"3 or more workers",
+                                  TRUE ~ as.character(numworkers)))
 
-hh_shop_tract_19$hhincome_detailed2 <- factor(hh_shop_tract_19$hhincome_detailed2, levels = c("100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
+hh_shop_tract_19$hhincome_detailed2 <- factor(hh_shop_tract_19$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
                                                                                               "$75,000-$99,999", "$150,000-$199,999", "$200,000-$249,999",
                                                                                               "$250,000 or more"))
 hh_shop_tract_19$numchildren_bin <-  factor(hh_shop_tract_19$numchildren_bin, levels = c("None", "Has kids"))
+hh_shop_tract_19$disability <-  factor(hh_shop_tract_19$disability, levels = c("No", "Yes"))
+hh_shop_tract_19$numworkers <-  factor(hh_shop_tract_19$numworkers, levels = c("No workers", "1 worker", "2 workers", "3 or more workers"))
 
 hh_shop_tract_21 <- hh_shop_tract %>%
   filter(survey.x == '2021')%>%
-  filter(hhincome_detailed2 != "Prefer not to answer")
+  filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  mutate(numworkers=case_when(numworkers==0~"No workers",
+                                  numworkers == 1~"1 worker",
+                                  numworkers==2~"2 workers",
+                                  numworkers>=3~"3 or more workers",
+                                  TRUE ~ as.character(numworkers)))
 
-hh_shop_tract_21$hhincome_detailed2 <- factor(hh_shop_tract_21$hhincome_detailed2, levels = c("100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
+hh_shop_tract_21$hhincome_detailed2 <- factor(hh_shop_tract_21$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
                                                                                               "$75,000-$99,999", "$150,000-$199,999", "$200,000-$249,999",
                                                                                               "$250,000 or more"))
 hh_shop_tract_21$numchildren_bin <-  factor(hh_shop_tract_21$numchildren_bin, levels = c("None", "Has kids"))
+hh_shop_tract_21$disability <-  factor(hh_shop_tract_21$disability, levels = c("No", "Yes"))
+hh_shop_tract_21$numworkers <-  factor(hh_shop_tract_21$numworkers, levels = c("No workers", "1 worker", "2 workers", "3 or more workers"))
 
 
 ```
@@ -420,7 +442,7 @@ hh_shop_tract_21$numchildren_bin <-  factor(hh_shop_tract_21$numchildren_bin, le
 # DEFAULT VARIABLE/CATEGORY IS CHOSEN BY FIRST ALPHABETICAL OR NUMERICAL
 
 # look at frequency of variable responses
-## table(hh_shop_tract$hhincome_detailed2)
+##table(hh_shop_tract_21$hhincome_detailed2)
 
 # relevel the variables - not needed for income
 # hhincome_detailed2 <- relevel(hh_shop_tract2$hhincome_detailed2, ref ="100,000-$149,999")
@@ -493,13 +515,77 @@ plot_summs(deliv_model_combo_17, scale=TRUE)
 plot_summs(deliv_model_combo_19, scale=TRUE)
 plot_summs(deliv_model_combo_21, scale=TRUE)
 ```
+```{r, disability}
+# No
+
+table(hh_shop_tract_21$disability)
+
+deliv_model_combo_17<-glm(formula= delivery_food~disability, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17)
+deliv_model_combo_19<-glm(formula= delivery_food~disability, 
+                           family=binomial(), 
+                           data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food~disability, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17)
+summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17, scale=TRUE)
+plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, income and disability}
+# 100,000-149,999 and No
+
+table(hh_shop_tract_21$disability)
+
+deliv_model_combo_17<-glm(formula= delivery_food~disability + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17)
+deliv_model_combo_19<-glm(formula= delivery_food~disability + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food~disability + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17)
+summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17, scale=TRUE)
+plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
 
 ```{r, numworkers}
-# unsure why not showing range of numeric 0-5???
+# default is no workers in the home
 
-deliv_model_numworkers<-glm(formula= delivery_food~numworkers, family=binomial(), data=hh_shop_tract)
-summary(deliv_model_numworkers)
-plot_summs(deliv_model_numworkers, scale=TRUE)
+table(hh_shop_tract_21$numworkers)
+
+deliv_model_combo_17<-glm(formula= delivery_food~numworkers, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17)
+deliv_model_combo_19<-glm(formula= delivery_food~numworkers, 
+                           family=binomial(), 
+                           data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food~numworkers, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17)
+summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17, scale=TRUE)
+plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
 ```
 
 ```{r, shop_trips}
