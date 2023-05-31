@@ -28,19 +28,23 @@ library(MASS)
 library(Hmisc)
 library(reshape2)
 library(jtools)
+library(rlang)
 #install.packages("lessR")
 library(lessR)
+
+#install.packages("broom.mixed")
+library(broom.mixed)
 install_psrc_fonts()
 ```
 Read in the data from Elmer
 
 ```{r}
- elmer_connect<-DBI::dbConnect(odbc::odbc(),
-                 driver = "ODBC Driver 17 for SQL Server",
-                 server = "AWS-PROD-SQL\\Sockeye",
-                 database = "Elmer",
-                 trusted_connection = "yes",
-                 port = 1433)
+elmer_connection <- dbConnect(odbc::odbc(),
+  driver = "SQL Server",
+  server = "AWS-PROD-SQL\\Sockeye",
+  database = "Elmer",
+  trusted_connection = "yes"
+  )
   
 
 
@@ -51,13 +55,15 @@ We are getting household variables and trip variables to understand how
 2. trip making characteristics relate to getting deliveries
 3. additional characteristics for delivery determination
 ```{r}
-trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'age_category', 'daynum', 'sample_source', 'hhgroup')
-household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle', 'sample_source', 'hhgroup', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults', 'broadband', 'mobile_device', 'res_factors_transit', 'res_factors_walk', 'rent_own')
-vehicle_vars <- c('household_id', 'disability')
+trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'age_category', 'hhgroup', 'trip_path_distance', 'sample_source')
+household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'hhgroup', 'lifecycle', 'sample_source', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults', 'broadband', 'mobile_device', 'res_factors_transit', 'res_factors_walk', 'rent_own')
+vehicle_vars <- c('disability')
 ```
 
 Get all three years of data and bind it together.
 ```{r}
+#test - res_dur_2021<-get_hhts(survey='2021', level="h", vars="res_dur")
+
 trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2017)
 
 trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2019)
@@ -191,7 +197,7 @@ household_data
 }
 ```
 
-```{r, eval = FALSE}
+```{r}
 household_data_17_19_21<-household_grouping(household_data_17_19_21)
 length(unique(vehicle_data_17_19_21$household_id))
 length(unique(household_data_17_19_21$household_id))
@@ -241,8 +247,8 @@ survey_d <- list(survey = '2019', label = '2019')
 
 # create variables that would like to group by for analysis of deliveries by household
 
-delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
-days <- c("dayofweek", "typical_day", "daynum", "pernum")
+delivery_type <- c("delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+days <- c("dayofweek", "typical_day", "pernum")
 
 
 ```
