@@ -97,6 +97,14 @@ household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data
 #unique(household_data_17_19_21$hhincome_detailed)
 ```
 
+```{r, group for household normalization}
+all_vars<- colnames(household_data_17_19_21)
+all_vars_no_hhid<-all_vars(all_vars != "household_id")
+
+hh_17_19_21<-household_data_17_19_21 %>%group_by(household_id)%>%
+  mutate(dis_veh_hh = ifelse(disability=="Yes", "Yes", "No"))%>%
+  summarise(across(all_vars_no_hhid, ~ first(.x)))
+```
 
 a function to group trips by purpose to understand how the number of household trips by a purpose relates to the propensity to receive deliveries
 ```{r}
