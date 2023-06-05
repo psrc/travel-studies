@@ -99,9 +99,10 @@ household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data
 
 ```{r, group for household normalization}
 all_vars<- colnames(household_data_17_19_21)
-all_vars_no_hhid<-all_vars(all_vars != "household_id")
+all_vars_no_hhid<-all_vars[all_vars != "household_id"]
 
-hh_17_19_21<-household_data_17_19_21 %>%group_by(household_id)%>%
+ 
+hh_17_19_21<-household_data_17_19_21 %>%group_by(household_id)%>%  
   mutate(dis_veh_hh = ifelse(disability=="Yes", "Yes", "No"))%>%
   summarise(across(all_vars_no_hhid, ~ first(.x)))
 ```
@@ -157,6 +158,11 @@ household_data<-household_data%>%
                                          hhincome_detailed == "$10,000-$24,999" |
                                          hhincome_detailed == "$25,000-$34,999" |
                                          hhincome_detailed == "$35,000-$49,999" ~ "Under $50,000",
+                                        hhincome_detailed == "$50,000-$74,999"|
+                                          hhincome_detailed == "$75,000-$99,999" ~ "$50,000-$100,000",
+                                        hhincome_detailed == "$150,000-$199,999" |
+                                          hhincome_detailed == "$200,000-$249,999" |
+                                          hhincome_detailed == "$250,000 or more" ~ "$150,000 or more",
                                           TRUE~ hhincome_detailed))%>%
   mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
                                   hhsize == "2 people"  ~ '2 people', 
@@ -359,6 +365,8 @@ household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_1
   mutate('delivery_food_both'=ifelse(delivery_food_all =='Delivery Received', 1, 0))%>%
   mutate('delivery_food_both'=ifelse(delivery_grocery_all == 'Delivery Received', 1, 0))
 
+household_data_17_19_21_shop_del %>% group_by(survey.x) %>%
+  summarise(delivery_food_both = n())
 ```
 
 ** Reading in data about Census Tracts to understand how characteristics of the home geography relate to the propensity to receive deliveries.
@@ -403,9 +411,8 @@ hh_shop_tract_17_19 <- hh_shop_tract %>%
   filter(rent_own != 0)%>%
   filter(hh_race_apoc != "Missing")
 
-hh_shop_tract_17_19$hhincome_detailed2 <- factor(hh_shop_tract_17_19$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
-                                                                                              "$75,000-$99,999", "$150,000-$199,999", "$200,000-$249,999",
-                                                                                              "$250,000 or more"))
+hh_shop_tract_17_19$hhincome_detailed2 <- factor(hh_shop_tract_17_19$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$100,000",
+                                                                                              "$150,000 or more"))
 hh_shop_tract_17_19$numchildren_bin <-  factor(hh_shop_tract_17_19$numchildren_bin, levels = c("None", "Has kids"))
 hh_shop_tract_17_19$disability <-  factor(hh_shop_tract_17_19$disability, levels = c("No", "Yes"))
 hh_shop_tract_17_19$numworkers <-  factor(hh_shop_tract_17_19$numworkers, levels = c("No workers", "1 worker", "2 workers", "3 or more workers"))
@@ -443,9 +450,8 @@ hh_shop_tract_21 <- hh_shop_tract %>%
   filter(rent_own != 0)%>%
   filter(hh_race_apoc != "Missing")
 
-hh_shop_tract_21$hhincome_detailed2 <- factor(hh_shop_tract_21$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
-                                                                                              "$75,000-$99,999", "$150,000-$199,999", "$200,000-$249,999",
-                                                                                              "$250,000 or more"))
+hh_shop_tract_21$hhincome_detailed2 <- factor(hh_shop_tract_21$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$100,000",
+                                                                                              "$150,000 or more"))
 hh_shop_tract_21$numchildren_bin <-  factor(hh_shop_tract_21$numchildren_bin, levels = c("None", "Has kids"))
 hh_shop_tract_21$disability <-  factor(hh_shop_tract_21$disability, levels = c("No", "Yes"))
 hh_shop_tract_21$numworkers <-  factor(hh_shop_tract_21$numworkers, levels = c("No workers", "1 worker", "2 workers", "3 or more workers"))
@@ -458,7 +464,8 @@ hh_shop_tract_21$hh_race_apoc <-  factor(hh_shop_tract_21$hh_race_apoc, levels =
 ```{r, income}
 # packages + income levels
 # default 100-149,000
-
+summary(hh_shop_tract_17_19[, ('hhincome_detailed2')])
+summary(hh_shop_tract_21[, ('hhincome_detailed2')])
 # changing the default in the regression model
 # use ~ to show what you are determining the relationship to (for instance, relating food deliveries to household income)
 # new dataset <- glm(formula = delivery_food_both ~ hhincome_detailed2)
