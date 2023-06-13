@@ -916,10 +916,11 @@ plot_summs(deliv_model_combo_21, scale=TRUE)
 ** Make a big old model and see what stands out
 ```{r, big old model - combo of things that look}
 # packages - what we'd like to look at but need to break down further with bivariate analysis
+
 deliv_model_sig<-glm(formula= delivery_food_both ~
-                       hhincome_detailed2 + numchildren_bin + final_home_is_rgc + numworkers + hh_race_apoc + poverty_200 + dist_super + NoVehicles + mobile_device,
+                       hhincome_detailed2 + numchildren_bin + final_home_is_rgc + numworkers + hh_race_apoc + poverty_200 + dist_super + NoVehicles + mobile_device + survey.x,
                      family=binomial(), 
-                     data=hh_shop_tract_21)
+                     data=hh_shop_tract)
 
 summary(deliv_model_sig)
 plot_summs(deliv_model_sig, scale=TRUE)
