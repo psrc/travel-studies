@@ -58,6 +58,7 @@ We are getting household variables and trip variables to understand how
 trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'age_category', 'hhgroup', 'trip_path_distance', 'sample_source')
 household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'hhgroup', 'lifecycle', 'sample_source', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults', 'broadband', 'mobile_device', 'res_factors_transit', 'res_factors_walk', 'rent_own')
 vehicle_vars <- c('disability')
+person_vars <- c('auto_commute_distance')
 ```
 
 Get all three years of data and bind it together.
@@ -387,16 +388,18 @@ hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data, by.x='final_h
 
 ```
 
-```{r, separate by years 2017, 2019, 2021}
+```{r, separate by years 2017 & 2019, 2021}
 
 hh_shop_tract_17_19 <- hh_shop_tract %>%
   filter(survey.x == c('2017','2019'))%>%
   filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  filter(rent_own != 0) %>%
   mutate(numworkers=case_when(numworkers==0~"No workers",
                                   numworkers == 1~"1 worker",
                                   numworkers>=2~"2 or more workers"))%>%
-  #filter(rent_own != 0)%>%
-  filter(hh_race_apoc != "Missing")
+  filter(rent_own != 0)%>%
+  filter(hh_race_apoc != "Missing")%>%
+  filter(lifecycle2 != "Household has kids")
 
 hh_shop_tract_17_19$hhincome_detailed2 <- factor(hh_shop_tract_17_19$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$100,000",
                                                                                               "$150,000 or more"))
@@ -404,6 +407,8 @@ hh_shop_tract_17_19$numchildren_bin <-  factor(hh_shop_tract_17_19$numchildren_b
 hh_shop_tract_17_19$disability <-  factor(hh_shop_tract_17_19$disability, levels = c("No", "Yes"))
 hh_shop_tract_17_19$numworkers <-  factor(hh_shop_tract_17_19$numworkers, levels = c("No workers", "1 worker", "2 or more workers"))
 hh_shop_tract_17_19$hh_race_apoc <-  factor(hh_shop_tract_17_19$hh_race_apoc, levels = c("Non-POC", "Asian POC", "Non-Asian POC"))
+hh_shop_tract_17_19$res_factors_transit <- factor(hh_shop_tract_17_19$res_factors_transit, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
+hh_shop_tract_17_19$res_factors_walk <- factor(hh_shop_tract_17_19$res_factors_walk, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
 
 
 
@@ -429,11 +434,13 @@ hh_shop_tract_17_19$hh_race_apoc <-  factor(hh_shop_tract_17_19$hh_race_apoc, le
 hh_shop_tract_21 <- hh_shop_tract %>%
   filter(survey.x == '2021')%>%
   filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  filter(rent_own != 0) %>%
   mutate(numworkers=case_when(numworkers==0~"No workers",
                                   numworkers == 1~"1 worker",
                                   numworkers>=2~"2 or more workers"))%>%
-  #filter(rent_own != 0)%>%
-  filter(hh_race_apoc != "Missing")
+  filter(rent_own != 0)%>%
+  filter(hh_race_apoc != "Missing")%>%
+  filter(lifecycle2 != "Household has kids")
 
 hh_shop_tract_21$hhincome_detailed2 <- factor(hh_shop_tract_21$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$100,000",
                                                                                               "$150,000 or more"))
@@ -441,6 +448,8 @@ hh_shop_tract_21$numchildren_bin <-  factor(hh_shop_tract_21$numchildren_bin, le
 hh_shop_tract_21$disability <-  factor(hh_shop_tract_21$disability, levels = c("No", "Yes"))
 hh_shop_tract_21$numworkers <-  factor(hh_shop_tract_21$numworkers, levels = c("No workers", "1 worker", "2 or more workers"))
 hh_shop_tract_21$hh_race_apoc <-  factor(hh_shop_tract_21$hh_race_apoc, levels = c("Non-POC", "Asian POC", "Non-Asian POC"))
+hh_shop_tract_21$res_factors_transit <- factor(hh_shop_tract_21$res_factors_transit, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
+hh_shop_tract_21$res_factors_walk <- factor(hh_shop_tract_21$res_factors_walk, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
 
 
 ```
@@ -489,6 +498,7 @@ plot_summs(deliv_model_income_21, scale=TRUE)
 
 ```{r, kids or not}
 # default under 35 with kids
+unique(hh_shop_tract_17_19$numchildren_bin)
 
 deliv_model_lifecycle_17_19<-glm(formula= delivery_food_both~numchildren_bin, 
                            family=binomial(), 
@@ -819,7 +829,7 @@ plot_summs(deliv_model_combo_21, scale=TRUE)
 
 ```
 
-```{r, prox_high_inc+transit_qt_mile+dist_super+NoVehicles}
+```{r, prox_high_incs}
 # default is own, NAs have been removed
 
 table(hh_shop_tract_17_19$prox_high_inc)
@@ -843,7 +853,7 @@ plot_summs(deliv_model_combo_17_19, scale=TRUE)
 plot_summs(deliv_model_combo_21, scale=TRUE)
 
 ```
-```{r, transit_qt_mile+dist_super+NoVehicles}
+```{r, transit_qt_mile}
 # default is own, NAs have been removed
 
 table(hh_shop_tract_17_19$transit_qt_mile)
@@ -867,7 +877,7 @@ plot_summs(deliv_model_combo_17_19, scale=TRUE)
 plot_summs(deliv_model_combo_21, scale=TRUE)
 ```
 
-```{r, dist_super+NoVehicles}
+```{r, dist_super}
 # default is own, NAs have been removed
 
 table(hh_shop_tract_17_19$dist_super)
@@ -914,12 +924,135 @@ plot_summs(deliv_model_combo_17_19, scale=TRUE)
 #plot_summs(deliv_model_combo_19, scale=TRUE)
 plot_summs(deliv_model_combo_21, scale=TRUE)
 ```
+
+```{r, ln_jobs_auto_30}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$ln_jobs_auto_30)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~ln_jobs_auto_30, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~ln_jobs_auto_30, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+```{r,  ln_jobs_transit_45, eval = FALSE}
+# default is own, NAs have been removed
+unique(hh_shop_tract_17_19$ln_jobs_transit_45)
+
+table(hh_shop_tract_17_19$ln_jobs_transit_45)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~ ln_jobs_transit_45, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~ ln_jobs_transit_45, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+
+```{r, res_factors_transit}
+# default is own, NAs have been removed
+unique(hh_shop_tract_17_19$res_factors_transit)
+
+table(hh_shop_tract_17_19$res_factors_transit)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~res_factors_transit, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~res_factors_transit, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, res_factors_walk}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$res_factors_walk)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~res_factors_walk, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~res_factors_walk, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r,  lifecycle2}
+# default is own, NAs have been removed
+unique(hh_shop_tract_17_19$lifecycle2)
+table(hh_shop_tract_17_19$lifecycle2)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~ lifecycle2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~ lifecycle2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
 ** Make a big old model and see what stands out
 ```{r, big old model - combo of things that look}
 # packages - what we'd like to look at but need to break down further with bivariate analysis
 
 deliv_model_sig<-glm(formula= delivery_food_both ~
-                       hhincome_detailed2 + numchildren_bin + final_home_is_rgc + numworkers + hh_race_apoc + poverty_200 + dist_super + NoVehicles + mobile_device + survey.x,
+                       hhincome_detailed2 + numchildren_bin + final_home_is_rgc + numworkers + hh_race_apoc + poverty_200 + dist_super + NoVehicles + mobile_device + survey.2021,
                      family=binomial(), 
                      data=hh_shop_tract)
 
