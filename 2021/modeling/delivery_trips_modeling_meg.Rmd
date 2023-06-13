@@ -181,7 +181,7 @@ household_data<-household_data%>%
                                    lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
                                    lifecycle == "Household includes children age 5-17" | 
                                    lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
-    mutate(numchildren_bin= case_when(numchildren == 0 ~ "None",
+  mutate(numchildren_bin= case_when(numchildren == 0 ~ "None",
                                   numchildren >= 1 ~ "Has kids")) %>%
   mutate(broadband2=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
                                broadband == 'Broadband service is not available where I live' | 
@@ -191,7 +191,9 @@ household_data<-household_data%>%
                                broadband == 'Yes' ~ 'Yes',
                               TRUE~ broadband))%>%
            mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' ~ 'Own',
-                                      rent_own == 'Rent' ~ 'Rent'))
+                                      rent_own == 'Rent' ~ 'Rent')) %>%
+  mutate(survey.2021=case_when(survey.x == 2021 ~ 1,
+                               survey.x != 2021 ~ 0))
 
 household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
 
@@ -204,7 +206,7 @@ household_data$hhincome_broad = factor(household_data$hhincome_broad,
                                                      "$100,000 or more",
                                                      "$200,000 or more"))
 
-household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64, no kids', '65 years or older' ))
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64, no kids', '65 years or older'))
 
 household_data
                                   
@@ -316,7 +318,6 @@ smp_delivery_combo <- function(data, year) {
                                         (pernum>1) ~ 'Not Person One, not the responder',
                                         delivery_food_freq == "0 (none)"  ~ 'No Delivery',
                                         deliver_food=='No' ~ 'No Delivery',
-                                        
                                         TRUE ~ 'Delivery Received'))%>%
     mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
                                         (pernum>1) ~ 'Not Person One, not the responder',
