@@ -28,7 +28,7 @@ install_psrc_fonts()
 
 ```{r}
 mode_vars<-c('mode_1', 'mode_simple')
-other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'hhsize', 'lifecycle', 'age_category'
+other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'hhsize', 'lifecycle', 'age_category', 'travelers_total'
 )
 all_vars<-c(mode_vars, other_vars)
 household_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle')
@@ -36,10 +36,30 @@ household_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'fina
 
 
 ```{r}
-trip_data_17_19_21<- get_hhts(c("2017", "2019", "2021"), "t", vars=all_vars)%>%filter(age_category!='Under 18 years')
+trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
 ```
 
+```{r}
+duplicated(colnames(trip_data_17_19))
+```
+# to do - join back to the person data to get people who don't have any driving
+```{r}
 
+driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>% 
+              mutate(vmt= trip_path_distance/travelers_total)
+```
+
+```{r}
+vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
+          mutate(vmt_day=sum(vmt), trip_weight_sum=sum(trip_weight_2017_2019))%>%
+          filter(row_number()==1)
+```
+
+```{r}
+ggplot(vmt_per, aes(vmt_day, weight=trip_weight_sum))+
+  geom_histogram()+
+  xlim(0, 100)
+```
 
 
 
@@ -138,183 +158,3 @@ household_data_17<-household_grouping(household_data_17_19_21)
 
 ```
 
-
-Trips per household
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # cat_name <- eval(names(g))
-  cat_name <- names(g)
-
- 
- shop_trips_hh_17<-shop_trips_per_hh_by_var(trip_data_17, household_data_17,'trip_weight_2017', 'hh_weight_2017', cat_name )
- 
-  shop_trips_hh_19<-shop_trips_per_hh_by_var(trip_data_19, household_data_19,'trip_weight_2019', 'hh_weight_2019', cat_name)
-  
-   shop_trips_hh_21<-shop_trips_per_hh_by_var(trip_data_21, household_data_21,'trip_adult_weight_2021', 'hh_weight_2021', cat_name)
-   
-   
- shop_trips_households_long<- bind_rows(shop_trips_hh_17, shop_trips_hh_19, shop_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)!='Total')%>%drop_na(cat_name)
-
-print(shop_trips_households_long)
-
- shop_trips_households_long_total<- bind_rows(shop_trips_hh_17, shop_trips_hh_19, shop_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)=='Total')
-
- print(shop_trips_households_long)
-  
-   p<-static_column_chart(t= shop_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
-  xlab('Household Characteristic') + ylab('Shopping Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=15,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
-   
-    p1<-static_column_chart(t= shop_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
-  xlab('All Households') + ylab('Shopping Trips per HH')+theme(axis.title.x = element_text(size=15,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
-  
-
-  print(p)
-  print(p1)
-  
-
-  
-}
-```
-
-Trips per household
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # cat_name <- eval(names(g))
-  cat_name <- names(g)
-
- 
- meal_trips_hh_17<-meal_trips_per_hh_by_var(trip_data_17, household_data_17,'trip_weight_2017', 'hh_weight_2017', cat_name )
- 
-  meal_trips_hh_19<-meal_trips_per_hh_by_var(trip_data_19, household_data_19,'trip_weight_2019', 'hh_weight_2019', cat_name)
-  
-   meal_trips_hh_21<-meal_trips_per_hh_by_var(trip_data_21, household_data_21,'trip_adult_weight_2021', 'hh_weight_2021', cat_name)
-   
-   
- meal_trips_households_long<- bind_rows(meal_trips_hh_17, meal_trips_hh_19, meal_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)!='Total')%>%drop_na(cat_name)
-
-print(meal_trips_households_long)
-
- meal_trips_households_long_total<- bind_rows(meal_trips_hh_17, meal_trips_hh_19, meal_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)=='Total')
-
-  
-   p<-static_column_chart(t= meal_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
-  xlab('Household Characteristic') + ylab('Meal Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
-   
-    p1<-static_column_chart(t= meal_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
-  xlab('All Households') + ylab('Meal Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
-  
-
-  print(p)
-  print(p1)
-  
-
-  
-}
-
-```
-
-```{r include=TRUE}
-all_trips_per_hh_total<-function(trip_data, household_data, trip_weight, hh_weight){
-
-all_trips<-trip_data
-
-trip_summs <- hhts_count(all_trips,
-                                        group_vars=c('simple_purpose'),
-                                        spec_wgt=trip_weight)
-
-print(trip_summs)
-  
-hh_summs <- hhts_count(household_data,
-                                        spec_wgt=hh_weight)
-
-print(hh_summs)
- trips_households<- trip_summs%>%mutate(trips_per_household=count/hh_summs$count,moe_trips_household=moe_ratio(count, hh_summs$count, count_moe, hh_summs$count_moe))
-
-}
-
-```
-
-```{r}
-all_trips_per_hh_by_var<-function(trip_data, household_data, trip_weight, hh_weight, cat_name){
-
-all_trips<-trip_data
-
-trip_summs <- hhts_count(all_trips,
-                                        group_vars=c(cat_name, 'simple_purpose'),
-                                        spec_wgt=trip_weight)
-
-print(trip_summs)
-  
-hh_summs <- hhts_count(household_data,
-                                        group_vars=c(cat_name),
-                                        spec_wgt=hh_weight)
-
-print(hh_summs)
- trips_households<- left_join(trip_summs, hh_summs, by=cat_name, suffix=c('_trips','_household' ))%>%mutate(trips_per_household=count_trips/count_household,moe_trips_household=moe_ratio(count_trips, count_household, count_moe_trips, count_moe_household))
-
-}
-
-```
-
-```{r}
-
-
-all_trips_hh_17<-all_trips_per_hh_total(trip_data_17, household_data_17,'trip_weight_2017', 'hh_weight_2017')
- 
-all_trips_hh_19<-all_trips_per_hh_total(trip_data_19, household_data_19,'trip_weight_2019', 'hh_weight_2019')
-  
-all_trips_hh_21<-all_trips_per_hh_total(trip_data_21, household_data_21,'trip_adult_weight_2021', 'hh_weight_2021')
-
- all_trips_households_long<- bind_rows(all_trips_hh_17, all_trips_hh_19, all_trips_hh_21)%>%filter(simple_purpose != 'Total')
- 
-  p0<-create_facet_bar_chart(t= all_trips_households_long , w.x='survey', w.y='trips_per_household', f='survey', g='simple_purpose', w.moe='moe_trips_household', est.type='number', w.color = 'psrc_light', w.scale='fixed') + 
-  xlab('Year') + ylab('Trips per Household')+theme(axis.title.x = element_text(size=15,color="#4C4C4C"))+theme(axis.text.x = element_text(size=15,color="#4C4C4C"))+theme(axis.title.y = element_text(size=15,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=15,color="#4C4C4C"))+theme(legend.text=element_text(size=15))
- p0
-```
-
-```{r }
-for(i in seq(1, length(simple_groupings))){
-  g <- simple_groupings[i]
-  # cat_name <- eval(names(g))
-  cat_name <- names(g)
-print(cat_name)
- 
-all_trips_hh_17<-all_trips_per_hh_by_var(trip_data_17, household_data_17,'trip_weight_2017', 'hh_weight_2017', cat_name )
- 
-  all_trips_hh_19<-all_trips_per_hh_by_var(trip_data_19, household_data_19,'trip_weight_2019', 'hh_weight_2019', cat_name)
-  
-   all_trips_hh_21<-all_trips_per_hh_by_var(trip_data_21, household_data_21,'trip_adult_weight_2021', 'hh_weight_2021', cat_name)
-   
-   
- all_trips_households_long<- bind_rows(all_trips_hh_17, all_trips_hh_19, all_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(!!rlang::sym(cat_name)!='Total')%>%drop_na(cat_name)
-
-print(all_trips_households_long)
-
- all_trips_households_long_total<- bind_rows(all_trips_hh_17, all_trips_hh_19, all_trips_hh_21) %>%mutate(survey_trips = str_replace_all(survey_trips, "_", ""))%>%filter(rlang::sym(cat_name)=='Total')
-
-
- 
-  
-   p<-static_column_chart(t= all_trips_households_long , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
-  xlab('Household Characteristic') + ylab('All Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
-   
-
-   
-
-
-   
-    p1<-static_column_chart(t= all_trips_households_long_total , x=cat_name, y='trips_per_household', f='survey_trips', moe='moe_trips_household', est='number', color = 'psrc_light') + 
-  xlab('All Households') + ylab('All Trips per HH')+theme(axis.title.x = element_text(size=25,color="#4C4C4C"))+theme(axis.text.x = element_text(size=25,color="#4C4C4C"))+theme(axis.title.y = element_text(size=25,color="#4C4C4C"))+theme(axis.text.y.left =   element_text(size=35,color="#4C4C4C"))+theme(legend.text=element_text(size=25))
-  
-
-  print(p)
-  print(p0)
-  print(p1)
-  
-
-  
-}
-
-```
