@@ -1,0 +1,119 @@
+```{r}
+# devtools::install_github("psrc/psrcelmer")
+library(psrcelmer)
+library(psrccensus)
+library(tidycensus)
+
+library(leaflet)
+library(sf)
+
+sf_use_s2(FALSE)
+
+# ls("package:psrcelmer")
+list_feature_classes()
+# URBAN_CENTERS: RGCs
+# MICEN: MICs
+# BLOCKGRP2020
+# BLOCK2020
+# TRACT2020 
+```
+
+
+```{r}
+rgc_layer <- st_read_elmergeo('URBAN_CENTERS')
+blkgrp2020_layer <- st_read_elmergeo('BLOCKGRP2020')
+
+st_geometry(rgc_layer)
+st_geometry(blkgrp2020_layer)
+
+st_transform(rgc_layer, 2285)
+st_transform(blkgrp2020_layer, 2285)
+
+
+```
+
+
+```{r}
+rgc_blkgrp20 <- st_join(blkgrp2020_layer,rgc_layer) %>%
+  mutate(name = ifelse(is.na(name),"Not RGC", name),
+         category = ifelse(is.na(category),"Not RGC", category)) %>%
+  select(geoid20,county_name,namelsad20,name,category)
+```
+
+check variables for ACS 2021 block group data
+```{r}
+v21 <- load_variables(2019, "acs5", cache = TRUE) %>%
+  filter(geography=="block group") %>%
+  distinct(concept)
+
+v_hhsize <- load_variables(2021, "acs5", cache = TRUE) %>%
+filter(grepl("HOUSEHOLD SIZE",concept))
+
+veh <- load_variables(2021, "acs5", cache = TRUE) %>%
+  filter(concept =="TENURE BY VEHICLES AVAILABLE")
+income <- load_variables(2021, "acs5", cache = TRUE) %>%
+  filter(concept=="MEDIAN HOUSEHOLD INCOME IN THE PAST 12 MONTHS (IN 2021 INFLATION-ADJUSTED DOLLARS)")
+	
+
+
+hhsize21 <- get_acs_recs(geography = 'block group',
+                        table.names = 'B11016',
+                        years = 2021,
+                        acs.type = 'acs1')
+
+veh21 <- get_acs_recs(geography = 'block group',
+                        table.names = 'B25044',
+                        years = 2021,
+                        acs.type = 'acs1')%>%
+  mutate(vehicle = case_when(
+    grepl("No vehicle",label) ~ "No vehicle",
+    grepl("1 vehicle|2 vehicles|3 vehicles|4 vehicles|5 or more vehicles",label) ~ "1+ vehicle(s)",
+    label == "Estimate!!Total:" ~ "total population")) %>%
+  filter(!is.na(vehicle))
+
+income21 <- get_acs_recs(geography = 'block group',
+                        table.names = 'B19013',
+                        years = 2021,
+                        acs.type = 'acs1')
+
+veh21_blk <- veh21 %>%
+  group_by(GEOID, vehicle) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[vehicle=="total population"],
+         total_moe = sum_moe[vehicle=="total population"]) %>%
+  ungroup() %>%
+  filter(vehicle!="total population") %>%
+  mutate(prop_est = sum_est/total_est, 
+         prop_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) %>%
+  filter(vehicle=="1+ vehicle(s)")
+
+veh21_rgc <- veh21 %>%
+  left_join(rgc_blkgrp20,by = c("GEOID" = "geoid20")) %>%
+  group_by(category, vehicle) %>%
+  summarize(sum_est = sum(estimate), 
+            sum_moe = moe_sum(moe, estimate)) %>%
+  mutate(total_est = sum_est[vehicle=="total population"],
+         total_moe = sum_moe[vehicle=="total population"]) %>%
+  ungroup() %>%
+  filter(vehicle!="total population") %>%
+  mutate(prop_est = sum_est/total_est, 
+         prop_moe = moe_ratio(sum_est, total_est, sum_moe, total_moe)) 
+
+```
+https://walker-data.com/census-r/wrangling-census-data-with-tidyverse-tools.html
+
+```{r}
+blkgrp2020_layer_veh <- blkgrp2020_layer %>%
+  left_join(veh21_blk, by = c("geoid20" = "GEOID"))
+
+
+pal <- colorNumeric(palette=colorRamp(psrc_colors$purples_inc, interpolate="spline"), 
+                    domain = blkgrp2020_layer_veh$prop_est)
+
+leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addPolygons(data=blkgrp2020_layer_veh,
+              stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1, color = ~pal) %>%
+  addPolygons(data = rgc_layer)
+```

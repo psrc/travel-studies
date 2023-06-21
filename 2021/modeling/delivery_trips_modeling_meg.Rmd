@@ -1,0 +1,1082 @@
+---
+title: "model shopping trips"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+```{r}
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(tidycensus)
+#install.packages("psrcslides")
+#library(psrcslides)
+library(officer)
+library(DBI)
+library(foreign)
+library(ggplot2)
+library(MASS)
+library(Hmisc)
+library(reshape2)
+library(jtools)
+library(rlang)
+#install.packages("lessR")
+library(lessR)
+
+#install.packages("broom.mixed")
+library(broom.mixed)
+install_psrc_fonts()
+```
+Read in the data from Elmer
+
+```{r}
+elmer_connection <- dbConnect(odbc::odbc(),
+  driver = "SQL Server",
+  server = "AWS-PROD-SQL\\Sockeye",
+  database = "Elmer",
+  trusted_connection = "yes"
+  )
+  
+
+
+```
+
+We are getting household variables and trip variables to understand how
+1. household characteristics relate to getting deliveries
+2. trip making characteristics relate to getting deliveries
+3. additional characteristics for delivery determination
+```{r}
+trip_vars<-c('mode_1', 'mode_simple','dest_purpose_cat', 'origin_purpose_cat', 'age_category', 'hhgroup', 'trip_path_distance', 'sample_source')
+household_vars<-c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'hhgroup', 'lifecycle', 'sample_source', 'final_home_tract10', 'hh_race_apoc', 'numworkers', 'numchildren', 'numadults', 'broadband', 'mobile_device', 'res_factors_transit', 'res_factors_walk', 'rent_own')
+vehicle_vars <- c('disability')
+person_vars <- c('auto_commute_distance')
+```
+
+Get all three years of data and bind it together.
+```{r}
+#test - res_dur_2021<-get_hhts(survey='2021', level="h", vars="res_dur")
+
+trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2017)
+
+trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2019)
+
+trip_data_21<- get_hhts("2021", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & sample_source=='ABS')%>%dplyr::select(-c(trip_adult_weight_2021, trip_respondent_weight_2021))
+
+trip_data_17_19_21<-rbind(trip_data_17, trip_data_19, trip_data_21)
+
+household_data_17<- get_hhts("2017", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2017)
+household_data_19<- get_hhts("2019", "h", vars=household_vars)%>%filter( hhgroup=='rSurvey')%>%dplyr::select(-hh_weight_2019)
+household_data_21<- get_hhts("2021", "h", vars=household_vars)%>%filter(sample_source=='ABS')%>%dplyr::select(-hh_weight_2021)
+
+household_data_17_19_21_combo<-rbind(household_data_17, household_data_19, household_data_21)
+
+vehicle_data_17<- get_hhts("2017", "v", vars=vehicle_vars)
+
+vehicle_data_19<- get_hhts("2019", "v", vars=vehicle_vars)
+
+vehicle_data_21<- get_hhts("2021", "v", vars=vehicle_vars)
+
+vehicle_data_17_19_21<-rbind(vehicle_data_17, vehicle_data_19, vehicle_data_21)
+
+#is.data.frame(household_data_17_19_21$broadband)
+
+household_data_17_19_21<-left_join(household_data_17_19_21_combo, vehicle_data_17_19_21, by='household_id')%>%
+  mutate_all(~replace(., is.na(.), 0))
+
+#library(dplyr)
+household_data_17_19_21 %>% mutate_if(is.factor, as.character) -> household_data_17_19_21 # no zeros
+#unique(household_data_17_19_21$hhincome_broad)
+#unique(household_data_17_19_21$hhincome_detailed)
+```
+
+```{r, group for household normalization}
+all_vars<- colnames(household_data_17_19_21)
+all_vars_no_hhid<-all_vars[all_vars != "household_id"]
+
+ 
+hh_17_19_21<-household_data_17_19_21 %>%group_by(household_id)%>%  
+  mutate(dis_veh_hh = ifelse(disability=="Yes", "Yes", "No"))%>%
+  summarise(across(all_vars_no_hhid, ~ first(.x)))
+```
+
+a function to group trips by purpose to understand how the number of household trips by a purpose relates to the propensity to receive deliveries
+```{r}
+trip_grouping <-function(trip_data){
+
+trip_data<-trip_data%>%
+  mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
+  mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
+                                  simple_purpose=='School'~ 'Work/School',
+                                  simple_purpose=='Work-related'~ 'Work/School',
+                                  simple_purpose=='Shop'~ 'Shop',
+                                  simple_purpose=='Escort'~ 'Errands',
+                                  simple_purpose=='Errand/Other'~ 'Errands',
+                                  simple_purpose=='Change mode'~ 'Errands',
+                                  simple_purpose=='Social/Recreation' ~ 'Social/Recreation',
+                                  simple_purpose=='Meal' ~ 'Meal',
+                                  simple_purpose=='Home' ~ 'Errands',
+                                  is.na(simple_purpose) ~ 'Errands',
+                                  TRUE ~ simple_purpose))
+
+trip_data<-trip_data%>%filter(simple_purpose=='Shop')
+
+trip_data_hhid<-trip_data%>% group_by(household_id,daynum)%>%tally()
+
+}
+
+```
+
+
+```{r}
+shop_trips_per_hh_day<-trip_grouping(trip_data_17_19_21)
+
+```
+
+A function for grouping household characteristics
+```{r}
+
+household_grouping<-function(household_data){
+household_data<-household_data%>%
+  mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles"))%>%
+  mutate(hhincome_100= case_when(
+    hhincome_broad=="Under $25,000" |
+    hhincome_broad=="$25,000-$49,999" |
+    hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
+    hhincome_broad=='$75,000-$99,999' |
+    hhincome_broad=='$100,000 or more' | 
+    hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
+    hhincome_broad=='Prefer not to answer' ~ 'NA'))%>%
+  mutate(hhincome_detailed2 = case_when(hhincome_detailed == "Under $10,000" |
+                                         hhincome_detailed == "$10,000-$24,999" |
+                                         hhincome_detailed == "$25,000-$34,999" |
+                                         hhincome_detailed == "$35,000-$49,999" ~ "Under $50,000",
+                                        hhincome_detailed == "$50,000-$74,999"|
+                                          hhincome_detailed == "$75,000-$99,999" ~ "$50,000-$100,000",
+                                        hhincome_detailed == "$150,000-$199,999" |
+                                          hhincome_detailed == "$200,000-$249,999" |
+                                          hhincome_detailed == "$250,000 or more" ~ "$150,000 or more",
+                                          TRUE~ hhincome_detailed))%>%
+  mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
+                                  hhsize == "2 people"  ~ '2 people', 
+                                  hhsize == "3 people" ~ '3 people',
+                                  hhsize == "4 people" | 
+                                  hhsize == "5 people" | 
+                                  hhsize == "6 people" | 
+                                  hhsize == "7 people" |
+                                  hhsize == "8 people" | 
+                                  hhsize == "12 people" ~ "4+ people"))%>%
+  mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+" ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  ~ '35-64, no kids',
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
+  mutate(numchildren_bin= case_when(numchildren == 0 ~ "None",
+                                  numchildren >= 1 ~ "Has kids")) %>%
+  mutate(broadband2=case_when(broadband == 'Broadband service is available where I live, but I DO NOT have broadband service at my residence'| 
+                               broadband == 'Broadband service is not available where I live' | 
+                               broadband == 'Don’t know' | 
+                               broadband == 'No' ~ 'No',
+                               broadband == 'Yes, my current residence has broadband service' | 
+                               broadband == 'Yes' ~ 'Yes',
+                              TRUE~ broadband))%>%
+           mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' ~ 'Own',
+                                      rent_own == 'Rent' ~ 'Rent')) %>%
+  mutate(survey.2021=case_when(survey.x == 2021 ~ 1,
+                               survey.x != 2021 ~ 0))
+
+household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
+
+household_data$hhincome_broad = factor(household_data$hhincome_broad, 
+                                          levels = c("Prefer not to answer",
+                                                     "Under $25,000",
+                                                     "$25,000-$49,999",
+                                                     "$50,000-$74,999",
+                                                     "$75,000-$99,999",
+                                                     "$100,000 or more",
+                                                     "$200,000 or more"))
+
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64, no kids', '65 years or older'))
+
+household_data
+                                  
+}
+```
+
+```{r}
+household_data_17_19_21<-household_grouping(household_data_17_19_21)
+length(unique(vehicle_data_17_19_21$household_id))
+length(unique(household_data_17_19_21$household_id))
+```
+
+
+Joining households to the number of shopping trips they made
+
+```{r}
+household_data_17_19_21_shop<-full_join(household_data_17_19_21, shop_trips_per_hh_day, by='household_id')%>%
+  mutate_all(~replace(., is.na(.), 0)) 
+
+household_data_17_19_21_shop%>%group_by(survey.x)%>%summarise(mean=mean(n,na.rm=TRUE))
+```
+
+```{r}
+household_data_17_19_21_shop<- household_data_17_19_21_shop%>%mutate(shop_trips=ifelse(n>0, 1, 0))
+```
+
+```{r}
+ggplot(household_data_17_19_21_shop, aes(x=shop_trips, fill=survey.x))+geom_histogram(stat='count')
+
+
+```
+
+This set of code is for summarizing whether a household received a delivery or not.
+```{r}
+
+
+survey_a <- list(survey = '2017_2019', label = '2017/2019')
+survey_b <- list(survey = '2021', label = '2021')
+survey_c <- list(survey = '2017', label = '2017')
+survey_d <- list(survey = '2019', label = '2019')
+
+# look at variable names and which years they were collected/documented
+
+# hhts_varsearch("delivery")
+# hhts_varsearch("traveldate")
+# hhts_varsearch("race")
+# hhts_varsearch('income')
+# hhts_varsearch('age')
+# hhts_varsearch('county')
+# hhts_varsearch('home')
+# hhts_varsearch('race')
+
+
+
+# create variables that would like to group by for analysis of deliveries by household
+
+delivery_type <- c("delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+days <- c("dayofweek", "typical_day", "pernum")
+
+
+```
+
+
+
+```{r, getting survey data with pre-identified variables for households}
+
+# -- How frequently is someone having a delivery made?? 
+# -- 2017, 2019, 2017/2019, 2021
+
+# pull datasets from two separate dataframes per year
+
+dsurvey_17 <- get_hhts(survey = survey_c$survey, 
+                        level = "d", 
+                        vars = c(delivery_type, days)) 
+
+
+
+dsurvey_19 <- get_hhts(survey = survey_d$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days)) 
+
+
+
+dsurvey_1719 <- get_hhts(survey = survey_a$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days)) 
+
+
+
+dsurvey_21 <- get_hhts(survey = survey_b$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days)) 
+
+
+
+```
+
+
+
+```{r, visualization functions}
+
+# function combining the delivery and household functions into one and ordering income by levels
+
+smp_delivery_combo <- function(data, year) {
+  ## rewriting labels of responses to be more concise
+  temp_table <- data %>%
+    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_food=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_package=='No' ~ 'No Delivery',
+                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_grocery=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_work =='No' ~ 'No Delivery',
+                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
+                                         TRUE ~ 'Delivery Received'))
+  temp_table<-temp_table%>%filter(pernum==1)%>% dplyr::select(survey,household_id,daynum, delivery_pkgs_all, delivery_grocery_all, delivery_food_all )
+  temp_table
+}
+```
+
+```{r, generate datasets}
+
+delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
+
+
+delivery_19 <- smp_delivery_combo(dsurvey_19, '2019')
+
+
+delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
+```
+
+```{r}
+
+delivery_17_19_21<- rbind(delivery_17, delivery_19, delivery_21)
+```
+
+```{r}
+household_data_17_19_21_shop<- household_data_17_19_21_shop %>%mutate(daynum=ifelse(daynum==0,1,daynum))
+```
+
+Finally joining the households with demographics and number of shopping trips, to the delivery info.
+```{r}
+household_data_17_19_21_shop_del<-merge(household_data_17_19_21_shop, delivery_17_19_21, by=c('household_id', 'daynum'))%>%
+  filter(delivery_food_all%in% c('Delivery Received', 'No Delivery'))%>%
+  mutate('delivery_food_both'=ifelse(delivery_food_all =='Delivery Received', 1, 0))%>%
+  mutate('delivery_food_both'=ifelse(delivery_grocery_all == 'Delivery Received', 1, 0))
+
+household_data_17_19_21_shop_del %>% group_by(survey.x) %>%
+  summarise(delivery_food_both = n())
+```
+
+** Reading in data about Census Tracts to understand how characteristics of the home geography relate to the propensity to receive deliveries.
+```{r}
+displ_index_data<- '/Coding/CURRENT_REPOS_GITHUB/travel-studies/2021/modeling/displacement_risk_estimation.csv'
+tract_data<-read.csv(displ_index_data)
+
+```
+
+```{r}
+household_data_17_19_21_shop_del$final_home_tract10<-as.character(household_data_17_19_21_shop_del$final_home_tract10)
+```
+
+Join tract level data to household data at the home end.
+```{r}
+hh_shop_tract<-merge(household_data_17_19_21_shop_del, tract_data, by.x='final_home_tract10', by.y='GEOID', all.x=TRUE) 
+
+```
+
+```{r, separate by years 2017 & 2019, 2021}
+
+hh_shop_tract_17_19 <- hh_shop_tract %>%
+  filter(survey.x == c('2017','2019'))%>%
+  filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  filter(rent_own != 0) %>%
+  mutate(numworkers=case_when(numworkers==0~"No workers",
+                                  numworkers == 1~"1 worker",
+                                  numworkers>=2~"2 or more workers"))%>%
+  filter(rent_own != 0)%>%
+  filter(hh_race_apoc != "Missing")%>%
+  filter(lifecycle2 != "Household has kids")
+
+hh_shop_tract_17_19$hhincome_detailed2 <- factor(hh_shop_tract_17_19$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$100,000",
+                                                                                              "$150,000 or more"))
+hh_shop_tract_17_19$numchildren_bin <-  factor(hh_shop_tract_17_19$numchildren_bin, levels = c("None", "Has kids"))
+hh_shop_tract_17_19$disability <-  factor(hh_shop_tract_17_19$disability, levels = c("No", "Yes"))
+hh_shop_tract_17_19$numworkers <-  factor(hh_shop_tract_17_19$numworkers, levels = c("No workers", "1 worker", "2 or more workers"))
+hh_shop_tract_17_19$hh_race_apoc <-  factor(hh_shop_tract_17_19$hh_race_apoc, levels = c("Non-POC", "Asian POC", "Non-Asian POC"))
+hh_shop_tract_17_19$res_factors_transit <- factor(hh_shop_tract_17_19$res_factors_transit, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
+hh_shop_tract_17_19$res_factors_walk <- factor(hh_shop_tract_17_19$res_factors_walk, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
+
+
+
+#hh_shop_tract_19 <- hh_shop_tract %>%
+ # filter(survey.x == '2019')%>%
+  #filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  #mutate(numworkers=case_when(numworkers==0~"No workers",
+   #                               numworkers == 1~"1 worker",
+    #                              numworkers==2~"2 workers",
+     #                             numworkers>=3~"3 or more workers",
+      #                            TRUE ~ as.character(numworkers)))%>%
+  #filter(rent_own != 0)%>%
+  #filter(hh_race_apoc != "Missing")
+
+#hh_shop_tract_19$hhincome_detailed2 <- factor(hh_shop_tract_19$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$74,999", 
+ #                                                                                             "$75,000-$99,999", "$150,000-$199,999", "$200,000-$249,999",
+  #                                                                                            "$250,000 or more"))
+#hh_shop_tract_19$numchildren_bin <-  factor(hh_shop_tract_19$numchildren_bin, levels = c("None", "Has kids"))
+#hh_shop_tract_19$disability <-  factor(hh_shop_tract_19$disability, levels = c("No", "Yes"))
+#hh_shop_tract_19$numworkers <-  factor(hh_shop_tract_19$numworkers, levels = c("No workers", "1 worker", "2 workers", "3 or more workers"))
+#hh_shop_tract_19$hh_race_apoc <-  factor(hh_shop_tract_19$hh_race_apoc, levels = c("Non-POC", "Asian POC", "Non-Asian POC"))
+
+hh_shop_tract_21 <- hh_shop_tract %>%
+  filter(survey.x == '2021')%>%
+  filter(hhincome_detailed2 != "Prefer not to answer")%>%
+  filter(rent_own != 0) %>%
+  mutate(numworkers=case_when(numworkers==0~"No workers",
+                                  numworkers == 1~"1 worker",
+                                  numworkers>=2~"2 or more workers"))%>%
+  filter(rent_own != 0)%>%
+  filter(hh_race_apoc != "Missing")%>%
+  filter(lifecycle2 != "Household has kids")
+
+hh_shop_tract_21$hhincome_detailed2 <- factor(hh_shop_tract_21$hhincome_detailed2, levels = c("$100,000-$149,999", "Under $50,000", "$50,000-$100,000",
+                                                                                              "$150,000 or more"))
+hh_shop_tract_21$numchildren_bin <-  factor(hh_shop_tract_21$numchildren_bin, levels = c("None", "Has kids"))
+hh_shop_tract_21$disability <-  factor(hh_shop_tract_21$disability, levels = c("No", "Yes"))
+hh_shop_tract_21$numworkers <-  factor(hh_shop_tract_21$numworkers, levels = c("No workers", "1 worker", "2 or more workers"))
+hh_shop_tract_21$hh_race_apoc <-  factor(hh_shop_tract_21$hh_race_apoc, levels = c("Non-POC", "Asian POC", "Non-Asian POC"))
+hh_shop_tract_21$res_factors_transit <- factor(hh_shop_tract_21$res_factors_transit, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
+hh_shop_tract_21$res_factors_walk <- factor(hh_shop_tract_21$res_factors_walk, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
+
+
+```
+
+* A smaller model with only statistically significant variables.
+```{r, income}
+# packages + income levels
+# default 100-149,000
+summary(hh_shop_tract_17_19[, ('hhincome_detailed2')])
+summary(hh_shop_tract_21[, ('hhincome_detailed2')])
+# changing the default in the regression model
+# use ~ to show what you are determining the relationship to (for instance, relating food deliveries to household income)
+# new dataset <- glm(formula = delivery_food_both ~ hhincome_detailed2)
+# DEFAULT VARIABLE/CATEGORY IS CHOSEN BY FIRST ALPHABETICAL OR NUMERICAL
+
+# look at frequency of variable responses
+table(hh_shop_tract_17_19$delivery_pkgs_all)
+#table(hh_shop_tract_19$delivery_pkgs_all)
+table(hh_shop_tract_21$delivery_pkgs_all)
+
+# relevel the variables - not needed for income
+# hhincome_detailed2 <- relevel(hh_shop_tract2$hhincome_detailed2, ref ="100,000-$149,999")
+
+# run model with new relevel
+  
+deliv_model_income_17_19<-glm(formula = delivery_food_both ~ hhincome_detailed2,
+                        family=binomial(), 
+                        data=hh_shop_tract_17_19)
+
+#deliv_model_income_19<-glm(formula = delivery_food_both ~ hhincome_detailed2,
+ #                       family=binomial(), 
+  #                      data=hh_shop_tract_19)
+
+deliv_model_income_21<-glm(formula = delivery_food_both ~ hhincome_detailed2,
+                        family=binomial(), 
+                        data=hh_shop_tract_21)
+
+summary(deliv_model_income_17_19)
+#summary(deliv_model_income_19)
+summary(deliv_model_income_21)
+
+plot_summs(deliv_model_income_17_19, scale=TRUE)
+#plot_summs(deliv_model_income_19, scale=TRUE)
+plot_summs(deliv_model_income_21, scale=TRUE)
+```
+
+```{r, kids or not}
+# default under 35 with kids
+unique(hh_shop_tract_17_19$numchildren_bin)
+
+deliv_model_lifecycle_17_19<-glm(formula= delivery_food_both~numchildren_bin, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_lifecycle_19<-glm(formula= delivery_food_both~numchildren_bin, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_lifecycle_21<-glm(formula= delivery_food_both~numchildren_bin, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_lifecycle_17_19)
+#summary(deliv_model_lifecycle_19)
+summary(deliv_model_lifecycle_21)
+
+plot_summs(deliv_model_lifecycle_17_19, scale=TRUE)
+#plot_summs(deliv_model_lifecycle_19, scale=TRUE)
+plot_summs(deliv_model_lifecycle_21, scale=TRUE)
+
+#table(hh_shop_tract_17_19$numchildren_bin)
+```
+
+```{r, income and kids}
+# no kids and 100,000-149,999
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~numchildren_bin + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~numchildren_bin + hhincome_detailed2, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~numchildren_bin + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+```{r, disability}
+# No
+
+table(hh_shop_tract_21$disability)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~disability, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~disability, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~disability, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, income and disability}
+# 100,000-149,999 and No
+
+table(hh_shop_tract_21$disability)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~disability + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~disability + hhincome_detailed2, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~disability + hhincome_detailed2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, numworkers}
+# default is no workers in the home
+
+table(hh_shop_tract_21$numworkers)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~numworkers, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~numworkers, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~numworkers, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, shop_trips}
+# default 0  which means NA
+
+table(hh_shop_tract_21$shop_trips)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~shop_trips, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~shop_trips, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~shop_trips, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, final home is rgc}
+#default is NOT in rgc
+
+table(hh_shop_tract_21$final_home_is_rgc)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~final_home_is_rgc, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~final_home_is_rgc, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~final_home_is_rgc, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, race}
+# default is Non-POC, but want to reconsider how framing it. That should not be the default, but it has the most responses, so need to re-evaluate
+
+table(hh_shop_tract_17_19$hh_race_apoc)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~hh_race_apoc, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~hh_race_apoc, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~hh_race_apoc, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, broadband}
+# no answer for 2017_19 or 2019, default is No
+
+table(hh_shop_tract_21$broadband2)
+
+deliv_model_combo_21<-glm(formula= delivery_food_both~broadband2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, mobile}
+# default is No
+
+table(hh_shop_tract_17_19$mobile_device)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~mobile_device, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~mobile_device, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~mobile_device, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+
+```
+
+```{r, rent own}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$rent_own)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~rent_own, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~rent_own, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+```{r, LEP}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$poor_english)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~poor_english, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~poor_english, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, cost burden}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$severe_cost_burdened)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~severe_cost_burdened, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~severe_cost_burdened, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, poverty}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$poverty_200)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~poverty_200, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~poverty_200, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+
+```{r, prox_high_incs}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$prox_high_inc)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~prox_high_inc, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~prox_high_inc, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+
+```
+```{r, transit_qt_mile}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$transit_qt_mile)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~transit_qt_mile, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~transit_qt_mile, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, dist_super}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$dist_super)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~dist_super, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~dist_super, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, NoVehicles}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$NoVehicles)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~NoVehicles, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~NoVehicles, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, ln_jobs_auto_30}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$ln_jobs_auto_30)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~ln_jobs_auto_30, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~ln_jobs_auto_30, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+```{r,  ln_jobs_transit_45, eval = FALSE}
+# default is own, NAs have been removed
+unique(hh_shop_tract_17_19$ln_jobs_transit_45)
+
+table(hh_shop_tract_17_19$ln_jobs_transit_45)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~ ln_jobs_transit_45, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~ ln_jobs_transit_45, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+
+```{r, res_factors_transit}
+# default is own, NAs have been removed
+unique(hh_shop_tract_17_19$res_factors_transit)
+
+table(hh_shop_tract_17_19$res_factors_transit)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~res_factors_transit, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~res_factors_transit, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r, res_factors_walk}
+# default is own, NAs have been removed
+
+table(hh_shop_tract_17_19$res_factors_walk)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~res_factors_walk, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~res_factors_walk, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+```{r,  lifecycle2}
+# default is own, NAs have been removed
+unique(hh_shop_tract_17_19$lifecycle2)
+table(hh_shop_tract_17_19$lifecycle2)
+
+deliv_model_combo_17_19<-glm(formula= delivery_food_both~ lifecycle2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_17_19)
+#deliv_model_combo_19<-glm(formula= delivery_food_both~rent_own, 
+ #                          family=binomial(), 
+  #                         data=hh_shop_tract_19)
+deliv_model_combo_21<-glm(formula= delivery_food_both~ lifecycle2, 
+                           family=binomial(), 
+                           data=hh_shop_tract_21)
+
+summary(deliv_model_combo_17_19)
+#summary(deliv_model_combo_19)
+summary(deliv_model_combo_21)
+
+plot_summs(deliv_model_combo_17_19, scale=TRUE)
+#plot_summs(deliv_model_combo_19, scale=TRUE)
+plot_summs(deliv_model_combo_21, scale=TRUE)
+```
+
+** Make a big old model and see what stands out
+```{r, big old model - combo of things that look}
+# packages - what we'd like to look at but need to break down further with bivariate analysis
+
+deliv_model_sig<-glm(formula= delivery_food_both ~
+                       hhincome_detailed2 + numchildren_bin + final_home_is_rgc + numworkers + hh_race_apoc + poverty_200 + dist_super + NoVehicles + mobile_device + survey.2021,
+                     family=binomial(), 
+                     data=hh_shop_tract)
+
+summary(deliv_model_sig)
+plot_summs(deliv_model_sig, scale=TRUE)
+```
+
+https://www.cdc.gov/training/SIC_CaseStudy/Interpreting_Odds_ptversion.pdf
+
+https://stats.stackexchange.com/questions/412668/how-to-interpret-a-negative-coefficient-in-logistic-regression
+https://mmuratarat.github.io/2019-09-05/odds-ratio-logistic-regression#:~:text=The%20odds%20of%20an%20event,0.9%3D0.111%20(recurring).
+https://www.polyu.edu.hk/cbs/sjpolit/logisticregression.html
+
+```{r}
+odds<- exp(deliv_model_sig$coefficients)
+odds
+```
+Interpretation:
+* All else being equal, the probability of receiving a package on a given day is less than 50%
+* The strongest association between receiving a package and not is for household income; as income increases the odds of receiving a package increase.
+* Older households are less likely to get deliveries.
+* Smaller households are less likely to get deliveries.
+** having more workers in the household is associated with more deliveries.
+* People were more likely to get deliveries in 2019 and even more likely in 2021 than 2017.
+* People living within a quarter mile of transit are more likely to get deliveries.
+* Living in a Census tract with a high share of people with limited English profiency is associated with getting fewer deliveries
+* A household having shopping trips in their day is associated with getting more deliveries.

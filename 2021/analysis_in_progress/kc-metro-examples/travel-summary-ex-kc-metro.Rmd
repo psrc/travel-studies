@@ -1,0 +1,88 @@
+---
+title: "KC-Metro-Examples"
+author: "suzanne"
+date: "2023-04-11"
+output: html_document
+---
+We use a few packages to make it smoother to work with complex travel survey data and summarize it.
+Here's instructions on install the two packages:
+https://psrc.github.io/psrc.travelsurvey/
+https://psrc.github.io/psrcplot/
+
+Put the sqlite database called hhsurvey.db in the directory where this code resides.
+
+```{r}
+# read in libraries
+library(psrc.travelsurvey)
+#library(psrcplot)
+library(ggplot2)
+library(RSQLite)
+library(config)
+library(dplyr)
+
+```
+
+Set your configuration to use sqlite connection properties. This way the psrc.travelsurvey package knows to access the data from the sqlite database, instead of an internal SQL Server database.
+```{r}
+Sys.setenv(R_CONFIG_ACTIVE = 'shinyapps')
+#Sys.setenv(R_CONFIG_ACTIVE='default')
+
+```
+
+
+
+
+```{r}
+
+work_transitpass_person_df_17_19<-get_hhts(survey = '2017_2019',
+                    level = "p",
+                    vars = c("age_category",
+                             "work_county",
+                             "workplace",
+                             "gender",
+                             "hhincome_broad",
+                             "industry", 
+                             "sample_county",
+                              "benefits_3"))%>%filter(work_county=='King County')
+
+
+
+```
+
+
+
+```{r}
+
+work_transitpass_person_df_21<-get_hhts(survey = '2021',
+                    level = "p",
+                    vars = c("age_category",
+                             "work_county",
+                             "workplace",
+                             "gender",
+                             "hhincome_broad",
+                             "industry",
+                             "benefits_3",
+                     'sample_county'))%>%filter(work_county=='KING')
+
+
+
+```
+
+
+
+```{r}
+work_transitpass_sum_17_19<-hhts_count(df=work_transitpass_person_df_17_19, group_vars=c('benefits_3'), incl_na=FALSE)%>%filter(benefits_3!='Total')
+work_transitpass_sum_21<-hhts_count(df=work_transitpass_person_df_21, group_vars=c('benefits_3'), incl_na=FALSE)%>%filter(benefits_3!='Total')
+```                                  
+                                  
+                                  
+```{r}
+work_transitpass_trend<- rbind(work_transitpass_sum_17_19, work_transitpass_sum_21)
+```
+
+```{r}
+
+#work_transitpass_trend_chart<-static_column_chart(t=work_transitpass_trend, x='benefits_3', #y='share', fill='survey', moe='share_moe')
+#work_transitpass_trend_chart
+```
+

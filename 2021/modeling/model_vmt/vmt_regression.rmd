@@ -1,0 +1,160 @@
+---
+title: "modeling vehicle miles traveled"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(tidycensus)
+library(psrcslides)
+library(officer)
+library(DBI)
+install_psrc_fonts()
+```
+
+
+```{r}
+mode_vars<-c('mode_1', 'mode_simple')
+other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'hhsize', 'lifecycle', 'age_category', 'travelers_total'
+)
+all_vars<-c(mode_vars, other_vars)
+household_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle')
+```
+
+
+```{r}
+trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
+```
+
+```{r}
+duplicated(colnames(trip_data_17_19))
+```
+# to do - join back to the person data to get people who don't have any driving
+```{r}
+
+driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>% 
+              mutate(vmt= trip_path_distance/travelers_total)
+```
+
+```{r}
+vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
+          mutate(vmt_day=sum(vmt), trip_weight_sum=sum(trip_weight_2017_2019))%>%
+          filter(row_number()==1)
+```
+
+```{r}
+ggplot(vmt_per, aes(vmt_day, weight=trip_weight_sum))+
+  geom_histogram()+
+  xlim(0, 100)
+```
+
+
+
+```{r}
+household_data_17_19_21<- get_hhts(c("2017", "2019", "2021"), "h", vars=household_vars)
+```
+
+
+```{r}
+ elmer_connect<-DBI::dbConnect(odbc::odbc(),
+                 driver = "ODBC Driver 17 for SQL Server",
+                 server = "AWS-PROD-SQL\\Sockeye",
+                 database = "Elmer",
+                 trusted_connection = "yes",
+                 port = 1433)
+  
+
+
+```
+
+ 
+ 
+ 
+```{r}
+trip_grouping <-function(trip_data){
+
+trip_data<-trip_data%>%
+  mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
+  mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
+                                  simple_purpose=='School'~ 'Work/School',
+                                  simple_purpose=='Work-related'~ 'Work/School',
+                                  simple_purpose=='Shop'~ 'Shop',
+                                  simple_purpose=='Escort'~ 'Errands',
+                                  simple_purpose=='Errand/Other'~ 'Errands',
+                                  simple_purpose=='Change mode'~ 'Errands',
+                                  simple_purpose=='Social/Recreation' ~ 'Social/Recreation',
+                                  simple_purpose=='Meal' ~ 'Meal',
+                                  simple_purpose=='Home' ~ 'Errands',
+                                  is.na(simple_purpose) ~ 'Errands',
+                                  TRUE ~ simple_purpose))
+
+
+}
+
+
+
+simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'sample_county' ='Home County', 'final_home_is_rgc'='Home in Regional Growth Center',  'hhsize' ='Household Size', 'lifecycle2' = 'Lifecycle'  )
+```
+
+
+```{r}
+household_grouping<-function(household_data){
+household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%mutate(hhincome_100= case_when(
+    hhincome_broad=="Under $25,000" ~ "Under $75,000",
+    hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
+    hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
+    hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
+    hhincome_broad=='$100,000-$199,999' ~ '$75,000 or more',
+                                 hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
+                                 TRUE~hhincome_broad))%>%mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
+                                  hhsize == "2 people"  ~ '2 people', 
+                                   hhsize == "3 people" ~ '3 people',
+                                   hhsize == "4 people" | 
+                                  hhsize == "5 people" | 
+                                  hhsize == "6 people" | 
+                                  hhsize == "7 people" |
+                                  hhsize == "8 people" | 
+                                  hhsize == "12 people" ~ "4+ people"))%>%
+     mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+"  
+                                 ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
+                                 ~ '35-64',
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" 
+                                   ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids'))
+
+household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
+
+household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
+household_data
+                                  
+}
+
+
+simple_groupings<-c('hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'final_home_is_rgc'='Home in Regional Growth Center', 'hhsize' ='Household Size', 'lifecycle2' ='Lifecycle' )
+```
+
+```{r}
+trip_data_17_19_21<-trip_grouping(trip_data_17_19_21)
+
+household_data_17<-household_grouping(household_data_17_19_21)
+
+```
+

@@ -1,0 +1,139 @@
+---
+output:
+  pdf_document:
+    latex_engine: lualatex
+    includes:
+      in_header: trend_format_hts.tex
+    extra_dependencies: ["subfig", "setspace"]
+fontsize: 12pt
+---
+
+
+```{r setup, include=FALSE}
+library(psrc.travelsurvey)
+library(scales)
+library(psrcplot)
+library(psrccensus)
+library(tidyverse)
+library(knitr)
+library(magick)
+library(openxlsx)
+library(tidycensus)
+library(gridExtra)
+
+options(tinytex.verbose=TRUE)
+
+opts_chunk$set(echo=FALSE, 
+               warning=FALSE, 
+               message=FALSE,
+               fig.align = "center")
+
+install_psrc_fonts()
+
+source("trend_processing.R")
+```
+
+\setmainfont{Poppins}
+
+# Trends in Regional Growth Centers
+
+![](image2.png){width=100%}
+
+\onehalfspacing
+\floatsetup[figure]{capposition=top}
+
+The 2021 regional travel survey collected day-to-day information from households in the central Puget Sound region: how we traveled, where we went, how long it took - even where we chose to live and whether we got home deliveries. This report compares household travel choices in 2021, during COVID-19 conditions to that in the previous years of 2017 and 2019. In some analysis 2017 and 2019 survey samples have been combined to strengthen the statistical validity of the findings by increasing the number of respondents included in the analysis. Learn more at the \href{https://www.psrc.org/our-work/household-travel-survey-program}{\underline{\textcolor{blue}{PSRC household travel survey webpage}}}. You can also \href{https://household-travel-survey-psregcncl.hub.arcgis.com}{\underline{\textcolor{blue}{view the full travel survey dataset here}}}, including 2017, 2019, and 2021 data.  
+
+## Population and Employment Growth in Regional Growth Centers
+
+Since the early 1990s, the central Puget Sound region has adopted a strategy that focuses future population and employment growth in designated \href{https://www.psrc.org/our-work/centers}{\underline{\textcolor{blue}{centers}}} within the region's urban growth area. Currently, there are 29 dense, walkable, mixed-used areas called  \textbf{regional growth centers (RGCs)}, as well as 9 dense concentrations of employment called  \textbf{regional manufacturing/industrial centers (MICs)}. RGCs are places that higher density and population and employment growth is planned. Based on the most recent findings in 2016, RGCs constitute only 1\% of the region's land area, but contain 5\% share of population and 28\% of employment, as well as 7\% of population growth and 12\% of employment growth. The main function of RGCs is to accommodate significant population and employment growth, as well as to focus regional investments on housing, services and public transportation to accommodate the large demand that comes with the projected growth.  
+
+\newpage
+\setlength{\headheight}{10pt}
+\setlength{\textheight}{665pt}
+\fancyhead[L]{}
+
+
+
+## Regional Growth Centers Demographics
+
+RGCs, on average, have a much higher percentage of 18- to 34-year-olds compared to the non-RGC area, as well as fewer children and an equal share of seniors. Also, this shows RGCs' attractiveness to the young workforce, as RGCs offer more rental housing, employment and transit. The percentage for households with a median income lower than \$50,000 in RGCs is slightly higher than in the non-RGC areas. However, RGCs have significantly smaller household sizes on average. RGCs have double the share of single-person households compared to non-RGC areas, but RGCs have only about half the share of households with three or more people. Lastly, as RGCs offer more multimodal travel options, figure 1.d shows that RGCs have a lower vehicle ownership than non-RGCs. The $I$-shaped symbols on top of each bar in the charts below represent margins of error.  
+
+
+```{r plot_demo_rgc, fig.height = 1.85, fig.width = 4, fig.cap= "Regional Growth Center Demographics (Source: U.S. Census Bureau - American Community Survey, 2021 (a)(c)(d)Census Block Group (b)Census Tract Estimates)", fig.subcap=c('Age', 'Income', 'Household Size', 'Vehicle Ownership'), fig.ncol = 2, out.width = "50%", fig.pos = "H"}
+install_psrc_fonts()
+plot_age21
+plot_income
+plot_hhsize21
+plot_veh21_rgc
+```
+
+In 2018, the Regional Centers Framework Update further defined two distinct types of regional growth centers: Metro and Urban growth centers. Both types of growth centers have dense existing jobs and housing, high quality transit service, and are planning for significant growth. Urban growth centers serve as important destination for the county, while Metro growth centers have a primary regional role as city center of metropolitan cities, other large and fast-growing centers and important regional destinations. 
+
+
+```{r plot_demo_mu, fig.height = 2, fig.width = 4, fig.cap= "Metro and Urban Regional Growth Center Demographics (Source: U.S. Census Bureau - American Community Survey, 2021 (a)(c)(d)Census Block Group (b)Census Tract Estimates)", fig.subcap=c('Age', 'Income', 'Household Size', 'Vehicle Ownership'), fig.ncol = 2, out.width = "50%", fig.pos = "H"}
+
+plot_age21_mu
+plot_income_mu
+plot_hhsize21_mu
+plot_veh21_rgc_mu
+```
+
+Figure 2 shows that the two types of centers have different demographic compositions. Metro centers have a significantly higher percentage of 18- to 34-year-olds and single-person households, while Urban centers have age and household size distributions more similar to the non-RGC areas. Although RGCs usually have good transit service, Urban centers had high vehicle ownership in 2021. The difference in demographics and vehicle ownership in centers and non-RGC areas may affect hhow residents travel. In the next section, we will look more closely into differences in the travel behaviors of residents living in centers and non-RGC areas.  
+
+
+
+## Regional Growth Centers Travel Characteristics and Behaviors
+
+To support projected growth in RGCs, the region's plans call for an efficient multimodal transportation system that increases accessibility in the region. RGCs will be connected with high-capacity transit under the regional vision. In addition, a more efficient urban environment will be created that provides multiple travel choices, including cars, transit, walking, biking and ride-sharing. This report applied 2017, 2019 and 2021 Household Travel Survey data to measure the travel behaviors of residents in RGCs and how their travel behavior is different than residents in non-RGC areas.  
+
+### **Mode shares**
+In Figure 3, Metro centers have a significantly lower share of driving trips, which includes trips traveling with single-occupancy vehicles and high-occupancy vehicles, compared to Urban centers and non-RGC areas in 2021. The reduced driving trips in Metro centers are likely to be replaced by more transit and walking/biking trips. This reflects that Metro centers offer a much more efficient multimodal transportation system than Urban centers, encouraging their residents to make more transit trips, as well as walk and bike more, instead of owning a private vehicle and making driving trips.  
+
+
+```{r mode share, fig.cap="Mode Share (Source: PSRC 2021 Household Travel Survey)", fig.height=2.5, fig.width = 5}
+mode_metro 
+```
+
+After COVID-19 hit the Puget Sound region in 2020, people's travel behavior was seriously impacted. Figure 4 shows the transit mode share of the non-RGC areas was affected significantly. In 2021, the share of transit trips decreased significantly in non-RGC areas compared to pre-COVID times in 2017 and 2019. On the other hand, the share of walking and biking trips in both RGC and non-RGC areas increased.  
+
+```{r, fig.height = 3, fig.width = 6, fig.cap= "Change in Mode Share (Source: PSRC 2017/2019/2021 Household Travel Survey)"}
+mode_change_rgc
+
+# mode_change_metro 
+```
+
+### Trip Purpose
+Figure 5 shows that the number of trips for each trip purpose across centers and non-RGC areas do not have noticeable differences. The residents living in centers and those in non-RGC areas have similar trip purposes.  
+
+```{r, fig.height = 2.5, fig.width = 6, fig.cap= "Average Number of Trips for Each Trip Purpose (Source: PSRC 2021 Household Travel Survey)", out.width = "80%", fig.pos = "H"}
+p1
+```
+
+
+### Trip Travel Time and Trip Distance
+Figure 6 shows that the trips made by residents in RGCs are shorter in both time and distance compared to those in non-RGC areas This reflects that the development of RGCs encourages dense population and mixed land use, thus offering higher connectivity.  
+
+```{r, fig.height = 2.7, fig.width = 4, fig.cap= "Average Travel time and trip distance (Source: PSRC 2021 Household Travel Survey)", out.height = "80%"}
+
+time_dist_rgc
+
+```
+
+### Walk and Transit Frequency
+Lastly, the survey data shows how many times in a week residents in centers and non-RGC regions walk or take transit. Metro centers have the highest share of their population taking transit and walking at least one day per week. The residents of Urban centers and non-RGC areas walk less and very rarely take transit. Less than 10% of the people in these areas take transit at least one day per week.
+```{r, fig.height = 3, fig.width = 4, fig.cap= "Transit and Walking Frequency (Source: PSRC 2021 Household Travel Survey)", fig.subcap=c('Transit', 'Walking'), fig.ncol = 2, out.width = "50%", out.height="80%", fig.pos = "H"}
+freq_transit
+freq_walk
+
+
+
+# Some urban areas also have transit service, sometimes even higher than urban centers
+```
+
+\subsection{Conclusion}
+With dense jobs, housing and high quality transit service, the RGCs attract more 18- to 34-year-old residents who live alone or have smaller households. RGCs also provide easier access to transit service and a mixed land use with better facilities for walking and biking. RGC residents own fewer vehicles and take more transit and walking trips than non-RGC residents. Furthermore, the average trip distances and travel time are much shorter for RGC residents, reflecting a better connectivity in RGCs. During the COVID-19 pandemic, the share of walk/bike increased and the share of transit decreased significantly in the non-RGC areas. Mode shares did not change as much in the RGCs. 
+
+\href{https://www.psrc.org/media/7514}{\underline{\textcolor{blue}{Download the data used in this Trend.}}}
+
+
