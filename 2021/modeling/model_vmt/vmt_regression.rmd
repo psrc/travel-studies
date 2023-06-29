@@ -28,8 +28,8 @@ install_psrc_fonts()
 
 ```{r}
 mode_vars<-c('mode_1', 'mode_simple')
-other_vars<-c('sample_county', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id', 'hhsize', 'lifecycle', 'age_category', 'travelers_total'
-)
+other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id')
+
 all_vars<-c(mode_vars, other_vars)
 household_vars=c('vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc', 'hhsize', 'household_id', 'lifecycle')
 ```
@@ -40,121 +40,62 @@ trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
 ```
 
 ```{r}
-duplicated(colnames(trip_data_17_19))
+trip_data_17_19<-trip_data_17_19[,!duplicated(colnames(trip_data_17_19))]
 ```
 # to do - join back to the person data to get people who don't have any driving
 ```{r}
 
-driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>% 
+driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
+  mutate(travelers_total=ifelse(travelers_total>10, 1, travelers_total))%>%
+  mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
               mutate(vmt= trip_path_distance/travelers_total)
 ```
 
 ```{r}
 vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
-          mutate(vmt_day=sum(vmt), trip_weight_sum=sum(trip_weight_2017_2019))%>%
+          mutate(vmt_day=sum(vmt))%>%
           filter(row_number()==1)
 ```
 
 ```{r}
-ggplot(vmt_per, aes(vmt_day, weight=trip_weight_sum))+
-  geom_histogram()+
-  xlim(0, 100)
-```
 
-
-
-```{r}
-household_data_17_19_21<- get_hhts(c("2017", "2019", "2021"), "h", vars=household_vars)
-```
-
-
-```{r}
- elmer_connect<-DBI::dbConnect(odbc::odbc(),
-                 driver = "ODBC Driver 17 for SQL Server",
-                 server = "AWS-PROD-SQL\\Sockeye",
-                 database = "Elmer",
-                 trusted_connection = "yes",
-                 port = 1433)
-  
-
+persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4'))
+persons_list<-persons_list[,!duplicated(colnames(persons_list))]
 
 ```
 
- 
- 
- 
 ```{r}
-trip_grouping <-function(trip_data){
+persons_vmt<-left_join(persons_list,vmt_per, by='person_id')%>%
+  mutate(vmt_day=replace_na(vmt_day,0))%>%
+  mutate(ln_vmt_day=log(1+vmt_day))
 
-trip_data<-trip_data%>%
-  mutate(simple_purpose=ifelse(dest_purpose_cat=='Home', origin_purpose_cat, dest_purpose_cat))%>%
-  mutate(simple_purpose=case_when(simple_purpose=='Work'~ 'Work/School',
-                                  simple_purpose=='School'~ 'Work/School',
-                                  simple_purpose=='Work-related'~ 'Work/School',
-                                  simple_purpose=='Shop'~ 'Shop',
-                                  simple_purpose=='Escort'~ 'Errands',
-                                  simple_purpose=='Errand/Other'~ 'Errands',
-                                  simple_purpose=='Change mode'~ 'Errands',
-                                  simple_purpose=='Social/Recreation' ~ 'Social/Recreation',
-                                  simple_purpose=='Meal' ~ 'Meal',
-                                  simple_purpose=='Home' ~ 'Errands',
-                                  is.na(simple_purpose) ~ 'Errands',
-                                  TRUE ~ simple_purpose))
+```
 
+```{r}
+ggplot(persons_vmt, aes(ln_vmt_day))+
+geom_histogram()+
+xlim(0, 10)
+```
 
-}
-
-
-
-simple_groupings<-c('race_eth_broad'='Race/Ethnicity','hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'sample_county' ='Home County', 'final_home_is_rgc'='Home in Regional Growth Center',  'hhsize' ='Household Size', 'lifecycle2' = 'Lifecycle'  )
+```{r}
+vmt_model<-glm(vmt_day ~ numadults+employment+hhincome_detailed+vehicle_count+age_category+lifecycle+hhsize+survey_year+final_home_is_rgc+numworkers+numchildren+gender_grp
++jobs_count+student+ education+ license+ commute_freq+ commute_dur +telecommute_freq+ final_cnty+work_county+ benefits_1+ benefits_2+ benefits_3+ benefits_4,  
+               ,data=persons_vmt)
+summary(vmt_model)
 ```
 
 
 ```{r}
-household_grouping<-function(household_data){
-household_data<-household_data%>%mutate(NoVehicles=ifelse(vehicle_count=='0 (no vehicles)', 'No Vehicles', "Has Vehicles")) %>%mutate(hhincome_100= case_when(
-    hhincome_broad=="Under $25,000" ~ "Under $75,000",
-    hhincome_broad=="$25,000-$49,999" ~ "Under $75,000",
-    hhincome_broad=="$50,000-$74,999" ~ "Under $75,000",
-    hhincome_broad=='$75,000-$99,999' ~ '$75,000 or more',
-    hhincome_broad=='$100,000-$199,999' ~ '$75,000 or more',
-                                 hhincome_broad=='$200,000 or more' ~ '$75,000 or more',
-                                 TRUE~hhincome_broad))%>%mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
-                                  hhsize == "2 people"  ~ '2 people', 
-                                   hhsize == "3 people" ~ '3 people',
-                                   hhsize == "4 people" | 
-                                  hhsize == "5 people" | 
-                                  hhsize == "6 people" | 
-                                  hhsize == "7 people" |
-                                  hhsize == "8 people" | 
-                                  hhsize == "12 people" ~ "4+ people"))%>%
-     mutate(lifecycle2= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
-                                  lifecycle == "Household size = 1, Householder age 65+"  
-                                 ~ '65 years or older', 
-                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
-                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
-                                 ~ '35-64',
-                                   lifecycle == "Household size > 1, Householder under age 35" | 
-                                   lifecycle == "Household size = 1, Householder under age 35" 
-                                   ~ 'Under 35 years, no kids',
-                                   lifecycle == "Household includes children age 5-17" | 
-                                   lifecycle == "Household includes children under 5" ~ 'Household has kids'))
+persons_vmt_gender<- persons_vmt%>%
+                     group_by(gender_grp)%>%
+                     summarize(mean_vmt=mean(vmt_day), median_vmt=median(vmt_day))
 
-household_data$hhincome_100_f=factor(household_data$hhincome_100,levels=c("Under $75,000","$75,000 or more"))
-
-household_data$lifecycle2 =factor(household_data$lifecycle2, levels= c('Household has kids', 'Under 35 years, no kids', '35-64', '65 years or older' ))
-household_data
-                                  
-}
-
-
-simple_groupings<-c('hhincome_100_f'='Household Income','NoVehicles'= 'Household Vehicles', 'final_home_is_rgc'='Home in Regional Growth Center', 'hhsize' ='Household Size', 'lifecycle2' ='Lifecycle' )
 ```
+
 
 ```{r}
-trip_data_17_19_21<-trip_grouping(trip_data_17_19_21)
-
-household_data_17<-household_grouping(household_data_17_19_21)
-
+vmt_model<-glm(vmt_day ~gender_grp,data=persons_vmt)
 ```
+
+
 
