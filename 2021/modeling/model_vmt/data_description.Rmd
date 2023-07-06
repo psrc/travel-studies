@@ -1,0 +1,226 @@
+---
+title: "VMT Data Description Notes"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    theme: cosmo
+    df_print: kable
+date: "2023-06-22"
+---
+<!-- find source code: data_description_script.R -->
+# checklist
+-[ ] person/household-level vmt
+-[ ] correlation plot
+-[ ] lm with one variable: find significant variables
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE, 
+               warning=FALSE, 
+               message=FALSE,
+               fig.align = "center")
+```
+
+
+```{r}
+library(echarts4r)
+library(psrcplot)
+library(psrc.travelsurvey)
+library(psrccensus)
+library(psrcelmer)
+library(tidyverse)
+
+install_psrc_fonts()
+
+Sys.setenv(CENSUS_API_KEY = '3fc20d0d6664692c0becc323b82c752408d843d9')
+Sys.getenv("CENSUS_API_KEY")
+
+# Common options
+e_common(
+  font_family = "Poppins",
+  theme = "infographic"
+)
+
+source("C:/Users/JLin/OneDrive - Puget Sound Regional Council/Documents/psrc_work_files/data_science/vmt_research/hhts_var_function.R")
+```
+
+```{r find hhts variables}
+hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
+# trip_path_distance: Bing-estimated trip distance (miles)
+
+hh_vars=c("sample_county", "final_home_rgcnum", "final_home_is_rgc",
+          "hhsize", "hhincome_broad", #"hhincome_detailed", 
+          "numadults", "numchildren", "numworkers", "lifecycle",
+          # "res_dur",  "res_months",
+          "res_type",
+          #"broadband", 
+          "vehicle_count", "offpark", "offpark_cost", "streetpark")
+
+trip_vars = c("mode_simple",
+              'dest_purpose_cat', 'origin_purpose_cat',
+              'd_tract10',"d_rgcname",
+              "google_duration", 
+              'trip_path_distance', # Bing-estimated trip distance (miles)
+              "depart_time_hhmm", "arrival_time_hhmm", 
+              "dayofweek", "travelers_total",
+              "park_pay" # if mode = auto (non-taxi)
+              )
+
+person_vars=c("gender", 
+              "age", "age_category", "race_eth_broad",
+              "education", "workplace", "industry", "employment",
+              "worker", # for calculating number of workers in the household
+              
+              "license",
+              "commute_freq", # How often commuted to workplace last week
+              "commute_mode", # Method of commuting to work location/office last week
+              "telecommute_freq",
+              
+              "mode_freq_1", # Times ridden transit in past 30 days
+              "mode_freq_2", # Times ridden a bike in past 30 days
+              "mode_freq_3", # Times gone for a walk in past 30 days
+              "mode_freq_4", # Times used carshare in past 30 days
+              "mode_freq_5", # Times used rideshare in past 30 days
+              "benefits_3", # Employer commuter benefits: Free/partially subsidized passes/fares
+              "work_park_type","workpass","workpass_cost" # if parks at work
+              )
+              
+
+# var_set <- hhts_codebook %>% filter(grepl("purpose", description, ignore.case = TRUE))
+
+hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars) %>% hh_group_data() 
+per_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars) %>% per_group_data(hh_data_17_19)
+trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars) %>% trip_group_data(per_data_17_19)
+```
+
+```{r person vmt data}
+working_vars <- c("person_id","household_id","sample_segment","survey",
+                  "sample_county","final_home_rgcnum","urban_metro",
+                  "gender","age_category","race_eth_broad","employment","license",
+                  "transit_pass","work_parking",
+                  "hh_weight_2017_2019")
+vmt_per <- trip_data_17_19 %>%
+  filter(mode_simple=="Drive") %>%
+  mutate(vmt= trip_path_distance/travelers_total) %>%
+  group_by(person_id) %>%
+  summarise(total_vmt=sum(vmt, na.rm = TRUE),
+            num_day = length(unique(daynum))) %>%
+  ungroup() %>%
+  mutate(vmt_day = total_vmt/num_day) %>%
+  full_join(per_data_17_19 %>% select(working_vars), by = "person_id") %>%
+  mutate(vmt_day=replace_na(vmt_day,0)) %>%
+  # other categories for statistics
+  filter(person_id!=19100243801) %>% # wrong distance for shopping trip
+  mutate(
+    q_group = factor(ntile(vmt_day, 10)), # 10 guantile groups
+    no_vmt_grp = case_when(vmt_day==0~"zero vmt", # people with no vmt
+                           TRUE~"vmt")
+  )
+```
+
+# Basic stat for person-level vmt
+```{r vmt}
+# people with no vmt
+vmt_per %>% hhts_count(group_vars="no_vmt_grp") %>% select(no_vmt_grp, share, share_moe)
+# 76.38% of travelers drove with 2.48% moe
+
+# 10 guantile groups
+vmt_per %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="q_group") %>%
+  mutate(vmt_day_mean = vmt_day_mean/100,
+         vmt_day_mean_moe = vmt_day_mean_moe/100,
+         lower = vmt_day_mean-vmt_day_mean_moe,
+         upper = vmt_day_mean+vmt_day_mean_moe) %>% 
+  e_charts(q_group) %>% 
+  e_bar(vmt_day_mean, name = "mean of vmt in quantile group") %>% 
+  e_error_bar(lower, upper) %>% 
+  e_color(psrc_colors$pognbgy_5) %>%
+  e_axis_labels(x = "quantile group", y = "vmt") %>%
+  e_title("vmt distribution") %>% 
+  e_tooltip(formatter = e_tooltip_item_formatter("percent")) # tooltip 
+```
+
+```{r vmt geography}
+# vmt in county
+vmt_per %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="sample_county") %>%
+  mutate(lower = vmt_day_mean-vmt_day_mean_moe,
+         upper = vmt_day_mean+vmt_day_mean_moe) %>% 
+  e_charts(sample_county) %>% 
+  e_bar(vmt_day_mean, name = "mean of vmt in county") %>% 
+  e_error_bar(lower, upper) %>% 
+  e_color(psrc_colors$pognbgy_5) %>%
+  e_axis_labels(x = "county", y = "vmt") %>%
+  e_title("vmt distribution") %>% 
+  e_tooltip(formatter = htmlwidgets::JS("
+      function(params){
+        return('county: ' + params.value[0] + '<br />vmt mean: ' + params.value[1])
+      }
+    "))
+
+# vmt in RGCs
+test <-vmt_per %>% 
+  hhts_mean(stat_var="vmt_day", group_vars=c("urban_metro","final_home_rgcnum")) %>%
+  mutate(lower = vmt_day_mean-vmt_day_mean_moe,
+         upper = vmt_day_mean+vmt_day_mean_moe) %>%
+   filter(final_home_rgcnum!="Total")
+test %>% 
+  arrange(vmt_day_mean) %>%
+  e_charts(final_home_rgcnum)  |> 
+  e_bar(vmt_day_mean, name = "mean of vmt", 
+        bind = urban_metro, # include column urban_metro in graph
+        colorBy=urban_metro # color bars with urban_metro groups
+        )  |>
+  e_error_bar(lower, upper,
+              tooltip=list(show= FALSE) # don't show errorbar data in tooltip
+              )  |> 
+  e_color(psrc_colors$pognbgy_5)  |>
+  e_axis_labels(x = "rgc names", y = "vmt")  |>
+  e_x_axis(axisLabel=list(rotate= 45)) |> # rotate x-axis label
+  e_grid(containLabel= TRUE) |>  # avoid cutting off x-axis label
+  e_title("vmt distribution")  |> 
+  e_tooltip(formatter = htmlwidgets::JS("
+      function(params){
+        return('<strong>' + params.name + 
+                '</strong><br />RGC name: ' + params.value[0] + '<br />vmt mean: ' + params.value[1])
+      }
+    "))
+```
+
+
+```{r vmt geography}
+test %>% 
+  arrange(vmt_day_mean) %>%
+  select(urban_metro,final_home_rgcnum,vmt_day_mean,sample_size,lower,upper) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,0)) |> 
+  group_by(urban_metro) |> 
+  e_charts(final_home_rgcnum) |>  
+  e_bar(vmt_day_mean, 
+        bind = urban_metro,
+        label=list(show = TRUE),
+        emphasis = list(focus = "series"),
+        barGap='-100%',
+        barMaxWidth='60%') |>
+  e_error_bar(lower, upper,
+              tooltip=list(show= FALSE), # don't show errorbar data in tooltip
+              width='60%') |> 
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "county", y = "mean of vmt") |>
+  e_x_axis(axisLabel=list(rotate= 45)) |>
+  e_grid(containLabel= TRUE) |> 
+  e_title("vmt distribution") |> 
+  e_tooltip(formatter = htmlwidgets::JS("
+      function(params){
+        return('<strong>' + params.name + 
+                '</strong><br />RGC name: ' + params.value[0] + '<br />vmt mean: ' + params.value[1])
+      }
+    "))
+```
+
+
+
+
+
+
+
+
