@@ -118,9 +118,7 @@ per_group_data <- function(.data,hh_data){
                                 TRUE ~ "Other modes")
     ) %>%
     # add household data
-    left_join(hh_data %>%
-                select(survey_year:hhincome_broad,vehicle_binary:hhincome_binary), 
-              by = c("household_id"="hhid")) 
+    left_join(hh_data %>% select(survey_year:hhincome_broad,vehicle_binary:hhincome_binary,household_id), by = "household_id")
   
   .data$race_eth_broad <- factor(.data$race_eth_broad, 
                                  levels=c("Asian only",
@@ -221,8 +219,21 @@ trip_group_data <- function(.data,per_data){
                        hhincome_broad,hhincome_binary,have_child,
                        gender,age,age_category,race_eth_broad,
                        education,education2,workplace:license,commute_mode2), 
-              by = "person_id")
+              by = "person_id") %>%
+    # left_join(rgcs_tracts_list %>% mutate(geoid=as.integer(geoid)) %>% select(geoid,name), 
+    #           by=c("d_tract10"="geoid")) %>%
+    # mutate(dest_RGC = case_when(d_tract10 %in% rgcs_tracts_list$geoid~"RGC",
+    #                        !d_tract10 %in% rgcs_tracts_list$geoid~"Not RGC"),
+    #        dest_urban_metro = case_when(d_tract10 %in% rgcs_tracts_list[rgcs_tracts_list$urban_metro=="Metro", ]$geoid~"Metro",
+    #                                d_tract10 %in% rgcs_tracts_list[rgcs_tracts_list$urban_metro=="Urban", ]$geoid~"Urban",
+    #                                !d_tract10 %in% rgcs_tracts_list$geoid~"Not RGC"))
+    left_join(urban_metro %>% rename(dest_rgc=name,dest_urban_metro=category), 
+              by = c("d_rgcname"="dest_rgc")) %>%
+    mutate(dest_urban_metro = case_when(!is.na(dest_urban_metro)~dest_urban_metro,
+                                        TRUE~"Not RGC"))
   
+  # .data$dest_RGC <- factor(.data$dest_RGC, levels=c("RGC","Not RGC"))
+  .data$dest_urban_metro <- factor(.data$dest_urban_metro, levels=c("Metro","Urban","Not RGC"))
   .data$simple_purpose <- factor(.data$simple_purpose, 
                                  levels=c('Work/School',
                                           'Shop',

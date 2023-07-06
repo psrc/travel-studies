@@ -36,13 +36,15 @@ source("C:/Joanne_PSRC/data_science/travel-studies/2021/analysis_in_progress/rgc
 
 # import HHTS data ####
 hh_vars=c("survey_year",
-          "hhid", "sample_county", "final_home_rgcnum", "final_home_is_rgc",
+          #"hhid", 
+          "sample_county", "final_home_rgcnum", "final_home_is_rgc",
           "hhsize", "vehicle_count", "hhincome_broad", "hhincome_detailed", 
           "numadults", "numchildren", "numworkers", "lifecycle",
           "res_dur", "res_type", "res_months",
           "broadband", "offpark", "offpark_cost", "streetpark")
 
-person_vars=c("person_id",  "household_id", "gender", 
+person_vars=c(#"person_id",  "household_id", 
+              "gender", 
               "age", "age_category", "race_category", "race_eth_broad",
               "education", "workplace", "industry", "employment",
               "worker", # for calculating number of workers in the household
@@ -60,9 +62,10 @@ person_vars=c("person_id",  "household_id", "gender",
               "benefits_3" # Employer commuter benefits: Free/partially subsidized passes/fares
               )
 
-trip_vars = c("hhid",'person_id',
+trip_vars = c(#"hhid",'person_id',
               "driver","mode_1","mode_simple",
               'dest_purpose_cat', 'origin_purpose_cat',
+              'd_tract10',"d_rgcname",
               "google_duration", 
               'trip_path_distance',
               "depart_time_hhmm", "arrival_time_hhmm", 
@@ -86,7 +89,7 @@ trip_data_17<-    get_hhts("2017", "t", vars=trip_vars) %>%      trip_group_data
 trip_data_19<-    get_hhts("2019", "t", vars=trip_vars) %>%      trip_group_data(per_data_19)
 trip_data_21<-    get_hhts("2021", "t", vars=trip_vars) %>%      trip_group_data(per_data_21)
 
-
+hhts_varsearch("tract")
 # RGC analysis ####
 
 ## travel behavior ####
@@ -129,22 +132,40 @@ data_mode_metro <- hhts_count(trip_data_21 %>%
                            filter(race_eth_broad != "Child -- no race specified"),
                          group_vars = c('urban_metro', 'mode_simple2'),
                          spec_wgt = 'trip_adult_weight_2021') %>% 
-  add_row(
-    hhts_count(trip_data_19 %>%
-                 filter(race_eth_broad != "Child -- no race specified"),
-               group_vars = c('urban_metro', 'mode_simple2'),
-               spec_wgt = 'trip_weight_2019')
-  ) %>% 
-  add_row(
-    hhts_count(trip_data_17 %>%
-                 filter(race_eth_broad != "Child -- no race specified"),
-               group_vars = c('urban_metro', 'mode_simple2'),
-               spec_wgt = 'trip_weight_2017')
-  ) %>% 
+  # add_row(
+  #   hhts_count(trip_data_19 %>%
+  #                filter(race_eth_broad != "Child -- no race specified"),
+  #              group_vars = c('urban_metro', 'mode_simple2'),
+  #              spec_wgt = 'trip_weight_2019')
+  # ) %>% 
+  # add_row(
+  #   hhts_count(trip_data_17 %>%
+  #                filter(race_eth_broad != "Child -- no race specified"),
+  #              group_vars = c('urban_metro', 'mode_simple2'),
+  #              spec_wgt = 'trip_weight_2017')
+  # ) %>% 
   filter(urban_metro != 'Total',
          !is.na(mode_simple2),
          mode_simple2 != 'Total',
          survey=="2021") 
+
+data_mode_metro_dest <- hhts_count(trip_data_21 %>%
+                                filter(race_eth_broad != "Child -- no race specified"),
+                              group_vars = c('dest_urban_metro', 'mode_simple2'),
+                              spec_wgt = 'trip_adult_weight_2021',
+                              incl_na = FALSE) %>%
+  filter(dest_urban_metro != 'Total',
+         !is.na(mode_simple2),
+         mode_simple2 != 'Total')
+data_mode_metro_dest_Work <- hhts_count(trip_data_21 %>%
+                                     filter(race_eth_broad != "Child -- no race specified",
+                                            simple_purpose=="Work/School"),
+                                   group_vars = c("simple_purpose",'dest_urban_metro', 'mode_simple2'),
+                                   spec_wgt = 'trip_adult_weight_2021',
+                                   incl_na = FALSE) %>%
+  filter(dest_urban_metro != 'Total',
+         !is.na(mode_simple2),
+         mode_simple2 != 'Total')
 
 addWorksheet(wb = wb, sheetName = 'mode share', gridLines = FALSE)
 writeDataTable(wb = wb, sheet = 'mode share', x = data_mode_metro)
@@ -159,6 +180,26 @@ mode_metro <- ggplot(data_mode_metro,aes(x=fct_rev(urban_metro), y=share, fill=m
       panel.grid.major.y = element_blank(),
       panel.grid.major.x = element_line(color="#cbcbcb")
     )
+dest_mode_metro <- ggplot(data_mode_metro_dest,aes(x=fct_rev(dest_urban_metro), y=share, fill=mode_simple2)) +
+  geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
+  scale_y_continuous(labels = label_percent()) +
+  psrc_style2() +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  coord_flip()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color="#cbcbcb")
+  )
+dest_mode_metro_Work <- ggplot(data_mode_metro_dest_Work,aes(x=fct_rev(dest_urban_metro), y=share, fill=mode_simple2)) +
+  geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
+  scale_y_continuous(labels = label_percent()) +
+  psrc_style2() +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  coord_flip()+
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color="#cbcbcb")
+  )
 
 # mode_metro$survey <- factor(mode_metro$survey, levels = c("2017","2019","2021"))
 # mode_rgc$survey <- factor(mode_rgc$survey, levels = c("2017","2019","2021"))
@@ -196,7 +237,7 @@ mode_change_rgc <- ggplot(data_mode_change_rgc, aes(x=fct_rev(final_home_is_rgc)
     geom_col(position = "dodge")+
     geom_errorbar(aes(ymin=share_change-share_moe_change, ymax=share_change+share_moe_change),
                   width=0.2, position = position_dodge(0.9)) +
-    scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2),limits = c(-0.6, 0.6)) +
+    scale_y_continuous(labels=percent,breaks=seq(-0.8,0.8,0.2),limits = c(-0.65, 0.6)) +
     scale_fill_discrete_psrc ("pognbgy_10")+
     psrc_style2() +
     coord_flip()+
@@ -545,7 +586,7 @@ plot_income <- ggplot(data_plot_income, aes(x=label2, y=share, fill=RGC)) +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
     # psrc_style2() + 
-    psrc_style2(m.r=1,m.l=1) +
+    psrc_style2(m.r=1,m.l=1,m.t=0.2) +
     theme(plot.title = element_blank())
 
 
@@ -625,7 +666,7 @@ plot_hhsize21 <- ggplot(data_plot_hhsize21,aes(x=hh_size, y=share, fill=RGC)) +
     moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    psrc_style2(m.r=0.5,m.l=0.5) +
+    psrc_style2(m.r=0.5,m.l=0.5,m.t=0.2) +
     theme(plot.title = element_blank())
     # ggtitle("(b) household size")
 
@@ -659,7 +700,7 @@ plot_veh21_rgc <- ggplot(data_plot_veh21_rgc, aes(x=vehicle, y=share, fill=RGC))
   moe_bars +
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
-  psrc_style2(m.t=0.5,m.r=2.3,m.l=2.3) + 
+  psrc_style2(m.t=0.2,m.r=2.3,m.l=2.3) + 
   theme(plot.title = element_blank())
 
 
@@ -733,7 +774,7 @@ plot_income_mu <- ggplot(data_plot_income_mu, aes(x=label2, y=share, fill=urban_
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
   # psrc_style2() + 
-  psrc_style2(m.r=1.2,m.l=1.2) +
+  psrc_style2(m.r=1.2,m.l=1.2,m.t=0.2) +
   theme(plot.title = element_blank())
 
 data_plot_hhsize21_mu <- get_acs_recs(geography = 'block group',
@@ -767,7 +808,7 @@ plot_hhsize21_mu <- ggplot(data_plot_hhsize21_mu, aes(x=hh_size, y=share, fill=c
   moe_bars +
   scale_y_continuous(labels=percent) +
   scale_fill_discrete_psrc ("gnbopgy_5")+
-  psrc_style2(m.r=1,m.l=1) +
+  psrc_style2(m.r=1,m.l=1,m.t=0.2) +
   theme(plot.title = element_blank())
 
 data_plot_veh21_rgc_mu <- get_acs_recs(geography = 'block group',
@@ -799,7 +840,7 @@ plot_veh21_rgc_mu <- ggplot(data_plot_veh21_rgc_mu, aes(x=vehicle, y=share, fill
     moe_bars +
     scale_y_continuous(labels=percent) +
     scale_fill_discrete_psrc ("gnbopgy_5")+
-    psrc_style2(m.t=0.5,m.r=2,m.l=2) + 
+    psrc_style2(m.t=0.2,m.r=2,m.l=2) + 
     theme(plot.title = element_blank())
 
 

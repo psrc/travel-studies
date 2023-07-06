@@ -4,14 +4,12 @@
 \usepackage{hyperref}
 \usepackage{pdfcomment}
 \usepackage{datetime}
-% \usepackage{subfig}
-\usepackage{floatrow}
+\usepackage{subfig}
+% \usepackage{float}
 \usepackage[document]{ragged2e}
-% \usepackage{caption}
-% \captionsetup{width=0.9\textwidth}
+\usepackage{floatrow}
 
-
-% \setmainfont{Poppins}
+\setmainfont{Poppins}
 
 % \fancypagestyle{plain}{\pagestyle{fancy}} % added to show header and footer in the first page
 
@@ -29,3 +27,6 @@
 \renewcommand{\headrulewidth}{0pt}
 \renewcommand{\footrulewidth}{4pt}
 \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
+
+
+\floatsetup[figure]{capposition=top}
