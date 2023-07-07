@@ -41,11 +41,11 @@ e_common(
   theme = "infographic"
 )
 
-source("C:/Users/JLin/OneDrive - Puget Sound Regional Council/Documents/psrc_work_files/data_science/vmt_research/hhts_var_function.R")
+source("hhts_var_function.R")
 ```
 
 ```{r find hhts variables}
-hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
+# hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
 # trip_path_distance: Bing-estimated trip distance (miles)
 
 hh_vars=c("sample_county", "final_home_rgcnum", "final_home_is_rgc",
@@ -97,7 +97,7 @@ trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars) %>% trip_group_data
 working_vars <- c("person_id","household_id","sample_segment","survey",
                   "sample_county","final_home_rgcnum","urban_metro",
                   "gender","age_category","race_eth_broad","employment","license",
-                  "transit_pass","work_parking",
+                  "transit_pass","work_parking","commute_mode_simple",
                   "hh_weight_2017_2019")
 vmt_per <- trip_data_17_19 %>%
   filter(mode_simple=="Drive") %>%
@@ -116,7 +116,9 @@ vmt_per <- trip_data_17_19 %>%
     no_vmt_grp = case_when(vmt_day==0~"zero vmt", # people with no vmt
                            TRUE~"vmt")
   )
+
 ```
+
 
 # Basic stat for person-level vmt
 ```{r vmt}
@@ -127,12 +129,13 @@ vmt_per %>% hhts_count(group_vars="no_vmt_grp") %>% select(no_vmt_grp, share, sh
 # 10 guantile groups
 vmt_per %>% 
   hhts_mean(stat_var="vmt_day", group_vars="q_group") %>%
-  mutate(vmt_day_mean = vmt_day_mean/100,
+  mutate(vmt_day_mean = round(vmt_day_mean,2)/100,
          vmt_day_mean_moe = vmt_day_mean_moe/100,
          lower = vmt_day_mean-vmt_day_mean_moe,
          upper = vmt_day_mean+vmt_day_mean_moe) %>% 
   e_charts(q_group) %>% 
-  e_bar(vmt_day_mean, name = "mean of vmt in quantile group") %>% 
+  e_bar(vmt_day_mean, name = "mean of vmt in quantile group",
+        label=list(show = TRUE)) %>% 
   e_error_bar(lower, upper) %>% 
   e_color(psrc_colors$pognbgy_5) %>%
   e_axis_labels(x = "quantile group", y = "vmt") %>%
@@ -151,34 +154,43 @@ vmt_per %>%
   e_error_bar(lower, upper) %>% 
   e_color(psrc_colors$pognbgy_5) %>%
   e_axis_labels(x = "county", y = "vmt") %>%
-  e_title("vmt distribution") %>% 
-  e_tooltip(formatter = htmlwidgets::JS("
-      function(params){
-        return('county: ' + params.value[0] + '<br />vmt mean: ' + params.value[1])
-      }
-    "))
+  e_title("vmt distribution")
+
+# group centers with small sample size
+rgc_sample_size <- vmt_per %>% 
+  hhts_count(group_vars=c("urban_metro","final_home_rgcnum")) %>%
+  mutate(big_rgc_grp = as.character(case_when(sample_size<30 & urban_metro =="Metro"~"Other Metro centers",
+                                              sample_size<30 & urban_metro =="Urban"~"Other Urban centers",
+                                              TRUE~final_home_rgcnum))) %>%
+  filter(final_home_rgcnum!="Total")
 
 # vmt in RGCs
-test <-vmt_per %>% 
-  hhts_mean(stat_var="vmt_day", group_vars=c("urban_metro","final_home_rgcnum")) %>%
-  mutate(lower = vmt_day_mean-vmt_day_mean_moe,
-         upper = vmt_day_mean+vmt_day_mean_moe) %>%
-   filter(final_home_rgcnum!="Total")
-test %>% 
+vmt_per %>%
+  left_join(rgc_sample_size %>% select(final_home_rgcnum,big_rgc_grp), by = "final_home_rgcnum") %>% 
+  hhts_mean(stat_var="vmt_day", group_vars=c("urban_metro","big_rgc_grp")) %>%
+  # mutate(lower = vmt_day_mean-vmt_day_mean_moe,
+  #        upper = vmt_day_mean+vmt_day_mean_moe) %>%
+  filter(big_rgc_grp!="Total")  %>% 
   arrange(vmt_day_mean) %>%
-  e_charts(final_home_rgcnum)  |> 
-  e_bar(vmt_day_mean, name = "mean of vmt", 
-        bind = urban_metro, # include column urban_metro in graph
-        colorBy=urban_metro # color bars with urban_metro groups
-        )  |>
-  e_error_bar(lower, upper,
-              tooltip=list(show= FALSE) # don't show errorbar data in tooltip
-              )  |> 
-  e_color(psrc_colors$pognbgy_5)  |>
-  e_axis_labels(x = "rgc names", y = "vmt")  |>
-  e_x_axis(axisLabel=list(rotate= 45)) |> # rotate x-axis label
-  e_grid(containLabel= TRUE) |>  # avoid cutting off x-axis label
-  e_title("vmt distribution")  |> 
+  select(urban_metro,big_rgc_grp,vmt_day_mean,sample_size#,lower,upper
+         ) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,1)) |> 
+  group_by(urban_metro) |> 
+  e_charts(big_rgc_grp) |>  
+  e_bar(vmt_day_mean, 
+        bind = urban_metro,
+        label=list(show = TRUE),
+        barGap='-100%',
+        barMaxWidth='60%') |>
+  # e_error_bar(lower, upper,
+  #             tooltip=list(show= FALSE), # don't show errorbar data in tooltip
+  #             width='60%') |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "center", y = "mean of vmt") |>
+  e_x_axis(axisLabel=list(rotate= 45)) |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
+  e_title("vmt distribution",
+          "centers with sample size smaller than 30 are grouped in other metro and other urban centers") |> 
   e_tooltip(formatter = htmlwidgets::JS("
       function(params){
         return('<strong>' + params.name + 
@@ -188,27 +200,47 @@ test %>%
 ```
 
 
-```{r vmt geography}
-test %>% 
-  arrange(vmt_day_mean) %>%
-  select(urban_metro,final_home_rgcnum,vmt_day_mean,sample_size,lower,upper) %>%
-  mutate(vmt_day_mean = round(vmt_day_mean,0)) |> 
-  group_by(urban_metro) |> 
-  e_charts(final_home_rgcnum) |>  
-  e_bar(vmt_day_mean, 
-        bind = urban_metro,
+```{r vmt transit & parking subsidy}
+# transit pass
+test <- vmt_per %>% 
+  # only include full/part-time employment
+  filter(employment %in% c("Employed full time (35+ hours/week, paid)",
+                           "Employed part time (fewer than 35 hours/week, paid)")) %>%
+  hhts_mean(stat_var="vmt_day", group_vars="transit_pass") %>%
+  rename(benefits = transit_pass,
+         transit_pass_vmt_day_mean = vmt_day_mean,
+         transit_pass_vmt_day_mean_moe = vmt_day_mean_moe,
+         transit_pass_sample_size = sample_size) %>%
+  filter(benefits!="I don't know") %>%
+  add_column(
+    vmt_per %>% 
+      # only include full/part-time employment
+      filter(employment %in% c("Employed full time (35+ hours/week, paid)",
+                               "Employed part time (fewer than 35 hours/week, paid)")) %>% 
+      hhts_mean(stat_var="vmt_day", group_vars="work_parking") %>%
+      rename(benefits = work_parking,
+             work_parking_vmt_day_mean = vmt_day_mean,
+             work_parking_vmt_day_mean_moe = vmt_day_mean_moe,
+             work_parking_sample_size = sample_size) %>%
+      filter(!is.na(benefits)) %>%
+      select(work_parking_vmt_day_mean:work_parking_sample_size)
+  )
+test %>% e_charts(benefits) |>  
+  e_bar(transit_pass_vmt_day_mean, 
         label=list(show = TRUE),
-        emphasis = list(focus = "series"),
-        barGap='-100%',
-        barMaxWidth='60%') |>
-  e_error_bar(lower, upper,
-              tooltip=list(show= FALSE), # don't show errorbar data in tooltip
-              width='60%') |> 
+        name="transit pass", 
+        x_index = 1, y_index = 1) |>
+  e_bar(work_parking_vmt_day_mean, 
+        label=list(show = TRUE),
+        name="free/subsidized parking at work") |>
+  e_grid(width = "35%") |> 
+  e_grid(width = "35%", left = "55%") |> 
+  e_x_axis(gridIndex = 1) |> 
   e_color(psrc_colors$pognbgy_5) |>
-  e_axis_labels(x = "county", y = "mean of vmt") |>
-  e_x_axis(axisLabel=list(rotate= 45)) |>
-  e_grid(containLabel= TRUE) |> 
-  e_title("vmt distribution") |> 
+  e_axis_labels(x = "center", y = "mean of vmt") |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
+  e_title("vmt distribution",
+          "only include travelers with full/part-time employment") |> 
   e_tooltip(formatter = htmlwidgets::JS("
       function(params){
         return('<strong>' + params.name + 
