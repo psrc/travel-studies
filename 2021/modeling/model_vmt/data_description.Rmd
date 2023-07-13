@@ -5,30 +5,35 @@ output:
     toc: true
     toc_float: true
     theme: cosmo
-    df_print: kable
+    df_print: paged
+    fig_width: 7
+    fig_height: 3
+    fig_caption: true
 date: "2023-06-22"
 ---
 <!-- find source code: data_description_script.R -->
-# checklist
--[ ] person/household-level vmt
--[ ] correlation plot
--[ ] lm with one variable: find significant variables
+<!-- # checklist -->
+<!-- - [ ] person/household-level vmt -->
+<!-- - [ ] correlation plot -->
+<!-- - [ ] lm with one variable: find significant variables -->
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo=TRUE, 
+knitr::opts_chunk$set(echo=FALSE, 
                warning=FALSE, 
                message=FALSE,
                fig.align = "center")
 ```
 
 
-```{r}
+```{r, include=FALSE}
 library(echarts4r)
 library(psrcplot)
 library(psrc.travelsurvey)
 library(psrccensus)
 library(psrcelmer)
 library(tidyverse)
+library(wdm)
+library(survey)
 
 install_psrc_fonts()
 
@@ -45,7 +50,7 @@ source("hhts_var_function.R")
 ```
 
 ```{r find hhts variables}
-# hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
+hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
 # trip_path_distance: Bing-estimated trip distance (miles)
 
 hh_vars=c("sample_county", "final_home_rgcnum", "final_home_is_rgc",
@@ -86,75 +91,57 @@ person_vars=c("gender",
               )
               
 
-# var_set <- hhts_codebook %>% filter(grepl("purpose", description, ignore.case = TRUE))
+var_set <- hhts_codebook %>% filter(grepl("work", description, ignore.case = TRUE))
 
 hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars) %>% hh_group_data() 
 per_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars) %>% per_group_data(hh_data_17_19)
 trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars) %>% trip_group_data(per_data_17_19)
-```
 
-```{r person vmt data}
-working_vars <- c("person_id","household_id","sample_segment","survey",
-                  "sample_county","final_home_rgcnum","urban_metro",
-                  "gender","age_category","race_eth_broad","employment","license",
-                  "transit_pass","work_parking","commute_mode_simple",
-                  "hh_weight_2017_2019")
-vmt_per <- trip_data_17_19 %>%
-  filter(mode_simple=="Drive") %>%
-  mutate(vmt= trip_path_distance/travelers_total) %>%
-  group_by(person_id) %>%
-  summarise(total_vmt=sum(vmt, na.rm = TRUE),
-            num_day = length(unique(daynum))) %>%
-  ungroup() %>%
-  mutate(vmt_day = total_vmt/num_day) %>%
-  full_join(per_data_17_19 %>% select(working_vars), by = "person_id") %>%
-  mutate(vmt_day=replace_na(vmt_day,0)) %>%
-  # other categories for statistics
-  filter(person_id!=19100243801) %>% # wrong distance for shopping trip
-  mutate(
-    q_group = factor(ntile(vmt_day, 10)), # 10 guantile groups
-    no_vmt_grp = case_when(vmt_day==0~"zero vmt", # people with no vmt
-                           TRUE~"vmt")
-  )
-
+# vmt data
+source("data_description_script.R")
 ```
 
 
-# Basic stat for person-level vmt
-```{r vmt}
+# Basic stat for person-level vmt {.tabset}
+## total vmt: 10 quantiles
+```{r vmt data}
 # people with no vmt
 vmt_per %>% hhts_count(group_vars="no_vmt_grp") %>% select(no_vmt_grp, share, share_moe)
 # 76.38% of travelers drove with 2.48% moe
 
-# 10 guantile groups
+# 10 quantile groups
 vmt_per %>% 
   hhts_mean(stat_var="vmt_day", group_vars="q_group") %>%
   mutate(vmt_day_mean = round(vmt_day_mean,2)/100,
          vmt_day_mean_moe = vmt_day_mean_moe/100,
          lower = vmt_day_mean-vmt_day_mean_moe,
          upper = vmt_day_mean+vmt_day_mean_moe) %>% 
-  e_charts(q_group) %>% 
+  e_charts(q_group) |> 
   e_bar(vmt_day_mean, name = "mean of vmt in quantile group",
-        label=list(show = TRUE)) %>% 
-  e_error_bar(lower, upper) %>% 
-  e_color(psrc_colors$pognbgy_5) %>%
-  e_axis_labels(x = "quantile group", y = "vmt") %>%
+        label=list(show = TRUE)) |> 
+  e_error_bar(lower, upper) |> 
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "quantile group", y = "vmt") |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
   e_title("vmt distribution") %>% 
   e_tooltip(formatter = e_tooltip_item_formatter("percent")) # tooltip 
 ```
 
-```{r vmt geography}
+## vmt in counties and centers
+```{r vmt geography [county and centers]}
 # vmt in county
 vmt_per %>% 
   hhts_mean(stat_var="vmt_day", group_vars="sample_county") %>%
   mutate(lower = vmt_day_mean-vmt_day_mean_moe,
          upper = vmt_day_mean+vmt_day_mean_moe) %>% 
-  e_charts(sample_county) %>% 
-  e_bar(vmt_day_mean, name = "mean of vmt in county") %>% 
-  e_error_bar(lower, upper) %>% 
-  e_color(psrc_colors$pognbgy_5) %>%
-  e_axis_labels(x = "county", y = "vmt") %>%
-  e_title("vmt distribution")
+  e_charts(sample_county) |> 
+  e_bar(vmt_day_mean, name = "mean of vmt in county") |> 
+  e_error_bar(lower, upper) |> 
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "county", y = "vmt") |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE) |>
+  e_legend(top='10%') |>
+  e_title("vmt distribution by counties")
 
 # group centers with small sample size
 rgc_sample_size <- vmt_per %>% 
@@ -168,8 +155,6 @@ rgc_sample_size <- vmt_per %>%
 vmt_per %>%
   left_join(rgc_sample_size %>% select(final_home_rgcnum,big_rgc_grp), by = "final_home_rgcnum") %>% 
   hhts_mean(stat_var="vmt_day", group_vars=c("urban_metro","big_rgc_grp")) %>%
-  # mutate(lower = vmt_day_mean-vmt_day_mean_moe,
-  #        upper = vmt_day_mean+vmt_day_mean_moe) %>%
   filter(big_rgc_grp!="Total")  %>% 
   arrange(vmt_day_mean) %>%
   select(urban_metro,big_rgc_grp,vmt_day_mean,sample_size#,lower,upper
@@ -182,14 +167,13 @@ vmt_per %>%
         label=list(show = TRUE),
         barGap='-100%',
         barMaxWidth='60%') |>
-  # e_error_bar(lower, upper,
-  #             tooltip=list(show= FALSE), # don't show errorbar data in tooltip
-  #             width='60%') |>
   e_color(psrc_colors$pognbgy_5) |>
   e_axis_labels(x = "center", y = "mean of vmt") |>
-  e_x_axis(axisLabel=list(rotate= 45)) |>
+  e_x_axis(axisLabel=list(rotate= 45),
+           axisTick=list(alignWithLabel=TRUE)) |>
   e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
-  e_title("vmt distribution",
+  e_legend(top='12%') |>
+  e_title("vmt distribution by centers",
           "centers with sample size smaller than 30 are grouped in other metro and other urban centers") |> 
   e_tooltip(formatter = htmlwidgets::JS("
       function(params){
@@ -199,60 +183,274 @@ vmt_per %>%
     "))
 ```
 
+## vmt by transit frequency
+- frequent transit users have significantly lower vmt
+```{r vmt transit frequency}
+vmt_per %>% 
+  hhts_count(group_vars=c("freq_transit_simple"), incl_na = FALSE) %>%
+  select(2,5,7)
 
-```{r vmt transit & parking subsidy}
+
+vmt_per %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="freq_transit_simple", incl_na = FALSE) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,2)) %>%
+  filter(freq_transit_simple!="Total") %>%
+  e_charts(freq_transit_simple) |>
+  e_bar(vmt_day_mean,
+        label=list(show = TRUE),
+        name = "mean of vmt") |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
+  e_flip_coords() |>
+  e_grid(height = "75%", top = "20%", containLabel= TRUE)  |>
+  e_legend(top='10%') |>
+  e_axis_labels(x = "transit frequency", y = "mean of vmt") |>
+  e_title("vmt distribution by transit frequency")
+```
+
+
+## vmt by telecommute frequency
+- people who telework 3-4 days/week have the highest vmt, while people who telework 5 days/week havae the lowest
+```{r}
+vmt_per %>% 
+  hhts_count(group_vars=c("telecommute_freq_simple"), incl_na = FALSE) %>%
+  select(2,5,7)
+
+
+vmt_per %>% 
+  # only include full/part-time employment
+  filter(employment %in% c("Employed full time (35+ hours/week, paid)",
+                           "Employed part time (fewer than 35 hours/week, paid)")) %>%
+  hhts_mean(stat_var="vmt_day", group_vars="telecommute_freq_simple", incl_na = FALSE) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,2)) %>%
+  filter(telecommute_freq_simple!="Total") %>%
+  e_charts(telecommute_freq_simple) |>
+  e_bar(vmt_day_mean,
+        label=list(show = TRUE),
+        name = "mean of vmt") |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
+  e_flip_coords() |>
+  e_grid(height = "75%", top = "20%", containLabel= TRUE)  |>
+  e_legend(top='10%') |>
+  e_axis_labels(x = "telecommute \nfrequency") |>
+  e_title("vmt distribution by telecommute frequency",
+          "only include travelers with full/part-time employment")
+```
+
+- **only including high income group** (household income higher than $75,000)
+```{r}
+# only high income 
+vmt_per %>% 
+  filter(hhincome_broad %in% c("$75,000-$99,999","$100,000 or more")) %>%
+  hhts_count(group_vars=c("telecommute_freq_simple"), incl_na = FALSE) %>%
+  select(2,5,7)
+
+
+vmt_per %>% 
+  # only include full/part-time employment
+  filter(employment %in% c("Employed full time (35+ hours/week, paid)",
+                           "Employed part time (fewer than 35 hours/week, paid)"),
+         hhincome_broad %in% c("$75,000-$99,999","$100,000 or more")) %>%
+  hhts_mean(stat_var="vmt_day", group_vars="telecommute_freq_simple", incl_na = FALSE) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,2)) %>%
+  filter(telecommute_freq_simple!="Total") %>%
+  e_charts(telecommute_freq_simple) |>
+  e_bar(vmt_day_mean,
+        label=list(show = TRUE),
+        name = "mean of vmt") |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
+  e_flip_coords() |>
+  e_grid(height = "75%", top = "20%", containLabel= TRUE)  |>
+  e_legend(top='10%') |>
+  e_axis_labels(x = "telecommute \nfrequency") |>
+  e_title("vmt distribution by telecommute frequency",
+          "only include travelers with full/part-time employment and household income > $50,000")
+```
+
+# transit and parking subsidy {.tabset}
+  - how does vmt correlate with transit pass and free/subsidized parking at work?
+      * people that are offered a transit pass have lower vmt than those not offered one
+      * people that are offered free/subsidized parking at work have higher vmt than those not offered
+  - transit pass vs transit frequency
+  - transit frequency vs drive trips: 50% of people who takes transit 5+ days/week also drive 
+
+## vmt by commute benefits
+```{r vmt benefits [transit and parking subsidy]}
 # transit pass
 test <- vmt_per %>% 
   # only include full/part-time employment
   filter(employment %in% c("Employed full time (35+ hours/week, paid)",
                            "Employed part time (fewer than 35 hours/week, paid)")) %>%
   hhts_mean(stat_var="vmt_day", group_vars="transit_pass") %>%
-  rename(benefits = transit_pass,
-         transit_pass_vmt_day_mean = vmt_day_mean,
-         transit_pass_vmt_day_mean_moe = vmt_day_mean_moe,
-         transit_pass_sample_size = sample_size) %>%
+  rename(benefits = transit_pass) %>%
   filter(benefits!="I don't know") %>%
-  add_column(
+  mutate(type = "transit pass") %>%
+  add_row(
     vmt_per %>% 
       # only include full/part-time employment
       filter(employment %in% c("Employed full time (35+ hours/week, paid)",
                                "Employed part time (fewer than 35 hours/week, paid)")) %>% 
       hhts_mean(stat_var="vmt_day", group_vars="work_parking") %>%
-      rename(benefits = work_parking,
-             work_parking_vmt_day_mean = vmt_day_mean,
-             work_parking_vmt_day_mean_moe = vmt_day_mean_moe,
-             work_parking_sample_size = sample_size) %>%
+      rename(benefits = work_parking) %>%
       filter(!is.na(benefits)) %>%
-      select(work_parking_vmt_day_mean:work_parking_sample_size)
-  )
-test %>% e_charts(benefits) |>  
-  e_bar(transit_pass_vmt_day_mean, 
-        label=list(show = TRUE),
-        name="transit pass", 
-        x_index = 1, y_index = 1) |>
-  e_bar(work_parking_vmt_day_mean, 
-        label=list(show = TRUE),
-        name="free/subsidized parking at work") |>
-  e_grid(width = "35%") |> 
-  e_grid(width = "35%", left = "55%") |> 
-  e_x_axis(gridIndex = 1) |> 
+      mutate(type = "free/reimbursed parking at work",
+             benefits = case_when(benefits=="free/reimbursed parking"~"Offered",
+                                  benefits=="paid parking"~"Not offered",
+                                  TRUE~benefits))) %>%
+  mutate(benefits = factor(benefits, levels=c("Offered","Not offered","Total")),
+         vmt_day_mean = round(vmt_day_mean,2))
+test %>% 
+  group_by(benefits) %>%
+  e_charts(type) |>  
+  e_bar(vmt_day_mean, 
+        label=list(show = TRUE)) |>
   e_color(psrc_colors$pognbgy_5) |>
-  e_axis_labels(x = "center", y = "mean of vmt") |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
   e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
-  e_title("vmt distribution",
-          "only include travelers with full/part-time employment") |> 
-  e_tooltip(formatter = htmlwidgets::JS("
-      function(params){
-        return('<strong>' + params.name + 
-                '</strong><br />RGC name: ' + params.value[0] + '<br />vmt mean: ' + params.value[1])
-      }
-    "))
+  e_legend(top='12%') |>
+  e_axis_labels(x = "commute \nbenefits", y = "mean of vmt") |>
+  e_title("vmt effects",
+          "only include travelers with full/part-time employment")
+```
+
+## transit pass vs transit frequency
+```{r transit pass vs transit frequency}
+df <- vmt_per %>% 
+  hhts_count(group_vars=c("transit_pass","freq_transit_simple"), incl_na = FALSE) 
+df %>% 
+  filter(freq_transit_simple=="Total") %>%
+  select(1,2,4,5,8)
+
+df %>%
+  mutate(share = round(share,2)*100) %>%
+  filter(freq_transit_simple!="Total") %>%
+  group_by(freq_transit_simple) %>%
+  e_charts(transit_pass) |>  
+  e_bar(share, 
+        label=list(show = TRUE)) |>
+  e_color(c(psrc_colors$blues_dec[1:4],psrc_colors$purples_inc[3])) |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
+  e_legend(top='10%') |>
+  e_axis_labels(x = "transit pass", y = "share (%)") |>
+  e_title("transit pass vs transit frequency")
+```
+
+## transit frequency vs drive trips
+- 50% of transit users also drive
+```{r transit frequency vs drive trips}
+df <- vmt_per %>%
+  mutate(n_trip_drive = n_trip_drive/num_day,
+         dum_drive = case_when(n_trip_drive>0~"drive",
+                               TRUE~"no drive"),
+         dum_transit_5plus = case_when(freq_transit %in% c("6-7 days/week","5 days/week")~"5+ days/week",
+                               TRUE~"other")) %>%
+  hhts_count(group_vars=c("dum_transit_5plus","dum_drive"),
+             spec_wgt = "hh_weight_2017_2019_adult",
+             incl_na = FALSE) 
+df %>% 
+  filter(dum_drive=="Total") %>%
+  select(1,2,4,5,8)
+
+df %>%
+  mutate(share = round(share,2)*100) %>%
+  filter(dum_drive!="Total") %>%
+  group_by(dum_drive) %>%
+  e_charts(dum_transit_5plus) |>  
+  e_bar(share, 
+        label=list(show = TRUE)) |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
+  e_legend(top='10%') |>
+  e_axis_labels(x = "transit \nfrequency", y = "share (%)") |>
+  e_title("transit frequency vs drive trips")
 ```
 
 
+# correlation matrix
+
+## correlation matrix for continuous variables
+```{r}
+# cor(cor_test %>% select(vmt_day, vehicle_count_num), method="kendall", use = "pairwise.complete.obs")
+```
 
 
+## correlation matrix for ordinal variables
+```{r weighted correlation matrix}
+# cor_test for testing variable correlation
+
+kendall_cor_vars <-  c("vmt_day","hhincome_ord","telecommute_freq_ord","freq_transit_ord", 
+                       "vehicle_count_num")
+point_biserial_cor_vars <- c("vmt_day","transit_pass_binary","work_parking_binary","have_child")
+# 
+# print("unweighted correlation matrix with ordinal")
+# cor(cor_test %>% select(kendall_cor_vars), 
+#     method="kendall", use = "pairwise.complete.obs")
+
+# print("weighted correlation matrix")
+
+cor_matrix <-wdm(cor_test %>% select(all_of(kendall_cor_vars)), method = "kendall", 
+                         weights = cor_test$hh_weight_2017_2019)
+  
+corrplot::corrplot(cor_matrix, method = 'number', type = 'upper')
+```
+
+- correlation significance
+```{r correlation significance}
+
+cor_sig_test <- function(var){
+  cor.test(cor_test$vmt_day, pull(cor_test, {{var}}), method="kendall")$p.value
+}
+
+cor_results <- as.data.frame(cor_matrix) %>% 
+  select(1) %>%
+  mutate(vmt_day_p.value=map_dbl(kendall_cor_vars, cor_sig_test)) # experiment with purrr: mission complete
+cor_results
+```
+
+## correlation matrix for binary variables
+```{r}
+cor_matrix_bi <-wdm(cor_test %>% select(all_of(point_biserial_cor_vars)), 
+                         weights = cor_test$hh_weight_2017_2019)
+
+  
+corrplot::corrplot(cor_matrix_bi, method = 'number', type = 'upper')
+```
+
+- correlation significance
+```{r}
+
+cor_sig_test <- function(var){
+  cor.test(cor_test$vmt_day, pull(cor_test, {{var}}))$p.value
+}
+
+cor_results_bi <- as.data.frame(cor_matrix_bi) %>% 
+  select(1) %>%
+  mutate(vmt_day_p.value=map_dbl(point_biserial_cor_vars, cor_sig_test)) # experiment with purrr: mission complete
+cor_results_bi
+```
 
 
+```{r}
+test <- cor_test %>%
+  mutate(SDMVSTRA=1) %>%
+  filter(hh_weight_2017_2019>0,
+         vmt_day>0)
+design <- svydesign(strata=~SDMVSTRA, id=~person_id, weights=~hh_weight_2017_2019,
+                        nest=FALSE, data=test)
+# Unweighted boxplot
+boxplot(test$vmt_day~test$work_parking,
+       ylab = "vmt",
+       main = "Unweighted")
+# Weighted boxplot
+svyboxplot(~vmt_day~work_parking, design, all.outliers = T,
+     ylab = "vmt",
+     main = "Work Parking Weighted")
+# Weighted boxplot
+svyboxplot(~vmt_day~transit_pass, design, all.outliers = T,
+     ylab = "vmt",
+     main = "Transit Pass Weighted")
 
+```
 
