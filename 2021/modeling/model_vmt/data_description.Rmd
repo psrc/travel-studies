@@ -91,7 +91,7 @@ person_vars=c("gender",
               )
               
 
-var_set <- hhts_codebook %>% filter(grepl("work", description, ignore.case = TRUE))
+var_set <- hhts_codebook %>% filter(grepl("time", description, ignore.case = TRUE))
 
 hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars) %>% hh_group_data() 
 per_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars) %>% per_group_data(hh_data_17_19)
