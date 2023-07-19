@@ -69,7 +69,7 @@ trip_data_17<- get_hhts("2017", "t", vars=trip_vars)%>%filter(age_category!='Und
 
 trip_data_19<- get_hhts("2019", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & hhgroup=='rSurvey')%>%dplyr::select(-trip_weight_2019)
 
-trip_data_21<- get_hhts("2021", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & sample_source=='ABS')%>%dplyr::select(-c(trip_adult_weight_2021, trip_respondent_weight_2021))
+trip_data_21<- get_hhts("2021", "t", vars=trip_vars)%>%filter(age_category!='Under 18 years' & sample_source=='ABS')%>%dplyr::select(-c(trip_weight_2021, trip_respondent_weight_2021))
 
 trip_data_17_19_21<-rbind(trip_data_17, trip_data_19, trip_data_21)
 
@@ -191,8 +191,8 @@ household_data<-household_data%>%
                                broadband == 'Yes, my current residence has broadband service' | 
                                broadband == 'Yes' ~ 'Yes',
                               TRUE~ broadband))%>%
-           mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' ~ 'Own',
-                                      rent_own == 'Rent' ~ 'Rent')) %>%
+  mutate(rent_own= case_when(rent_own == 'Own/paying mortgage' ~ 'Own',
+                             rent_own == 'Rent' ~ 'Rent')) %>%
   mutate(survey.2021=case_when(survey.x == 2021 ~ 1,
                                survey.x != 2021 ~ 0))
 
@@ -451,7 +451,7 @@ hh_shop_tract_21$hh_race_apoc <-  factor(hh_shop_tract_21$hh_race_apoc, levels =
 hh_shop_tract_21$res_factors_transit <- factor(hh_shop_tract_21$res_factors_transit, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
 hh_shop_tract_21$res_factors_walk <- factor(hh_shop_tract_21$res_factors_walk, levels = c("Neither or N/A", "Very important","Somewhat important", "Somewhat unimportant", "Very unimportant"))
 
-
+unique(hh_shop_tract_21$numchildren)
 ```
 
 * A smaller model with only statistically significant variables.
