@@ -61,10 +61,10 @@ hh_vars=c("sample_county", "final_home_rgcnum", "final_home_is_rgc",
           #"broadband", 
           "vehicle_count", "offpark", "offpark_cost", "streetpark")
 
-trip_vars = c("mode_simple",
+trip_vars = c("trip_id","mode_simple",
               'dest_purpose_cat', 'origin_purpose_cat',
               'd_tract10',"d_rgcname",
-              "google_duration", 
+              "reported_duration", 
               'trip_path_distance', # Bing-estimated trip distance (miles)
               "depart_time_hhmm", "arrival_time_hhmm", 
               "dayofweek", "travelers_total",
@@ -91,7 +91,7 @@ person_vars=c("gender",
               )
               
 
-var_set <- hhts_codebook %>% filter(grepl("time", description, ignore.case = TRUE))
+var_set <- hhts_codebook %>% filter(grepl("trip ID", description, ignore.case = TRUE))
 
 hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars) %>% hh_group_data() 
 per_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars) %>% per_group_data(hh_data_17_19)
@@ -269,7 +269,140 @@ vmt_per %>%
           "only include travelers with full/part-time employment and household income > $50,000")
 ```
 
-# transit and parking subsidy {.tabset}
+# Basic stat for household-level vmt {.tabset}
+## total vmt: 10 quantiles
+```{r hh vmt data}
+# people with no vmt
+vmt_hh %>% hhts_count(group_vars="no_vmt_grp") %>% select(no_vmt_grp, share, share_moe)
+# 76.38% of travelers drove with 2.48% moe
+
+# 10 quantile groups
+vmt_hh %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="q_group") %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,2)/100,
+         vmt_day_mean_moe = vmt_day_mean_moe/100,
+         lower = vmt_day_mean-vmt_day_mean_moe,
+         upper = vmt_day_mean+vmt_day_mean_moe) %>% 
+  e_charts(q_group) |> 
+  e_bar(vmt_day_mean, name = "mean of vmt in quantile group",
+        label=list(show = TRUE)) |> 
+  e_error_bar(lower, upper) |> 
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "quantile group", y = "vmt") |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
+  e_title("vmt distribution") %>% 
+  e_tooltip(formatter = e_tooltip_item_formatter("percent")) # tooltip 
+```
+
+## vmt in counties and centers
+```{r hh vmt geography [county and centers]}
+# vmt in county
+vmt_hh %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="sample_county") %>%
+  mutate(lower = vmt_day_mean-vmt_day_mean_moe,
+         upper = vmt_day_mean+vmt_day_mean_moe) %>% 
+  e_charts(sample_county) |> 
+  e_bar(vmt_day_mean, name = "mean of vmt in county") |> 
+  e_error_bar(lower, upper) |> 
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "county", y = "vmt") |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE) |>
+  e_legend(top='10%') |>
+  e_title("vmt distribution by counties")
+
+# group centers with small sample size
+rgc_sample_size <- vmt_hh %>% 
+  hhts_count(group_vars=c("urban_metro","final_home_rgcnum")) %>%
+  mutate(big_rgc_grp = as.character(case_when(sample_size<30 & urban_metro =="Metro"~"Other Metro centers",
+                                              sample_size<30 & urban_metro =="Urban"~"Other Urban centers",
+                                              TRUE~final_home_rgcnum))) %>%
+  filter(final_home_rgcnum!="Total")
+
+# vmt in RGCs
+vmt_hh %>%
+  left_join(rgc_sample_size %>% select(final_home_rgcnum,big_rgc_grp), by = "final_home_rgcnum") %>% 
+  hhts_mean(stat_var="vmt_day", group_vars=c("urban_metro","big_rgc_grp")) %>%
+  filter(big_rgc_grp!="Total")  %>% 
+  arrange(vmt_day_mean) %>%
+  select(urban_metro,big_rgc_grp,vmt_day_mean,sample_size#,lower,upper
+         ) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,1)) |> 
+  group_by(urban_metro) |> 
+  e_charts(big_rgc_grp) |>  
+  e_bar(vmt_day_mean, 
+        bind = urban_metro,
+        label=list(show = TRUE),
+        barGap='-100%',
+        barMaxWidth='60%') |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_axis_labels(x = "center", y = "mean of vmt") |>
+  e_x_axis(axisLabel=list(rotate= 45),
+           axisTick=list(alignWithLabel=TRUE)) |>
+  e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
+  e_legend(top='12%') |>
+  e_title("vmt distribution by centers",
+          "centers with sample size smaller than 30 are grouped in other metro and other urban centers") |> 
+  e_tooltip(formatter = htmlwidgets::JS("
+      function(params){
+        return('<strong>' + params.name + 
+                '</strong><br />RGC name: ' + params.value[0] + '<br />vmt mean: ' + params.value[1])
+      }
+    "))
+```
+
+## income group
+```{r}
+# only high income 
+vmt_hh %>% 
+  hhts_count(group_vars=c("hhincome_broad"), incl_na = FALSE) %>%
+  filter(hhincome_broad!="Total") %>%
+  select(2,5,7)
+
+
+vmt_hh %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="hhincome_broad", incl_na = FALSE) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,2)) %>%
+  filter(hhincome_broad!="Total") %>%
+  e_charts(hhincome_broad) |>
+  e_bar(vmt_day_mean,
+        label=list(show = TRUE),
+        name = "mean of vmt") |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
+  e_flip_coords() |>
+  e_grid(height = "75%", top = "20%", containLabel= TRUE)  |>
+  e_legend(top='10%') |>
+  e_axis_labels(x = "income level") |>
+  e_title("vmt distribution by income level")
+```
+
+## vehicle count
+```{r}
+# only high income 
+vmt_hh %>% 
+  hhts_count(group_vars=c("vehicle_count_simple4"), incl_na = FALSE) %>%
+  filter(vehicle_count_simple4!="Total") %>%
+  select(2,5,7)
+
+
+vmt_hh %>% 
+  hhts_mean(stat_var="vmt_day", group_vars="vehicle_count_simple4", incl_na = FALSE) %>%
+  mutate(vmt_day_mean = round(vmt_day_mean,2)) %>%
+  filter(vehicle_count_simple4!="Total") %>%
+  e_charts(vehicle_count_simple4) |>
+  e_bar(vmt_day_mean,
+        label=list(show = TRUE),
+        name = "mean of vmt") |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
+  # e_flip_coords() |>
+  e_grid(height = "75%", top = "20%", containLabel= TRUE)  |>
+  e_legend(top='10%') |>
+  e_axis_labels(x = "vehicle count") |>
+  e_title("vmt distribution by vehicle count")
+```
+
+# person-level vmt and transit/parking subsidy {.tabset}
   - how does vmt correlate with transit pass and free/subsidized parking at work?
       * people that are offered a transit pass have lower vmt than those not offered one
       * people that are offered free/subsidized parking at work have higher vmt than those not offered

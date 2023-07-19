@@ -55,6 +55,21 @@ vmt_per <- trip_data_17_19 %>%
                                      levels=c("Never","Less than weekly",
                                               "1 day a week","2 days a week","3 days a week","4 days a week",
                                               "5+ days a week","Not applicable")))
+vmt_hh <- trip_data_17_19 %>%
+  filter(mode_simple=="Drive", person_id!=19100243801) %>%
+  mutate(vmt= trip_path_distance/travelers_total) %>%
+  group_by(household_id) %>%
+  summarise(total_vmt=sum(vmt, na.rm = TRUE),
+            num_day = length(unique(daynum)),
+            n_trip_drive = sum(mode_simple=="Drive")) %>%
+  ungroup() %>%
+  mutate(vmt_day = total_vmt/num_day) %>%
+  full_join(hh_data_17_19, by = "household_id") %>%
+  mutate(vmt_day=replace_na(vmt_day,0),
+         vehicle_count_num = as.numeric(substr(vehicle_count,1,1)),
+         q_group = factor(ntile(vmt_day, 10)), # 10 guantile groups
+         no_vmt_grp = case_when(vmt_day==0~"zero vmt", # people with no vmt
+                                TRUE~"vmt"))
 
 # data to test correlation
 cor_test <- vmt_per %>%
