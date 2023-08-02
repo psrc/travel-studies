@@ -34,7 +34,7 @@ mode_vars<-c('mode_1', 'mode_simple')
 other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id')
 
 all_vars<-c(mode_vars, other_vars)
-household_vars=c('hhid', 'final_home_tract_10' )
+household_vars=c('hhid', 'final_home_tract_10', 'hhgroup' )
 ```
 
 
@@ -70,9 +70,9 @@ persons_list<-persons_list[,!duplicated(colnames(persons_list))]
 ```
 
 ```{r}
-hh_tract<- get_hhts(survey='2017_2019', level = 'h', vars= c( 'final_home_tract10'))
+hh_tract<- get_hhts(survey='2017_2019', level = 'h', vars= c( 'final_home_tract10', 'hhgroup'))
 
-persons_tract<-left_join(persons_list,hh_tract,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))
+persons_tract<-left_join(persons_list,hh_tract,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))%>%filter(hhgroup !='rMove')
 
 ```
 
@@ -337,10 +337,13 @@ vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment + inc100k + vehicle_count_simp
     log(1 + jobs_transit/10000) + log(1 + pharmacy) + log(1 + 
     park) + survey_year_factor + inc100k:survey_year_factor + 
     grad_school:survey_year_factor + transit_ben:survey_year_factor + 
-    compressed_ben:survey_year_factor + flextime_ben:survey_year_factor + 
-    rent_own:survey_year_factor - 1, data = persons_vmt_17_19_21)
+    compressed_ben:survey_year_factor + flextime_ben:survey_year_factor +rent_own:survey_year_factor - 1, data = persons_vmt_17_19_21)
 
 output<-stargazer(vmt_model_best_fit_21, type='text', out='vmt_model_best_21.txt')
+```
+
+
+```{r}
 
 
 
