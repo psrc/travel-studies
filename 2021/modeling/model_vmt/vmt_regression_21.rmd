@@ -344,9 +344,25 @@ output<-stargazer(vmt_model_best_fit_21, type='text', out='vmt_model_best_21.txt
 
 
 ```{r}
+library(jtools)
+summ(vmt_model_best_fit_21)
 
 
 
 ```
+```{r}
+plot_summs(vmt_model_best_fit_21)
+```
+```{r}
+vmt_model__small_best_fit_21<-lm(ln_vmt_day ~ employment +  vehicle_count_simple + 
+    numworkers + grad_school + license + telecommute_freq_simple +
+    Kitsap_home + transit_ben + compressed_ben + flextime_ben + 
+    lifecycle +  delivery_pkgs_all + log(1 + jobs_auto/10000) + 
+    log(1 + jobs_transit/10000) + log(1 + 
+    park) + survey_year_factor , data = persons_vmt_17_19_21)
 
+output<-stargazer(vmt_model__small_best_fit_21, type='text', out='vmt_model_best_21.txt')
+summ(vmt_model__small_best_fit_21)
+plot_summs(vmt_model__small_best_fit_21)
+```
 
