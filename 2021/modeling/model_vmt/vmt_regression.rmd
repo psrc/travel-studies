@@ -24,6 +24,7 @@ library(officer)
 library(DBI)
 library(stargazer)
 library(MASS)
+library(stats)
 install_psrc_fonts()
 ```
 
@@ -36,7 +37,6 @@ all_vars<-c(mode_vars, other_vars)
 household_vars=c('hhid', 'final_home_tract_10' )
 ```
 
-renter or owner
 ```{r}
 trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
 ```
@@ -61,7 +61,7 @@ vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
 
 ```{r}
 
-persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance'))
+persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple'))
 persons_list<-persons_list[,!duplicated(colnames(persons_list))]
 
 ```
@@ -88,6 +88,8 @@ persons_vmt<-left_join(persons_access,vmt_per, by='person_id')%>%
 ```
 
 ```{r}
+summary(persons_vmt$vmt_day)
+summary(persons_vmt$ln_vmt_day)
 ggplot(persons_vmt, aes(ln_vmt_day))+
 geom_histogram()+
 xlim(0, 10)
@@ -95,33 +97,135 @@ xlim(0, 10)
 
 ```{r}
 
-vmt_model<-lm(vmt_day ~ numadults+employment+hhincome_broad+vehicle_count+age_category+lifecycle+hhsize+survey_year+final_home_is_rgc+numworkers+numchildren+gender_grp
-+jobs_count+student+ education+ license+ commute_freq+ commute_dur +telecommute_freq+ final_cnty+benefits_1+ benefits_2+ benefits_3+ benefits_4+rent_own+ log(1+jobs_auto/10000)+ log(1+jobs_transit/10000)+log(1+supermarket)+log(1+pharmacy)+log(1+restaurant)+log(1+school)+log(1+park)+commute_auto_distance -1
+vmt_model<-lm(ln_vmt_day ~ numadults+employment+hhincome_broad+vehicle_count+lifecycle+hhsize+survey_year+numworkers+numchildren+gender_grp
++student+ education+ license+res_dur +telecommute_freq+ final_cnty+benefits_1+ benefits_2+ benefits_3+ benefits_4+rent_own+ log(1+jobs_auto/10000)+ log(1+jobs_transit/10000)+log(1+supermarket)+log(1+pharmacy)+log(1+restaurant)+log(1+school)+log(1+park)+car_share -1
                ,data=persons_vmt)
 
 ```
-
 ```{r}
-step<-stepAIC(vmt_model, direction="both")
+output<-stargazer(vmt_model, type='text', out='vmt_model_toobig.txt')
+```
+```{r}
+step<-stepAIC(vmt_model, direction="both", k=1)
 step$anova
 ```
+```{r}
+vmt_model_aic<-lm(ln_vmt_day ~ numadults + employment + hhincome_broad + vehicle_count + 
+    lifecycle + hhsize + numworkers + gender_grp + education + 
+    license + res_dur + telecommute_freq + final_cnty + benefits_1 + 
+    benefits_2 + benefits_3 + benefits_4 + rent_own + log(1 + 
+    jobs_auto/10000) + log(1 + jobs_transit/10000) + log(1 + 
+    supermarket) + log(1 + pharmacy) + log(1 + school) + log(1 + 
+    park) + car_share - 1
+ ,data=persons_vmt)
+
+output<-stargazer(vmt_model_aic, type='text', out='vmt_model.txt')
+```
+
+```{r}
+persons_vmt_sub<-persons_vmt%>%dplyr::select(numadults,employment,hhincome_broad,vehicle_count,lifecycle,hhsize,survey_year,numworkers,numchildren,gender_grp,student, education, license,res_dur ,telecommute_freq, final_cnty,benefits_1,benefits_2, benefits_3, benefits_4,rent_own,jobs_auto,jobs_transit,supermarket,pharmacy,restaurant,school,park,car_share, vmt_day)
+
+```
+
+```{r}
+persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000-$99,999' ~ 'Under 100K',
+                                                 hhincome_broad=='	100,000 or more' ~ 'Over 100K',
+                                                 hhincome_broad=='Prefer not to answer' ~ 'No Answer',
+                                                 hhincome_broad=='$25,000-$49,999' ~ 'Under 100K',
+                                                 hhincome_broad=='$50,000-$74,999' ~ 'Under 100K'))%>%
+  mutate(vehicle_count_simple= case_when(vehicle_count=substr(vehicle_count,1,1) %in% c("3","4", "5", "6", "7", "8") ~ '3 or more vehicles',
+                                         .default = vehicle_count))%>%
+  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
+                                          telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                          telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
+                                          !is.na(telecommute_freq) ~ telecommute_freq))%>%
+  mutate(Kitsap_home= ifelse(final_cnty=='Kitsap', 'Kitsap', 'Not Kitsap'))%>%
+           mutate(transit_ben = ifelse(benefits_3=='Not offered', 'Not offered', 'Offered or do not know'))%>%
+           mutate(compressed_ben = ifelse(benefits_2=='Not offered', 'Not offered', 'Offered or do not know'))%>%
+  mutate(grad_school=ifelse(education=='Graduate/post-graduate degree', 'Graduate degree', 'No graduate degree'))%>%
+           mutate(flextime_ben = ifelse(benefits_1=='Not offered', 'Not offered', 'Offered or do not know'))%>%
+           mutate(oth_ben = ifelse(benefits_4=='Not offered', 'Not offered', 'Offered or do not know'))%>%
+  mutate(survey_year_factor=as.factor(survey_year))
+
+           
+
+```
 
 
+```{r}
+vmt_model<-lm(ln_vmt_day ~employment+inc100k+vehicle_count_simple+survey_year_factor+lifecycle+gender_grp+numworkers+numchildren+numadults+grad_school+
++student+ license+telecommute_freq+ Kitsap_home+transit_ben+compressed_ben+flextime_ben+oth_ben+age+rent_own+ log(1+jobs_auto/10000)+ log(1+jobs_transit/10000)+log(1+pharmacy)+log(1+park)+car_share -1
+               ,data=persons_vmt_new)
+```
+
+
+```{r}
+output<-stargazer(vmt_model, type='text', out='vmt_model_new.txt')
+```
+
+
+
+```{r}
+#library(leaps)
+#models <- regsubsets(vmt_day~., data = persons_vmt_sub, nvmax = 5, really.big=T)
+```
+
+
+
+
+# https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/
 
 
 
 
 ```{r}
-vmt_model_best_fit<-lm(vmt_day ~ numadults + employment + vehicle_count + lifecycle + 
-    final_home_is_rgc + jobs_count + license + commute_freq + 
-    commute_dur + telecommute_freq + final_cnty + benefits_2 + 
-    benefits_3 + rent_own + log(1 + jobs_auto/10000) + log(1 + 
-    jobs_transit/10000) + log(1 + supermarket) + log(1 + restaurant) + 
-    log(1 + school) + log(1 + park) + log(1+commute_auto_distance) - 
-    1, data=persons_vmt)
+vmt_model_best_fit<-lm(vmt_day ~  hhincome_broad + age+vehicle_count + 
+    lifecycle + survey_year + license + res_dur + telecommute_freq + 
+    final_cnty + benefits_1 + benefits_2 + benefits_3 + benefits_4 + 
+    log(1 + jobs_auto/10000) + log(1 + jobs_transit/10000) + 
+    log(1 + pharmacy) + log(1 + restaurant) + log(1 + school) + 
+    log(1 + park) +numadults + employment+car_share, data = persons_vmt, method=)
 output<-stargazer(vmt_model_best_fit, type='text', out='vmt_model_best.txt')
 
+
+
 ```
+
+
+```{r}
+persons_vmt_model_var<-persons_vmt%>%dplyr::select(numadults,vehicle_count,
+lifecycle,survey_year,license,res_dur,telecommute_freq,
+final_cnty,benefits_1,benefits_2,benefits_3,benefits_4,
+jobs_auto,jobs_transit,pharmacy,park,employment,hhincome_detailed)
+```
+
+```{r}
+persons_vmt_model_one<-persons_vmt%>%dplyr::select(employment,
+ vmt_day)
+```
+
+```{r}
+persons_vmt_model_two<-persons_vmt%>%dplyr::select(vehicle_count,
+survey_year,license, vmt_day)
+```
+
+
+```{r}
+library(ggcorrplot)
+model.matrix(~0+., data=persons_vmt_model_one) %>% 
+  cor(use="pairwise.complete.obs") %>% 
+  ggcorrplot(show.diag=FALSE, type="lower", lab=TRUE, lab_size=2)
+
+```
+```{r}
+library(ggcorrplot)
+model.matrix(~0+., data=persons_vmt_model_two) %>% 
+  cor(use="pairwise.complete.obs") %>% 
+  ggcorrplot(show.diag=FALSE, type="lower", lab=TRUE, lab_size=2)
+
+```
+
 ```{r}
 vmt_model_best_fit_2<-lm(vmt_day ~ numadults + vehicle_count + lifecycle + employment + license + 
     commute_dur + telecommute_freq + final_cnty + benefits_2 + 
@@ -143,3 +247,291 @@ persons_vmt_model<- persons_vmt%>%select(numadults,employment,hhincome_detailed,
 summary(persons_vmt_model)
 ```
 ``
+
+```{r}
+
+vmt_model<-lm(vmt_day ~ numadults+employment
+               ,data=persons_vmt)
+
+```
+```{r}
+output<-stargazer(vmt_model, type='text', out='vmt_model_toosmall.txt')
+```
+
+
+```{r}
+vmt_model_best_fit<-lm(vmt_day ~   age+vehicle_count + 
+    lifecycle +license +  telecommute_freq 
++ benefits_2 + benefits_3 +
+    log(1 + jobs_auto/10000) + log(1 + jobs_transit/10000) + 
+    log(1 + school) + 
+    log(1 + park) +numadults + employment+car_share, data = persons_vmt, method=)
+output<-stargazer(vmt_model_best_fit, type='text', out='vmt_model_best.txt')
+
+
+```
+
+
+```{r setup, include=FALSE, eval = FALSE}
+
+# how many days did people receive deliveries?
+# did the number of deliveries change by year? by race? by income?
+
+# .libPaths()
+# .libloc <- "C:/Users/MGrzybowski/AppData/Local/R/win-library/4.2"
+# remove.packages("rlang")
+# install.packages("rlang")
+
+# r start
+
+library(tidyverse)
+library(data.table)
+library(leaflet)
+library(shiny)
+library(tidytext)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(ggiraph)
+library(magrittr)
+
+# additional packages
+
+library(usethis)
+library(installr)
+library(sf)
+library(forcats)
+library(tidyr)
+library(summarytools)
+library(sp)
+library(gridExtra)
+library(ggpubr)
+
+# packages that are from github that host functions for pulling data (do the install in R Gui, not RStudio)
+
+#devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
+#devtools::install_github("psrc/psrccensus", force = TRUE)
+#devtools::install_github("psrc/psrcplot", force = TRUE)
+#devtools::install_github("psrc/psrctrends", force = TRUE)
+
+# run these after installing github changes through R Gui
+
+library(psrc.travelsurvey)
+library(psrccensus)
+library(psrcplot)
+library(psrctrends)
+
+install_psrc_fonts()
+
+# for Elmer connection
+
+library(odbc)
+library(DBI)
+
+elmer_connect <- function(){
+  DBI::dbConnect(odbc::odbc(),
+                 driver = "ODBC Driver 17 for SQL Server",
+                 server = "AWS-PROD-SQL\\Sockeye",
+                 database = "Elmer",
+                 trusted_connection = "yes",
+                 port = 1433)
+}
+
+elmer_connection <- elmer_connect()
+
+# views and global variables for days and households (** the days table has been updated to include hh variables)
+# surveys a,b,c, and d will be used in functions later in code
+
+deliveries <- dbReadTable(elmer_connection, SQL("HHSurvey.v_days"))
+household_info <- dbReadTable(elmer_connection, SQL("HHSurvey.v_households"))
+
+survey_a <- list(survey = '2017_2019', label = '2017/2019')
+survey_b <- list(survey = '2021', label = '2021')
+survey_c <- list(survey = '2017', label = '2017')
+survey_d <- list(survey = '2019', label = '2019')
+
+# look at variable names and which years they were collected/documented
+
+# hhts_varsearch("delivery")
+# hhts_varsearch("traveldate")
+# hhts_varsearch("race")
+# hhts_varsearch('income')
+# hhts_varsearch('age')
+# hhts_varsearch('county')
+# hhts_varsearch('home')
+# hhts_varsearch('race')
+
+names(deliveries)
+head(household_info)
+
+unique(household_info$lifecycle)
+unique(deliveries$delivery_work_freq)
+
+# create variables that would like to group by for analysis of deliveries by household
+
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+days <- c("dayofweek", "typical_day")
+hh_data <- c('lifecycle', 'hhincome_broad', 'hhincome_detailed', 'race_category_alone_multi', 'race_eth_broad', 'race_eth_poc', 'race_eth_apoc', 'hh_race_category', 'seattle_home', 'final_home_rgcnum', 'final_home_uvnum', 'final_home_is_rgc','pernum')
+
+```
+
+```{r, visualization functions}
+# function combining the delivery and household functions into one and ordering income by levels
+
+smp_delivery_combo <- function(data, year) {
+  ## rewriting labels of responses to be more concise
+  temp_table <- data %>%
+    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_food=='No' ~ 'No Delivery',
+                                        
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_package=='No' ~ 'No Delivery',
+                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_grocery=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_work =='No' ~ 'No Delivery',
+                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
+                                         TRUE ~ 'Delivery Received'))%>%
+     mutate(hhincome_broad = factor(case_when(as.character(hhincome_broad) %in% c("$100,000-$199,000","$200,000 or more") ~ 
+                                             "$100,000 or more", !is.na(hhincome_broad) ~ as.character(hhincome_broad)),
+                                  levels=c("Under $25,000", 
+                                          "$25,000-$49,999", 
+                                          "$50,000-$74,999", 
+                                         "$75,000-$99,999", 
+                                           "$100,000 or more", 
+                                           "Prefer not to answer")))%>%
+     mutate(lifecycle= case_when(lifecycle == "Household size > 1, Householder age 65+" | 
+                                  lifecycle == "Household size = 1, Householder age 65+"  
+                                 ~ '65 years or older', 
+                                   lifecycle == "Household size > 1, Householder age 35 - 64" |
+                                   lifecycle == "Household size = 1, Householder age 35 - 64"  
+                                 ~ '35-64',
+                                   lifecycle == "Household size > 1, Householder under age 35" | 
+                                   lifecycle == "Household size = 1, Householder under age 35" 
+                                   ~ 'Under 35 years, no kids',
+                                   lifecycle == "Household includes children age 5-17" | 
+                                   lifecycle == "Household includes children under 5" ~ 'Household has kids')) %>%
+    mutate(hhsize= case_when(hhsize == "1 person" ~ '1 person', 
+                                  hhsize == "2 people"  ~ '2 people', 
+                                   hhsize == "3 people" ~ '3 people',
+                                   hhsize == "4 people" | 
+                                  hhsize == "5 people" | 
+                                  hhsize == "6 people" | 
+                                  hhsize == "7 people" |
+                                  hhsize == "8 people" | 
+                                  hhsize == "12 people" ~ "4+ people"))
+  temp_table
+}
+```
+
+```{r, getting survey data with pre-identified variables for households}
+
+# -- How frequently is someone having a delivery made?? 
+# -- 2017, 2019, 2017/2019, 2021
+
+# pull datasets from two separate dataframes per year
+
+dsurvey_17 <- get_hhts(survey = survey_c$survey, 
+                        level = "d", 
+                        vars = c(delivery_type, days, hh_data)) 
+
+
+
+dsurvey_19 <- get_hhts(survey = survey_d$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days, hh_data)) 
+
+
+
+dsurvey_1719 <- get_hhts(survey = survey_a$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days, hh_data)) 
+
+
+
+dsurvey_21 <- get_hhts(survey = survey_b$survey, 
+                       level = "d", 
+                       vars = c(delivery_type, days, hh_data)) 
+
+
+
+```
+
+```{r, generate datasets}
+
+delivery_17 <- smp_delivery_combo(dsurvey_17, '2017')
+
+
+delivery_19 <- smp_delivery_combo(dsurvey_19, '2019')
+
+
+delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')
+
+
+delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')
+
+
+```
+
+```{r, rename datasets as "joined_df_deliveries_year"}
+
+joined_df_deliveries_17 <-delivery_17
+
+joined_df_deliveries_19 <- delivery_19
+
+joined_df_deliveries_1719 <- delivery_1719
+
+joined_df_deliveries_21 <- delivery_21
+
+```
+
+```{r, sum checks to verify population numbers, eval = FALSE}
+
+# Sums should match the number of people in the region
+# In 2021, this represents the number of adults, because didn't observe children's days
+
+sum(joined_df_deliveries_17$day_weight_2017_v2021)
+sum(joined_df_deliveries_19$day_weight_2019_v2021)
+sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
+
+```
+It looks like the day weight for 2017_2019 should be halved. That may have been an oversight.
+```{r, sum checks to verify household numbers, eval = FALSE}
+joined_df_deliveries_1719$day_weight_2017_2019_v2021<-joined_df_deliveries_1719$day_weight_2017_2019_v2021/2
+sum(joined_df_deliveries_1719$day_weight_2017_2019_v2021)
+dsurvey_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
+joined_df_deliveries_17%>%filter(pernum==1)%>%summarize(hh_day=sum(day_weight_2017_v2021))
+```
+
+```{r, removing duplicate household member responses}
+joined_df_deliveries_17<<-joined_df_deliveries_17%>%filter(pernum==1)
+joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(pernum==1)
+joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(pernum==1)
+```
+
+```{r, sum checks to verify households for the individual years with their new weights, eval = FALSE}
+sum(joined_df_deliveries_17$day_weight_2017_v2021)
+sum(joined_df_deliveries_19$day_weight_2019_v2021)
+sum(joined_df_deliveries_21$hh_weight_2021_ABS) #this weight matches the closest to the annual household count
+# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_adult)
+# sum(joined_df_deliveries_21$person_weight_2021_ABS_panel_respondent)
+```
+
+```{r, removing true non-responses}
+joined_df_deliveries_17<-joined_df_deliveries_17%>%filter(delivery_food_all!='No HH Response')
+joined_df_deliveries_19<-joined_df_deliveries_19%>%filter(delivery_food_all!='No HH Response')
+joined_df_deliveries_21<-joined_df_deliveries_21%>%filter(delivery_food_all!='No HH Response')
+
+```
+```
