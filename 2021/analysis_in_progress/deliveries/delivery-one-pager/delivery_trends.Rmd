@@ -1,0 +1,87 @@
+---
+author: "Meg Grzybowski"
+date: "2022-12-29"
+output: 
+  pdf_document:
+    latex_engine: lualatex
+fontsize: 12pt
+  
+header-includes:
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{pdfcomment}
+  - \usepackage{fancyhdr}
+   \pagestyle{fancy}
+   \setlength{\headheight}{75pt}
+   \setlength{\textheight}{600pt}
+   \fancyhead[C]{}
+   \fancyhead[L]{\includegraphics{X:/DSA/shiny-uploads/images/PST_Equity_Edition-Trend_header.png}}
+   \fancyhead[R]{}
+   \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. January 2023}
+   \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
+   \fancyfoot[C]{}
+   \renewcommand{\headrulewidth}{0pt}
+   \renewcommand{\footrulewidth}{4pt}
+   \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
+  - \usepackage{fontspec}
+
+---
+\setmainfont{Poppins}
+
+# Delivery Trends in the Puget Sound Region (2017, 2019, 2021)
+
+```{r setup, include=FALSE}
+
+devtools::install_github("psrc/psrc.travelsurvey", force = TRUE)
+devtools::install_github("psrc/psrccensus", force = TRUE)
+devtools::install_github("psrc/psrcplot", force = TRUE)
+devtools::install_github("psrc/psrctrends", force = TRUE)
+
+library(psrc.travelsurvey)
+library(psrccensus)
+library(psrcplot)
+library(psrctrends)
+library(tidyverse)
+library(knitr)
+library(magick)
+library(openxlsx)
+
+tinytex::install_tinytex()
+library(tinytex)
+
+# File name for Trend Data file to be created
+xlsx_file <- "trend-equity-202211.xlsx"
+
+# Create Image 
+image1 <- image_read("X:/DSA/shiny-uploads/images/49092697947_3dff1acb35_w.jpg")
+image2 <- image_read("X:/DSA/shiny-uploads/images/49091985828_9909c9bda3_w.jpg")
+image3 <- image_read("X:/DSA/shiny-uploads/images/51118193503_ae9e0064d1_w.jpg")
+
+input <- c(image_scale(image1, "x200"), image_scale(image2, "x200"), image_scale(image3, "x200"))
+
+trend_image_header <- image_append(input)
+image_write(trend_image_header, path="trend_image_header.png", format="png")
+
+install_psrc_fonts()
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
