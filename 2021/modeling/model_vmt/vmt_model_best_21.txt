@@ -1,107 +1,338 @@
 
-=========================================================================================
-                                                                  Dependent variable:    
-                                                              ---------------------------
-                                                                      ln_vmt_day         
------------------------------------------------------------------------------------------
-employmentEmployed part time (fewer than 35 hours/week, paid)          -0.189***         
-                                                                        (0.047)          
-                                                                                         
-vehicle_count_simple1 vehicle                                          0.705***          
-                                                                        (0.117)          
-                                                                                         
-vehicle_count_simple2 vehicles                                         0.967***          
-                                                                        (0.121)          
-                                                                                         
-vehicle_count_simple3 or more vehicles                                 1.040***          
-                                                                        (0.126)          
-                                                                                         
-numworkers                                                             -0.095***         
-                                                                        (0.028)          
-                                                                                         
-grad_schoolNo graduate degree                                            0.043           
-                                                                        (0.034)          
-                                                                                         
-licenseYes, has a learner’s permit                                      0.481**          
-                                                                        (0.237)          
-                                                                                         
-licenseYes, has an intermediate or unrestricted license                0.786***          
-                                                                        (0.112)          
-                                                                                         
-telecommute_freq_simple3-4 days                                         -0.053           
-                                                                        (0.087)          
-                                                                                         
-telecommute_freq_simple5+ days                                         -0.325***         
-                                                                        (0.078)          
-                                                                                         
-telecommute_freq_simpleLess than weekly                                 -0.048           
-                                                                        (0.059)          
-                                                                                         
-telecommute_freq_simpleNever / None                                      0.015           
-                                                                        (0.055)          
-                                                                                         
-Kitsap_homeNot Kitsap                                                  0.349***          
-                                                                        (0.078)          
-                                                                                         
-transit_benOffered or do not know                                      -0.114***         
-                                                                        (0.035)          
-                                                                                         
-compressed_benOffered or do not know                                    0.078**          
-                                                                        (0.038)          
-                                                                                         
-flextime_benOffered or do not know                                      -0.018           
-                                                                        (0.038)          
-                                                                                         
-lifecycleHousehold includes children under 5                            -0.093*          
-                                                                        (0.056)          
-                                                                                         
-lifecycleHousehold size = 1, Householder age 35 - 64                   0.278***          
-                                                                        (0.068)          
-                                                                                         
-lifecycleHousehold size = 1, Householder age 65+                         0.119           
-                                                                        (0.135)          
-                                                                                         
-lifecycleHousehold size = 1, Householder under age 35                  0.322***          
-                                                                        (0.078)          
-                                                                                         
-lifecycleHousehold size > 1, Householder age 35 - 64                    0.101**          
-                                                                        (0.048)          
-                                                                                         
-lifecycleHousehold size > 1, Householder age 65+                         0.112           
-                                                                        (0.083)          
-                                                                                         
-lifecycleHousehold size > 1, Householder under age 35                   0.119**          
-                                                                        (0.053)          
-                                                                                         
-delivery_pkgs_allNo Delivery                                            -0.004           
-                                                                        (0.034)          
-                                                                                         
-delivery_pkgs_allNo HH Response                                         0.187**          
-                                                                        (0.077)          
-                                                                                         
-log(1 + jobs_auto/10000)                                               -0.100**          
-                                                                        (0.044)          
-                                                                                         
-log(1 + jobs_transit/10000)                                            -0.088***         
-                                                                        (0.024)          
-                                                                                         
-log(1 + park)                                                           0.201*           
-                                                                        (0.117)          
-                                                                                         
-survey_year_factor2019                                                  -0.011           
-                                                                        (0.037)          
-                                                                                         
-survey_year_factor2021                                                  -0.078*          
-                                                                        (0.041)          
-                                                                                         
-Constant                                                               1.466***          
-                                                                        (0.203)          
-                                                                                         
------------------------------------------------------------------------------------------
-Observations                                                             3,916           
-R2                                                                       0.130           
-Adjusted R2                                                              0.124           
-Residual Std. Error                                                0.941 (df = 3885)     
-F Statistic                                                    19.434*** (df = 30; 3885) 
-=========================================================================================
-Note:                                                         *p<0.1; **p<0.05; ***p<0.01
+================================================================================================================
+                                                                                         Dependent variable:    
+                                                                                     ---------------------------
+                                                                                             ln_vmt_day         
+----------------------------------------------------------------------------------------------------------------
+employmentEmployed part time (fewer than 35 hours/week, paid)                                 -0.186**          
+                                                                                               (0.074)          
+                                                                                                                
+employmentSelf-employed                                                                        -0.026           
+                                                                                               (0.105)          
+                                                                                                                
+vehicle_count_simple1 vehicle                                                                 0.744***          
+                                                                                               (0.186)          
+                                                                                                                
+vehicle_count_simple2 vehicles                                                                1.063***          
+                                                                                               (0.193)          
+                                                                                                                
+vehicle_count_simple3 or more vehicles                                                        1.237***          
+                                                                                               (0.203)          
+                                                                                                                
+numworkers                                                                                     -0.078*          
+                                                                                               (0.046)          
+                                                                                                                
+grad_schoolNo graduate degree                                                                   0.069           
+                                                                                               (0.048)          
+                                                                                                                
+licenseYes, has a learner’s permit                                                              0.420           
+                                                                                               (0.361)          
+                                                                                                                
+licenseYes, has an intermediate or unrestricted license                                       0.601***          
+                                                                                               (0.189)          
+                                                                                                                
+telecommute_freq_simple3-4 days                                                                 0.069           
+                                                                                               (0.174)          
+                                                                                                                
+telecommute_freq_simple5+ days                                                                 -0.157           
+                                                                                               (0.126)          
+                                                                                                                
+telecommute_freq_simpleLess than weekly                                                        -0.032           
+                                                                                               (0.085)          
+                                                                                                                
+telecommute_freq_simpleNever / None                                                            -0.033           
+                                                                                               (0.085)          
+                                                                                                                
+Kitsap_homeNot Kitsap                                                                           0.250           
+                                                                                               (0.179)          
+                                                                                                                
+transit_benNot Offered or do not know                                                          -0.166           
+                                                                                               (0.490)          
+                                                                                                                
+transit_benOffered                                                                             -0.583           
+                                                                                               (0.489)          
+                                                                                                                
+transit_benOffered or do not know                                                               0.039           
+                                                                                               (0.066)          
+                                                                                                                
+compressed_benNot Offered or do not know                                                       -0.039           
+                                                                                               (0.083)          
+                                                                                                                
+compressed_benOffered                                                                                           
+                                                                                                                
+                                                                                                                
+compressed_benOffered or do not know                                                            0.017           
+                                                                                               (0.075)          
+                                                                                                                
+flextime_benNot Offered or do not know                                                         -0.036           
+                                                                                               (0.053)          
+                                                                                                                
+flextime_benOffered                                                                                             
+                                                                                                                
+                                                                                                                
+flextime_benOffered or do not know                                                             -0.036           
+                                                                                               (0.074)          
+                                                                                                                
+lifecycleHousehold includes children under 5                                                   -0.168*          
+                                                                                               (0.087)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder age 35 - 64                                          0.406***          
+                                                                                               (0.106)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder age 65+                                               -0.021           
+                                                                                               (0.201)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder under age 35                                         0.352***          
+                                                                                               (0.117)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder age 35 - 64                                            0.069           
+                                                                                               (0.076)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder age 65+                                                0.091           
+                                                                                               (0.128)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder under age 35                                          0.148*           
+                                                                                               (0.080)          
+                                                                                                                
+delivery_pkgs_allNo Delivery                                                                   -0.006           
+                                                                                               (0.053)          
+                                                                                                                
+delivery_pkgs_allNo HH Response                                                                 0.049           
+                                                                                               (0.118)          
+                                                                                                                
+log(1 + jobs_auto/10000)                                                                       -0.057           
+                                                                                               (0.070)          
+                                                                                                                
+log(1 + jobs_transit/10000)                                                                    -0.057           
+                                                                                               (0.037)          
+                                                                                                                
+log(1 + park)                                                                                  0.450**          
+                                                                                               (0.229)          
+                                                                                                                
+survey_year_factor2019                                                                          0.496           
+                                                                                               (0.514)          
+                                                                                                                
+survey_year_factor2021                                                                                          
+                                                                                                                
+                                                                                                                
+employmentEmployed part time (fewer than 35 hours/week, paid):survey_year_factor2019           -0.078           
+                                                                                               (0.115)          
+                                                                                                                
+employmentSelf-employed:survey_year_factor2019                                                  0.009           
+                                                                                               (0.147)          
+                                                                                                                
+employmentEmployed part time (fewer than 35 hours/week, paid):survey_year_factor2021            0.008           
+                                                                                               (0.110)          
+                                                                                                                
+employmentSelf-employed:survey_year_factor2021                                                                  
+                                                                                                                
+                                                                                                                
+vehicle_count_simple1 vehicle:survey_year_factor2019                                            0.141           
+                                                                                               (0.273)          
+                                                                                                                
+vehicle_count_simple2 vehicles:survey_year_factor2019                                           0.010           
+                                                                                               (0.284)          
+                                                                                                                
+vehicle_count_simple3 or more vehicles:survey_year_factor2019                                  -0.266           
+                                                                                               (0.298)          
+                                                                                                                
+vehicle_count_simple1 vehicle:survey_year_factor2021                                           -0.289           
+                                                                                               (0.275)          
+                                                                                                                
+vehicle_count_simple2 vehicles:survey_year_factor2021                                          -0.504*          
+                                                                                               (0.284)          
+                                                                                                                
+vehicle_count_simple3 or more vehicles:survey_year_factor2021                                 -0.612**          
+                                                                                               (0.298)          
+                                                                                                                
+numworkers:survey_year_factor2019                                                              -0.015           
+                                                                                               (0.071)          
+                                                                                                                
+numworkers:survey_year_factor2021                                                              -0.026           
+                                                                                               (0.065)          
+                                                                                                                
+grad_schoolNo graduate degree:survey_year_factor2019                                          -0.172**          
+                                                                                               (0.075)          
+                                                                                                                
+grad_schoolNo graduate degree:survey_year_factor2021                                            0.015           
+                                                                                               (0.086)          
+                                                                                                                
+licenseYes, has a learner’s permit:survey_year_factor2019                                       0.215           
+                                                                                               (0.783)          
+                                                                                                                
+licenseYes, has an intermediate or unrestricted license:survey_year_factor2019                 -0.169           
+                                                                                               (0.284)          
+                                                                                                                
+licenseYes, has a learner’s permit:survey_year_factor2021                                       0.104           
+                                                                                               (0.494)          
+                                                                                                                
+licenseYes, has an intermediate or unrestricted license:survey_year_factor2021                 0.434*           
+                                                                                               (0.254)          
+                                                                                                                
+telecommute_freq_simple3-4 days:survey_year_factor2019                                         -0.081           
+                                                                                               (0.247)          
+                                                                                                                
+telecommute_freq_simple5+ days:survey_year_factor2019                                          -0.223           
+                                                                                               (0.193)          
+                                                                                                                
+telecommute_freq_simpleLess than weekly:survey_year_factor2019                                  0.016           
+                                                                                               (0.127)          
+                                                                                                                
+telecommute_freq_simpleNever / None:survey_year_factor2019                                     -0.011           
+                                                                                               (0.127)          
+                                                                                                                
+telecommute_freq_simple3-4 days:survey_year_factor2021                                         -0.149           
+                                                                                               (0.213)          
+                                                                                                                
+telecommute_freq_simple5+ days:survey_year_factor2021                                          -0.229           
+                                                                                               (0.182)          
+                                                                                                                
+telecommute_freq_simpleLess than weekly:survey_year_factor2021                                                  
+                                                                                                                
+                                                                                                                
+telecommute_freq_simpleNever / None:survey_year_factor2021                                      0.122           
+                                                                                               (0.129)          
+                                                                                                                
+Kitsap_homeNot Kitsap:survey_year_factor2019                                                    0.248           
+                                                                                               (0.228)          
+                                                                                                                
+Kitsap_homeNot Kitsap:survey_year_factor2021                                                    0.022           
+                                                                                               (0.211)          
+                                                                                                                
+transit_benNot Offered or do not know:survey_year_factor2019                                   -0.017           
+                                                                                               (0.090)          
+                                                                                                                
+transit_benOffered:survey_year_factor2019                                                                       
+                                                                                                                
+                                                                                                                
+transit_benOffered or do not know:survey_year_factor2019                                                        
+                                                                                                                
+                                                                                                                
+transit_benNot Offered or do not know:survey_year_factor2021                                                    
+                                                                                                                
+                                                                                                                
+transit_benOffered:survey_year_factor2021                                                                       
+                                                                                                                
+                                                                                                                
+transit_benOffered or do not know:survey_year_factor2021                                                        
+                                                                                                                
+                                                                                                                
+compressed_benNot Offered or do not know:survey_year_factor2019                                -0.049           
+                                                                                               (0.128)          
+                                                                                                                
+compressed_benOffered:survey_year_factor2019                                                                    
+                                                                                                                
+                                                                                                                
+compressed_benOffered or do not know:survey_year_factor2019                                                     
+                                                                                                                
+                                                                                                                
+compressed_benNot Offered or do not know:survey_year_factor2021                                                 
+                                                                                                                
+                                                                                                                
+compressed_benOffered:survey_year_factor2021                                                                    
+                                                                                                                
+                                                                                                                
+compressed_benOffered or do not know:survey_year_factor2021                                                     
+                                                                                                                
+                                                                                                                
+flextime_benNot Offered or do not know:survey_year_factor2019                                  -0.119           
+                                                                                               (0.085)          
+                                                                                                                
+flextime_benOffered:survey_year_factor2019                                                                      
+                                                                                                                
+                                                                                                                
+flextime_benOffered or do not know:survey_year_factor2019                                                       
+                                                                                                                
+                                                                                                                
+flextime_benNot Offered or do not know:survey_year_factor2021                                                   
+                                                                                                                
+                                                                                                                
+flextime_benOffered:survey_year_factor2021                                                                      
+                                                                                                                
+                                                                                                                
+flextime_benOffered or do not know:survey_year_factor2021                                                       
+                                                                                                                
+                                                                                                                
+lifecycleHousehold includes children under 5:survey_year_factor2019                            0.278**          
+                                                                                               (0.135)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder age 35 - 64:survey_year_factor2019                    -0.101           
+                                                                                               (0.159)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder age 65+:survey_year_factor2019                         0.402           
+                                                                                               (0.289)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder under age 35:survey_year_factor2019                    0.130           
+                                                                                               (0.185)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder age 35 - 64:survey_year_factor2019                     0.116           
+                                                                                               (0.115)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder age 65+:survey_year_factor2019                         0.115           
+                                                                                               (0.183)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder under age 35:survey_year_factor2019                    0.057           
+                                                                                               (0.126)          
+                                                                                                                
+lifecycleHousehold includes children under 5:survey_year_factor2021                             0.039           
+                                                                                               (0.133)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder age 35 - 64:survey_year_factor2021                   -0.425***         
+                                                                                               (0.161)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder age 65+:survey_year_factor2021                         0.071           
+                                                                                               (0.319)          
+                                                                                                                
+lifecycleHousehold size = 1, Householder under age 35:survey_year_factor2021                   -0.124           
+                                                                                               (0.187)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder age 35 - 64:survey_year_factor2021                     0.007           
+                                                                                               (0.112)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder age 65+:survey_year_factor2021                        -0.014           
+                                                                                               (0.198)          
+                                                                                                                
+lifecycleHousehold size > 1, Householder under age 35:survey_year_factor2021                   -0.066           
+                                                                                               (0.127)          
+                                                                                                                
+delivery_pkgs_allNo Delivery:survey_year_factor2019                                             0.032           
+                                                                                               (0.078)          
+                                                                                                                
+delivery_pkgs_allNo HH Response:survey_year_factor2019                                          0.235           
+                                                                                               (0.172)          
+                                                                                                                
+delivery_pkgs_allNo Delivery:survey_year_factor2021                                            -0.010           
+                                                                                               (0.081)          
+                                                                                                                
+delivery_pkgs_allNo HH Response:survey_year_factor2021                                          0.265           
+                                                                                               (0.192)          
+                                                                                                                
+log(1 + jobs_auto/10000):survey_year_factor2019                                                -0.057           
+                                                                                               (0.104)          
+                                                                                                                
+log(1 + jobs_auto/10000):survey_year_factor2021                                                -0.065           
+                                                                                               (0.102)          
+                                                                                                                
+log(1 + jobs_transit/10000):survey_year_factor2019                                             -0.061           
+                                                                                               (0.056)          
+                                                                                                                
+log(1 + jobs_transit/10000):survey_year_factor2021                                             -0.016           
+                                                                                               (0.057)          
+                                                                                                                
+log(1 + park):survey_year_factor2019                                                           -0.190           
+                                                                                               (0.306)          
+                                                                                                                
+log(1 + park):survey_year_factor2021                                                           -0.423           
+                                                                                               (0.293)          
+                                                                                                                
+Constant                                                                                      1.617***          
+                                                                                               (0.325)          
+                                                                                                                
+----------------------------------------------------------------------------------------------------------------
+Observations                                                                                    4,110           
+R2                                                                                              0.159           
+Adjusted R2                                                                                     0.141           
+Residual Std. Error                                                                       0.927 (df = 4022)     
+F Statistic                                                                           8.743*** (df = 87; 4022)  
+================================================================================================================
+Note:                                                                                *p<0.1; **p<0.05; ***p<0.01

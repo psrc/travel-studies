@@ -58,7 +58,7 @@ driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
 
 ```{r}
 vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
-          mutate(vmt_day=sum(vmt))%>%
+          summarize(vmt_day=sum(vmt))%>%
           filter(row_number()==1)
 ```
 
@@ -69,6 +69,7 @@ persons_list<-persons_list[,!duplicated(colnames(persons_list))]
 
 ```
 
+could instead do weighting based on rmove records;
 ```{r}
 hh_tract<- get_hhts(survey='2017_2019', level = 'h', vars= c( 'final_home_tract10', 'hhgroup'))
 
@@ -96,6 +97,9 @@ summary(persons_vmt$ln_vmt_day)
 ggplot(persons_vmt, aes(ln_vmt_day))+
 geom_histogram()+
 xlim(0, 10)
+
+ggplot(persons_vmt, aes(vmt_day))+
+geom_histogram()
 ```
 
 
@@ -113,11 +117,11 @@ persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000
                                           telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
                                           !is.na(telecommute_freq) ~ telecommute_freq))%>%
   mutate(Kitsap_home= ifelse(final_cnty=='Kitsap', 'Kitsap', 'Not Kitsap'))%>%
-           mutate(transit_ben = ifelse(benefits_3=='Not offered', 'Not offered', 'Offered or do not know'))%>%
-           mutate(compressed_ben = ifelse(benefits_2=='Not offered', 'Not offered', 'Offered or do not know'))%>%
+           mutate(transit_ben = ifelse(benefits_3 %in% c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+           mutate(compressed_ben = ifelse(benefits_2 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
   mutate(grad_school=ifelse(education=='Graduate/post-graduate degree', 'Graduate degree', 'No graduate degree'))%>%
-           mutate(flextime_ben = ifelse(benefits_1=='Not offered', 'Not offered', 'Offered or do not know'))%>%
-           mutate(oth_ben = ifelse(benefits_4=='Not offered', 'Not offered', 'Offered or do not know'))%>%
+           mutate(flextime_ben = ifelse(benefits_1 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+           mutate(oth_ben = ifelse(benefits_4 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
   mutate(survey_year_factor=as.factor(survey_year))
 
            
@@ -179,7 +183,7 @@ delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')%>%filter(delivery
 ```
 
 ```{r}
-persons_vmt_del1719<-left_join(persons_vmt_new, delivery_1719, by=c('household_id.x'= 'household_id', 'daynum'='daynum'))
+persons_vmt_del1719<-left_join(persons_vmt_new, delivery_1719, by=c('household_id'= 'household_id', 'daynum'='daynum'))
 ```
 
 
@@ -203,7 +207,7 @@ driving_data_21<-trip_data__21 %>% dplyr::filter(mode_simple=='Drive') %>%
 
 ```{r}
 vmt_per_21<- driving_data_21%>%group_by(person_id, daynum)%>%
-          mutate(vmt_day=sum(vmt))%>%
+          summarize(vmt_day=sum(vmt))%>%
           filter(row_number()==1)
 ```
 
@@ -289,8 +293,11 @@ delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')%>%filter(delivery_food_all
 ```
 
 ```{r}
-persons_vmt_del21<-left_join(persons_vmt_new_21, delivery_21, by=c('household_id.x'= 'household_id', 'daynum'='daynum'))
+persons_vmt_del21<-left_join(persons_vmt_new_21, delivery_21, by=c('household_id'= 'household_id', 'daynum'='daynum'))
 ```
+
+
+
 
 ```{r}
 common_cols <- intersect(colnames(persons_vmt_del1719), colnames(persons_vmt_del21))
@@ -299,30 +306,13 @@ persons_vmt_17_19_21<-rbind(persons_vmt_del1719[, common_cols], persons_vmt_del2
 
 
 ```{r}
-vmt_model_17_19_21<-lm(ln_vmt_day ~(employment+inc100k+vehicle_count_simple+lifecycle+gender_grp+numworkers+numchildren+numadults+grad_school+
-+student+ license+telecommute_freq_simple+ Kitsap_home+transit_ben+compressed_ben+flextime_ben+age+rent_own+ delivery_food_all+delivery_pkgs_all+delivery_grocery_all+ delivery_work_all+ log(1+jobs_auto/10000)+ log(1+jobs_transit/10000)+log(1+pharmacy)+log(1+park)+car_share -1)*survey_year_factor
-               ,data=persons_vmt_17_19_21)
+table(persons_vmt_17_19_21$survey_year)
+
+persons_vmt_17_19_21%>%group_by(survey_year)%>%summarize(mean_vmt=mean(vmt_day))
 ```
 
 
 
-
-
-```{r}
-output<-stargazer(vmt_model_17_19_21, type='text', out='vmt_model_17_19_21.txt')
-```
-
-
-
-```{r}
-#library(leaps)
-#models <- regsubsets(vmt_day~., data = persons_vmt_sub, nvmax = 5, really.big=T)
-```
-
-
-```{r}
-stepAIC(vmt_model_17_19_21,direction="both")
-```
 
 # https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/
 
@@ -330,14 +320,16 @@ stepAIC(vmt_model_17_19_21,direction="both")
 
 
 ```{r}
-vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment + inc100k + vehicle_count_simple + lifecycle + 
-    numworkers + grad_school + license + telecommute_freq_simple + 
-    Kitsap_home + transit_ben + compressed_ben + flextime_ben + 
-    age + rent_own + delivery_pkgs_all + log(1 + jobs_auto/10000) + 
-    log(1 + jobs_transit/10000) + log(1 + pharmacy) + log(1 + 
-    park) + survey_year_factor + inc100k:survey_year_factor + 
-    grad_school:survey_year_factor + transit_ben:survey_year_factor + 
-    compressed_ben:survey_year_factor + flextime_ben:survey_year_factor +rent_own:survey_year_factor - 1, data = persons_vmt_17_19_21)
+vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment + inc100k + vehicle_count_simple + 
+    gender_grp + numworkers + numchildren + numadults + grad_school + 
+    student + license + telecommute_freq_simple + Kitsap_home + 
+    transit_ben + compressed_ben + flextime_ben + rent_own + 
+    delivery_work_all + log(1 + jobs_transit/10000) + log(1 + 
+    pharmacy) + log(1 + park) + survey_year_factor + inc100k:survey_year_factor + 
+    gender_grp:survey_year_factor + grad_school:survey_year_factor + 
+    Kitsap_home:survey_year_factor + transit_ben:survey_year_factor + 
+    compressed_ben:survey_year_factor + log(1 + jobs_transit/10000):survey_year_factor + 
+    log(1 + pharmacy):survey_year_factor , data = persons_vmt_17_19_21)
 
 output<-stargazer(vmt_model_best_fit_21, type='text', out='vmt_model_best_21.txt')
 ```
@@ -354,15 +346,29 @@ summ(vmt_model_best_fit_21)
 plot_summs(vmt_model_best_fit_21)
 ```
 ```{r}
-vmt_model__small_best_fit_21<-lm(ln_vmt_day ~ employment +  vehicle_count_simple + 
+vmt_model__small_best_fit_21<-lm(ln_vmt_day ~ (employment +  vehicle_count_simple + 
     numworkers + grad_school + license + telecommute_freq_simple +
     Kitsap_home + transit_ben + compressed_ben + flextime_ben + 
     lifecycle +  delivery_pkgs_all + log(1 + jobs_auto/10000) + 
     log(1 + jobs_transit/10000) + log(1 + 
-    park) + survey_year_factor , data = persons_vmt_17_19_21)
+    park)) * survey_year_factor , data = persons_vmt_17_19_21)
 
 output<-stargazer(vmt_model__small_best_fit_21, type='text', out='vmt_model_best_21.txt')
 summ(vmt_model__small_best_fit_21)
 plot_summs(vmt_model__small_best_fit_21)
+```
+Having transit pass offered is associated with 15% less vmt
+teleworking 5 days a week associated with 28% less vmt
+delivery no effect measurable
+
+
+```{r}
+vmt_model__small_interest_21<-lm(ln_vmt_day ~ employment+vehicle_count_simple+license+telecommute_freq_simple +transit_ben + compressed_ben + flextime_ben + 
+ delivery_pkgs_all+  survey_year_factor+ log(1 + jobs_auto/10000) + 
+    log(1 + jobs_transit/10000)  , data = persons_vmt_17_19_21)
+
+output<-stargazer(vmt_model__small_interest_21, type='text', out='vmt_model_var_intest.txt')
+summ(vmt_model__small_interest_21)
+plot_summs(vmt_model__small_interest_21)
 ```
 
