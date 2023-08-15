@@ -167,12 +167,9 @@ per_group_data <- function(.data,hh_data){
   return(df)
 }
 
-trip_group_data <- function(.data,per_data){
+trip_group_data <- function(.data){
   df <- .data %>%
-    mutate(travelers_total=ifelse(travelers_total>10 | travelers_total<=0, 1, travelers_total)) %>%
-    # add person data
-    left_join(per_data, 
-              by = c("survey","sample_segment","household_id","person_id")) 
+    mutate(travelers_total=ifelse(travelers_total>10 | travelers_total<=0 | is.na(travelers_total), 1, travelers_total))
   
   return(df)
 }

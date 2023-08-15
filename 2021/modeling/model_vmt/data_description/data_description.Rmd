@@ -34,6 +34,8 @@ library(psrcelmer)
 library(tidyverse)
 library(wdm)
 library(survey)
+library(htmlwidgets)
+options(scipen=999)
 
 install_psrc_fonts()
 
@@ -50,7 +52,7 @@ source("hhts_var_function.R")
 ```
 
 ```{r find hhts variables}
-hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
+# hhts_codebook <- get_table(schema = 'HHSurvey', tbl_name = 'variables_codebook')
 # trip_path_distance: Bing-estimated trip distance (miles)
 
 hh_vars=c("sample_county", "final_home_rgcnum", "final_home_is_rgc",
@@ -91,14 +93,48 @@ person_vars=c("gender",
               )
               
 
-var_set <- hhts_codebook %>% filter(grepl("trip ID", description, ignore.case = TRUE))
+# var_set <- hhts_codebook %>% filter(grepl("trip ID", description, ignore.case = TRUE))
 
 hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars) %>% hh_group_data() 
 per_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars) %>% per_group_data(hh_data_17_19)
-trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars) %>% trip_group_data(per_data_17_19)
+trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars) %>% trip_group_data()
+day_data_17_19<- get_hhts("2017_2019", "d", vars=c())
 
-# vmt data
+hh_data_19<- get_hhts("2019", "h", vars=hh_vars) 
+per_data_19<- get_hhts("2019", "p", vars=person_vars)
+trip_data_19<- get_hhts("2019", "t", vars=trip_vars) 
+
+# calculate vmt data
 source("data_description_script.R")
+```
+
+# notes for calculating trip weights
+
+- trip rates: the number of trips per day among groups. To calculate a weighted trip rate, data users must divide the number of weighted trips by the number of weighted travel days. 
+    - If there are 225,000 person-trips by car across 75,000 person-days, then the person-trip rate for car trips is 3.0.
+- vehicle trip rates: would require calculating the weighted vehicle trips taking place 
+    - in this example, if the average vehicle occupancy is two people, then the vehicle trip rate would be 1.5
+
+- hh_weight_day should be used for household-day and person-day analyses
+    - Data users should always calculate **the number of weighted travel days using the day table** rather than the trip table given that persons with zero-trip travel days do not have any records in the trip tables for those days
+    - For trip rate comparison and adjustment, Friday is excluded along with Saturday and Sunday.
+
+```{r}
+day_vars=c("day_id","recid","pernum","hhsize","vehicle_count","hhincome_detailed","numadults","numchildren","numworkers","lifecycle","education","license","age_category","race_eth_broad","dayofweek","traveldate","survey_year","numtrips","trips_yesno_kid")
+# day_weight_2017_2019,day_weight_2017,day_weight_2019,hh_weight_2021,person_adult_weight_2021,person_respondent_weight_2021
+day_data_17_19<- get_hhts("2017_2019", "d", vars=day_vars)
+day_data_19<- get_hhts("2019", "d", vars=day_vars)
+test <- trip_data_19 %>% filter(household_id==191000154, mode_simple=="Drive")
+test2 <- per_data_19 %>% filter(household_id==191000154)
+test_day <- day_data_19%>% filter(household_id==191000154)
+sum(day_data_19$day_weight_2019)
+# 17128054
+```
+```{r}
+sum(test2$hh_weight_2019, na.rm = TRUE)
+```
+```{r}
+sum(test_day$day_weight_2019, na.rm = TRUE)
 ```
 
 
@@ -125,6 +161,7 @@ vmt_per %>%
   e_grid(height = "55%", top = "30%", containLabel= TRUE)  |> 
   e_title("vmt distribution") %>% 
   e_tooltip(formatter = e_tooltip_item_formatter("percent")) # tooltip 
+
 ```
 
 ## vmt in counties and centers
