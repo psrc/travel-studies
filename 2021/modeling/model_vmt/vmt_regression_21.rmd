@@ -64,7 +64,7 @@ vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
 
 ```{r}
 
-persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple'))
+persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'commute_freq'))
 persons_list<-persons_list[,!duplicated(colnames(persons_list))]
 
 ```
@@ -111,8 +111,8 @@ persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000
                                                  hhincome_broad=='$50,000-$74,999' ~ 'Under 100K'))%>%
   mutate(vehicle_count_simple= case_when(vehicle_count=substr(vehicle_count,1,1) %in% c("3","4", "5", "6", "7", "8") ~ '3 or more vehicles',
                                          .default = vehicle_count))%>%
-  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
-                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
+  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "1-4 days per week", 
                                           telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
                                           telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
                                           !is.na(telecommute_freq) ~ telecommute_freq))%>%
@@ -122,7 +122,8 @@ persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000
   mutate(grad_school=ifelse(education=='Graduate/post-graduate degree', 'Graduate degree', 'No graduate degree'))%>%
            mutate(flextime_ben = ifelse(benefits_1 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
            mutate(oth_ben = ifelse(benefits_4 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
-  mutate(survey_year_factor=as.factor(survey_year))
+  mutate(survey_year_factor=as.factor(survey_year))%>%
+  mutate(commute_)
 
            
 
@@ -213,7 +214,7 @@ vmt_per_21<- driving_data_21%>%group_by(person_id, daynum)%>%
 
 ```{r}
 
-persons_list_21<- get_hhts(survey="2021", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple'))
+persons_list_21<- get_hhts(survey="2021", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace'))
 
 
 ```
@@ -261,8 +262,8 @@ persons_vmt_new_21<-persons_vmt_21%>%mutate(inc100k=case_when(hhincome_broad=='$
                                                  hhincome_broad=='$50,000-$74,999' ~ 'Under 100K'))%>%
   mutate(vehicle_count_simple= case_when(vehicle_count=substr(vehicle_count,1,1) %in% c("3","4", "5", "6", "7", "8") ~ '3 or more vehicles',
                                          .default = vehicle_count))%>%
-  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
-                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
+  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "1-4 days per week", 
                                           telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
                                           telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
                                           !is.na(telecommute_freq) ~ telecommute_freq))%>%
@@ -322,10 +323,10 @@ persons_vmt_17_19_21%>%group_by(survey_year)%>%summarize(mean_vmt=mean(vmt_day))
 ```{r}
 vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment + inc100k + vehicle_count_simple + 
     gender_grp + numworkers + numchildren + numadults + grad_school + 
-    student + license + telecommute_freq_simple + Kitsap_home + 
+    student + license + telecommute_freq_simple + Kitsap_home + commute_freq+
     transit_ben + compressed_ben + flextime_ben + rent_own + 
     delivery_work_all + log(1 + jobs_transit/10000) + log(1 + 
-    pharmacy) + log(1 + park) + survey_year_factor + inc100k:survey_year_factor + 
+    pharmacy) + log(1 + park) + survey_year_factor + workplace+inc100k:survey_year_factor + 
     gender_grp:survey_year_factor + grad_school:survey_year_factor + 
     Kitsap_home:survey_year_factor + transit_ben:survey_year_factor + 
     compressed_ben:survey_year_factor + log(1 + jobs_transit/10000):survey_year_factor + 
@@ -351,7 +352,7 @@ vmt_model__small_best_fit_21<-lm(ln_vmt_day ~ (employment +  vehicle_count_simpl
     Kitsap_home + transit_ben + compressed_ben + flextime_ben + 
     lifecycle +  delivery_pkgs_all + log(1 + jobs_auto/10000) + 
     log(1 + jobs_transit/10000) + log(1 + 
-    park)) * survey_year_factor , data = persons_vmt_17_19_21)
+    park))+ survey_year_factor , data = persons_vmt_17_19_21)
 
 output<-stargazer(vmt_model__small_best_fit_21, type='text', out='vmt_model_best_21.txt')
 summ(vmt_model__small_best_fit_21)
@@ -363,7 +364,7 @@ delivery no effect measurable
 
 
 ```{r}
-vmt_model__small_interest_21<-lm(ln_vmt_day ~ employment+vehicle_count_simple+license+telecommute_freq_simple +transit_ben + compressed_ben + flextime_ben + 
+vmt_model__small_interest_21<-lm(ln_vmt_day ~ employment+vehicle_count_simple+license+commute_freq+telecommute_freq_simple +transit_ben + compressed_ben + flextime_ben + 
  delivery_pkgs_all+  survey_year_factor+ log(1 + jobs_auto/10000) + 
     log(1 + jobs_transit/10000)  , data = persons_vmt_17_19_21)
 
@@ -371,4 +372,17 @@ output<-stargazer(vmt_model__small_interest_21, type='text', out='vmt_model_var_
 summ(vmt_model__small_interest_21)
 plot_summs(vmt_model__small_interest_21)
 ```
+```{r}
+vmt_model_telecommute<-lm(ln_vmt_day ~telecommute_freq_simple* commute_freq+survey_year_factor  , data = persons_vmt_17_19_21)
 
+output<-stargazer(vmt_model_telecommute, type='text', out='vmt_model_telecommute.txt')
+outputs2<-summ(vmt_model_telecommute)
+write.csv(outputs2, 'vmt_model_telecommute.csv')
+```
+```{r}
+vmt_model_telecommute<-lm(ln_vmt_day ~ workplace+ survey_year_factor  , data = persons_vmt_17_19_21)
+
+output<-stargazer(vmt_model_telecommute, type='text', out='vmt_model_telecommute.txt')
+outputs2<-summ(vmt_model_telecommute)
+write.csv(outputs2, 'vmt_model_telecommute.csv')
+```

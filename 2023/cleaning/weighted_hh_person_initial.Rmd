@@ -1,0 +1,340 @@
+---
+title: '2021 PSRC HTS: Weighted Summary'
+# editor_options:
+#   chunk_output_type: console
+author: PSRC
+date: "Documentation last compiled on `r Sys.Date()`"
+output:
+  html_document:
+    collapsed: yes
+    self_contained: yes
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+  word_document:
+    toc: yes
+    toc_depth: '4'
+params:
+  codebook_path: J:/Projects/Surveys/HHTravel/Survey2021/Data/data_from_rsg_20210803/PSRC_2021_HTS_Combined_Codebook.xlsx
+  tab_by: sample_source
+  tables: [hts_hh, hts_vehicle, hts_person, hts_day, hts_trip]
+  variables_to_exclude: ["hhid", "personid", "tripid", "loc_start_other", "loc_end_other", "arrival_time_hhmm", "depart_time_hhmm", "arrival_time_mam", "depart_time_mam", "final_home_puma10", "survey_year", "hhmember1", "hhmember2", "hhmember3", "hhmember4", "hhmember5", "hhmember6", "hhmember7", "hhmember8", "hhmember9", "hhmember10", "hhmember11", "hhmember12"]
+  missing_values: !r c(994, 995, -9998, -9999)
+  weight_column: 
+  study_name: "PSRC HTS 2021"
+---
+```{r}
+
+# Update codebook path above & data input paths below if running outside of RSG!
+
+options(scipen = 99)
+options(knitr.kable.NA = '')
+library(data.table)
+library(knitr)
+library(kableExtra)
+library(readxl)
+library(lubridate)
+#library(RPostgres)
+library(stringr)
+library(ggplot2)
+library(odbc)
+library(DBI)
+library(tidyverse)
+source('C:/Users/schildress/Documents/GitHub/travel-survey-rsg-psrc-2021/rsg_qaqc/_crosstabs_functions.R')
+```
+
+
+
+Read in and join data
+```{r get_inputs, include = FALSE, echo = FALSE, cache = FALSE}
+#read 
+
+wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel-survey-rsg-psrc-2021/rsg_qaqc"
+
+#where you want to output tables
+file_loc <- 'C:/Users/SChildress/Documents/HHSurvey/'
+
+
+sql.hh.query<-("SELECT household_id,prev_res_factors_housing_cost, 
+               prev_res_factors_covid_flexibility,
+prev_res_factors_income_change,
+prev_res_factors_community_change,
+prev_res_factors_hh_size,
+prev_res_factors_more_space,
+prev_res_factors_less_space,
+prev_res_factors_employment,
+prev_res_factors_school,
+prev_res_factors_crime
+prev_res_factors_covid_health,
+prev_res_factors_quality,
+prev_res_factors_forced
+prev_res_factors_no_answer,
+prev_res_factors_other,
+prev_res_factors_specify FROM Elmer.HHSurvey.households_2021")
+
+
+hh_2021<-read.dt(sql.hh.query, 'sqlquery')
+
+
+
+
+sql.person.query<-paste("SELECT  hhid,personid,
+employment_change_employer,
+employment_change_location,
+employment_change_new_job,
+employment_change_laid_off,
+employment_change_left_workforce,
+employment_change_none,
+wbt_bikemore_1,
+wbt_bikemore_2,
+wbt_bikemore_3,
+wbt_bikemore_4,
+wbt_bikemore_5,
+jobs_count, employment, commute_freq, commute_freq_pre_covid, telecommute_freq, telecommute_freq_pre_covid,commute_mode, commute_mode_pre_covid, race_afam, mode_freq_1
+FROM  Elmer.HHSurvey.persons_2021")
+
+persons_2021<-read.dt(sql.person.query, 'sqlquery')
+
+
+
+sql.trip.query <- paste("SELECT tripid, dest_purpose_cat,  mode_1, travelers_total, mode_acc, trip_path_distance FROM hhts_cleaning_20211021.HHSurvey.Trip")
+trips_2021 <- read.dt(sql.trip.query, 'sqlquery')
+
+
+
+               
+```
+
+Set up codebook to look up variable values.
+```{r psrc_functions, include = FALSE}
+read_codebook = function(
+  codebook_path,
+  varvals = TRUE,
+  sheet = ifelse(varvals, 'Values', 'Overview'),
+  label_col = 'label'){
+  
+  if (varvals) {
+    
+    sheet_names = excel_sheets(codebook_path)
+    
+    if (sheet %in% sheet_names) {
+      vvalues = read_excel(path = codebook_path, sheet = sheet)
+      setDT(vvalues)
+      
+    } else {
+      
+      # multi-sheet format codebook
+      sheets = c('hh', 'person', 'day', 'vehicle', 'trip', 'location')
+      vvalue_list = lapply(sheets, function(x){
+        if (x %in% sheet_names) {
+          message('Reading codebook sheet ', x)
+          read_xlsx(codebook_path, sheet = x)
+        } else {
+          NULL
+        }
+      })
+      
+      vvalues = rbindlist(vvalue_list)
+      vvalues = unique(vvalues)
+    }
+    
+    vvalues[, label_value := paste(value, get(label_col))]
+    
+    if (!'val_order' %in% names(vvalues)) {
+      vvalues[, value := as.numeric(value)]
+      setorder(vvalues, variable, value)
+      vvalues[, val_order := 1:.N, by = .(variable)]
+    }
+    
+    return(vvalues[])
+    
+  } else {
+    # read in variable labels and logic
+    varnames = read_excel(path = codebook_path, sheet = sheet)
+    setDT(varnames)
+    return(varnames[])
+  }
+}
+
+
+
+get_labels = function(dataset,col_name,var_string){
+  col_name = enquo(col_name)
+  
+  var_label_table = as.data.frame(value_labels[value_labels$variable %in% c(var_string)] %>% mutate(value = as.double(value))) %>% 
+    dplyr::select(value, value_label)
+  
+  dataset = dataset %>%
+    rename( "value" := !!col_name)
+  
+  temp = dataset %>% left_join(var_label_table, by = "value") %>% 
+    dplyr::select(-c(value)) %>%
+    relocate(value_label) 
+
+  return(temp)
+  
+}
+```
+```{r varvals, cache = TRUE, echo = FALSE, message = FALSE}
+
+variable_labels = 
+  read_codebook(
+    params$codebook_path,
+    varvals = FALSE,
+    sheet = 'Variable_List')
+
+setnames(variable_labels, 'label', 'description', skip_absent = TRUE)
+
+value_labels = 
+    read_codebook(
+    params$codebook_path,
+    varvals = TRUE, 
+    sheet = 'Value_Labels')
+
+setnames(value_labels, 'label', 'value_label', skip_absent = TRUE)
+
+variable_labels[, common_name := gsub(':.*', '', description)]
+
+value_labels[, value := as.character(value)]
+
+# Change checkbox logic to be the same for each variable
+
+variable_labels[variable %like% 'delivery_', logic := '']
+variable_labels[variable %like% 'no_travel_', logic := 'If made no trips on travel day']
+variable_labels[variable %like% 'ethnicity_', logic := 'If related adult household member']
+variable_labels[variable %like% 'race_', logic := 'If related adult household member']
+
+
+```
+```{r}
+
+hh_prev_res_factors_covid_flex <-hh_2021 %>% 
+  group_by(prev_res_factors_covid_flexibility) %>% 
+  summarise(across(c('ABS_hh_weight'), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("prev_res_factors_covid_flexibility")] %>% mutate(value = as.double(value)))
+labeled_hh_prev_res_factors_covid_flex<- merge(hh_prev_res_factors_covid_flex , var_label_table, by.x='prev_res_factors_covid_flexibility', by.y='value')
+write.table(labeled_hh_prev_res_factors_covid_flex, "clipboard", sep="\t", row.names=FALSE)
+```
+```{r}
+hh_prev_res_factors_cost <-hh_2021 %>% 
+  group_by(prev_res_factors_housing_cost) %>% 
+  summarise(across(c('ABS_hh_weight'), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("prev_res_factors_housing_cost")] %>% mutate(value = as.double(value)))
+labeled_hh_prev_res_factors_cost<- merge(hh_prev_res_factors_cost, var_label_table, by.x='prev_res_factors_housing_cost', by.y='value')
+write.table(labeled_hh_prev_res_factors_cost, "clipboard", sep="\t", row.names=FALSE)
+```
+```{r}
+
+hh_prev_res_factors_income <-hh_2021 %>% 
+  group_by(prev_res_factors_income_change) %>% 
+  summarise(across(c('ABS_hh_weight'), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("prev_res_factors_income_change")] %>% mutate(value = as.double(value)))
+labeled_hh_prev_res_factors_income<- merge(hh_prev_res_factors_income, var_label_table, by.x='prev_res_factors_income_change', by.y='value')
+write.table(labeled_hh_prev_res_factors_income, "clipboard", sep="\t", row.names=FALSE)
+```
+```{r}
+covid_health<-hh_2021 %>%filter(prev_res_factors_covid_health==1)
+write.table(covid_health, "clipboard", sep="\t", row.names=FALSE)
+```
+
+```{r}
+hh_prev_res_factors_covid_health <-hh_2021 %>% 
+  group_by(prev_res_factors_covid_health)  %>%
+  summarise(total = sum(ABS_hh_weight)) 
+  
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("prev_res_factors_covid_health")] %>% mutate(value = as.double(value)))
+labeled_hh_prev_res_factors_covid_health<- merge(hh_prev_res_factors_covid_health, var_label_table, by.x='prev_res_factors_covid_health', by.y='value')
+write.table(labeled_hh_prev_res_factors_covid_health, "clipboard", sep="\t", row.names=FALSE)
+```
+
+------------------------------------------------------------------------
+
+Do some summaries: persons by number of jobs, persons by commute frequency pre and post covid.
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+#jobs_count
+
+person_by_jobs_count = persons_2021 %>% 
+  group_by(jobs_count) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("jobs_count")] %>% mutate(value = as.double(value)))
+labeled_jobs_count <- merge(person_by_jobs_count, var_label_table, by.x='jobs_count', by.y='value')
+write.table(labeled_jobs_count, "clipboard", sep="\t", row.names=FALSE)
+
+
+person_2021_no_jobs<- person_2021 %>% filter(jobs_count==0)%>%filter(combined_adult_weight>0)
+
+
+#persons by commute frequency
+person_by_commute_freq = person_2021 %>% 
+  group_by(commute_freq, commute_freq_pre_covid) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("commute_freq")] %>% mutate(value = as.double(value)))
+labeled_commute_freq <- merge(person_by_commute_freq, var_label_table, by.x='commute_freq', by.y='value')
+labeled_commute_freq2 <- merge(labeled_commute_freq , var_label_table, by.x='commute_freq_pre_covid', by.y='value')
+write.table(labeled_commute_freq2, "clipboard", sep="\t", row.names=FALSE)
+
+#persons by commute frequency
+person_by_commute_freq_pre_covid_only = person_2021 %>% 
+  group_by(commute_freq_pre_covid) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+
+labeled_commute_freq_precovid<- merge(person_by_commute_freq_pre_covid_only, var_label_table, by.x='commute_freq_pre_covid', by.y='value')
+
+write.table(labeled_commute_freq_precovid, "clipboard", sep="\t", row.names=FALSE)
+
+#persons by commute frequency
+person_by_commute_freq_pre_covid_only = person_2021 %>% 
+  group_by(commute_freq_pre_covid) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+
+
+labeled_commute_freq_precovid<- merge(person_by_commute_freq_pre_covid_only, var_label_table, by.x='commute_freq_pre_covid', by.y='value')
+
+write.table(labeled_commute_freq_precovid, "clipboard", sep="\t", row.names=FALSE)
+```
+
+
+```
+
+```{r}
+person_employment_change_new_job = person_2021 %>% 
+  group_by(employment_change_new_job) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("employment_change_new_job")] %>% mutate(value = as.double(value)))
+labeled_employment_change_new_job <- merge(person_employment_change_new_job, var_label_table, by.x='employment_change_new_job', by.y='value')
+write.table(labeled_employment_change_new_job, "clipboard", sep="\t", row.names=FALSE)
+```
+
+
+```{r}
+person_employment_change_laid_off = person_2021 %>% 
+  group_by(employment_change_laid_off) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("employment_change_laid_off")] %>% mutate(value = as.double(value)))
+labeled_employment_change_laid_off <- merge(person_employment_change_laid_off, var_label_table, by.x='employment_change_laid_off', by.y='value')
+write.table(labeled_employment_change_laid_off, "clipboard", sep="\t", row.names=FALSE)
+```
+
+```{r}
+person_employment_change_left_workforce = person_2021 %>% 
+  group_by(employment_change_left_workforce) %>% 
+  summarise(across(c('ABS_hh_weight', 'ABS_adult_weight', 'OP_respondent_weight_adjusted', 'combined_adult_weight', 'combined_respondent_weight' ), ~ sum(.x, na.rm = TRUE)))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("employment_change_left_workforce")] %>% mutate(value = as.double(value)))
+labeled_employment_change_left_workforce <- merge(person_employment_change_left_workforce, var_label_table, by.x='employment_change_left_workforce', by.y='value')
+write.table(labeled_employment_change_left_workforce, "clipboard", sep="\t", row.names=FALSE)
+```

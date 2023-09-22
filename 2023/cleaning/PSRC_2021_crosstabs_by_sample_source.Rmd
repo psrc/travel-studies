@@ -1,0 +1,135 @@
+---
+title: '2021 PSRC HTS: Unweighted Frequency Tables by Sample Source'
+# editor_options:
+#   chunk_output_type: console
+author: RSG
+date: "Documentation last compiled on `r Sys.Date()`"
+output:
+  html_document:
+    collapsed: yes
+    self_contained: yes
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+  word_document:
+    toc: yes
+    toc_depth: '4'
+params:
+  codebook_path: C:/Users/leah.flake/Resource Systems Group, Inc/Transportation MR - 21016_PSRC_HTS/Internal/4.Deliverables/5_Dataset/Combined_Codebook_2021_Internal.xlsx
+  tab_by: sample_source
+  tables: [hts_hh, hts_vehicle, hts_person, hts_day, hts_trip]
+  variables_to_exclude: ["hhid", "personid", "tripid", "loc_start_other", "loc_end_other", "arrival_time_hhmm", "depart_time_hhmm", "arrival_time_mam", "depart_time_mam", "final_home_puma10", "survey_year", "hhmember1", "hhmember2", "hhmember3", "hhmember4", "hhmember5", "hhmember6", "hhmember7", "hhmember8", "hhmember9", "hhmember10", "hhmember11", "hhmember12"]
+  missing_values: !r c(994, 995, -9998, -9999)
+  weight_column: 
+  study_name: "PSRC HTS 2021"
+---
+
+```{r setup, include = FALSE, echo = FALSE, message = FALSE, warning = FALSE, results = 'asis'}
+
+# Update codebook path above & data input paths below if running outside of RSG!
+
+options(scipen = 99)
+options(knitr.kable.NA = '')
+library(data.table)
+library(knitr)
+library(kableExtra)
+library(readxl)
+library(lubridate)
+library(RPostgres)
+library(stringr)
+library(ggplot2)
+
+source('_crosstabs_functions.R')
+
+```
+
+
+***
+
+## Frequencies
+
+***
+
+```{r get_inputs, include = FALSE, echo = FALSE, cache = FALSE}
+
+# UPDATE folder path if running outside of RSG
+# may also need to update file formats/read functions (e.g., read from a database)
+user = Sys.getenv('USERNAME')
+data_folder_path = sprintf('C:/Users/%s/Resource Systems Group, Inc/Transportation MR - 21016_PSRC_HTS/Internal/3.DataAnalysis/1.Data/SurveyData/Unweighted_Deliverable/Draft_Tables', user)
+
+hts_hh = readRDS(file.path(data_folder_path, "hts_hh.rds"))
+hts_person  = readRDS(file.path(data_folder_path,"hts_person.rds"))
+hts_vehicle = readRDS(file.path(data_folder_path,"hts_vehicle.rds"))
+hts_day     = readRDS(file.path(data_folder_path,"hts_day.rds"))
+hts_trip    = readRDS(file.path(data_folder_path,"hts_trip.rds"))
+```
+
+```{r varvals, cache = FALSE, echo = FALSE, message = FALSE}
+
+variable_labels = 
+  read_codebook(
+    params$codebook_path,
+    varvals = FALSE,
+    sheet = 'Variable_List')
+
+setnames(variable_labels, 'label', 'description', skip_absent = TRUE)
+
+value_labels = 
+    read_codebook(
+    params$codebook_path,
+    varvals = TRUE, 
+    sheet = 'Value_Labels')
+
+setnames(value_labels, 'label', 'value_label', skip_absent = TRUE)
+
+variable_labels[, common_name := gsub(':.*', '', description)]
+
+value_labels[, value := as.character(value)]
+
+# Change checkbox logic to be the same for each variable
+
+variable_labels[variable %like% 'delivery_', logic := '']
+variable_labels[variable %like% 'no_travel_', logic := 'If made no trips on travel day']
+variable_labels[variable %like% 'ethnicity_', logic := 'If related adult household member']
+variable_labels[variable %like% 'race_', logic := 'If related adult household member']
+
+
+```
+
+```{r print_summaries, echo = FALSE, cache = FALSE, results = 'asis', warning = FALSE, message = FALSE}
+
+
+for (table in params$tables) {
+  
+  cb_col = substr(table, 5, nchar(table))
+  
+  message(table)
+  
+  header = fcase(
+    table == 'hts_hh', 'Household Table',
+    table == 'hts_person', 'Person Table',
+    table == 'hts_day', 'Day Table',
+    table == 'hts_trip', 'Trip Table',
+    table == 'hts_vehicle', 'Vehicle Table')
+  
+  cat(paste0('### ', header,'\n'))
+  variables_to_exclude = c(params$variables_to_exclude, names(get(table))[names(get(table)) %like% 'lat'])
+  variables_to_exclude = c(variables_to_exclude, names(get(table))[names(get(table)) %like% 'lng'])
+
+  print_summaries(
+    data = get(table),
+    variable_labels[get(cb_col) > 0 & `2021` > 0][order(get(cb_col))],
+    value_labels,
+    missing_values = params$missing_values,
+    tab_by = params$tab_by,
+    variables_to_exclude = variables_to_exclude,
+  checkbox_variable_filter = "description %like% '--' & !(description %like% ': Specify') & !(description %like% 'How important')",
+    weight_column = params$weight_column)
+  
+}
+      
+```
+
