@@ -16,10 +16,10 @@ import random
 time_unit = 'minute'
 distanceUnit = 'mile'
 key_file =r'C:\Users\SChildress\OneDrive - Puget Sound Regional Council\Documents\HHSurvey\bing-key\bing-key-23-survey.txt'
-output_file =r'C:\Users\SChildress\Documents\GitHub\travel-studies\2023\summary\trip-distances-2023.csv'
+output_file =r'C:\GitHub\travel-studies\2023\summary\trip-distances-2023.csv'
 
 
-def construct_url(row,api_key):
+def construct_url(row,output_file, api_key, distanceUnit):
     #construct a url like this:
     # https:
     # # //dev.virtualearth.net/REST/v1/Routes/DistanceMatrix?origins={lat0,long0;lat1,lon1;latM,lonM}&destinations={lat0,lon0;lat1,lon1;latN,longN}&travelMode={travelMode}&startTime={startTime}&timeUnit={timeUnit}&key={BingMapsAPIKey}
@@ -42,21 +42,21 @@ def construct_url(row,api_key):
     #destinations_lat_long =
     od_part_url = origin_string+'&destinations='+destination_string
     mode_part_url = '&travelMode='+mode
-    #time_unit_part_url = '&timeUnit='+time_unit
+    distance_unit_part_url = '&distanceUnit='+distanceUnit
     key_part_url = '&key='+api_key
 
-    the_url = first_part_url + next_part_url+od_part_url +mode_part_url+key_part_url
+    the_url = first_part_url + next_part_url+od_part_url +mode_part_url+distance_unit_part_url+key_part_url
     return the_url
 
 
 
 
-def get_distances(trips, output_file, api_key):
+def get_distances(trips, output_file, distanceUnit,api_key):
   
         count=0
 
         for index, row in trips.iterrows():
-                distance_url = construct_url(row,api_key)
+                distance_url = construct_url(row,output_file, api_key, distanceUnit)
                 print(distance_url)
                 try:
                     response = urllib.request.urlopen(distance_url, timeout=100)
@@ -74,7 +74,8 @@ def get_distances(trips, output_file, api_key):
                     results_w_ids.to_csv(output_file)
                     break
                 count=count+1
-
+    
+        
         return distance_results
 
 api_key = open(key_file).read()
@@ -88,7 +89,8 @@ trips  = pd.read_sql('SELECT TRIPID, ORIGIN_LAT, ORIGIN_LNG, DEST_LAT, DEST_LNG 
 
 
 
-trip_distances = get_distances(trips, output_file, api_key)
+trip_distances = get_distances(trips,  output_file, distanceUnit,api_key)
+trip_distances.to_csv(output_file)
 
 #update the dataset
 
