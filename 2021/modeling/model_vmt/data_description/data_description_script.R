@@ -21,6 +21,7 @@ working_vars <- c("person_id","household_id","sample_segment","survey",
                   "freq_transit","telecommute_freq",
                   "hh_weight_2017_2019","hh_weight_2017_2019_adult")
 
+
 # new calculation with weighted trips
 vmt_trip <- trip_data_17_19 %>% 
   filter(mode_simple=='Drive') %>%
@@ -33,51 +34,76 @@ vmt_trip <- trip_data_17_19 %>%
          vmt= trip_path_distance/travelers_total, 
          vmt_trip_weighted=((trip_path_distance*trip_adult_weight_2017_2019)/travelers_total))
 
-# person-day vmt: group by person ID and day number 
-vmt_per <- vmt_trip %>%
-  group_by(person_id, daynum) %>%
-  summarise(vmt_day=sum(vmt), 
-            vmt_trip_weighted_day=sum(vmt_trip_weighted)) %>%
-  ungroup() %>%
-  mutate(vmt_day=replace_na(vmt_day,0),
-         vmt_trip_weighted_day=replace_na(vmt_trip_weighted_day,0),
-         log_vmt_day=log(1+vmt_day),
-         log_vmt_trip_weighted_day=log(1+vmt_trip_weighted_day)) %>%
-  filter(vmt_day<300)
 
-# merge with day weights using day table to avoid filtering out no trip days
-vmt_per_day_weights <- day_data_17_19 %>%
-  left_join(vmt_per, by = c("person_id", "daynum"))
 
-# final data for data description and modeling
-vmt_per_final <- vmt_per_day_weights %>%
-  left_join(per_data_17_19 %>% 
-              select(all_of(working_vars)), 
-            by = c("person_id","household_id","survey","sample_segment")) %>%
-  # other categories for statistics
-  filter(person_id!=19100243801) %>% # wrong distance for shopping trip
+
+# final person data for data description 
+per_data_17_19_final <- per_data_17_19 %>% 
+  select(all_of(working_vars)) %>%
   mutate(
     vehicle_count_num = as.numeric(substr(vehicle_count,1,1)),
-    q_group = factor(ntile(vmt_day, 10)), # 10 guantile groups
-    no_vmt_grp = case_when(vmt_day==0~"zero vmt", # people with no vmt
-                           TRUE~"vmt"),
-    freq_transit = factor(freq_transit,
-                          levels=c("I never do this","I do this, but not in the past 30 days","1-3 times in the past 30 days",
-                                   "1 day/week","2-4 days/week","5 days/week","6-7 days/week")),
-    freq_transit_simple = factor(case_when(freq_transit %in% c("6-7 days/week","5 days/week")~"5+ days/week",
-                                           freq_transit %in% c("2-4 days/week", "1 day/week")~"1-4 days/week",
-                                           TRUE~freq_transit),
+    # q_group = factor(ntile(vmt_day, 10)), # 10 guantile groups
+    # no_vmt_grp = case_when(vmt_day==0~"zero vmt", # people with no vmt
+    #                        TRUE~"vmt"),
+    freq_transit_simple = factor(recode(freq_transit,
+                                        "1 day/week" = "1-4 days/week",
+                                        "2-4 days/week" = "1-4 days/week",
+                                        "5 days/week" = "5+ days/week",
+                                        "6-7 days/week" = "5+ days/week"),
                                  c("5+ days/week",
                                    "1-4 days/week",
                                    "1-3 times in the past 30 days",
                                    "I do this, but not in the past 30 days",
                                    "I never do this")),
-    telecommute_freq_simple = factor(case_when(telecommute_freq %in% c("Less than monthly","A few times per month")~"Less than weekly",
-                                               telecommute_freq %in% c("5 days a week","6-7 days a week")~"5+ days a week",
-                                               TRUE~telecommute_freq), 
-                                     levels=c("Never","Less than weekly",
-                                              "1 day a week","2 days a week","3 days a week","4 days a week",
-                                              "5+ days a week","Not applicable")))
+    freq_telecommute_simple = recode(telecommute_freq,
+                                 "Never" = "Never",
+                                 "1 day a week" = "1-2 days",
+                                 "2 days a week" = "1-2 days",
+                                 "3 days a week" = "3-4 days",
+                                 "4 days a week" = "3-4 days",
+                                 "5 days a week" = "5+ days",
+                                 "6-7 days a week" = "5+ days",
+                                 "Not applicable" = as.character(NA)))
+
+
+vmt_final <- vmt_trip %>%
+  # for filtering
+  left_join(per_data_17_19_final, by = c("survey","sample_segment","household_id","person_id"))
+  
+  
+# old vmt per person/day code: not working, use aggregated calculation instead
+# person-day vmt: group by person ID and day number 
+# vmt_per <- vmt_trip %>%
+#   group_by(person_id, daynum) %>%
+#   summarise(vmt_day=sum(vmt), 
+#             vmt_trip_weighted_day=sum(vmt_trip_weighted)) %>%
+#   ungroup() %>%
+#   mutate(vmt_day=replace_na(vmt_day,0),
+#          vmt_trip_weighted_day=replace_na(vmt_trip_weighted_day,0),
+#          log_vmt_day=log(1+vmt_day),
+#          log_vmt_trip_weighted_day=log(1+vmt_trip_weighted_day)) %>%
+#   filter(vmt_day<300) # !! this filtering step will make the total vmt lower
+# 
+# 
+# # merge with day weights using day table to avoid filtering out no trip days
+# vmt_per_day_weights <- day_data_17_19 %>%
+#   left_join(vmt_per, by = c("person_id", "daynum")) %>%
+#   # remove days that are not complete or valid
+#   filter(day_weight_2017_2019>0) %>%
+#   # fill in days with 0 vmt
+#   mutate(vmt_day=replace_na(vmt_day,0),
+#          vmt_trip_weighted_day=replace_na(vmt_trip_weighted_day,0),
+#          log_vmt_day=replace_na(log_vmt_day,0),
+#          log_vmt_trip_weighted_day=replace_na(log_vmt_trip_weighted_day,0))
+# refer to "J:\Projects\Surveys\HHTravel\Survey2019\Documents\Introduction_to_Household_Travel_Surveys.pdf" at the top of page16
+# > Data users should always calculate the number of weighted travel days using the day table 
+# > rather than the trip table given that persons with zero-trip travel days do not have any 
+# > records in the trip tables for those days.
+
+# Question: do we need to divide the day weights by 2 in 2017_2019 data?
+
+
+
 
 # TODO: update household data
 # vmt_hh <- trip_data_17_19 %>%
