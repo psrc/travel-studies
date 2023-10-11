@@ -1,0 +1,177 @@
+
+```{r setup, include=FALSE}
+# Required Packages ============================================================
+
+library(data.table) # general data manipulation
+library(srvyr)      # survey statistics
+library(dplyr)      # helpers for srvyr (mutate, group_by, and %>% pipe), 
+                    # plus function near(), used in qa/qc checks 
+library(stringr)    # string helper functions
+library(flextable)  # formatted tables
+library(ggplot2)    # plotting
+library(scales)     # ggplot2 helpers
+library(plotly)     # interactive plots
+library(rstudioapi) # for setting working directory
+library(psrcelmer)
+library(tidyr)
+
+# Point to where the 2023 codebook lives:
+codebook_path = 'J:/Projects/Surveys/HHTravel/Survey2023/Data/data_deliverable_81823/codebook_guide/PSRC_Combined_Codebook_2023_08162023.xlsx'
+
+# Read Data  ===================================================================
+
+#data as delivered
+hh_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_household")
+person_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_person")
+day_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_day")
+trip_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_trip")
+#trip_rsg<-merge(trip_rsg,day_rsg, by=c('person_id', 'daynum'))
+
+
+
+
+
+## Codebook -------------------------------------------------------------------- 
+
+variables = readxl::read_xlsx(
+  codebook_path,
+  sheet = 'variable_list_2023'
+)
+
+values =  readxl::read_xlsx(
+  codebook_path,
+  sheet = 'value_labels_2023'
+)
+
+setDT(variables)
+setDT(values)
+
+```
+
+
+
+filter to workers, get info on 0 work trip days
+```{r}
+
+workers<-person_rsg%>%filter(employment %in% c(1, 2, 3))
+worker_days<-workers%>%left_join(day_rsg, by='person_id' )
+# only include days for workers that are Tuesday, Wednesday, or Thursday
+worker_days<-worker_days%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))%>%filter(travel_dow %in% c(2,3,4))
+trip_rsg<-trip_rsg%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))
+worker_trips<-merge(worker_days,trip_rsg, by=c('person_id', 'daynum'))%>%filter(dest_purpose_cat %in% c(2,3))
+```
+
+```{r}
+
+work_trips_per_day_rsg_telecommute<-worker_trips%>%
+  group_by(person_id, daynum,telework_time)%>%
+  count()%>%
+  right_join(worker_days, by=c('person_id','daynum'))%>%  ## get all days whether or not they have work trips
+  mutate(n=replace_na(n,0))%>%  ## fill in the days for people that have no work trips
+  group_by(n,telework_time.y)%>%
+  count()%>%
+  rename(work_trips_per_day=n, count_days=nn)%>%
+  filter(work_trips_per_day<6)
+
+
+
+```
+```{r}
+work_trips_per_day_recs<-worker_trips%>%
+  group_by(person_id, daynum,telework_time)%>%
+  count()%>%
+  right_join(worker_days, by=c('person_id','daynum'))%>%  ## get all days whether or not they have work trips
+  mutate(n=replace_na(n,0))%>%mutate(work_trip_group=case_when(n==0 ~ 0,
+                                                                                                               n>0 ~ 1,
+                                   .default= 0))
+```
+
+```{r}
+library(MASS)
+model_fit<-glm(work_trip_group ~ telework_time.y, data=work_trips_per_day_recs)
+summary(model_fit)
+```
+
+
+```{r }
+levels<- c('0 hours', 'Less than 2 hours', '2 to 4 hours', '4 to 6 hours', '6 to 8 hours', '8 to 10 hours', 'more than 10 hours')
+work_trips_telework_time<-work_trips_per_day_rsg_telecommute%>%
+mutate(telework_group= telework_time.y %/% 60) %>%
+ # mutate(telework_group=factor(telework_group, levels=c('0 hours', 'Less than 2 hours', '2 to 4 hours', '4 to 6 hours', '6 to 8 hours', '8 to 10 hours', 'more than 10 hours')))
+ungroup()%>%mutate(work_trip_group=case_when(work_trips_per_day==0 ~ 'no work trips',work_trips_per_day>0 ~ 'has work trips',
+                                   .default= 'NA'))%>%group_by(telework_group,work_trip_group)%>%
+  summarise(count_days_group=sum(count_days))%>%
+  mutate(perc_with_work_trip= count_days_group/sum(count_days_group), sum_days=sum(count_days_group))%>%
+  filter(work_trip_group=='has work trips')
+  
+  
+
+
+```
+
+```{r}
+ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))
+```
+```{r}
+ggplot(work_trips_telework_time, aes(x=telework_group, y=sum_days))+geom_bar(stat="identity")+geom_text(aes(label=sum_days))
+```
+
+
+
+```{r}
+
+mean_work_trips_telework_time<-work_trips_per_day_rsg_telecommute%>%
+mutate(telework_group= telework_time.y %/% 60) %>%
+   ungroup()%>%
+  group_by(telework_group)%>%
+  summarize(mean_work_trips_per_day=weighted.mean(work_trips_per_day, count_days))
+
+```
+
+```{r}
+ggplot(mean_work_trips_telework_time, aes(x=telework_group, y=mean_work_trips_per_day))+geom_bar(stat="identity")+geom_text(aes(label=round(mean_work_trips_per_day,2)))
+```
+```{r }
+levels<- c('Less than 3 hours', 'More or Equal 3 hours')
+work_trips_telework_time<-work_trips_per_day_rsg_telecommute%>%
+mutate(telework_group= case_when(telework_time.y <180 ~ 'Less than 3 hours',
+                                 telework_time.y>=180 ~ 'More or Equal 3 hours',
+                                 .default ='Less than 3 hours'))%>%
+  mutate(telework_group=factor(telework_group, levels= c('Less than 3 hours', 'More or Equal 3 hours')))%>%
+ungroup()%>%mutate(work_trip_group=case_when(work_trips_per_day==0 ~ 'no work trips',work_trips_per_day>0 ~ 'has work trips',
+                                   .default= 'NA'))%>%group_by(telework_group,work_trip_group)%>%
+  summarise(count_days_group=sum(count_days))%>%
+  mutate(perc_with_work_trip= count_days_group/sum(count_days_group), sum_days=sum(count_days_group))%>%
+  filter(work_trip_group=='has work trips')
+  
+  
+
+
+```
+
+```{r}
+ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))
+```
+
+```{r }
+levels<- c('Less than 5 hours', 'More or Equal 5 hours')
+work_trips_telework_time<-work_trips_per_day_rsg_telecommute%>%
+mutate(telework_group= case_when(telework_time.y <300 ~ 'Less than 5 hours',
+                                 telework_time.y>=300 ~ 'More or Equal 5 hours',
+                                 .default ='Less than 5 hours'))%>%
+  mutate(telework_group=factor(telework_group, levels= c('Less than 5 hours', 'More or Equal 5 hours')))%>%
+ungroup()%>%mutate(work_trip_group=case_when(work_trips_per_day==0 ~ 'no work trips',work_trips_per_day>0 ~ 'has work trips',
+                                   .default= 'NA'))%>%group_by(telework_group,work_trip_group)%>%
+  summarise(count_days_group=sum(count_days))%>%
+  mutate(perc_with_work_trip= count_days_group/sum(count_days_group), sum_days=sum(count_days_group))%>%
+  filter(work_trip_group=='has work trips')
+  
+  
+
+
+```
+
+
+```{r}
+ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))
+```

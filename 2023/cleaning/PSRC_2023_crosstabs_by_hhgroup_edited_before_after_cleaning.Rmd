@@ -18,7 +18,7 @@ output:
     toc: yes
     toc_depth: '4'
 params:
-  codebook_path: J:/Projects/Surveys/HHTravel/Survey2021/Data/data_from_rsg_20210803/PSRC_2021_HTS_Combined_Codebook.xlsx
+  codebook_path: J:/Projects/Surveys/HHTravel/Survey2023/Data/data_deliverable_81823/codebook_guide/PSRC_Combined_Codebook_2023_08162023.xlsx
   tab_by: sample_source
   tables: [hts_hh, hts_vehicle, hts_person, hts_day, hts_trip]
   variables_to_exclude: ["hhid", "personid", "tripid", "loc_start_other", "loc_end_other", "arrival_time_hhmm", "depart_time_hhmm", "arrival_time_mam", "depart_time_mam", "final_home_puma10", "survey_year", "hhmember1", "hhmember2", "hhmember3", "hhmember4", "hhmember5", "hhmember6", "hhmember7", "hhmember8", "hhmember9", "hhmember10", "hhmember11", "hhmember12"]
@@ -59,21 +59,21 @@ two_vars_by_hhgroup= function(dataset,col_name,var_string){
   group_by(hhgroup.x,( !!col_name), hh_is_complete_b) %>% 
   summarise (n_trips = n_distinct(tripid)) 
   
-  browser_mode = trips_by_mode %>% 
+  browser_mode = trips_by_var%>% 
     filter(hhgroup %in% c(3, 4, 5, 6,7,8)) %>% 
     rename (browser_n_trips = n_trips) %>% 
     mutate(browser_trips_share = round(browser_n_trips/sum(browser_n_trips)*100,1))
     
     
-  smartphone_mode = trips_by_mode %>% 
+  smartphone_mode = trips_by_var%>% 
     filter(hhgroup %in% c(9, 10,11))%>%
     group_by(hh_is_complete_b)%>%
     rename (smartphone_n_trips = n_trips) %>% 
-    mutate(smartphone_trips_share = round(panel_n_trips/sum(panel_n_trips)*100,1))
+    mutate(smartphone_trips_share = round(smartphone_n_trips/sum(smartphone_n_trips)*100,1))
   
-  temp = ABS_mode %>% 
-    full_join(panel_mode,  by = var_string) %>% 
-    dplyr::select(-c(sample_source.x.x,sample_source.x.y)) %>% 
+  temp = browser_mode %>% 
+    full_join(smartphone_mode,  by = var_string) %>% 
+    dplyr::select(-c(hhgroup.x, hhgroup.y, hh_is_complete_b)) %>% 
     rename( "value" := !!col_name)
    # mutate(value = !!col_name)
   
@@ -84,9 +84,7 @@ two_vars_by_hhgroup= function(dataset,col_name,var_string){
   
   temp = temp %>% left_join(var_label_table, by = "value") %>% 
     dplyr::select(-c(value)) %>%
-    relocate(value_label) %>% 
-    arrange(desc(ABS_trips_share))
-
+    relocate(value_label) 
   return(temp)
   
 }
@@ -127,35 +125,34 @@ library(ggplot2)
 library(odbc)
 library(DBI)
 library(tidyverse)
-source('C:/Users/schildress/Documents/GitHub/travel-survey-rsg-psrc-2021/rsg_qaqc/_crosstabs_functions.R')
+library(psrcelmer)
+source('_crosstabs_functions.R')
 
 ```
 
 ------------------------------------------------------------------------
 
-First we will look at the UNCLEANED data by itself, then the CLEANED data, and then together compare the two.
+First we will look at the UNCLEANED data from RSG, then the RULESY cleaned data, and then final cleaned data.
 
-# Uncleaned data
+# Uncleaned data- delivered by RSG
 
 ```{r get_inputs, include = FALSE, echo = FALSE, cache = FALSE}
 
-# UPDATE folder path if running outside of RSG
-# may also need to update file formats/read functions (e.g., read from a database)
 elmer_connection <- dbConnect(odbc::odbc(),
                               driver = "SQL Server",
                               server = "AWS-PROD-SQL\\Sockeye",
-                              database = "hhts_cleaning",
+                              database = "HouseholdTravelSurvey2023",
                               trusted_connection = "yes")
 h <- dbGetQuery(elmer_connection,
-                "SELECT * FROM dbo.hts_hh")
+                "SELECT * FROM combined_data.v_household")
 p <- dbGetQuery(elmer_connection,
-                "SELECT * FROM dbo.hts_person")
+                "SELECT * FROM combined_data.v_person")
 
 d <- dbGetQuery(elmer_connection,
-                "SELECT * FROM dbo.hts_day")
+                "SELECT * FROM combined_data.v_day")
 
 t <- dbGetQuery(elmer_connection,
-                "SELECT * FROM dbo.hts_trip")
+                "SELECT * FROM combined_data.v_trip")
 ```
 
 ```{r varvals, cache = TRUE, echo = FALSE, message = FALSE}
@@ -201,7 +198,7 @@ trips_hh = left_join(t,h, by = "hhid")
 
 ------------------------------------------------------------------------
 
-### average trips per person by panel vs ABS
+### average trips per person by smartphone vs ABS
 
 Here, average is calculated for people who made at least one trip (people who are present in trip table )
 
@@ -233,20 +230,20 @@ avg_trips_uncleaned <- temp
 Here, average is calculated for all people (including people that didnt do any trips)
 
 ```{r, echo=FALSE,message=FALSE,warning=FALSE}
-day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+day_smartphone_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
 
 var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
 
-person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+person_smartphone = subset(p, (personid %in% day_smartphone_pernum1$personid)) 
 
-person_panel_summary = person_panel %>% 
+person_smartphone_summary = person_smartphone %>% 
     group_by(sample_source) %>%  summarise(ppl_count = n())
 
 ppl_ABS = p %>% 
           filter(sample_source == 1)%>% 
     group_by(sample_source) %>%  summarise(ppl_count = n())
 
-all_ppl = bind_rows(ppl_ABS,person_panel_summary)
+all_ppl = bind_rows(ppl_ABS,person_smartphone_summary)
 
 
 temp = t %>% 
@@ -270,7 +267,7 @@ temp %>%
 
 ------------------------------------------------------------------------
 
-### trips by mode (mode_1) by panel vs ABS; and overall
+### trips by mode (mode_1) by smartphone vs ABS; and overall
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 
@@ -285,13 +282,13 @@ ABS_mode = trips_by_mode %>%
   mutate(ABS_trips_share = round(ABS_n_trips/sum(ABS_n_trips)*100,1))
   
   
-panel_mode = trips_by_mode %>% 
+smartphone_mode = trips_by_mode %>% 
   filter(sample_source.x == 2)%>% 
-  rename (panel_n_trips = n_trips) %>% 
-  mutate(panel_trips_share = round(panel_n_trips/sum(panel_n_trips)*100,1))
+  rename (smartphone_n_trips = n_trips) %>% 
+  mutate(smartphone_trips_share = round(smartphone_n_trips/sum(smartphone_n_trips)*100,1))
 
 temp = ABS_mode %>% 
-  full_join(panel_mode,  by = "mode_1") %>% 
+  full_join(smartphone_mode,  by = "mode_1") %>% 
   dplyr::select(-c(sample_source.x.x,sample_source.x.y))
 
 var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("mode_1")] %>% mutate(value = as.double(value))) %>% 
@@ -312,7 +309,7 @@ trips_by_mode_uncleaned<-temp
 
 ------------------------------------------------------------------------
 
-### trips by origin purpose by panel vs ABS; overall
+### trips by origin purpose by smartphone vs ABS; overall
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 orig_purpose_all = two_vars_average_by_sample_source(trips_person, origin_purpose,"origin_purpose")
@@ -326,7 +323,7 @@ orig_purpose_all %>%
 
 ------------------------------------------------------------------------
 
-### trips by destination purpose by panel vs ABS; overall
+### trips by destination purpose by smartphone vs ABS; overall
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 dest_purpose_all = two_vars_average_by_sample_source(trips_person, dest_purpose,"dest_purpose")
@@ -409,29 +406,29 @@ dest_purpose_all_und18_uncleaned
 
 ### people with no trips by sample source
 
-Online Panel Participants are assigned retrospective travel dates (most recent Monday, Tuesday, Wednesday, Thursday) and provide diary information for ONLY person 1. To find share of 0 trips for the panel, we need to subset pernum = 1. There are 896 people from the online panel that were asked o provide travel diary.
+Online smartphone Participants are assigned retrospective travel dates (most recent Monday, Tuesday, Wednesday, Thursday) and provide diary information for ONLY person 1. To find share of 0 trips for the smartphone, we need to subset pernum = 1. There are 896 people from the online smartphone that were asked o provide travel diary.
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
-day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+day_smartphone_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
 
-person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+person_smartphone = subset(p, (personid %in% day_smartphone_pernum1$personid)) 
 
-person_panel_summary = person_panel %>% 
+person_smartphone_summary = person_smartphone %>% 
     group_by(sample_source) %>%  summarise(ppl_count = n())
 
-person_panel_summary_uncleaned<-person_panel_summary
+person_smartphone_summary_uncleaned<-person_smartphone_summary
 
-person_panel_summary_formatted<-get_labels(person_panel_summary, sample_source, "sample_source") %>%
+person_smartphone_summary_formatted<-get_labels(person_smartphone_summary, sample_source, "sample_source") %>%
   kbl() %>%
   #kable_material(c("striped", "hover"))
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
-person_panel_summary_formatted
+person_smartphone_summary_formatted
 
 ```
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 
-#for ABS panel
+#for ABS smartphone
 
 personid_with_trips = t %>% distinct(personid)
 
@@ -440,19 +437,19 @@ ppl_ABS = p %>%
 
 ppl_with_no_trips_ABS = subset(ppl_ABS, !(personid %in% personid_with_trips$personid))
 
-ppl_with_no_trips_panel = subset(person_panel, !(personid %in% personid_with_trips$personid))
+ppl_with_no_trips_smartphone = subset(person_smartphone, !(personid %in% personid_with_trips$personid))
 
 no_trips_by_ss_ABS = ppl_with_no_trips_ABS %>% 
                 group_by(sample_source) %>% 
                 summarise(n_ppl_no_trips=n())
 
-no_trips_by_ss_panel = ppl_with_no_trips_panel %>% 
+no_trips_by_ss_smartphone = ppl_with_no_trips_smartphone %>% 
                 group_by(sample_source) %>% 
                 summarise(n_ppl_no_trips=n())
 
-no_trips_by_ss = bind_rows(no_trips_by_ss_ABS, no_trips_by_ss_panel)
+no_trips_by_ss = bind_rows(no_trips_by_ss_ABS, no_trips_by_ss_smartphone)
 
-people_with_trips_panel = subset(person_panel, (personid %in% personid_with_trips$personid)) %>% 
+people_with_trips_smartphone = subset(person_smartphone, (personid %in% personid_with_trips$personid)) %>% 
                           group_by(sample_source) %>% 
                           summarise(n_ppl_with_trips =n())
 
@@ -460,7 +457,7 @@ people_with_trips = t %>%
   filter(sample_source == 1) %>% 
   group_by(sample_source) %>% 
   summarise (n_ppl_with_trips = n_distinct(personid)) %>% 
-  bind_rows(people_with_trips_panel)
+  bind_rows(people_with_trips_smartphone)
 
 all_people = p %>% 
             group_by(sample_source) %>% 
@@ -572,7 +569,7 @@ trips_person_under17 = trips_person %>%
 trips_hh = left_join(t,h, by = "hhid")
 ```
 
-### average trips per person by panel vs ABS
+### average trips per person by smartphone vs ABS
 
 Here, average is calculated for people who made at least one trip (people who are present in trip table )
 
@@ -604,20 +601,20 @@ avg_trips_cleaned <- temp
 Here, average is calculated for all people (including people that didnt do any trips)
 
 ```{r, echo=FALSE,message=FALSE,warning=FALSE}
-day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+day_smartphone_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
 
 var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
 
-person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+person_smartphone = subset(p, (personid %in% day_smartphone_pernum1$personid)) 
 
-person_panel_summary = person_panel %>% 
+person_smartphone_summary = person_smartphone %>% 
     group_by(sample_source) %>%  summarise(ppl_count = n())
 
 ppl_ABS = p %>% 
           filter(sample_source == 1)%>% 
     group_by(sample_source) %>%  summarise(ppl_count = n())
 
-all_ppl = bind_rows(ppl_ABS,person_panel_summary)
+all_ppl = bind_rows(ppl_ABS,person_smartphone_summary)
 
 
 temp = t %>% 
@@ -641,7 +638,7 @@ temp %>%
 
 ------------------------------------------------------------------------
 
-### trips by mode (mode_1) by panel vs ABS; and overall
+### trips by mode (mode_1) by smartphone vs ABS; and overall
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 
@@ -656,13 +653,13 @@ ABS_mode = trips_by_mode %>%
   mutate(ABS_trips_share = round(ABS_n_trips/sum(ABS_n_trips)*100,1))
   
   
-panel_mode = trips_by_mode %>% 
+smartphone_mode = trips_by_mode %>% 
   filter(sample_source.x == 2)%>% 
-  rename (panel_n_trips = n_trips) %>% 
-  mutate(panel_trips_share = round(panel_n_trips/sum(panel_n_trips)*100,1))
+  rename (smartphone_n_trips = n_trips) %>% 
+  mutate(smartphone_trips_share = round(smartphone_n_trips/sum(smartphone_n_trips)*100,1))
 
 temp = ABS_mode %>% 
-  full_join(panel_mode,  by = "mode_1") %>% 
+  full_join(smartphone_mode,  by = "mode_1") %>% 
   dplyr::select(-c(sample_source.x.x,sample_source.x.y))
 
 var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("mode_1")] %>% mutate(value = as.double(value))) %>% 
@@ -683,7 +680,7 @@ trips_by_mode_cleaned<-temp
 
 ------------------------------------------------------------------------
 
-### trips by origin purpose by panel vs ABS; overall
+### trips by origin purpose by smartphone vs ABS; overall
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 orig_purpose_all = two_vars_average_by_sample_source(trips_person, origin_purpose,"origin_purpose")
@@ -697,7 +694,7 @@ orig_purpose_all %>%
 
 ------------------------------------------------------------------------
 
-### trips by destination purpose by panel vs ABS; overall
+### trips by destination purpose by smartphone vs ABS; overall
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 dest_purpose_all = two_vars_average_by_sample_source(trips_person, dest_purpose,"dest_purpose")
@@ -780,29 +777,29 @@ dest_purpose_all_und18_cleaned
 
 ### people with no trips by sample source
 
-Online Panel Participants are assigned retrospective travel dates (most recent Monday, Tuesday, Wednesday, Thursday) and provide diary information for ONLY person 1. To find share of 0 trips for the panel, we need to subset pernum = 1. There are 896 people from the online panel that were asked o provide travel diary.
+Online smartphone Participants are assigned retrospective travel dates (most recent Monday, Tuesday, Wednesday, Thursday) and provide diary information for ONLY person 1. To find share of 0 trips for the smartphone, we need to subset pernum = 1. There are 896 people from the online smartphone that were asked o provide travel diary.
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
-day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+day_smartphone_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
 
-person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+person_smartphone = subset(p, (personid %in% day_smartphone_pernum1$personid)) 
 
-person_panel_summary = person_panel %>% 
+person_smartphone_summary = person_smartphone %>% 
     group_by(sample_source) %>%  summarise(ppl_count = n())
 
-person_panel_summary_cleaned<-person_panel_summary
+person_smartphone_summary_cleaned<-person_smartphone_summary
 
-person_panel_summary_formatted<-get_labels(person_panel_summary, sample_source, "sample_source") %>%
+person_smartphone_summary_formatted<-get_labels(person_smartphone_summary, sample_source, "sample_source") %>%
   kbl() %>%
   #kable_material(c("striped", "hover"))
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
-person_panel_summary_formatted
+person_smartphone_summary_formatted
 
 ```
 
 ```{r,echo=FALSE,message=FALSE,warning=FALSE}
 
-#for ABS panel
+#for ABS smartphone
 
 personid_with_trips = t %>% distinct(personid)
 
@@ -811,19 +808,19 @@ ppl_ABS = p %>%
 
 ppl_with_no_trips_ABS = subset(ppl_ABS, !(personid %in% personid_with_trips$personid))
 
-ppl_with_no_trips_panel = subset(person_panel, !(personid %in% personid_with_trips$personid))
+ppl_with_no_trips_smartphone = subset(person_smartphone, !(personid %in% personid_with_trips$personid))
 
 no_trips_by_ss_ABS = ppl_with_no_trips_ABS %>% 
                 group_by(sample_source) %>% 
                 summarise(n_ppl_no_trips=n())
 
-no_trips_by_ss_panel = ppl_with_no_trips_panel %>% 
+no_trips_by_ss_smartphone = ppl_with_no_trips_smartphone %>% 
                 group_by(sample_source) %>% 
                 summarise(n_ppl_no_trips=n())
 
-no_trips_by_ss = bind_rows(no_trips_by_ss_ABS, no_trips_by_ss_panel)
+no_trips_by_ss = bind_rows(no_trips_by_ss_ABS, no_trips_by_ss_smartphone)
 
-people_with_trips_panel = subset(person_panel, (personid %in% personid_with_trips$personid)) %>% 
+people_with_trips_smartphone = subset(person_smartphone, (personid %in% personid_with_trips$personid)) %>% 
                           group_by(sample_source) %>% 
                           summarise(n_ppl_with_trips =n())
 
@@ -831,7 +828,7 @@ people_with_trips = t %>%
   filter(sample_source == 1) %>% 
   group_by(sample_source) %>% 
   summarise (n_ppl_with_trips = n_distinct(personid)) %>% 
-  bind_rows(people_with_trips_panel)
+  bind_rows(people_with_trips_smartphone)
 
 all_people = p %>% 
             group_by(sample_source) %>% 
