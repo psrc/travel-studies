@@ -98,7 +98,7 @@ person_vars=c("gender",
 hh_data_17_19<- get_hhts("2017_2019", "h", vars=hh_vars) %>% hh_group_data() 
 per_data_17_19<- get_hhts("2017_2019", "p", vars=person_vars) %>% per_group_data(hh_data_17_19)
 trip_data_17_19<- get_hhts("2017_2019", "t", vars=trip_vars) %>% trip_group_data()
-day_data_17_19<- get_hhts("2017_2019", "d", vars=c("dayofweek"))
+day_data_17_19<- get_hhts("2017_2019", "d", vars=c("telework_time")) %>%day_group_data()
 ```
 
 
@@ -161,6 +161,10 @@ person_final <- per_data_17_19 %>%
 
 
 vmt_final <- vmt_trip %>%
+  left_join(person_final, by = c("survey","sample_segment","household_id","person_id")) %>%
+  left_join(day_data_17_19, by = c("survey","sample_segment","household_id","person_id","daynum"))
+
+day_final <- day_data_17_19 %>%
   left_join(person_final, by = c("survey","sample_segment","household_id","person_id"))
   
 ```
@@ -176,7 +180,7 @@ vmt_final <- vmt_trip %>%
 
 
 
-## Basic stat for person-level vmt {.tabset}
+## vmt by geographics {.tabset}
 
 
 ```{r}
@@ -197,7 +201,8 @@ vmt_stat_function <- function(df_vmt, df_person, group_var, group_var_str){
 
 ```
 
-### vmt in counties and centers
+### vmt by counties
+
 ```{r}
 df_stat <- vmt_stat_function(vmt_final,person_final, sample_county,"sample_county") 
 df_stat
@@ -214,6 +219,7 @@ df_stat %>%
   e_title("vmt distribution by counties")
 ```
 
+### vmt by centers
 
 ```{r}
 df_stat <- vmt_stat_function(vmt_final,person_final, big_rgc_grp,"big_rgc_grp") 
@@ -251,6 +257,7 @@ df_stat%>%
 
 ```
 
+## vmt by demographic characteristics {.tabset}
 
 ### vmt by income group
 
@@ -273,6 +280,7 @@ df_stat%>%
   e_title("vmt distribution by income level")
 ```
 
+## vmt by travel behavior {.tabset}
 
 ### vmt by transit frequency
 - frequent transit users have significantly lower vmt
@@ -356,6 +364,43 @@ df_stat %>%
   e_title("vmt distribution by telecommute frequency",
           "only include travelers with full/part-time employment household income > $75,000")
 
+```
+
+### vmt by teleworking hours
+```{r}
+# only include full/part-time employment
+df_stat <- vmt_final%>% 
+  filter(employment %in% c("Employed full time (35+ hours/week, paid)",
+                           "Employed part time (fewer than 35 hours/week, paid)")) %>%
+      group_by(telework_2hour) %>%
+      summarise(sample_size = n(),
+                vmt_sum = sum(vmt_trip_weighted)) %>%
+      ungroup() %>%
+  left_join(day_final%>% 
+              filter(employment %in% c("Employed full time (35+ hours/week, paid)",
+                                       "Employed part time (fewer than 35 hours/week, paid)")) %>%
+              group_by(telework_2hour) %>%
+              summarise(pop_sum = sum(day_weight_2017_2019)) %>%
+              ungroup(), by = "telework_2hour") %>%
+  mutate(vmt_mean = vmt_sum/pop_sum)
+
+df_stat
+
+df_stat %>%
+  filter(!is.na(telework_2hour)) %>%
+  mutate(vmt_mean = round(vmt_mean,2)) %>%
+  e_charts(telework_2hour) |>
+  e_bar(vmt_mean,
+        label=list(show = TRUE),
+        name = "mean of vmt") |>
+  e_color(psrc_colors$pognbgy_5) |>
+  e_x_axis(axisLabel = list(interval = 0L)) |>
+  e_flip_coords() |>
+  e_grid(height = "75%", top = "20%", containLabel= TRUE)  |>
+  e_legend(top='10%') |>
+  e_axis_labels(y = "teleworking hours") |>
+  e_title("vmt distribution by teleworking hours",
+          "only include travelers with full/part-time employment")
 ```
 
 
@@ -470,7 +515,7 @@ df_stat %>%
 <!--   e_title("vmt distribution by vehicle count") -->
 <!-- ``` -->
 
-## person-level vmt and transit/parking subsidy {.tabset}
+## vmt by transit & parking subsidies {.tabset}
   - how does vmt correlate with transit pass and free/subsidized parking at work?
       * people that are offered a transit pass have lower vmt than those not offered one
       * people that are offered free/subsidized parking at work have higher vmt than those not offered

@@ -174,3 +174,33 @@ trip_group_data <- function(.data){
   return(df)
 }
 
+day_group_data <- function(.data){
+  df <- .data %>%
+    ungroup() %>%
+    separate_wider_delim(telework_time,delim=" ",names=c("telework_1","hhmm","telework_2"), too_many = "drop",too_few =
+                           "align_start") %>%
+    mutate(telework_minutes=case_when(hhmm %in% c("hours","hour")~replace_na(as.numeric(telework_2)/60,0),
+                                      hhmm %in% "minutes"~as.numeric(telework_1)/60,
+                                      TRUE~0),
+           telework_hours=case_when(hhmm %in% c("hours","hour")~as.numeric(telework_1)+telework_minutes,
+                                    hhmm %in% "minutes"~telework_minutes,
+                                    telework_1=="None"~0,
+                                    TRUE~NA),
+           telework_hour = case_when(hhmm %in% c("hours","hour") & as.numeric(telework_1)< 8~ telework_1,
+                                     hhmm %in% c("hours","hour") & as.numeric(telework_1)>= 8~ "8+",
+                                     hhmm %in% "minutes"~"0",
+                                     telework_1=="None"~"0",
+                                     TRUE~"NA"),
+           telework_2hour = factor(case_when(telework_hours==0~"No teleworking",
+                                             telework_hours<2~"< 2 hours",
+                                             telework_hours<4~"2 - 4 hours",
+                                             telework_hours<6~"4 - 6 hours",
+                                             telework_hours<8~"6 - 8 hours",
+                                             telework_hour=="8+"~"8+ hours"),
+                                   level = c("No teleworking","< 2 hours","2 - 4 hours","4 - 6 hours","6 - 8 hours","8+ hours"))) %>%
+    select(survey,telework_hour,telework_2hour,day_weight_2017_2019:daynum)
+  
+  return(df)
+}
+
+
