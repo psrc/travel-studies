@@ -147,7 +147,7 @@ ungroup()%>%mutate(work_trip_group=case_when(work_trips_per_day==0 ~ 'no work tr
 ```
 
 ```{r}
-ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))
+ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))+xlab('Number of Hours Teleworking')+ylab('Percent of Workers taking 1 or more work trip')
 ```
 
 ```{r }
@@ -170,5 +170,56 @@ ungroup()%>%mutate(work_trip_group=case_when(work_trips_per_day==0 ~ 'no work tr
 
 
 ```{r}
-ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))
+ggplot(work_trips_telework_time, aes(x=telework_group, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))+xlab('Number of Hours Teleworking')+ylab('Percent of Workers taking 1 or more work trip')
+```
+
+``````{r}
+
+work_trips_per_day_rsg_telecommute<-worker_trips%>%
+  group_by(person_id, daynum,telecommute_freq)%>%
+  count()%>%
+  right_join(worker_days, by=c('person_id','daynum'))%>%  ## get all days whether or not they have work trips
+  mutate(n=replace_na(n,0))%>%  ## fill in the days for people that have no work trips
+  group_by(n,telecommute_freq.y)%>%
+  count()%>%
+  rename(work_trips_per_day=n, count_days=nn)%>%
+  filter(work_trips_per_day<6)
+
+
+
+```
+
+```{r}
+work_trips_per_day_recs<-worker_trips%>%
+  group_by(person_id, daynum,telecommute_freq)%>%
+  count()%>%
+  right_join(worker_days, by=c('person_id','daynum'))%>%  ## get all days whether or not they have work trips
+  mutate(n=replace_na(n,0))%>%mutate(work_trip_group=case_when(n==0 ~ 0,
+                                                                                                               n>0 ~ 1,
+                                   .default= 0))
+```
+
+
+
+```{r }
+
+work_trips_telework_time<-work_trips_per_day_rsg_telecommute%>%
+mutate(work_trip_group=case_when(work_trips_per_day==0 ~ 'no work trips',work_trips_per_day>0 ~ 'has work trips',
+                                   .default= 'NA'))%>%group_by(telecommute_freq.y,work_trip_group)%>%
+  summarise(count_days_group=sum(count_days))%>%
+  mutate(perc_with_work_trip= count_days_group/sum(count_days_group), sum_days=sum(count_days_group))%>%
+  filter(work_trip_group=='has work trips')
+  
+  
+
+
+```
+```{r}
+work_trips_telework_time<-work_trips_telework_time%>%rename(telecommute_freq=telecommute_freq.y)
+work_trips_telework_time<-label_values(work_trips_telework_time, 'telecommute_freq', values, 'telecommute frequency')
+```
+
+
+```{r}
+ggplot(work_trips_telework_time, aes(x=`telecommute frequency`, y=perc_with_work_trip, fill=work_trip_group))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip,2)))+xlab('Frequency of Teleworking')+ylab('Percent of Workers taking 1 or more work trip')+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```

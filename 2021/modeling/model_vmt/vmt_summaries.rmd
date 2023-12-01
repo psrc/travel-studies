@@ -31,7 +31,7 @@ install_psrc_fonts()
 
 ```{r}
 mode_vars<-c('mode_1', 'mode_simple')
-other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id')
+other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id', 'trip_adjustment_17_19','trip_adjustment_21')
 
 all_vars<-c(mode_vars, other_vars)
 household_vars=c('hhid', 'final_home_tract_10', 'hhgroup' )
@@ -56,7 +56,7 @@ driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
   mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
   mutate(trip_adult_weight_2017_2019=replace_na(trip_adult_weight_2017_2019,0))%>%
   mutate(travelers_total=replace_na(travelers_total,1))%>%
-              mutate(vmt= trip_path_distance/travelers_total, trip_weighted_vmt=((trip_path_distance*trip_adult_weight_2017_2019)/travelers_total))
+              mutate(vmt= trip_path_distance*trip_adjustment_17_19/travelers_total, trip_weighted_vmt=((trip_path_distance*trip_adult_weight_2017_2019)/travelers_total))
 ```
 
 ```{r}
