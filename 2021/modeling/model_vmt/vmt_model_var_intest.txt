@@ -4,98 +4,92 @@
                                                               ---------------------------
                                                                       ln_vmt_day         
 -----------------------------------------------------------------------------------------
-employmentEmployed part time (fewer than 35 hours/week, paid)          -0.193***         
-                                                                        (0.053)          
+employmentEmployed part time (fewer than 35 hours/week, paid)          -0.262***         
+                                                                        (0.051)          
                                                                                          
-employmentSelf-employed                                                 0.141**          
-                                                                        (0.068)          
+employmentSelf-employed                                                  0.092           
+                                                                        (0.067)          
                                                                                          
-vehicle_count_simple1 vehicle                                          1.038***          
-                                                                        (0.073)          
+vehicle_count_simple1 vehicle                                          0.976***          
+                                                                        (0.051)          
                                                                                          
-vehicle_count_simple2 vehicles                                         1.238***          
-                                                                        (0.076)          
-                                                                                         
-vehicle_count_simple3 or more vehicles                                 1.314***          
-                                                                        (0.085)          
-                                                                                         
-licenseYes, has a learner’s permit                                       0.044           
-                                                                        (0.226)          
-                                                                                         
-licenseYes, has an intermediate or unrestricted license                0.517***          
-                                                                        (0.105)          
-                                                                                         
-commute_freq2 days a week                                                0.061           
-                                                                        (0.133)          
-                                                                                         
-commute_freq3 days a week                                                0.043           
-                                                                        (0.129)          
-                                                                                         
-commute_freq4 days a week                                                0.116           
-                                                                        (0.125)          
-                                                                                         
-commute_freq5 days a week                                                0.072           
-                                                                        (0.122)          
-                                                                                         
-commute_freq6-7 days a week                                              0.140           
-                                                                        (0.133)          
-                                                                                         
-commute_freqA few times per month                                        0.094           
-                                                                        (0.192)          
-                                                                                         
-commute_freqLess than monthly                                           -0.117           
-                                                                        (0.223)          
-                                                                                         
-commute_freqNone, did not commute to workplace last week                -0.051           
-                                                                        (0.186)          
-                                                                                         
-telecommute_freq_simple3-4 days                                          0.138           
-                                                                        (0.095)          
-                                                                                         
-telecommute_freq_simple5+ days                                          -0.020           
-                                                                        (0.088)          
-                                                                                         
-telecommute_freq_simpleLess than weekly                                  0.048           
-                                                                        (0.061)          
-                                                                                         
-telecommute_freq_simpleNever / None                                    0.191***          
-                                                                        (0.057)          
-                                                                                         
-transit_benOffered                                                     -0.433***         
-                                                                        (0.038)          
-                                                                                         
-compressed_benOffered                                                    0.061           
+vehicle_count_simple2 vehicles                                         1.324***          
                                                                         (0.056)          
                                                                                          
-flextime_benOffered                                                    0.226***          
-                                                                        (0.037)          
+vehicle_count_simple3 or more vehicles                                 1.291***          
+                                                                        (0.069)          
                                                                                          
-delivery_pkgs_allNo Delivery                                            -0.063*          
-                                                                        (0.034)          
+licenseYes, has a learner’s permit                                      -0.002           
+                                                                        (0.169)          
                                                                                          
-delivery_pkgs_allNo HH Response                                        0.415***          
-                                                                        (0.088)          
+licenseYes, has an intermediate or unrestricted license                0.555***          
+                                                                        (0.073)          
                                                                                          
-survey_year_factor2019                                                 -0.247***         
-                                                                        (0.034)          
+commute_freq2 days a week                                              0.337***          
+                                                                        (0.121)          
                                                                                          
-survey_year_factor2021                                                 0.261***          
+commute_freq3 days a week                                              0.392***          
+                                                                        (0.116)          
+                                                                                         
+commute_freq4 days a week                                              0.492***          
+                                                                        (0.112)          
+                                                                                         
+commute_freq5 days a week                                              0.477***          
+                                                                        (0.109)          
+                                                                                         
+commute_freq6-7 days a week                                            0.482***          
+                                                                        (0.119)          
+                                                                                         
+commute_freqA few times per month                                       0.332*           
+                                                                        (0.178)          
+                                                                                         
+commute_freqLess than monthly                                            0.023           
+                                                                        (0.195)          
+                                                                                         
+commute_freqNone, did not commute to workplace last week               -0.409***         
+                                                                        (0.147)          
+                                                                                         
+telecommute_freq_simple3-4 days                                         -0.081           
+                                                                        (0.087)          
+                                                                                         
+telecommute_freq_simple5+ days                                          -0.073           
+                                                                        (0.082)          
+                                                                                         
+telecommute_freq_simpleLess than weekly                                  0.042           
+                                                                        (0.059)          
+                                                                                         
+telecommute_freq_simpleNever / None                                    0.187***          
+                                                                        (0.056)          
+                                                                                         
+transit_benOffered                                                     -0.552***         
+                                                                        (0.035)          
+                                                                                         
+compressed_benOffered                                                    0.085           
+                                                                        (0.055)          
+                                                                                         
+flextime_benOffered                                                    0.149***          
+                                                                        (0.036)          
+                                                                                         
+survey_year_factor2019                                                 -0.130***         
+                                                                        (0.033)          
+                                                                                         
+survey_year_factor2021                                                  0.077*           
                                                                         (0.047)          
                                                                                          
-log(1 + jobs_auto/10000)                                                 0.021           
-                                                                        (0.038)          
+log(1 + jobs_auto/10000)                                                 0.047           
+                                                                        (0.039)          
                                                                                          
-log(1 + jobs_transit/10000)                                            -0.166***         
-                                                                        (0.024)          
+log(1 + jobs_transit/10000)                                            -0.222***         
+                                                                        (0.025)          
                                                                                          
-Constant                                                               1.098***          
-                                                                        (0.198)          
+Constant                                                                0.297*           
+                                                                        (0.173)          
                                                                                          
 -----------------------------------------------------------------------------------------
-Observations                                                             6,021           
-R2                                                                       0.222           
-Adjusted R2                                                              0.218           
-Residual Std. Error                                                1.157 (df = 5992)     
-F Statistic                                                    61.095*** (df = 28; 5992) 
+Observations                                                             8,386           
+R2                                                                       0.250           
+Adjusted R2                                                              0.248           
+Residual Std. Error                                                1.339 (df = 8359)     
+F Statistic                                                   107.402*** (df = 26; 8359) 
 =========================================================================================
 Note:                                                         *p<0.1; **p<0.05; ***p<0.01
