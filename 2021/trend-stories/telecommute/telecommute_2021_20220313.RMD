@@ -143,28 +143,27 @@ rm(telecommute_17, telecommute_19, telecommute_21)
 
 # Telecommute frequency: times per week
 times_17 <- get_telecommute_data(survey = "2017",
-                                 stat_var = "telecommute_freq",
-                                 group_vars = "telecommute_freq",
+                                 stat_var = "telecommute_freq_new",
+                                 group_vars = "telecommute_freq_new",
                                  weight = "hh_weight_2017",
                                  incl_na = FALSE)
 
 times_19 <- get_telecommute_data(survey = "2019",
-                                 stat_var = "telecommute_freq",
-                                 group_vars = "telecommute_freq",
+                                 stat_var = "telecommute_freq_new",
+                                 group_vars = "telecommute_freq_new",
                                  weight = "hh_weight_2019",
                                  incl_na = FALSE)
 
 times_21 <- get_telecommute_data(survey = "2021",
-                                 stat_var = "telecommute_freq",
-                                 group_vars = "telecommute_freq",
+                                 stat_var = "telecommute_freq_new",
+                                 group_vars = "telecommute_freq_new",
                                  weight = "person_adult_weight_2021",
                                  incl_na = FALSE)
 
 telecommute_times_per_week <- bind_rows(times_17, times_19, times_21) %>% 
-  filter(telecommute_freq != "Total"
-         & telecommute_freq %in% c("1-2 days", "3-4 days", "5+ days"))
+filter(telecommute_freq_new %in% c("Never / None", "1-4 days per week", "5+ days"))
 
-rm(times_17, times_19, times_21)
+#rm(times_17, times_19, times_21)
 
 # Telecommute frequency: gender
 telecommute_freq_gender_1719 <- get_telecommute_data(survey = "2017_2019",

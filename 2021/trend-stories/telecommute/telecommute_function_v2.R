@@ -36,7 +36,13 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
              race_group = case_when(race_category %in% c("African American", "Asian", "Hispanic", "Other") ~ "POC",
                                     race_category == "White Only" ~ "White",
                                     !is.na(race_category) ~ race_category),
-             industry = str_trim(industry)) %>% 
+             industry = str_trim(industry)) %>%
+      mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1-2 days") ~ "1-4 days per week", 
+                                              telecommute_freq %in% c("3-4 days") ~ "1-4 days per week", 
+                                              telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                              telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
+                                              !is.na(telecommute_freq) ~ telecommute_freq,
+                                              is.na(telecommute_freq) ~ 'NA'))%>%
       mutate(industry_cond = case_when(
         industry %in% c("Construction", "Natural resources (e.g., forestry, fishery, energy)")
           ~ "Construction & Resources",
@@ -83,6 +89,17 @@ get_telecommute_data <- function(survey, stat_var, group_vars, weight, incl_na =
                              "benefits_3")) %>% 
       filter(age_category != "Under 18 years"
              & worker != "No jobs") %>% 
+      mutate(telecommute_freq = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
+                                          telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                          telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
+                                          !is.na(telecommute_freq) ~ telecommute_freq))%>%
+      mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
+                                              telecommute_freq %in% c("3 days a week", "4 days a week") ~ "1-4 days per week", 
+                                              telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                              telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
+                                              !is.na(telecommute_freq) ~ telecommute_freq,
+                                              is.na(telecommute_freq) ~ 'NA'))%>%
       mutate(telecommute_freq = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-2 days", 
                                           telecommute_freq %in% c("3 days a week", "4 days a week") ~ "3-4 days", 
                                           telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
