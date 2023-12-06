@@ -28,7 +28,7 @@ library(stats)
 install_psrc_fonts()
 ```
 
-
+### Initial list of variables to read in
 ```{r}
 mode_vars<-c('mode_1', 'mode_simple')
 other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id', 'trip_adjustment_17_19', 'trip_adjustment_21', 'trip_weight_2017_2019','trip_adult_weight_2021', 'hhgroup', 'nwkdays')
@@ -37,7 +37,7 @@ all_vars<-c(mode_vars, other_vars)
 household_vars=c('hhid', 'final_home_tract_10', 'hhgroup' )
 ```
 
-## read in 2017 and 2019 data
+# 2017 and 2019 data handling
 
 ```{r}
 trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
@@ -45,10 +45,11 @@ trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
 
 ```
 
+## Accounting for several observed weekdays, need to count observed weekdays i 
 ```{r}
 trip_data_17_19<-trip_data_17_19[,!duplicated(colnames(trip_data_17_19))]%>%mutate(numwkdays=as.numeric(nwkdays))
 ```
-# calculate vmt 
+# calculate vmt for 2017/2019
 ```{r}
 
 driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
@@ -59,17 +60,17 @@ driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
   mutate(vmt= trip_path_distance*trip_adjustment_17_19/travelers_total)%>%
   mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019*numwkdays/travelers_total)
 ```
-# vmt per day, 
+# vmt per day, for people who have vmt, restrict to the first observed day for ease of analysis
 ```{r}
 vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
           summarize(vmt_day=sum(vmt),weighted_vmt=sum(weighted_vmt))%>%
-          filter(row_number()==1)
+          filter(row_number()==1)%>%filter(daynum==1)
 ```
-# get person demographics
+# get person demographics, restrict to adults for comparability
 ```{r}
 
 persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'commute_freq', 'hh_weight_2017_2019'))
-persons_list<-persons_list[,!duplicated(colnames(persons_list))]
+persons_list<-persons_list[,!duplicated(colnames(persons_list))]%>%filter('age_category'!='Under 18 years')
 
 ```
 
@@ -116,13 +117,11 @@ persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000
                                                  hhincome_broad=='$25,000-$49,999' ~ 'Under 100K',
                                                  hhincome_broad=='$50,000-$74,999' ~ 'Under 100K'))%>%
   mutate(vehicle_count_simple= case_when(vehicle_count=substr(vehicle_count,1,1) %in% c("3","4", "5", "6", "7", "8") ~ '3 or more vehicles',
-                                         .default = vehicle_count))%>%
-  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
+                                         .default = vehicle_count))%>%mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
                                           telecommute_freq %in% c("3 days a week", "4 days a week") ~ "1-4 days per week", 
                                           telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
-                                          telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
-                                          !is.na(telecommute_freq) ~ telecommute_freq,
-                                          is.na(telecommute_freq) ~ 'NA'))%>%
+                                           telecommute_freq %in% c("Never", "Not applicable", "Less than monthly", "A few times per month") ~ "Never or Less than Every Week",
+                                          !is.na(telecommute_freq) ~ telecommute_freq))%>%
   mutate(Kitsap_home= ifelse(final_cnty=='Kitsap', 'Kitsap', 'Not Kitsap'))%>%
            mutate(transit_ben = ifelse(benefits_3 %in% c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
            mutate(compressed_ben = ifelse(benefits_2 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
@@ -221,10 +220,9 @@ persons_vmt_new_21<-persons_vmt_21%>%mutate(inc100k=case_when(hhincome_broad=='$
                                          .default = vehicle_count))%>%
   mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1-2 days") ~ "1-4 days per week", 
                                           telecommute_freq %in% c("3-4 days") ~ "1-4 days per week", 
-                                          telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
-                                          telecommute_freq %in% c("Never", "Not applicable") ~ "Never / None",
-                                          !is.na(telecommute_freq) ~ telecommute_freq,
-                                          is.na(telecommute_freq) ~ 'NA'))%>%
+                                          telecommute_freq %in% c("5+ days") ~ "5+ days",
+                                          telecommute_freq %in% c("Never / None")  ~ "Never or Less than Every Week",
+                                          !is.na(telecommute_freq) ~ telecommute_freq))%>%
   mutate(Kitsap_home= ifelse(final_cnty=='Kitsap', 'Kitsap', 'Not Kitsap'))%>%
            mutate(transit_ben = ifelse(benefits_3 %in% c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
            mutate(compressed_ben = ifelse(benefits_2 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
@@ -413,9 +411,9 @@ static_column_chart(t=transitben_vmt, x='benefits_3', y='vmt_mean', fill='survey
 
 
 ```{r}
-vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment + inc100k + vehicle_count_simple + 
+vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment  + vehicle_count_simple + 
     gender_grp + numworkers + numchildren + numadults + grad_school + 
-    student + license + telecommute_freq_new + Kitsap_home + commute_freq+
+    student + license + telecommute_freq_new + Kitsap_home +
     transit_ben + flextime_ben + compressed_ben + rent_own + 
      log(1 + jobs_transit/10000) + log(1 + 
     pharmacy) + log(1 + park) +workplace + 
@@ -438,41 +436,14 @@ library(jtools)
 plot_coeff<-plot_summs(vmt_model_best_fit_21)
 ```
 
-```{r}
-vmt_model_small_fit_21<-lm(ln_vmt_day ~ employment + inc100k + vehicle_count_simple +  numworkers + numadults +  license + telecommute_freq_simple + Kitsap_home + commute_freq+transit_ben + flextime_ben + compressed_ben + rent_own + log(1 + jobs_transit/10000) + log(1 + pharmacy) +
-     log(1 + jobs_auto/10000) +workplace + log(1 + pharmacy)+ survey_year_factor  , data = persons_vmt_17_19_21)
 
 
-```
-
-```{r}
-tidy_vmt<-tidy(vmt_model_small_fit_21)
-write.csv(tidy_vmt, 'vmt_small_model.csv')
-
-```
-
-```{r}
-vmt_mean_group_1<-persons_vmt_new%>%
-group_by(hhgroup)%>%
-summarize(sum_per_weights=sum(hh_weight_2017_2019.x), sum_weighted_vmt=sum(weighted_vmt))%>%
-mutate(vmt_mean=sum_weighted_vmt/sum_per_weights)%>%
-mutate(survey_year='2017/2019')
-
-
-```
 
 ```{r}
 library(jtools)
-plot_coeff<-plot_summs(vmt_model_small_fit_21)
+plot_coeff<-plot_summs(vmt_model_best_fit_21)
 plot_coeff
 ```
 
 
-```{r}
-vmt_model__small_interest_21<-lm(ln_vmt_day ~ employment+vehicle_count_simple+license+commute_freq+telecommute_freq_simple +transit_ben + compressed_ben + flextime_ben +  survey_year_factor+ log(1 + jobs_auto/10000) + 
-    log(1 + jobs_transit/10000)  , data = persons_vmt_17_19_21)
-
-output<-stargazer(vmt_model__small_interest_21, type='text', out='vmt_model_var_intest.txt')
-summ(vmt_model__small_interest_21)
-plot_summs(vmt_model__small_interest_21)
 ```
