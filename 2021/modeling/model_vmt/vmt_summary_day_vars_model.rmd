@@ -25,6 +25,7 @@ library(DBI)
 library(stargazer)
 library(MASS)
 library(stats)
+library(psrcelmer)
 install_psrc_fonts()
 ```
 
@@ -60,7 +61,7 @@ driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
   
   mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
   mutate(vmt= trip_path_distance*trip_adjustment_17_19/travelers_total)%>%
-  mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019*numwkdays/travelers_total)
+  mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019/travelers_total)
 ```
 # vmt per day, for people who have vmt, restrict to the first observed day for ease of analysis
 ```{r}
@@ -77,7 +78,8 @@ persons_list<-persons_list[,!duplicated(colnames(persons_list))]%>%filter('age_c
 
 ```
 
-### get the home location information
+### get the home location information--this is where we can pull in parcel info instead
+
 ```{r}
 hh_tract<- get_hhts(survey='2017_2019', level = 'h', vars= c( 'final_home_tract10', 'hhgroup'))
 
@@ -86,6 +88,7 @@ persons_tract<-left_join(persons_list,hh_tract,by='household_id')%>%mutate(tract
 ```
 
 ### join the home location information to information about transportation accessibility
+# get this at the parcel level
 ```{r}
 t_access<- read.csv('transportation_accessibility.csv')%>%mutate(tract_char=as.character(geoid_nm))
 
@@ -140,9 +143,58 @@ persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000
 
 ```
 
+```{r}
+smp_delivery_combo <- function(data, year) {
+  ## rewriting labels of responses to be more concise
+  temp_table <- data %>%
+    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_food=='No' ~ 'No Delivery',
+                                        
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_package=='No' ~ 'No Delivery',
+                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_grocery=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_work =='No' ~ 'No Delivery',
+                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
+                                         TRUE ~ 'Delivery Received'))
+  temp_table
+}
 
+```
 
+```{r}
+day_vars <- c("dayofweek", "typical_day", "pernum", "telework_time")
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food', 'day_weight_2017_2019')
+dsurvey_1719 <- get_hhts(survey = '2017/2019', 
+                       level = "d", 
+                       vars = c(delivery_type, day_vars))
 
+```
+
+```{r}
+dsurvey_1719<-dsurvey_1719[,!duplicated(colnames(dsurvey_1719))]
+delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')%>%filter(delivery_food_all!='Not Person One, not the responder')%>%
+  mutate(telework_time_grp = case_when(is.na(telework_time) ~ NA_character_,
+   between(as.numeric(str_replace(telework_time, "^(\\d+) hours? (\\d+).*", "\\1.\\2")), 6.1, 24) ~ "More than 6 hours",
+   between(as.numeric(str_replace(telework_time, "^(\\d+) hours? (\\d+).*", "\\1.\\2")), 1, 6) ~ "1-6 hours",
+   TRUE ~ "0-1 hour"))%>%mutate(day_weight_2017_2019=replace_na(day_weight_2017_2019,0))
+```
+
+```{r}
+persons_vmt_new<-left_join(persons_vmt_new, delivery_1719, by=c('household_id'= 'household_id', 'daynum'='daynum'))
+```
 
 ## read in 2021 data
 
@@ -183,7 +235,7 @@ persons_list_21<-persons_list_21[,!duplicated(colnames(persons_list_21))]
 ```
 
 ```{r}
-hh_tract_21<- get_hhts(survey='2021', level = 'h', vars= c( 'final_home_tract10'))
+hh_tract_21<- get_hhts(survey='2021', level = 'h', vars= c( 'final_home_tract10','hhgroup'))
 
 persons_tract_21<-left_join(persons_list_21,hh_tract_21,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))
 
@@ -243,6 +295,31 @@ persons_vmt_new_21<-persons_vmt_21%>%mutate(inc100k=case_when(hhincome_broad=='$
 ```
 
 ```{r}
+day_vars <- c("dayofweek", "typical_day", "pernum", "telework_time")
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+dsurvey_21 <- get_hhts(survey = '2021', 
+                       level = "d", 
+                       vars = c(delivery_type, day_vars))
+
+```
+
+```{r}
+dsurvey_21<-dsurvey_21[,!duplicated(colnames(dsurvey_21))]
+delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')%>%filter(delivery_food_all!='Not Person One, not the responder')%>%mutate(telework_time_grp=
+                                                                                                                                  case_when(telework_time=='0 hours' ~ '0-1 hour',                                                       telework_time =='Less than 1 hour' ~'0-1 hour',                                                         .default= telework_time))
+                                                                                                            
+```
+
+```{r}
+persons_vmt_new_21<-left_join(persons_vmt_new_21, delivery_21, by=c('household_id'= 'household_id'))
+
+```
+
+
+
+
+
+```{r}
 common_cols <- intersect(colnames(persons_vmt_new), colnames(persons_vmt_new_21))
 persons_vmt_17_19_21<-rbind(persons_vmt_new[, common_cols], persons_vmt_new_21[, common_cols])
 ```
@@ -260,9 +337,7 @@ persons_vmt_17_19_21%>%group_by(survey_year)%>%summarize(mean_vmt=mean(vmt_day))
 
 # https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/
 
-```{r}
 
-```
 
 
 Summarize weighted VMT by weighted characteristic
@@ -351,7 +426,7 @@ static_column_chart(t=telework_share, x='telecommute_freq_new', y='share', fill=
 
 ```{r}
 employment_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
                                   'employment')%>%filter(employment!='Employed but not currently working (e.g., on leave, furloughed 100%)'
 )
 ```
@@ -362,12 +437,39 @@ static_column_chart(t=employment_vmt, x='employment', y='vmt_mean', fill='survey
 ```
 
 
+```{r}
+hhgroup_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021')
+
+```
+
+
+
+
 
 ```{r}
-hhinc_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
-                                  'inc100k')
+telework_time_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'telework_time_grp')
 ```
+
+```{r}
+static_column_chart(t=telework_time_vmt, x='telework_time_grp', y='vmt_mean', fill='survey_year', 
+                    xlabel='Telework Time', ylabel='Vehicle Miles Traveled (mean)')+ theme(axis.text.x = element_text(size = 12),axis.text.y = element_text(size = 12)) + theme(axis.title = element_text(size=12))
+```
+this is still not working!!!!
+```{r}
+delivery_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'delivery_pkgs_all')
+```
+
+```{r}
+static_column_chart(t=delivery_vmt, x='delivery_pkgs_all', y='vmt_mean', fill='survey_year', 
+                    xlabel='Packages Delivered', ylabel='Vehicle Miles Traveled (mean)')+ theme(axis.text.x = element_text(size = 12),axis.text.y = element_text(size = 12)) + theme(axis.title = element_text(size=12))
+```
+
+
 
 ```{r}
 static_column_chart(t=hhinc_vmt, x='inc100k', y='vmt_mean', fill='survey_year', 
@@ -381,6 +483,21 @@ vehicle_count_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '201
 
 
 ```
+
+
+```{r}
+telework_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
+                                  'telecommute_freq_new')
+
+```
+
+```{r}
+static_column_chart(t=vehicle_count_vmt, x='vehicle_count_simple', y='vmt_mean', fill='survey_year', 
+                    xlabel='Household Vehicles', ylabel='vehicle miles traveled (mean)')
+
+```
+
 
 ```{r}
 telework_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
@@ -399,8 +516,8 @@ static_column_chart(t=telework_vmt, x='telecommute_freq_new', y='vmt_mean', fill
                     xlabel='Telecommute Frequency', ylabel='Vehicle Miles Traveled (mean)')+ theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14)) + theme(axis.title = element_text(size=18))
 ```
 ```{r}
-transitben_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
+transitben_vmt<-vmt_summary(persons_vmt_new,'hh_day_weight_revised', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021', '2021',
                                   'benefits_3')
 
 ```
@@ -419,7 +536,7 @@ static_column_chart(t=transitben_vmt, x='benefits_3', y='vmt_mean', fill='survey
 ```{r}
 vmt_model_best_fit_21<-lm(ln_vmt_day ~ employment  + vehicle_count_simple + 
     gender_grp + numworkers + numchildren + numadults + grad_school + 
-    student + license + telecommute_freq_new + Kitsap_home +
+    student + license + telework_time_grp + Kitsap_home +
     transit_ben + flextime_ben + compressed_ben + rent_own + 
      log(1 + jobs_transit/10000) + log(1 + 
     pharmacy) + log(1 + park) +workplace + 
@@ -442,7 +559,13 @@ library(jtools)
 plot_coeff<-plot_summs(vmt_model_best_fit_21)
 ```
 
+```{r}
+vmt_model_telework_fit_21<-lm(ln_vmt_day ~ telework_time_grp+
+     final_cnty + survey_year_factor  , data = persons_vmt_17_19_21)
 
+output<-stargazer(vmt_model_telework_fit_21, type='text', out='vmt_model_best_21.txt')
+
+```
 
 
 ```{r}
