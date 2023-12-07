@@ -65,7 +65,7 @@ worker_trips<-merge(worker_days,trip_rsg, by=c('person_id', 'daynum'))%>%filter(
 ```{r}
 
 work_trips_per_day_rsg_telecommute<-worker_trips%>%
-  group_by(person_id, daynum,telework_time)%>%
+  group_by(person_id, telework_time)%>%
   count()%>%
   right_join(worker_days, by=c('person_id','daynum'))%>%  ## get all days whether or not they have work trips
   mutate(n=replace_na(n,0))%>%  ## fill in the days for people that have no work trips

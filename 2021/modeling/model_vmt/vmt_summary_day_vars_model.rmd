@@ -61,7 +61,7 @@ driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
   
   mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
   mutate(vmt= trip_path_distance*trip_adjustment_17_19/travelers_total)%>%
-  mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019/travelers_total)
+  mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019*numwkdays/travelers_total)
 ```
 # vmt per day, for people who have vmt, restrict to the first observed day for ease of analysis
 ```{r}
@@ -439,7 +439,8 @@ static_column_chart(t=employment_vmt, x='employment', y='vmt_mean', fill='survey
 
 ```{r}
 hhgroup_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021')
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021', 
+                         'hhgroup')
 
 ```
 
@@ -471,14 +472,10 @@ static_column_chart(t=delivery_vmt, x='delivery_pkgs_all', y='vmt_mean', fill='s
 
 
 
-```{r}
-static_column_chart(t=hhinc_vmt, x='inc100k', y='vmt_mean', fill='survey_year', 
-                    xlabel='Household Income', ylabel='vehicle miles traveled (mean)')
 
-```
 ```{r}
 vehicle_count_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
                                   'vehicle_count_simple')
 
 
@@ -487,7 +484,7 @@ vehicle_count_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '201
 
 ```{r}
 telework_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
                                   'telecommute_freq_new')
 
 ```
@@ -501,7 +498,7 @@ static_column_chart(t=vehicle_count_vmt, x='vehicle_count_simple', y='vmt_mean',
 
 ```{r}
 telework_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
-                            persons_vmt_new_21,'person_adult_weight_2021', '2021',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
                                   'telecommute_freq_new')
 
 ```

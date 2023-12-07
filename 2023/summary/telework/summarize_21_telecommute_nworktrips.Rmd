@@ -1,0 +1,91 @@
+
+
+```{r setup, include=FALSE}
+# Required Packages ============================================================
+
+library(data.table) # general data manipulation
+library(srvyr)      # survey statistics
+library(dplyr)      # helpers for srvyr (mutate, group_by, and %>% pipe), 
+                    # plus function near(), used in qa/qc checks 
+library(stringr)    # string helper functions
+library(flextable)  # formatted tables
+library(ggplot2)    # plotting
+library(scales)     # ggplot2 helpers
+library(plotly)     # interactive plots
+library(rstudioapi) # for setting working directory
+library(psrcelmer)
+library(tidyr)
+library(psrc.travelsurvey)
+library(psrcplot)
+#
+# Read Data  ===================================================================
+
+# get data on workers
+person<- get_hhts(survey="2021", level="p", vars=c('employment'))
+workers<-person%>%filter(employment %in% c("Employed full time (35+ hours/week, paid)", "Self-employed"))%>%mutate(person_id=as.character(person_id))
+
+# get day info
+
+dsurvey <- get_hhts(survey = '2021', 
+                       level = "d", 
+                       vars = c("dayofweek", "pernum", "telework_time"))
+
+dsurvey<-dsurvey[,!duplicated(colnames(dsurvey))]%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))
+ 
+ 
+   
+#For ease of calculation filter to first day, 
+#then upweight the trips to account for this(they have been downweighted to not over represent R Move hhs)                             
+                                                           
+trip<- get_hhts(survey="2021", level="t", vars=c('dest_purpose_cat', 'daynum'))
+
+trip<-trip[,!duplicated(colnames(trip))]%>%
+                  mutate(trip_wt_1_day=trip_adult_weight_2021)%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))
+ 
+```
+
+
+merge, because we only selected one day the person ids are one to one
+```{r}
+workers_day<-left_join(workers, dsurvey, by='person_id')
+workers_trips<-left_join(workers_day, trip, by = 'person_id')%>%
+  filter(dest_purpose_cat=='Work')
+
+```
+
+```{r}
+
+workers_day_trips<-workers_trips%>%
+  group_by(person_id,telework_time)%>%
+  summarize(count_trips=n())%>%
+  right_join(workers_day, by=c('person_id'))%>%
+  ## get all days whether or not they have work trips
+  mutate(count_trips=replace_na(count_trips,0), weighted_people=replace_na(person_adult_weight_2021.y, 0))%>%
+  mutate(trip_ct_grp=ifelse(count_trips>0, 'has work trips', 'no work trips'))
+ 
+  
+  #fill in the days for people that have no work 
+
+
+
+```
+```{r}
+work_trips_summary<-workers_day_trips%>%
+  group_by(telework_time.y, trip_ct_grp)%>%
+  summarise(raw_count=n(), weighted_count=sum(weighted_people))%>%
+  mutate(perc_with_work_trip= raw_count/sum(raw_count), perc_with_work_trip_weighted=weighted_count/sum(weighted_count))%>%drop_na()%>%filter(trip_ct_grp=='has work trips')%>%
+  mutate(telework_time=factor(telework_time.y, levels= c('0 hours', 'Less than 1 hour', '1-6 hours', 'More than 6 hours' )))
+
+
+
+```
+
+```{r}
+ggplot(work_trips_summary, aes(x=telework_time, y=perc_with_work_trip_weighted))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip_weighted,2)))
+
+```
+
+```{r}
+static_column_chart(t=work_trips_summary, x='telework_time_grp', y='perc_with_work_trip_weighted', fill='telework_time_grp.y', est='num', dec=2)
+
+```
