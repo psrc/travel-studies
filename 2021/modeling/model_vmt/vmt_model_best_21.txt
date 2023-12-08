@@ -1,128 +1,263 @@
 
-===================================================================================================
-                                                                            Dependent variable:    
-                                                                        ---------------------------
-                                                                                ln_vmt_day         
----------------------------------------------------------------------------------------------------
-employmentEmployed part time (fewer than 35 hours/week, paid)                     -0.099*          
-                                                                                  (0.052)          
-                                                                                                   
-employmentSelf-employed                                                           -0.011           
-                                                                                  (0.059)          
-                                                                                                   
-vehicle_count_simple1 vehicle                                                    0.944***          
-                                                                                  (0.084)          
-                                                                                                   
-vehicle_count_simple2 vehicles                                                   1.203***          
-                                                                                  (0.090)          
-                                                                                                   
-vehicle_count_simple3 or more vehicles                                           1.237***          
-                                                                                  (0.101)          
-                                                                                                   
-gender_grpMale                                                                     0.013           
-                                                                                  (0.032)          
-                                                                                                   
-gender_grpNon-binary, another, prefer not to answer                               -0.267           
-                                                                                  (0.206)          
-                                                                                                   
-gender_grpNot listed here / prefer not to answer                                  -0.149           
-                                                                                  (0.184)          
-                                                                                                   
-gender_grpPrefer not to answer                                                    0.365**          
-                                                                                  (0.179)          
-                                                                                                   
-numworkers                                                                       -0.081**          
-                                                                                  (0.040)          
-                                                                                                   
-numchildren                                                                      -0.060***         
-                                                                                  (0.020)          
-                                                                                                   
-numadults                                                                        -0.082**          
-                                                                                  (0.038)          
-                                                                                                   
-grad_schoolNo graduate degree                                                     0.058*           
-                                                                                  (0.034)          
-                                                                                                   
-studentNo, not a student                                                          0.170*           
-                                                                                  (0.092)          
-                                                                                                   
-studentPart-time student                                                           0.096           
-                                                                                  (0.121)          
-                                                                                                   
-licenseYes, has a learner’s permit                                                -0.278           
-                                                                                  (0.204)          
-                                                                                                   
-licenseYes, has an intermediate or unrestricted license                          0.489***          
-                                                                                  (0.102)          
-                                                                                                   
-telework_time_grp1-6 hours                                                        -0.066           
-                                                                                  (0.064)          
-                                                                                                   
-telework_time_grpMore than 6 hours                                               -0.468***         
-                                                                                  (0.053)          
-                                                                                                   
-Kitsap_homeNot Kitsap                                                              0.087           
-                                                                                  (0.073)          
-                                                                                                   
-transit_benOffered                                                               -0.340***         
-                                                                                  (0.040)          
-                                                                                                   
-flextime_benOffered                                                              0.108***          
-                                                                                  (0.037)          
-                                                                                                   
-compressed_benOffered                                                              0.060           
-                                                                                  (0.056)          
-                                                                                                   
-rent_ownOwn/paying mortgage                                                       -0.233           
-                                                                                  (0.207)          
-                                                                                                   
-rent_ownPrefer not to answer                                                      -0.168           
-                                                                                  (0.260)          
-                                                                                                   
-rent_ownProvided by family, relative, or friend without payment or rent           -0.578*          
-                                                                                  (0.295)          
-                                                                                                   
-rent_ownProvided by job or military                                               -0.543*          
-                                                                                  (0.311)          
-                                                                                                   
-rent_ownRent                                                                      -0.291           
-                                                                                  (0.208)          
-                                                                                                   
-log(1 + jobs_transit/10000)                                                      -0.130***         
-                                                                                  (0.017)          
-                                                                                                   
-log(1 + pharmacy)                                                                  0.016           
-                                                                                  (0.080)          
-                                                                                                   
-log(1 + park)                                                                      0.200           
-                                                                                  (0.127)          
-                                                                                                   
-workplaceDrives for a living (e.g., bus driver, salesperson)                     0.761***          
-                                                                                  (0.110)          
-                                                                                                   
-workplaceTelework some days and travel to a work location some days              0.381***          
-                                                                                  (0.084)          
-                                                                                                   
-workplaceUsually the same location (outside home)                                0.479***          
-                                                                                  (0.053)          
-                                                                                                   
-workplaceWorkplace regularly varies (different offices or jobsites)              0.745***          
-                                                                                  (0.064)          
-                                                                                                   
-survey_year_factor2019                                                           -0.225***         
-                                                                                  (0.039)          
-                                                                                                   
-survey_year_factor2021                                                           -0.473***         
-                                                                                  (0.048)          
-                                                                                                   
-Constant                                                                         1.228***          
-                                                                                  (0.283)          
-                                                                                                   
----------------------------------------------------------------------------------------------------
-Observations                                                                       6,732           
-R2                                                                                 0.200           
-Adjusted R2                                                                        0.196           
-Residual Std. Error                                                          1.267 (df = 6694)     
-F Statistic                                                              45.354*** (df = 37; 6694) 
-===================================================================================================
-Note:                                                                   *p<0.1; **p<0.05; ***p<0.01
+================================================================================================================
+                                                                                       Dependent variable:      
+                                                                                 -------------------------------
+                                                                                           ln_vmt_day           
+----------------------------------------------------------------------------------------------------------------
+employmentEmployed part time (fewer than 35 hours/week, paid)                                -0.038             
+                                                                                             (0.131)            
+                                                                                                                
+employmentSelf-employed                                                                      -0.279             
+                                                                                             (0.212)            
+                                                                                                                
+vehicle_count_simple1 vehicle                                                               1.005***            
+                                                                                             (0.184)            
+                                                                                                                
+vehicle_count_simple2 vehicles                                                              1.481***            
+                                                                                             (0.201)            
+                                                                                                                
+vehicle_count_simple3 or more vehicles                                                      1.542***            
+                                                                                             (0.225)            
+                                                                                                                
+numworkers                                                                                   -0.044             
+                                                                                             (0.084)            
+                                                                                                                
+numchildren                                                                                  -0.019             
+                                                                                             (0.072)            
+                                                                                                                
+numadults                                                                                   -0.241**            
+                                                                                             (0.095)            
+                                                                                                                
+hhsize2 people                                                                               -0.050             
+                                                                                             (0.123)            
+                                                                                                                
+hhsize3 people                                                                               -0.180             
+                                                                                             (0.165)            
+                                                                                                                
+hhsize4 people                                                                                0.038             
+                                                                                             (0.206)            
+                                                                                                                
+hhsize5 people                                                                                0.051             
+                                                                                             (0.283)            
+                                                                                                                
+hhsize6 people                                                                                                  
+                                                                                                                
+                                                                                                                
+grad_schoolNo graduate degree                                                                 0.140             
+                                                                                             (0.102)            
+                                                                                                                
+workplaceUsually the same location (outside home)                                            -0.131             
+                                                                                             (0.123)            
+                                                                                                                
+studentNo, not a student                                                                     -0.126             
+                                                                                             (0.223)            
+                                                                                                                
+studentPart-time student                                                                     -0.130             
+                                                                                             (0.266)            
+                                                                                                                
+licenseYes, has a learner’s permit                                                           -0.194             
+                                                                                             (0.344)            
+                                                                                                                
+licenseYes, has an intermediate or unrestricted license                                     0.675***            
+                                                                                             (0.188)            
+                                                                                                                
+telework_time_grp1-6 hours                                                                   -0.047             
+                                                                                             (0.130)            
+                                                                                                                
+telework_time_grpMore than 6 hours                                                          -0.412***           
+                                                                                             (0.102)            
+                                                                                                                
+final_home_is_rgcRGC                                                                          0.237             
+                                                                                             (0.179)            
+                                                                                                                
+final_cntyKitsap                                                                              0.049             
+                                                                                             (0.220)            
+                                                                                                                
+final_cntyPierce                                                                              0.016             
+                                                                                             (0.145)            
+                                                                                                                
+final_cntySnohomish                                                                           0.110             
+                                                                                             (0.141)            
+                                                                                                                
+transit_benOffered                                                                           -0.175             
+                                                                                             (0.113)            
+                                                                                                                
+flextime_benOffered                                                                          0.206**            
+                                                                                             (0.101)            
+                                                                                                                
+age25-34 years                                                                                0.196             
+                                                                                             (0.164)            
+                                                                                                                
+age35-44 years                                                                               0.359**            
+                                                                                             (0.174)            
+                                                                                                                
+age45-54 years                                                                                0.291             
+                                                                                             (0.180)            
+                                                                                                                
+age55-64 years                                                                               0.375**            
+                                                                                             (0.188)            
+                                                                                                                
+age65-74 years                                                                                0.171             
+                                                                                             (0.245)            
+                                                                                                                
+age75-84 years                                                                               -0.725             
+                                                                                             (0.747)            
+                                                                                                                
+commute_durBetween 10 and 20 years                                                           -0.141             
+                                                                                             (0.154)            
+                                                                                                                
+commute_durBetween 2 and 3 years                                                             -0.010             
+                                                                                             (0.140)            
+                                                                                                                
+commute_durBetween 3 and 5 years                                                             -0.092             
+                                                                                             (0.144)            
+                                                                                                                
+commute_durBetween 5 and 10 years                                                             0.066             
+                                                                                             (0.138)            
+                                                                                                                
+commute_durLess than a year                                                                   0.069             
+                                                                                             (0.125)            
+                                                                                                                
+commute_durMore than 20 years                                                                 0.246             
+                                                                                             (0.207)            
+                                                                                                                
+commute_freq2 days a week                                                                     0.274             
+                                                                                             (0.201)            
+                                                                                                                
+commute_freq3 days a week                                                                    0.502**            
+                                                                                             (0.206)            
+                                                                                                                
+commute_freq4 days a week                                                                   0.814***            
+                                                                                             (0.192)            
+                                                                                                                
+commute_freq5 days a week                                                                   0.659***            
+                                                                                             (0.183)            
+                                                                                                                
+commute_freq6-7 days a week                                                                 0.694***            
+                                                                                             (0.224)            
+                                                                                                                
+commute_freqNone, did not commute to workplace last week                                     -0.315*            
+                                                                                             (0.183)            
+                                                                                                                
+rent_ownOwn/paying mortgage                                                                  -0.187             
+                                                                                             (0.596)            
+                                                                                                                
+rent_ownPrefer not to answer                                                                 -0.081             
+                                                                                             (0.700)            
+                                                                                                                
+rent_ownProvided by family, relative, or friend without payment or rent                      -0.343             
+                                                                                             (0.657)            
+                                                                                                                
+rent_ownProvided by job or military                                                          -0.458             
+                                                                                             (0.799)            
+                                                                                                                
+rent_ownRent                                                                                 -0.140             
+                                                                                             (0.593)            
+                                                                                                                
+delivery_pkgs_allNo Delivery                                                                 -0.142*            
+                                                                                             (0.085)            
+                                                                                                                
+delivery_pkgs_allNo HH Response                                                              0.511**            
+                                                                                             (0.229)            
+                                                                                                                
+transit_qt_mile                                                                              -0.023             
+                                                                                             (0.332)            
+                                                                                                                
+log(1 + transit_jobs45/10000)                                                                -0.115             
+                                                                                             (0.072)            
+                                                                                                                
+log(1 + jobs_1_mile_walk/10000)                                                              -0.199             
+                                                                                             (0.158)            
+                                                                                                                
+log(1 + jobs_3_mile_bike/10000)                                                              -0.081             
+                                                                                             (0.119)            
+                                                                                                                
+log(1 + auto_jobs_30min/10000)                                                                0.164             
+                                                                                             (0.131)            
+                                                                                                                
+log(1 + dist_park)                                                                            0.175             
+                                                                                             (0.277)            
+                                                                                                                
+log(1 + dist_school)                                                                          0.053             
+                                                                                             (0.214)            
+                                                                                                                
+survey_year                                                                                                     
+                                                                                                                
+                                                                                                                
+industryChildcare (e.g., nanny, babysitter)                                                  1.493**            
+                                                                                             (0.583)            
+                                                                                                                
+industryConstruction                                                                         1.011**            
+                                                                                             (0.466)            
+                                                                                                                
+industryFinancial services                                                                    0.563             
+                                                                                             (0.447)            
+                                                                                                                
+industryGovernment                                                                            0.624             
+                                                                                             (0.420)            
+                                                                                                                
+industryHealth care                                                                          0.838**            
+                                                                                             (0.405)            
+                                                                                                                
+industryHospitality (e.g., restaurant, accommodation)                                         0.674             
+                                                                                             (0.426)            
+                                                                                                                
+industryLandscaping                                                                          -0.339             
+                                                                                             (0.750)            
+                                                                                                                
+industryManufacturing (e.g., aerospace                                           defense, electrical, machinery)
+                                                                                             (0.414)            
+                                                                                                                
+industryMedia                                                                                 0.418             
+                                                                                             (0.702)            
+                                                                                                                
+industryMilitary                                                                              0.778             
+                                                                                             (0.524)            
+                                                                                                                
+industryNatural resources (e.g., forestry, fishery, energy)                                 1.944***            
+                                                                                             (0.701)            
+                                                                                                                
+industryOther                                                                                 0.545             
+                                                                                             (0.413)            
+                                                                                                                
+industryPersonal services (e.g., hair styling, personal assistance, pet sitting)              0.008             
+                                                                                             (0.547)            
+                                                                                                                
+industryPrivate education                                                                     0.404             
+                                                                                             (0.489)            
+                                                                                                                
+industryProfessional and business services (e.g., consulting, legal, marketing)              0.754*             
+                                                                                             (0.411)            
+                                                                                                                
+industryPublic education                                                                      0.655             
+                                                                                             (0.424)            
+                                                                                                                
+industryReal estate                                                                           0.462             
+                                                                                             (0.503)            
+                                                                                                                
+industryRetail                                                                                0.456             
+                                                                                             (0.414)            
+                                                                                                                
+industrySocial assistance                                                                    1.053**            
+                                                                                             (0.497)            
+                                                                                                                
+industrySports and fitness                                                                   1.334**            
+                                                                                             (0.675)            
+                                                                                                                
+industryTechnology and telecommunications                                                    0.703*             
+                                                                                             (0.409)            
+                                                                                                                
+industryTransportation and utilities                                                         0.810*             
+                                                                                             (0.445)            
+                                                                                                                
+Constant                                                                                     -0.335             
+                                                                                             (0.910)            
+                                                                                                                
+----------------------------------------------------------------------------------------------------------------
+Observations                                                                                  1,351             
+R2                                                                                            0.279             
+Adjusted R2                                                                                   0.234             
+Residual Std. Error                                                                     1.408 (df = 1270)       
+F Statistic                                                                         6.157*** (df = 80; 1270)    
+================================================================================================================
+Note:                                                                                *p<0.1; **p<0.05; ***p<0.01

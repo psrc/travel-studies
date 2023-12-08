@@ -1,0 +1,353 @@
+---
+title: "preprocess_vmt_data"
+author: "suzanne"
+date: "2023-12-08"
+output: html_document
+---
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(tidycensus)
+library(psrcslides)
+library(officer)
+library(DBI)
+library(stargazer)
+library(MASS)
+library(stats)
+library(psrcelmer)
+install_psrc_fonts()
+```
+
+### Initial list of variables to read in
+```{r}
+mode_vars<-c('mode_1', 'mode_simple')
+other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id', 'trip_adjustment_17_19', 'trip_adjustment_21', 'trip_weight_2017_2019','trip_adult_weight_2021', 'hhgroup', 'nwkdays', 'age_category')
+
+all_vars<-c(mode_vars, other_vars)
+household_vars=c('hhid', 'final_home_tract_10', 'hhgroup' )
+```
+
+##  Handle 2017/2019 and 2021 separately
+## to do: combine them where possible
+# 2017 and 2019 data handling
+
+```{r}
+trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
+
+
+```
+
+## Accounting for several observed weekdays, need to count observed weekdays i 
+```{r}
+trip_data_17_19<-trip_data_17_19[,!duplicated(colnames(trip_data_17_19))]%>%mutate(numwkdays=as.numeric(nwkdays))%>%filter(age_category!='Under 18 years')%>%filter(daynum==1)
+```
+# calculate vmt for 2017/2019
+```{r}
+
+driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
+  mutate(travelers_total=ifelse(is.na(travelers_total), 1, travelers_total))%>%
+  mutate(travelers_total=ifelse(travelers_total>10, 1, travelers_total))%>%
+  
+  mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
+  mutate(vmt= trip_path_distance*trip_adjustment_17_19/travelers_total)%>%
+  mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019*numwkdays/travelers_total)
+```
+# vmt per day, for people who have vmt, restrict to the first observed day for ease of analysis
+```{r}
+vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
+          summarize(vmt_day=sum(vmt),weighted_vmt=sum(weighted_vmt))%>%
+          filter(row_number()==1)
+
+```
+# get person demographics, restrict to adults for comparability
+```{r}
+
+persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'commute_freq', 'hh_weight_2017_2019'))
+persons_list<-persons_list[,!duplicated(colnames(persons_list))]%>%filter('age_category'!='Under 18 years')
+
+```
+
+### get the home location information--this is where we can pull in parcel info instead
+
+```{r}
+hh_tract<- get_hhts(survey='2017_2019', level = 'h', vars= c( 'final_home_tract10', 'hhgroup'))
+
+persons_tract<-left_join(persons_list,hh_tract,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))
+
+```
+
+### join the home location information to information about transportation accessibility
+# get this at the parcel level
+```{r}
+t_access<- read.csv('jobs_access.csv')
+t_access<-t_access%>%mutate(tract_char=as.character(geography_value))
+```
+
+
+```{r}
+persons_access<- left_join(persons_tract,t_access, by='tract_char')
+```
+
+```{r}
+land_use<- read.csv('displacement_risk_estimation.csv')
+land_use<-land_use%>%mutate(tract_char=as.character(GEOID))
+```
+
+```{r}
+persons_access<-left_join(persons_access, land_use, by ='tract_char')
+```
+
+
+## join the persons with their accessibility data and demographic data to observed vmt, if not vmt in the day,
+fill in zeros
+```{r}
+persons_vmt<-left_join(persons_access,vmt_per, by='person_id')%>%
+  mutate(vmt_day=replace_na(vmt_day,0))%>%
+  mutate(hh_weight_2017_2019_adult=replace_na(hh_weight_2017_2019_adult,0))%>%
+  mutate(weighted_vmt=replace_na(weighted_vmt,0))%>%
+  mutate(ln_vmt_day=log(1+vmt_day))%>%
+  filter(vmt_day<400)
+write.csv(persons_vmt, 'persons_vmt_17_19.csv')
+```
+###2021 data
+## read in 2021 data
+
+```{r}
+trip_data__21<- get_hhts(survey="2021", level="t", vars=all_vars)
+```
+
+```{r}
+trip_data__21<-trip_data__21[,!duplicated(colnames(trip_data__21))]
+```
+# to do - join back to the person data to get people who don't have any driving
+```{r}
+
+driving_data_21<-trip_data__21 %>% dplyr::filter(mode_simple=='Drive')  %>%
+  mutate(travelers_total=ifelse(is.na(travelers_total), 1, travelers_total))%>%
+  mutate(travelers_total=ifelse(travelers_total>10, 1, travelers_total))%>%
+  mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
+              mutate(vmt= trip_path_distance*trip_adjustment_21/travelers_total,
+                     weighted_vmt= trip_path_distance*trip_adult_weight_2021/travelers_total)
+    
+```
+
+```{r}
+vmt_per_21<- driving_data_21%>%group_by(person_id, daynum)%>%
+          summarize(vmt_day=sum(vmt),weighted_vmt=sum(weighted_vmt))%>%
+          filter(row_number()==1)
+```
+
+```{r}
+
+persons_list_21<- get_hhts(survey="2021", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'person_adult_weight_2021'))
+
+
+```
+
+```{r}
+persons_list_21<-persons_list_21[,!duplicated(colnames(persons_list_21))]
+```
+
+```{r}
+hh_tract_21<- get_hhts(survey='2021', level = 'h', vars= c( 'final_home_tract10','hhgroup'))
+
+persons_tract_21<-left_join(persons_list_21,hh_tract_21,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))
+
+```
+
+```{r}
+t_access<- read.csv('jobs_access.csv')
+t_access<-t_access%>%mutate(tract_char=as.character(geography_value))
+
+
+persons_access_21<- left_join(persons_tract_21,t_access, by='tract_char')
+
+```
+
+```{r}
+land_use<- read.csv('displacement_risk_estimation.csv')
+land_use<-land_use%>%mutate(tract_char=as.character(GEOID))
+```
+
+```{r}
+persons_access_21<-left_join(persons_access_21, land_use, by ='tract_char')
+```
+
+```{r}
+persons_vmt_21<-left_join(persons_access_21,vmt_per_21, by='person_id')%>%
+  mutate(vmt_day=replace_na(vmt_day,0))%>%
+  mutate(weighted_vmt=replace_na(weighted_vmt,0))%>%
+  mutate(ln_vmt_day=log(1+vmt_day))%>%
+  filter(vmt_day<400)
+
+write.csv(persons_vmt_21, 'persons_vmt_21.csv')
+```
+```{r}
+persons_vmt_new<-persons_vmt%>%mutate(inc100k=case_when(hhincome_broad=='$75,000-$99,999' ~ 'Under 100K',
+                                                 hhincome_broad=='$100,000 or more' ~ 'Over 100K',
+                                                 hhincome_broad=='Prefer not to answer' ~ 'No Answer',
+                                                 hhincome_broad=='$25,000-$49,999' ~ 'Under 100K',
+                                                 hhincome_broad=='$50,000-$74,999' ~ 'Under 100K'))%>%
+  mutate(vehicle_count_simple= case_when(vehicle_count=substr(vehicle_count,1,1) %in% c("3","4", "5", "6", "7", "8") ~ '3 or more vehicles',
+                                         .default = vehicle_count))%>%mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                           telecommute_freq %in% c("Never", "Not applicable", "Less than monthly", "A few times per month") ~ "Never or Less than Every Week",
+                                          !is.na(telecommute_freq) ~ telecommute_freq))%>%
+  mutate(Kitsap_home= ifelse(final_cnty=='Kitsap', 'Kitsap', 'Not Kitsap'))%>%
+           mutate(transit_ben = ifelse(benefits_3 %in% c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+           mutate(compressed_ben = ifelse(benefits_2 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+  mutate(grad_school=ifelse(education=='Graduate/post-graduate degree', 'Graduate degree', 'No graduate degree'))%>%
+           mutate(flextime_ben = ifelse(benefits_1 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+           mutate(oth_ben = ifelse(benefits_4 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+  mutate(survey_year_factor=as.factor(survey_year))
+
+           
+
+```
+
+```{r}
+smp_delivery_combo <- function(data, year) {
+  ## rewriting labels of responses to be more concise
+  temp_table <- data %>%
+    mutate(delivery_food_all= case_when((pernum==1 & is.na(delivery_food_freq) & is.na(deliver_food)) ~ 'No HH Response',
+                                        # pernum == 1 removes households where multiple members answered the question
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_food_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_food=='No' ~ 'No Delivery',
+                                        
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_pkgs_all= case_when((pernum==1 & is.na(delivery_pkgs_freq) & is.na(deliver_package)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_package=='No' ~ 'No Delivery',
+                                        delivery_pkgs_freq == "0 (none)"  ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_grocery_all=case_when((pernum==1 & is.na(delivery_grocery_freq) & is.na(deliver_grocery)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        delivery_grocery_freq == "0 (none)"  ~ 'No Delivery',
+                                        deliver_grocery=='No' ~ 'No Delivery',
+                                        TRUE ~ 'Delivery Received'))%>%
+    mutate(delivery_work_all= case_when((pernum==1 & is.na(delivery_work_freq) & is.na(deliver_work)) ~ 'No HH Response',
+                                        (pernum>1) ~ 'Not Person One, not the responder',
+                                        deliver_work =='No' ~ 'No Delivery',
+                                        delivery_work_freq == "0 (none)"  ~ 'No Delivery',
+                                         TRUE ~ 'Delivery Received'))
+  temp_table
+}
+
+```
+
+```{r}
+day_vars <- c("dayofweek", "typical_day", "pernum", "telework_time")
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food', 'day_weight_2017_2019')
+dsurvey_1719 <- get_hhts(survey = '2017/2019', 
+                       level = "d", 
+                       vars = c(delivery_type, day_vars))
+
+```
+
+```{r}
+dsurvey_1719<-dsurvey_1719[,!duplicated(colnames(dsurvey_1719))]
+delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')%>%filter(delivery_food_all!='Not Person One, not the responder')%>%
+  mutate(telework_time_grp = case_when(is.na(telework_time) ~ NA_character_,
+   between(as.numeric(str_replace(telework_time, "^(\\d+) hours? (\\d+).*", "\\1.\\2")), 6.1, 24) ~ "More than 6 hours",
+   between(as.numeric(str_replace(telework_time, "^(\\d+) hours? (\\d+).*", "\\1.\\2")), 1, 6) ~ "1-6 hours",
+   TRUE ~ "0-1 hour"))%>%mutate(day_weight_2017_2019=replace_na(day_weight_2017_2019,0))
+```
+
+```{r}
+persons_vmt_new<-left_join(persons_vmt_new, delivery_1719, by=c('household_id'= 'household_id', 'daynum'='daynum'))
+```
+
+```{r}
+persons_vmt_21<-read.csv('persons_vmt_21.csv')
+```
+
+
+```{r}
+summary(persons_vmt_21$vmt_day)
+summary(persons_vmt_21$ln_vmt_day)
+ggplot(persons_vmt_21, aes(ln_vmt_day))+
+geom_histogram()+
+xlim(0, 10)
+```
+
+
+
+
+```{r}
+persons_vmt_new_21<-persons_vmt_21%>%mutate(inc100k=case_when(hhincome_broad=='$75,000-$99,999' ~ 'Under 100K',
+                                                 hhincome_broad=='$100,000-$199,000' ~ 'Over 100K',
+                                                 hhincome_broad=='$200,000 or more' ~ 'Over 100K',
+                                                 hhincome_broad=='Prefer not to answer' ~ 'No Answer',
+                                                 hhincome_broad=='$25,000-$49,999' ~ 'Under 100K',
+                                                 hhincome_broad=='$50,000-$74,999' ~ 'Under 100K'))%>%
+  mutate(vehicle_count_simple= case_when(vehicle_count=substr(vehicle_count,1,1) %in% c("3","4", "5", "6", "7", "8") ~ '3 or more vehicles',
+                                         .default = vehicle_count))%>%
+  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1-2 days") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("3-4 days") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("5+ days") ~ "5+ days",
+                                          telecommute_freq %in% c("Never / None")  ~ "Never or Less than Every Week",
+                                          !is.na(telecommute_freq) ~ telecommute_freq))%>%
+  mutate(Kitsap_home= ifelse(final_cnty=='Kitsap', 'Kitsap', 'Not Kitsap'))%>%
+           mutate(transit_ben = ifelse(benefits_3 %in% c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+           mutate(compressed_ben = ifelse(benefits_2 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+  mutate(grad_school=ifelse(education=='Graduate/post-graduate degree', 'Graduate degree', 'No graduate degree'))%>%
+           mutate(flextime_ben = ifelse(benefits_1 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+           mutate(oth_ben = ifelse(benefits_4 %in%  c('Offered, and I use', 'Offered and I don\'t use'), 'Offered', 'Not Offered or do not know'))%>%
+  mutate(survey_year_factor=as.factor(survey_year))
+
+
+           
+
+```
+
+```{r}
+day_vars <- c("dayofweek", "typical_day", "pernum", "telework_time")
+delivery_type <- c("household_id", "delivery_food_freq", "delivery_grocery_freq", "delivery_pkgs_freq","delivery_work_freq", "deliver_package", 'deliver_work', 'deliver_grocery', 'deliver_food')
+dsurvey_21 <- get_hhts(survey = '2021', 
+                       level = "d", 
+                       vars = c(delivery_type, day_vars))
+
+```
+
+```{r}
+dsurvey_21<-dsurvey_21[,!duplicated(colnames(dsurvey_21))]
+delivery_21 <- smp_delivery_combo(dsurvey_21, '2021')%>%filter(delivery_food_all!='Not Person One, not the responder')%>%mutate(telework_time_grp=
+                                                                                                                                  case_when(telework_time=='0 hours' ~ '0-1 hour',                                                       telework_time =='Less than 1 hour' ~'0-1 hour',                                                         .default= telework_time))
+                                                                                                            
+```
+
+```{r}
+persons_vmt_new_21<-left_join(persons_vmt_new_21, delivery_21, by=c('household_id'= 'household_id'))
+
+```
+
+
+
+
+
+```{r}
+common_cols <- intersect(colnames(persons_vmt_new), colnames(persons_vmt_new_21))
+persons_vmt_17_19_21<-rbind(persons_vmt_new[, common_cols], persons_vmt_new_21[, common_cols])
+```
+
+
+```{r}
+table(persons_vmt_17_19_21$survey_year)
+
+persons_vmt_17_19_21%>%group_by(survey_year)%>%summarize(mean_vmt=mean(vmt_day))
+
+```
+
+```{r}
+write.csv(persons_vmt_17_19_21,'persons_vmt_17_19_21.csv',)
+```
+

@@ -29,83 +29,10 @@ library(psrcelmer)
 install_psrc_fonts()
 ```
 
-### Initial list of variables to read in
 ```{r}
-mode_vars<-c('mode_1', 'mode_simple')
-other_vars<-c('sample_county',  'dest_purpose_cat', 'origin_purpose_cat', 'trip_path_distance', 'household_id',  'travelers_total', 'person_id', 'trip_adjustment_17_19', 'trip_adjustment_21', 'trip_weight_2017_2019','trip_adult_weight_2021', 'hhgroup', 'nwkdays', 'age_category')
-
-all_vars<-c(mode_vars, other_vars)
-household_vars=c('hhid', 'final_home_tract_10', 'hhgroup' )
+persons_vmt<-read.csv('persons_vmt_17_19.csv')
 ```
 
-##  Handle 2017/2019 and 2021 separately
-## to do: combine them where possible
-# 2017 and 2019 data handling
-
-```{r}
-trip_data_17_19<- get_hhts(survey="2017_2019", level="t", vars=all_vars)
-
-
-```
-
-## Accounting for several observed weekdays, need to count observed weekdays i 
-```{r}
-trip_data_17_19<-trip_data_17_19[,!duplicated(colnames(trip_data_17_19))]%>%mutate(numwkdays=as.numeric(nwkdays))%>%filter(age_category!='Under 18 years')%>%filter(daynum==1)
-```
-# calculate vmt for 2017/2019
-```{r}
-
-driving_data<-trip_data_17_19 %>% dplyr::filter(mode_simple=='Drive') %>%
-  mutate(travelers_total=ifelse(is.na(travelers_total), 1, travelers_total))%>%
-  mutate(travelers_total=ifelse(travelers_total>10, 1, travelers_total))%>%
-  
-  mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
-  mutate(vmt= trip_path_distance*trip_adjustment_17_19/travelers_total)%>%
-  mutate(weighted_vmt= trip_path_distance*trip_weight_2017_2019*numwkdays/travelers_total)
-```
-# vmt per day, for people who have vmt, restrict to the first observed day for ease of analysis
-```{r}
-vmt_per<- driving_data%>%group_by(person_id, daynum)%>%
-          summarize(vmt_day=sum(vmt),weighted_vmt=sum(weighted_vmt))%>%
-          filter(row_number()==1)
-
-```
-# get person demographics, restrict to adults for comparability
-```{r}
-
-persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'commute_freq', 'hh_weight_2017_2019'))
-persons_list<-persons_list[,!duplicated(colnames(persons_list))]%>%filter('age_category'!='Under 18 years')
-
-```
-
-### get the home location information--this is where we can pull in parcel info instead
-
-```{r}
-hh_tract<- get_hhts(survey='2017_2019', level = 'h', vars= c( 'final_home_tract10', 'hhgroup'))
-
-persons_tract<-left_join(persons_list,hh_tract,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))
-
-```
-
-### join the home location information to information about transportation accessibility
-# get this at the parcel level
-```{r}
-t_access<- read.csv('transportation_accessibility.csv')%>%mutate(tract_char=as.character(geoid_nm))
-
-persons_access<- left_join(persons_tract,t_access, by='tract_char')
-```
-
-## join the persons with their accessibility data and demographic data to observed vmt, if not vmt in the day,
-fill in zeros
-```{r}
-persons_vmt<-left_join(persons_access,vmt_per, by='person_id')%>%
-  mutate(vmt_day=replace_na(vmt_day,0))%>%
-  mutate(hh_weight_2017_2019_adult=replace_na(hh_weight_2017_2019_adult,0))%>%
-  mutate(weighted_vmt=replace_na(weighted_vmt,0))%>%
-  mutate(ln_vmt_day=log(1+vmt_day))%>%
-  filter(vmt_day<400)
-
-```
 
 ```{r}
 summary(persons_vmt$vmt_day)
@@ -196,65 +123,10 @@ delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')%>%filter(delivery
 persons_vmt_new<-left_join(persons_vmt_new, delivery_1719, by=c('household_id'= 'household_id', 'daynum'='daynum'))
 ```
 
-## read in 2021 data
-
 ```{r}
-trip_data__21<- get_hhts(survey="2021", level="t", vars=all_vars)
+persons_vmt_21<-read.csv('persons_vmt_21.csv')
 ```
 
-```{r}
-trip_data__21<-trip_data__21[,!duplicated(colnames(trip_data__21))]
-```
-# to do - join back to the person data to get people who don't have any driving
-```{r}
-
-driving_data_21<-trip_data__21 %>% dplyr::filter(mode_simple=='Drive')  %>%
-  mutate(travelers_total=ifelse(is.na(travelers_total), 1, travelers_total))%>%
-  mutate(travelers_total=ifelse(travelers_total>10, 1, travelers_total))%>%
-  mutate(travelers_total=ifelse(travelers_total<1, 1, travelers_total))%>%
-              mutate(vmt= trip_path_distance*trip_adjustment_21/travelers_total,
-                     weighted_vmt= trip_path_distance*trip_adult_weight_2021/travelers_total)
-    
-```
-
-```{r}
-vmt_per_21<- driving_data_21%>%group_by(person_id, daynum)%>%
-          summarize(vmt_day=sum(vmt),weighted_vmt=sum(weighted_vmt))%>%
-          filter(row_number()==1)
-```
-
-```{r}
-
-persons_list_21<- get_hhts(survey="2021", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'person_adult_weight_2021'))
-
-
-```
-
-```{r}
-persons_list_21<-persons_list_21[,!duplicated(colnames(persons_list_21))]
-```
-
-```{r}
-hh_tract_21<- get_hhts(survey='2021', level = 'h', vars= c( 'final_home_tract10','hhgroup'))
-
-persons_tract_21<-left_join(persons_list_21,hh_tract_21,by='household_id')%>%mutate(tract_char= as.character(final_home_tract10))
-
-```
-
-```{r}
-t_access_21<- read.csv('transportation_accessibility.csv')%>%mutate(tract_char=as.character(geoid_nm))
-
-persons_access_21<- left_join(persons_tract_21,t_access_21, by='tract_char')
-```
-
-```{r}
-persons_vmt_21<-left_join(persons_access_21,vmt_per_21, by='person_id')%>%
-  mutate(vmt_day=replace_na(vmt_day,0))%>%
-  mutate(weighted_vmt=replace_na(weighted_vmt,0))%>%
-  mutate(ln_vmt_day=log(1+vmt_day))%>%
-  filter(vmt_day<400)
-
-```
 
 ```{r}
 summary(persons_vmt_21$vmt_day)
