@@ -17,12 +17,13 @@ library(psrcelmer)
 library(tidyr)
 library(psrc.travelsurvey)
 library(psrcplot)
+install_psrc_fonts()
 #
 # Read Data  ===================================================================
 
 # get data on workers
 person<- get_hhts(survey="2021", level="p", vars=c('employment'))
-workers<-person%>%filter(employment %in% c("Employed full time (35+ hours/week, paid)", "Self-employed"))%>%mutate(person_id=as.character(person_id))
+workers<-person%>%filter(employment %in% c("Employed full time (35+ hours/week, paid)", "Self-employed","Employed part time (fewer than 35 hours/week, paid)"))%>%mutate(person_id=as.character(person_id))
 
 # get day info
 
@@ -33,9 +34,7 @@ dsurvey <- get_hhts(survey = '2021',
 dsurvey<-dsurvey[,!duplicated(colnames(dsurvey))]%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))
  
  
-   
-#For ease of calculation filter to first day, 
-#then upweight the trips to account for this(they have been downweighted to not over represent R Move hhs)                             
+  
                                                            
 trip<- get_hhts(survey="2021", level="t", vars=c('dest_purpose_cat', 'daynum'))
 
@@ -47,28 +46,48 @@ trip<-trip[,!duplicated(colnames(trip))]%>%
 
 merge, because we only selected one day the person ids are one to one
 ```{r}
-workers_day<-left_join(workers, dsurvey, by='person_id')
+workers_day<-left_join(workers, dsurvey, by='person_id')%>% drop_na(telework_time)
 workers_trips<-left_join(workers_day, trip, by = 'person_id')%>%
   filter(dest_purpose_cat=='Work')
 
 ```
 
+summarize the number of workers in each telework time bin, weighted, and unweighted
+```{r}
+workers_telework_time<-workers_day%>%
+  group_by(telework_time)%>%
+  summarize(raw_count=n(), weighted_count=sum(person_adult_weight_2021.x))%>%
+  mutate(unweighted_share=raw_count/sum(raw_count), weighted_share=weighted_count/sum(weighted_count))%>%
+  mutate(telework_time=factor(telework_time, levels= c('0 hours', 'Less than 1 hour', '1-6 hours', 'More than 6 hours' )))
+  
+
+```
+
+```{r}
+static_column_chart(workers_telework_time, x='telework_time', y='raw_count', fill='telework_time', title='Telework Time for workers on weekdays', xlabel='Telework Hours', ylabel='Total Observed (unweighted) Workers')
+```
+```{r}
+static_column_chart(workers_telework_time, x='telework_time', y='weighted_share', fill='telework_time', title='Telework Time for workers on weekdays', xlabel='Telework Hours', ylabel='Share of Weighted Workers')
+```
+
+label workers with telework time group, number of trips
 ```{r}
 
 workers_day_trips<-workers_trips%>%
   group_by(person_id,telework_time)%>%
   summarize(count_trips=n())%>%
-  right_join(workers_day, by=c('person_id'))%>%
-  ## get all days whether or not they have work trips
+  right_join(workers_day, by=c('person_id'))%>%  ## get all days whether or not they have work trips
   mutate(count_trips=replace_na(count_trips,0), weighted_people=replace_na(person_adult_weight_2021.y, 0))%>%
+   #fill in the days for people that have no work 
   mutate(trip_ct_grp=ifelse(count_trips>0, 'has work trips', 'no work trips'))
  
   
-  #fill in the days for people that have no work 
+ 
 
 
 
 ```
+aggregate
 ```{r}
 work_trips_summary<-workers_day_trips%>%
   group_by(telework_time.y, trip_ct_grp)%>%
@@ -80,12 +99,8 @@ work_trips_summary<-workers_day_trips%>%
 
 ```
 
-```{r}
-ggplot(work_trips_summary, aes(x=telework_time, y=perc_with_work_trip_weighted))+geom_bar(stat="identity")+geom_text(aes(label=round(perc_with_work_trip_weighted,2)))
-
-```
 
 ```{r}
-static_column_chart(t=work_trips_summary, x='telework_time_grp', y='perc_with_work_trip_weighted', fill='telework_time_grp.y', est='num', dec=2)
-
+static_column_chart(work_trips_summary, x='telework_time', y='perc_with_work_trip_weighted', fill='telework_time', title='Telework Time vs Presence of 1 or more work trips, for workers on weekdays (weighted)', xlabel='Telework Hours', ylabel='Percent of Workers Having One or More Work Trips')
 ```
+
