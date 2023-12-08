@@ -36,7 +36,7 @@ dsurvey<-dsurvey[,!duplicated(colnames(dsurvey))]%>%mutate(person_id=as.characte
  
   
                                                            
-trip<- get_hhts(survey="2021", level="t", vars=c('dest_purpose_cat', 'daynum'))
+trip<- get_hhts(survey="2021", level="t", vars=c('dest_purpose_cat', 'daynum', 'dest_purpose'))
 
 trip<-trip[,!duplicated(colnames(trip))]%>%
                   mutate(trip_wt_1_day=trip_adult_weight_2021)%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))
@@ -48,7 +48,7 @@ merge, because we only selected one day the person ids are one to one
 ```{r}
 workers_day<-left_join(workers, dsurvey, by='person_id')%>% drop_na(telework_time)
 workers_trips<-left_join(workers_day, trip, by = 'person_id')%>%
-  filter(dest_purpose_cat=='Work')
+  filter(dest_purpose %in% c("Went to primary workplace" ))
 
 ```
 
@@ -92,7 +92,7 @@ aggregate
 work_trips_summary<-workers_day_trips%>%
   group_by(telework_time.y, trip_ct_grp)%>%
   summarise(raw_count=n(), weighted_count=sum(weighted_people))%>%
-  mutate(perc_with_work_trip= raw_count/sum(raw_count), perc_with_work_trip_weighted=weighted_count/sum(weighted_count))%>%drop_na()%>%filter(trip_ct_grp=='has work trips')%>%
+  mutate(perc_with_work_trip= raw_count/sum(raw_count), perc_with_work_trip_weighted=weighted_count/sum(weighted_count))%>%filter(trip_ct_grp=='has work trips')%>%
   mutate(telework_time=factor(telework_time.y, levels= c('0 hours', 'Less than 1 hour', '1-6 hours', 'More than 6 hours' )))
 
 
@@ -103,4 +103,24 @@ work_trips_summary<-workers_day_trips%>%
 ```{r}
 static_column_chart(work_trips_summary, x='telework_time', y='perc_with_work_trip_weighted', fill='telework_time', title='Telework Time vs Presence of 1 or more work trips, for workers on weekdays (weighted)', xlabel='Telework Hours', ylabel='Percent of Workers Having One or More Work Trips')
 ```
+```{r }
+workers_day_trips_1<-workers_trips%>%
+  group_by(person_id,telework_time)%>%
+  summarize(count_trips=n(), sum_trip_weights=sum(trip_adult_weight_2021))%>%
+  right_join(workers_day, by=c('person_id'))%>%  ## get all days whether or not they have work trips
+  mutate(count_trips=replace_na(count_trips,0), weighted_trips=replace_na(sum_trip_weights, 0))
+```
 
+```{r}
+workers_day_trips_mean<-workers_day_trips_1%>%group_by(telework_time.y)%>%
+  summarize(sum_weighted_trips=sum(weighted_trips), sum_weighted_people=sum(person_adult_weight_2021.x))%>%
+  mutate(mean_weighted_trips=sum_weighted_trips/sum_weighted_people)%>%
+  mutate(telework_time=factor(telework_time.y, levels= c('0 hours', 'Less than 1 hour', '1-6 hours', 'More than 6 hours' )))
+```
+
+
+```{r}
+
+static_column_chart(workers_day_trips_mean, x='telework_time', y='mean_weighted_trips', fill='telework_time', title='Mean Number of Work Trips vs Telework Time for workers on weekdays (weighted)', xlabel='Telework Hours', ylabel='Mean Number of Work Trips', est='number', dec=2)
+
+```

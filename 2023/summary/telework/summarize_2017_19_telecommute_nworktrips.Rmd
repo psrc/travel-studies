@@ -64,7 +64,7 @@ workers_day_trips<-workers_trips%>%
   group_by(person_id, daynum.x,telework_time_grp)%>%
   summarize(weighted_trips=sum(trip_wt_1_day), count_trips=n()) %>%
   right_join(workers_day, by=c('person_id','daynum.x'="daynum"))%>%  ## get all days whether or not they have work trips
-  mutate(count_trips=replace_na(count_trips,0), weighted_trips=replace_na(weighted_trips, 0), person_weights=sum(hh_weight_2017_2019))  ## fill in the days for people that have no work 
+  mutate(count_trips=replace_na(count_trips,0), weighted_trips=replace_na(weighted_trips, 0))  ## fill in the days for people that have no work 
 
 
 
@@ -72,7 +72,7 @@ workers_day_trips<-workers_trips%>%
 ```{r}
 work_trips_summary<-workers_day_trips%>%
   group_by(telework_time_grp.y)%>%
-  summarize(mean_raw_work_trips=mean(count_trips), sum_trip_weights=sum(weighted_trips), sum_person_weights=sum(person_weights))%>%drop_na()%>%
+  summarize(mean_raw_work_trips=mean(count_trips), sum_trip_weights=sum(weighted_trips), sum_person_weights=sum(hh_weight_2017_2019))%>%drop_na()%>%
   mutate(weighted_ave_work_trips=sum_trip_weights/sum_person_weights)
 
 ```
