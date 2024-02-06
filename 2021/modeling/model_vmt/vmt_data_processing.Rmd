@@ -114,7 +114,7 @@ persons_vmt<-left_join(persons_access,vmt_per, by='person_id')%>%
   mutate(weighted_vmt=replace_na(weighted_vmt,0))%>%
   mutate(ln_vmt_day=log(1+vmt_day))%>%
   filter(vmt_day<400)
-write.csv(persons_vmt, 'persons_vmt_17_19.csv')
+
 ```
 ###2021 data
 ## read in 2021 data
@@ -266,9 +266,6 @@ delivery_1719 <- smp_delivery_combo(dsurvey_1719, '2017/2019')%>%filter(delivery
 persons_vmt_new<-left_join(persons_vmt_new, delivery_1719, by=c('household_id'= 'household_id', 'daynum'='daynum'))
 ```
 
-```{r}
-persons_vmt_21<-read.csv('persons_vmt_21.csv')
-```
 
 
 ```{r}
@@ -331,6 +328,10 @@ persons_vmt_new_21<-left_join(persons_vmt_new_21, delivery_21, by=c('household_i
 ```
 
 
+```{r}
+write.csv(persons_vmt_new, 'persons_vmt_17_19.csv')
+write.csv(persons_vmt_new_21, 'persons_vmt_21.csv')
+```
 
 
 
@@ -338,6 +339,7 @@ persons_vmt_new_21<-left_join(persons_vmt_new_21, delivery_21, by=c('household_i
 common_cols <- intersect(colnames(persons_vmt_new), colnames(persons_vmt_new_21))
 persons_vmt_17_19_21<-rbind(persons_vmt_new[, common_cols], persons_vmt_new_21[, common_cols])
 ```
+
 
 
 ```{r}
