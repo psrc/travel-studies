@@ -354,3 +354,24 @@ ggplot(purpose_by_speed) +
 ```
 
 
+```{r}
+
+TESTsummary <- summarize_day_var('telework_time', 'gender')$summary$unwtd
+
+```
+
+
+```{r}
+prepped_dt = hts_prep_data(summarize_var = 'telework_time',
+                            summarize_by= 'race',
+                             variables_dt = variable_list,
+                             data = hts_data,
+                             id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                             weighted = FALSE)
+```
+
+
+```{r}
+hts_summary(prepped_dt, 'telework_time', 'race')
+```
+
