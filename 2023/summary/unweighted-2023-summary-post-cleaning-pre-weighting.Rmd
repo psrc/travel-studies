@@ -216,6 +216,12 @@ ggplot(employment_summary) +
   labs(x = 'Employment', y = 'Proportion')
 
 ```
+```{r}
+gender_summary = factorize_df(df = summarize_person_var('gender')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+```
 
 ## Unweighted day summaries
 
@@ -352,26 +358,71 @@ ggplot(purpose_by_speed) +
   labs(x = 'Destination Purpose', y = 'Average Speed (mph)')
 
 ```
-
-
+how to summarize a variable that is based off a different table - hhgroup is on the households table, but we want to summarize days by it
 ```{r}
+hts_data$day = hts_cbind_var(lhs_table = hts_data$day, rhs_var = 'hhgroup', cbind_ids = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'), variable_list = variable_list, hts_data = hts_data)
 
-TESTsummary <- summarize_day_var('telework_time', 'gender')$summary$unwtd
+variable_list[variable == 'hhgroup', day := 1]
+
+prepped_dt = hts_prep_data(summarize_var = 'hhgroup', variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+
+hts_summary(prepped_dt = prepped_dt$cat, summarize_var = 'hhgroup', id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'))
 
 ```
-
-
 ```{r}
-prepped_dt = hts_prep_data(summarize_var = 'telework_time',
-                            summarize_by= 'race',
-                             variables_dt = variable_list,
-                             data = hts_data,
-                             id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
-                             weighted = FALSE)
+
+prepped_dt = hts_prep_data(summarize_var = 'mode_type', summarize_by='gender',variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+
+summ<-factorize_df(df=hts_summary(prepped_dt = prepped_dt$cat, summarize_var = 'mode_type', summarize_by='gender', id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'))$summary$unwtd[mode_type != 'NULL'],vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+ggplot(summ) + 
+  geom_col(aes(x = mode_type, y = prop, fill= gender),position=position_dodge()) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Mode', y = 'Proportion')
+```
+```{r}
+prepped_dt = hts_prep_data(summarize_var = 'mode_type', summarize_by='sexuality',variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+
+summ<-factorize_df(df=hts_summary(prepped_dt = prepped_dt$cat, summarize_var = 'mode_type', summarize_by='sexuality', id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'))$summary$unwtd[mode_type != 'NULL'],vals_df = value_labels,
+                              value_label_colname = 'final_label')%>%filter(mode_type!='Car')
+
+ggplot(summ) + 
+  geom_col(aes(x = mode_type, y = prop, fill= sexuality),position=position_dodge()) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Mode', y = 'Proportion')
+```
+how to use a checkbox variable
+```{r}
+prepped_dt = hts_prep_data(summarize_var = 'prev_res_factors',
+                           variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+  
+cat_summary = hts_summary(prepped_dt = prepped_dt$cat,
+                          summarize_var = 'prev_res_factors',
+                          summarize_vartype = 'checkbox',
+                          id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                          weighted = FALSE)
+
+res_summary<-cat_summary$summary$unwtd
+res_summary
 ```
 
-
+Using a grouped variable from the codebook
 ```{r}
-hts_summary(prepped_dt, 'telework_time', 'race')
+
 ```
 

@@ -98,7 +98,7 @@ hh_person<-merge(hh_source, person_source, by='source_group')
 person_days<-merge(hh_person, day_source, by= 'source_group')
 person_trips<-merge(person_days, trip_source, by= 'source_group')
 
-person_trips%>%rename(households=total.x, persons=total.y, days=total.x.1, trips=total.y.1)
+
 
 ```
 
