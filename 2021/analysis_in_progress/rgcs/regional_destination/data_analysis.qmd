@@ -19,6 +19,7 @@ library(psrcelmer)
 library(psrcplot)
 library(sf)
 library(spatialEco)
+library(kableExtra)
 
 # calculate centers and region area
 sf_use_s2(FALSE)
@@ -101,16 +102,21 @@ formatting_func <- function(.data){
 ```
 
 
-## trips in centers
 
-:::{.callout-warning}
-no 2020 employment data in Puyallup Downtown and Redmond-Overlake
+:::{.callout-note}
+- trip types:
+  1. **non-work trips**: Shop, Meal, Social/Recreation, Escort and Errand/Other purposes
+  2. **work trips**: Work, Work-related and School purposes
+  3. other trips: Home, Change mode
+  
+- data source:
+  1. trip data from 2017 and 2019 household travel survey
+  2. 2018 centers employment data
+  3. 2020 OFM population data
 :::
 
-- trip types:
-  1. non-work trip purposes include Shop, Meal, Social/Recreation, Escort and Errand/Other purposes
-  2. work trip purposes include work, work-related and **school** purposes
-- one-fifth of all non-work trips end in centers. 
+
+## trips in centers
 
 :::{.panel-tabset}
 
@@ -136,10 +142,23 @@ plot_ly(data = df_plot %>% filter(d_rgcname != "Total"),
          font = list(family="Poppins"))
 ```
 
-- trip count per square mile
-  1. for non-work trips, trips per square mile for centers is **50 times** higher than that for non-center areas
-  2. for work trips, trips per square mile for centers is **80 times** higher than that for non-center areas
-  
+- one-fifth of non-work trips ends in centers
+- To highlight the intensity of places, we normalize the number of trips by area and by activity units:
+  - trips per square mile
+    - non-work trips/sq mi for centers is **50 times** higher than that for non-center
+    - work trips/sq mi for centers is **80 times** higher than that for non-center
+  - trips per activity unit
+    - activity units: the sum of population and employment counts
+    - non-work trips/activity unit for centers is higher than non-center, showing that an activity unit in centers is more likely to generate more trips
+
+```{r}
+#| tbl-cap: area and activity units in centers
+
+df_rgc %>% select(d_rgcname,area_sq_mile,activity_unit) %>%
+  mutate(area_sq_mile = scales::number(area_sq_mile,accuracy=1,big.mark = ","),
+         activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ","))
+```
+
 ```{r}
 #| tbl-cap: weekday trip destination
 
@@ -168,6 +187,22 @@ plot_ly(data = df_plot,
   layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip share', tickformat=".1%"), 
          title = "share of weekday trip destinations in Metro/Urban RCC",
          font = list(family="Poppins"))
+```
+
+- trips per square mile
+  - metro and urban centers have similar share of non-work trips. However, since the area of metro centers is smaller, non-work trips/sq mi for metro centers is 27% higher than urban centers
+- trips per activity unit
+  - non-work trips/activity unit in metro centers is the lowest because metro centers have the densest activity unit
+  - among centers and non-centers, an activity unit in metro centers generates the least non-work trips, but generates the most work trips
+
+```{r}
+#| tbl-cap: area and activity units in centers
+
+df_metro_urban %>% select(category,area_sq_mile,activity_unit) %>%
+  mutate(category=factor(category, levels=c("Metro","Urban","Not RGC")),
+         area_sq_mile = scales::number(area_sq_mile,accuracy=1,big.mark = ","),
+         activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
+  arrange(category)
 ```
 
 ```{r}
@@ -232,9 +267,6 @@ df_plot[,list(d_rgcname_indv,trip_type,share,count,trip_sq_mile,trip_activity_un
 
 ## trips in centers by trip purpose
 
-- meal trips have the most share of center trips (around 30%)
-- escort trips have the least share of center trips (around 9%)
-
 
 :::{.panel-tabset}
 
@@ -262,61 +294,45 @@ df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("Not RGC","RGC"))
 #          font = list(family="Poppins"))
 ```
 
+- the centers serve significantly more non-work trips, especially meal trips, which are about 100 times higher in trips/sq mi
+- from trips/activity unit, activity units in centers didn't generate much higher escort and social/recreation trips
+
 ```{r}
 #| tbl-cap: weekday non-work trip per square mile by purpose
-df_plot %>%
+df_tab1 <- df_plot %>%
   pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = trip_sq_mile) %>%
-  mutate(`RGC/Not RGC`=RGC/`Not RGC`) %>%
   mutate(RGC = scales::number(RGC,accuracy=100,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=100,big.mark = ","),
-         `RGC/Not RGC` = scales::number(`RGC/Not RGC`,accuracy=1))
+         `Not RGC` = scales::number(`Not RGC`,accuracy=100,big.mark = ","))
+df_tab2 <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = count) %>%
+  mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
+
+kbl(df_tab2 %>% add_column(df_tab1[,c(2,3)],.name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 2, "trips/sq mi" = 2)) %>%
+  column_spec(c(4,5), background = psrc_colors$purples_inc[1])
 ```
 
 
 ```{r}
 #| tbl-cap: weekday non-work trip per activity unit by purpose
-df_plot %>%
+df_tab1 <- df_plot %>%
   pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = trip_activity_unit) %>%
-  mutate(`RGC/Not RGC`=RGC/`Not RGC`) %>%
   mutate(RGC = scales::number(RGC,accuracy=0.01,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","),
-         `RGC/Not RGC` = scales::number(`RGC/Not RGC`,accuracy=0.01))
+         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","))
+df_tab2 <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = count) %>%
+  mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
+
+kbl(df_tab2 %>% add_column(df_tab1[,c(2,3)],.name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 2, "trips/activity unit" = 2)) %>%
+  column_spec(c(4,5), background = psrc_colors$purples_inc[1])
 ```
 
-```{r}
-#| tbl-cap: weekday non-work trip destination by purpose
 
-# df_plot[,list(d_rgcname,dest_purpose_cat,share,count,trip_sq_mile,trip_activity_unit)] %>%
-#   formatting_func()
-```
-
-```{r}
-#| out-width: 700px
-#| out-height: 400px
-
-# df_plot <- trip_data_17_19 %>% 
-#   hhts_count(group_vars=c("d_rgcname",'trip_type'),spec_wgt = "trip_weight_2017_2019") %>% 
-#   filter(trip_type != "Total") %>%
-#   left_join(df_rgc, by="d_rgcname") %>%
-#   mutate(trip_sq_mile = count/area_sq_mile,
-#          trip_activity_unit = count/activity_unit)
-# df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("Not RGC","RGC"))
-# 
-# plot_ly(data = df_plot,
-#         x = ~trip_type, y = ~share,type = "bar", name = ~d_rgcname, 
-#         error_y = ~list(array = share_moe,
-#                         color = '#000000')) %>%
-#   layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip share', tickformat=".1%"), 
-#          title = "share of weekday non-work trip destinations in RCC by trip type",
-#          font = list(family="Poppins"))
-```
-
-```{r}
-#| tbl-cap: weekday non-work trip destination by purpose
-
-# df_plot[,list(d_rgcname,trip_type,share,count,trip_sq_mile,trip_activity_unit)] %>%
-#   formatting_func()
-```
 
 ### Metro/Urban RGC
 
@@ -332,40 +348,49 @@ df_plot <- trip_data_17_19 %>%
   mutate(trip_sq_mile = count/area_sq_mile,
          trip_activity_unit = count/activity_unit)
 df_plot$category <- factor(df_plot$category, levels=c("Not RGC","Metro", "Urban"))
-
-# plot_ly(data = df_plot,
-#         x = ~dest_purpose_cat, y = ~share,type = "bar", name = ~category, 
-#         error_y = ~list(array = share_moe,
-#                         color = '#000000')) %>%
-#   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip share', tickformat=".1%"), 
-#          title = "share of weekday non-work trip destinations in RCC by trip purpose",
-#          font = list(family="Poppins"))
 ```
+
+- Metro centers serve the most trips for each non-work purpose, except for shopping purpose. Urban centers serves the most shopping trips
+- Metro centers have the lowest trips/activity unit for each non-work purpose, except for meal purpose because of its dense activity units
 
 ```{r}
 #| tbl-cap: weekday non-work trip per square mile by purpose
-df_plot %>%
+df_tab1 <- df_plot %>%
   pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = trip_sq_mile) %>%
-  mutate(`Metro/Not RGC`=Metro/`Not RGC`,
-         `Urban/Not RGC`=Urban/`Not RGC`) %>%
   mutate(Metro = scales::number(Metro,accuracy=100,big.mark = ","),
          Urban = scales::number(Urban,accuracy=100,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=100,big.mark = ","),
-         `Metro/Not RGC` = scales::number(`Metro/Not RGC`,accuracy=1,big.mark = ","),
-         `Urban/Not RGC` = scales::number(`Urban/Not RGC`,accuracy=1))
+         `Not RGC` = scales::number(`Not RGC`,accuracy=100,big.mark = ","))
+df_tab2 <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = count) %>%
+  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
+
+
+kbl(df_tab2 %>% add_column(df_tab1[,c(2,3,4)],.name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 3, "trips/sq mi" = 3)) %>%
+  column_spec(c(5,6,7), background = psrc_colors$purples_inc[1])
 ```
 
 ```{r}
 #| tbl-cap: weekday non-work trip per activity unit by purpose
-df_plot %>%
+df_tab1 <- df_plot %>%
   pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = trip_activity_unit) %>%
-  mutate(`Metro/Not RGC`=Metro/`Not RGC`,
-         `Urban/Not RGC`=Urban/`Not RGC`) %>%
-  mutate(Metro = scales::number(Metro,accuracy=0.1,big.mark = ","),
-         Urban = scales::number(Urban,accuracy=0.1,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=0.1,big.mark = ","),
-         `Metro/Not RGC` = scales::number(`Metro/Not RGC`,accuracy=0.01,big.mark = ","),
-         `Urban/Not RGC` = scales::number(`Urban/Not RGC`,accuracy=0.01))
+  mutate(Metro = scales::number(Metro,accuracy=0.01,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=0.01,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","))
+df_tab2 <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = count) %>%
+  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
+
+
+kbl(df_tab2 %>% add_column(df_tab1[,c(2,3,4)],.name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 3, "trips/activity unit" = 3)) %>%
+  column_spec(c(5,6,7), background = psrc_colors$purples_inc[1])
 ```
 
 ```{r}
