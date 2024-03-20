@@ -35,6 +35,7 @@ library(travelSurveyTools)
 library(ggplot2)
 library(psrcplot)
 library(dplyr)
+library(psrcelmer)
 
 
 ```
@@ -48,16 +49,35 @@ dt_dir = "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_unweighted_cleaned_t
 
 codebook_dir = 'J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_groupings.xlsx'
 
-files = Sys.glob(file.path(dt_dir, "*.csv"))
 
-hts_data = lapply(files, function(fl) {
-  
-  tbl_name = stringr::str_match(basename(fl), "(.*?).csv")[, 2]
-  
-  message("Reading ", basename(fl))
+hts_data<- get_table(schema='HHSurvey', tbl_name='households_2017_2019')
 
-    fread(fl)
-})
+
+
+get_hhts_no_weights <- function(survey, level, vars, ...){
+  db_connection <- hhts_connect()
+  abbr <- tbl_ref <- NULL
+  dyears<-survey%>% as.list() %>% lapply(as.integer) %>% unlist()
+
+  
+  sql_hhts_lookup <- data.frame(
+    abbr    =c("h","p","t","d","v","households","persons","trips","days","vehicles"),
+    tbl_ref =rep(c("HHSurvey.v_households",
+                   "HHSurvey.v_persons",
+                   "HHSurvey.v_trips",
+                   "HHSurvey.v_days",
+                   "HHSurvey.v_vehicles"),2)) %>% setDT()
+    sql_tbl_ref <- sql_hhts_lookup[abbr==level, .(tbl_ref)][[1]]
+    want_vars <- c(unlist(vars)) 
+    sql_code <- paste0("SELECT survey_year, ",
+                       paste(want_vars, collapse=", "), " FROM ",sql_tbl_ref,                      # Build query for only relevant variables
+                       " WHERE survey_year IN(", paste(unique(dyears), collapse=", "),");")
+                                                                    # Recode NULL
+    df <- DBI::dbGetQuery(db_connection, DBI::SQL(sql_code))  
+    print(sql_code)
+    DBI::dbDisconnect(db_connection)
+    return(df) 
+}
 
 # Assign lowercase names to the list elements
 names(hts_data) <- tolower(sapply(files, function(f) stringr::str_match(basename(f), "(.*?).csv")[, 2]))

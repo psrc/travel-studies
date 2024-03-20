@@ -28,10 +28,12 @@ hh_17_2019<- get_hhts(survey ='2017/2019', level='h', vars= c('res_dur', 'prev_h
 ```{r}
 hh_17_2019_move<-hhts_count(hh_17_2019, group_var='prev_home_wa', spec_wgt='hh_weight_2017_2019')
 ```
+
 ```{r}
-hh_17_2019_move<-hhts_count(hh_17_2019, group_var='prev_home_lat', spec_wgt='hh_weight_2017_2019')
+hh_17_2019_move<-hhts_count(hh_17_2019, group_var='prev_home_jurisdiction', spec_wgt='hh_weight_2017_2019')
 
 ```
+
 ```{r}
 hh_17_2019%>%filter(!is.na(prev_home_lat))%>%count()
 
