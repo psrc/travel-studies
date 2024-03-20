@@ -121,7 +121,7 @@ variable_list<-setDT(variable_list)
 value_labels<-setDT(value_labels)
 value_labels[, val_order := seq_len(nrow(value_labels))]
 ```
-```
+
 
 ## Create new variable on the household travel survey table
 ```{r}
@@ -134,6 +134,7 @@ setnames(trip, 'group_1_value', 'mode_simple')
 
 The package expects the data to be in a list of data.tables.
 ```{r}
+
 hts_data = list(#hh = hh,
                 #person = person,
                 #day = day,
@@ -142,6 +143,7 @@ hts_data = list(#hh = hh,
 
 ## Prepare data for summary
 ```{r}
+
 prepped_dt = hts_prep_variable(summarize_var = 'mode_simple',
                                summarize_by = 'survey_year',
                                data = hts_data,
@@ -153,6 +155,7 @@ prepped_dt = hts_prep_variable(summarize_var = 'mode_simple',
 
 ## Summarize data
 ```{r}
+
 mode_summary<-hts_summary(prepped_dt = prepped_dt$cat,
                           summarize_var = 'mode_simple',
                           summarize_by = 'survey_year',
@@ -163,6 +166,7 @@ mode_summary<-hts_summary(prepped_dt = prepped_dt$cat,
 
 ## Visualize
 ```{r}
+
 common_modes<-mode_summary$summary$wtd%>%filter(prop>.005)
 static_bar_chart(common_modes, y='mode_simple', x='prop', fill='survey_year')
 
