@@ -22,12 +22,18 @@ colorize <- function(x) {
 
 
 # why are we looking into reducing VMT? 
+
 - household VMT because it constitutes
 more than 75% of total VMT in the United States (AASHTO, 2013) [@singh2018quantifying]
 - Reduce emission: reducing car use has amongst the highest potential to reduce per capita emissions [@kuss2022dozen]
 - Promote equity amidst limited urban space [@kuss2022dozen]
 - Increases in VMT are associated with higher levels of congestion and delay, energy consumption and greenhouse gas emissions, and roadway crashes (Sacramento Area Council of Governments, 2016) – adversely affecting human health, quality of life, and community resiliency and sustainability (Levy et al., 2010). [@singh2018quantifying]
 
+# factors that influence household VMT
+
+- density, land use diversity, and pedestrian-oriented designs reduce trip rates, and encourage nonmotorized
+mode use [@singh2018quantifying]
+- relocating to high accessibility neighborhood decreases household VMT
 
 # possible approaches: seeking ways to reduce vehicle miles of travel without inhibiting household and business activity engagement
 - **Transition management**: an instrumental, action-oriented
@@ -38,22 +44,26 @@ governance framework aiming to introduce a **long-term perspective in policymaki
 
 
 # Notes for papers {.tabset}
-## `r emo::ji("fire")`Quantifying the relative contribution of factors to household vehicle miles of travel
+## Quantifying the relative contribution of factors to household vehicle miles of travel
 
 [@singh2018quantifying]
 
+- household VMT/ New York metropolitan region
 - purpose: 
-    - This paper aims to provide a comprehensive understanding and quantification of the relative effects of various factors on household vehicle miles of travel
-    - By doing so, it is envisioned that planners and policy makers will be able to develop targeted policies that more effectively reduce vehicular travel
+    - to provide a comprehensive understanding and quantification of the relative effects of various factors on household vehicle miles of travel
+    - to develop targeted policies that more effectively reduce vehicular travel
     
 - data: 2010–2011 Regional Household Travel Survey (RHTS) of the New York Metropolitan Transportation Council (NYMTC)
+- method: a joint model of residential location (density) choice and household VMT – accounting for residential self-selection and socio-spatial dependency effects
     
-- four factor that may explain the variance in household VMT, including 
+- four factors that may explain the variance in household VMT, including 
     1. **household and person socio-economic and demographic characteristics**: household size, number of children, number of workers, and household income
     2. **residential built environment attributes**: land use density, population and employment density, parking availability and pricing, distance from residence to work centers, and multimodal accessibility (to destinations)
     3. **residential self-selection (i.e., lifestyle preference) effects**: capture the notion that individuals may choose to locate (live and work) in built environments that are consistent with their attitudes (e.g., environmental sensitivity) and lifestyle preferences (e.g., car-free lifestyle).
-    4. **human social and spatial dependency effects**: the socio-spatial dependence effect. Household VMT may be shaped by social interaction and spatial dependency effects, capturing
-influences engendered by people’s interactions and geographic proximity
+    4. ~~**human social and spatial dependency effects**~~: the socio-spatial dependence effect. Household VMT may be shaped by social interaction and spatial dependency effects, capturing influences engendered by people’s interactions and geographic proximity
+
+- finding: suggests that household socioeconomic and demographic characteristics play a significant and large role (much larger than built environment and self-selection) in shaping household VMT
+  `r emo::ji("fire")` what does this finding imply for policy? household socioeconomic and demographic characteristics aren't something that we can change
 
 
 ## How do local actions affect VMT? A critical review of the empirical evidence
@@ -131,6 +141,10 @@ change in transportation choices
 
 
 
+# list of literature to review
 
+- Brownstone, D., Golob, T.F., 2009. The impact of residential density on vehicle usage and energy consumption. J. Urban Econ. 65 (1), 91–98.
+- Cervero, R., Murakami, J., 2010. Effects of built environments on vehicle miles traveled: evidence from 370 US urbanized areas. Environ. Plan. A 42 (2), 400–418.
+- Travel behavior of immigrants: An analysis of the 2001 National Household Transportation Survey
 
 # Reference
