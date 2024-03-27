@@ -1,0 +1,120 @@
+---
+title: "Regional destination data analysis: maps"
+date: today
+format: 
+  html:
+    mainfont: Poppins
+    theme: cosmo
+    toc: true
+    df-print: kable
+    warning: false
+    echo: false
+---
+
+```{r}
+#| include: FALSE
+
+source("region_dest_data.R")
+
+hex.lyr <- st_read("hex_grid/hex_grid_4mile_region.shp")
+hex.lyr <- sf::st_transform(hex.lyr, 4326)
+
+# remove water
+hex.lyr <- st_filter(hex.lyr, bg2020.lyr, .pred = st_intersects)
+
+# show empty hex map
+# leaflet() %>% 
+#   addProviderTiles(providers["CartoDB.Positron"][[1]]) %>%
+#   addPolygons(data = hex.lyr, fillOpacity = 0.5,weight = 0.7,color = "#636363") 
+
+
+# join trips to hex map
+test <- st_join(sf_trip, hex.lyr, join = st_intersects)
+st_geometry(test) <- NULL
+test2 <- test %>% 
+  group_by(GRID_ID) %>% 
+  summarise(n_trip = n(), 
+            n_trip_wt = sum(trip_weight_2017_2019, na.rm = TRUE)) %>% 
+  ungroup()
+
+hex_trip.lyr <- hex.lyr %>% 
+  left_join(test2, by="GRID_ID") %>% 
+  filter(n_trip_wt>0)
+```
+
+## hex map
+
+- hexagon size: 4 sq. miles
+- the weighted number of trips is calculated for each hexagon
+
+:::{.panel-tabset}
+
+### number of trips in hexagons
+```{r}
+build_hex_map <- function(layer, num_quan){
+  
+  if(num_quan=="num"){
+    pal <- colorNumeric("YlOrRd", layer$n_trip_wt)
+  } 
+  else if(num_quan=="quan"){
+    pal <- colorQuantile("YlOrRd", layer$n_trip_wt, n = 5)
+  }
+  
+  
+  label_n_trip <- paste0("number of trips: ", scales::number(layer$n_trip, accuracy = 1, big.mark = ","),
+                         "<br>number of trips (weighted): ", scales::number(layer$n_trip_wt, accuracy = 1, big.mark = ",")) %>%
+    lapply(htmltools::HTML)
+  
+  leaflet() %>%
+    addProviderTiles(providers["CartoDB.Positron"][[1]]) %>%
+    addPolygons(data = layer, fillOpacity = 0.5,weight = 0.7,color = "#636363",
+                fillColor = ~pal(layer$n_trip_wt),
+                label=label_n_trip) %>%
+    addPolygons(data = center.lyr, fill = FALSE, color = "#636363") %>%
+    addLegend(pal = pal, values = layer$n_trip_wt,
+              title="number of trips",
+              position = "bottomright")
+  
+}
+build_hex_map(hex_trip.lyr,"num")
+```
+
+### number of trips by quintiles in hexagons
+```{r}
+build_hex_map(hex_trip.lyr,"quan")
+```
+
+### only hexagons with more than 2000 trips: number of trips by quintiles in hexagons
+```{r}
+hex_trip_top.lyr <- hex_trip.lyr %>% filter(n_trip_wt>2000)
+
+
+build_hex_map(hex_trip_top.lyr,"quan")
+```
+:::
+
+## trip destinations map
+
+- mark all trip destinations in the region 
+- removing trips ended outside of the region and trips with `trip_weight_2017_2019 == 0`
+
+```{r}
+test <- st_intersection(sf_trip, bg2020.lyr) %>% filter(trip_weight_2017_2019>0)
+
+leaflet() %>%
+  addProviderTiles(providers["CartoDB.Positron"][[1]])%>%
+  addCircleMarkers(
+    data = test,
+    radius = 3,
+    weight = 0.1, color = "#636363",
+    fillColor = ~colorNumeric("YlOrRd", test$trip_weight_2017_2019)(test$trip_weight_2017_2019),
+    fillOpacity = 0.5,
+    label = paste0("trip weight: ", scales::number(test$trip_weight_2017_2019, accuracy = 1, big.mark = ",")) %>%
+      lapply(htmltools::HTML)
+  ) %>%
+  addPolygons(data = center.lyr, fill = FALSE, color = "#636363") %>%
+  addLegend(pal = colorNumeric("YlOrRd", test$trip_weight_2017_2019), values = test$trip_weight_2017_2019,
+            title="trip weights",
+            position = "bottomright")
+```
+
