@@ -6,10 +6,12 @@ output: html_document
 ---
 
 ## Load in Packages
-IF YOU need to download some packages on github: travelSurveyTools, psrcelmer, and psrcplot.
+You many need to download some packages on github: travelSurveyTools, psrcelmer, and psrcplot.
 For this use the syntax:
 library(devtools)
 devtools::install_github('rsgInc/travelSurveyTools')
+
+If you need to update PSRC packages, here is the syntax:
 devtools::install_github('psrc/psrcelmer')
 devtools::install_github('psrc/psrcplot')
 
@@ -21,7 +23,6 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
-source('survey-23-preprocess.R')
 ```
 
 ## Debugging travelSurveyTools
@@ -36,7 +37,7 @@ You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browse
 The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
 ```{r }
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, survey_year, trip_weight 
+person_id, mode_1, survey_year,  trip_weight 
                 from HHSurvey.v_trips_labels")
 
 setDT(trip)
@@ -54,13 +55,16 @@ setDT(value_labels)
 ```
 
 ## Set IDs as characters
-I guess for joining?, functionalize convert all ids to charcets
+I guess for joining?
 ```{r}
 trip[, trip_id := as.character(trip_id)]
 trip[, hh_id := as.character(hh_id)]
 trip[, person_id := as.character(person_id)]
 trip[, day_id := as.character(day_id)]
+```
 
+Make sure your summary variable is set to the expected type.
+```{r}
 trip <- trip%>%mutate(survey_year=as.character(survey_year))
 ```
 
@@ -69,9 +73,6 @@ trip <- trip%>%mutate(survey_year=as.character(survey_year))
 If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
 
 ## Adding a new variable to the codebook
-
-make a function with bunch of default
-#to do make this easier
 ```{r}
 
 variable_list<-rbind(
@@ -94,22 +95,40 @@ variable_list<-rbind(
 
 ```
 
-
-# Add associated values
+##Define new value labels and add them to the value_labels
 ```{r}
-
-group_labels   <- value_labels%>%
-                    filter(group_1_title == 'mode_simple')%>%
-                    select('label', group_1_value)
-
-value_labels<-add_values_code(group_labels,  value_labels, 'mode_simple','group_1_value')
+mode_simple_labels = value_labels[group_1_title == 'mode_simple',
+                                   c('label', 'group_1_value')]
 
 ```
 
-
-## Create new variable on the household travel survey table, using the grouped variable
 ```{r}
-trip <-left_join(trip, group_labels, by=c('mode_1' = 'label'))
+value_labels<-value_labels%>%select(variable, value, label, val_order)
+mode_simple_value_labels<-mode_simple_labels%>%
+                            mutate(variable='mode_simple')%>%
+                            distinct(group_1_value, .keep_all=TRUE)%>%
+                            rowid_to_column(var='value')%>%
+                           rowid_to_column(var='val_order')%>%
+                             select(variable, value, group_1_value, val_order)%>%
+                           rename(label=group_1_value)
+
+
+ 
+value_labels<-rbind(value_labels,
+                     data.table(mode_simple_value_labels))
+```
+
+```{r}
+variable_list<-setDT(variable_list)
+value_labels<-setDT(value_labels)
+value_labels[, val_order := seq_len(nrow(value_labels))]
+```
+
+
+## Create new variable on the household travel survey table
+```{r}
+
+trip <-merge(trip, mode_simple_labels, by.x = 'mode_1', by.y = 'label')
 setnames(trip, 'group_1_value', 'mode_simple')
 
 ```
@@ -124,17 +143,28 @@ hts_data = list(#hh = hh,
                 trip = trip)
 ```
 
-##summarize data
+## Prepare data for summary
 ```{r}
 
-mode_summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'mode_simple',
+prepped_dt = hts_prep_variable(summarize_var = 'mode_simple',
                                summarize_by = 'survey_year',
-                               id_cols='trip_id',
-                               wt_cols='trip_weight'
-                               )
+                               data = hts_data,
+                               id_cols = 'trip_id',
+                               wt_cols = 'trip_weight',
+                               weighted = TRUE,
+                               missing_values = '')
 ```
 
+## Summarize data
+```{r}
+
+mode_summary<-hts_summary(prepped_dt = prepped_dt$cat,
+                          summarize_var = 'mode_simple',
+                          summarize_by = 'survey_year',
+                          id_cols = 'trip_id',
+                          wtname='trip_weight',
+                          weighted = TRUE)
+```
 
 ## Visualize
 ```{r}
