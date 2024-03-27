@@ -1,19 +1,11 @@
 ---
-title: "first-example-mode-summary"
+title: "second-example"
 author: "suzanne"
-date: "2024-03-20"
+date: "2024-03-27"
 output: html_document
 ---
 
-## Load in Packages
-You many need to download some packages on github: travelSurveyTools, psrcelmer, and psrcplot.
-For this use the syntax:
-library(devtools)
-devtools::install_github('rsgInc/travelSurveyTools')
 
-If you need to update PSRC packages, here is the syntax:
-devtools::install_github('psrc/psrcelmer')
-devtools::install_github('psrc/psrcplot')
 
 ```{r setup, include=FALSE}
 library(data.table)
@@ -23,25 +15,33 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
+source('survey-23-preprocess.R')
 ```
 
-## Debugging travelSurveyTools
-
-travelSurveyTools still has many cryptic error messages usually related to data or codebook formatting and naming. You may need to debug to find where or why the problem exists.
-
-You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browser() and put breakpoints in the code to find the problem.
 
 
-## Read in data items from Elmer
-
-The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
 ```{r }
-trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, survey_year,  trip_weight 
-                from HHSurvey.v_trips_labels")
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,survey_year, hh_weight
+                from HHSurvey.v_households_labels")
 
+
+person<- get_query(sql= "select household_id as hh_id,race_category,
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry 
+                from HHSurvey.v_persons_labels")
+                
+day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
+
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
+person_id, mode_1, dest_purpose, survey_year, trip_weight 
+                from HHSurvey.v_trips_labels")
+setDT(hh)
+setDT(person)
+setDT(day)
 setDT(trip)
 ```
+#race_category needs to be added to the codebook
+
+
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
@@ -55,84 +55,263 @@ setDT(value_labels)
 ```
 
 ## Set IDs as characters
-I guess for joining?
+I guess for joining?, functionalize convert all ids to charcets
 ```{r}
-trip[, trip_id := as.character(trip_id)]
-trip[, hh_id := as.character(hh_id)]
-trip[, person_id := as.character(person_id)]
-trip[, day_id := as.character(day_id)]
-```
 
-Make sure your summary variable is set to the expected type.
-```{r}
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+day[, hh_id:=as.character(hh_id)]
+trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+day[, person_id := as.character(person_id)]
+trip[, person_id := as.character(person_id)]
+
+day[, day_id := as.character(day_id)]
+trip[, day_id := as.character(day_id)]
+
+trip[, trip_id := as.character(trip_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
+person <- person%>%mutate(survey_year=as.character(survey_year))
+day <- day%>%mutate(survey_year=as.character(survey_year))
 trip <- trip%>%mutate(survey_year=as.character(survey_year))
 ```
 
-## Make a new variable
+Variables that need grouping:
+telework_time: use group_2, group_2_value: telework_time_broad
+gender: gender_grp group_1
+telecommute_freq: telecommute_freq_simple: group_1
+dest_purpose: dest_purpose_simple, group_1
+mode-> mode_simple
 
-If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
 
-## Adding a new variable to the codebook
 ```{r}
 
 variable_list<-rbind(
     variable_list,
     data.table(
-      variable = "mode_simple",
-      is_checkbox = 0,
-      hh = 0,
-      person = 0,
-      day = 0,
-      trip = 1,
-      vehicle = 0,
-      location = 0,
-      description = "mode aggregation",
-      logic = 'mode aggregation',
-      data_type = "integer/categorical",
-      shared_name = "mode_simple"
+      variable = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'gender_grp', 'telecommute_freq_simple'),
+      is_checkbox = c(0,0,0,0,0),
+      hh = c(0,0,0,0,0),
+      person = c(0,0,0,1, 1),
+      day = c(0,0,1,0, 0),
+      trip = c(1,1, 0, 0,0),
+      vehicle = c(0,0,0,0,0),
+      location = c(0,0,0,0,0),
+      description = c("mode aggregation", "destination aggregation", "telework time aggregation", "gender group", 'telecommute frequency group'),
+      logic = c('mode aggregation', 'destination aggregation',"telework time aggregation", "gender group", 'telecommute frequency group'),
+      data_type = c("integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical"),
+      shared_name = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'gender_grp', 'telecommute_freq_simple')
     )
   )
 
-```
-
-##Define new value labels and add them to the value_labels
-```{r}
-mode_simple_labels = value_labels[group_1_title == 'mode_simple',
-                                   c('label', 'group_1_value')]
 
 ```
 
+
+# Add associated values
+1. persons: telecommute_freq_simple, gender_grp
+2. day: telework_time_broad
+2. trips: mode_simple, dest_purpose_simple
+
+
+
+# persons day table, gender_grp
 ```{r}
-value_labels<-value_labels%>%select(variable, value, label, val_order)
-mode_simple_value_labels<-mode_simple_labels%>%
-                            mutate(variable='mode_simple')%>%
-                            distinct(group_1_value, .keep_all=TRUE)%>%
-                            rowid_to_column(var='value')%>%
-                           rowid_to_column(var='val_order')%>%
-                             select(variable, value, group_1_value, val_order)%>%
-                           rename(label=group_1_value)
 
+group_labels   <- value_labels%>%
+                    filter(group_1_title == 'gender_grp')%>%
+                    select('label', group_1_value)
 
- 
-value_labels<-rbind(value_labels,
-                     data.table(mode_simple_value_labels))
-```
+value_labels<-add_values_code(group_labels,  value_labels, 'gender_grp','group_1_value')
 
-```{r}
-variable_list<-setDT(variable_list)
-value_labels<-setDT(value_labels)
-value_labels[, val_order := seq_len(nrow(value_labels))]
 ```
 
 
-## Create new variable on the household travel survey table
+## Create new variable on the household travel survey table, using the grouped variable
+```{r}
+person <-left_join(person, group_labels, by=c('gender' = 'label'))
+setnames(person, 'group_1_value', 'gender_grp')
+
+```
+
+
+
+
+# persons table telecommute_freq
 ```{r}
 
-trip <-merge(trip, mode_simple_labels, by.x = 'mode_1', by.y = 'label')
+group_labels   <- value_labels%>%
+                    filter(group_1_title == 'telecommute_freq_simple')%>%
+                    select('label', group_1_value)
+
+value_labels<-add_values_code(group_labels,  value_labels, 'telecommute_freq_simple','group_1_value')
+
+```
+
+
+## Create new variable on the household travel survey table, using the grouped variable
+```{r}
+person <-left_join(person, group_labels, by=c('telecommute_freq' = 'label'))
+setnames(person, 'group_1_value', 'telecommute_freq_simple' )
+
+```
+
+
+
+
+# day table, telework_time_broad
+```{r}
+
+group_labels   <- value_labels%>%
+                    filter(group_2_title == 'telework_time_broad')%>%
+                    select('label', group_2_value)
+
+value_labels<-add_values_code(group_labels,  value_labels, 'telework_time_broad','group_2_value')
+
+```
+
+
+## Create new variable on the household travel survey table, using the grouped variable
+```{r}
+day <-left_join(day, group_labels, by=c('telework_time' = 'label'))
+setnames(day, 'group_2_value', 'telework_time_broad')
+
+```
+
+
+
+
+
+
+# trip table
+```{r}
+
+group_labels   <- value_labels%>%
+                    filter(group_1_title == 'mode_simple')%>%
+                    select('label', group_1_value)
+
+value_labels<-add_values_code(group_labels,  value_labels, 'mode_simple','group_1_value')
+
+```
+
+
+## Create new variable on the household travel survey table, using the grouped variable
+```{r}
+trip <-left_join(trip, group_labels, by=c('mode_1' = 'label'))
+
 setnames(trip, 'group_1_value', 'mode_simple')
 
 ```
 
+
+purpose
+
+```{r}
+
+group_labels   <- value_labels%>%
+                    filter(group_1_title == 'dest_purpose_simple')%>%
+                    select('label', group_1_value)
+
+value_labels<-add_values_code(group_labels,  value_labels, 'dest_purpose_simple','group_1_value')
+
+```
+
+
+## Create new variable on the household travel survey table, using the grouped variable
+```{r}
+trip <-left_join(trip, group_labels, by=c('dest_purpose' = 'label'))
+
+setnames(trip, 'group_1_value', 'dest_purpose_simple')
+
+```
+
+```{r}
+variable_list<-variable_list%>% distinct(variable, .keep_all=TRUE)
+```
+
+trend in workplace (person)
+workplace by hh income
+
+trend in frequency (person)
+telecommute_freq
+
+trend in time spent (day)
+time spent by hhincome
+
+
+trips by purpose
+by workplace
+by time spent
+by frequency
+
+trips by mode
+by workplace
+by time spent
+by frequency
+
+# join persons to households
+# join that to days
+# join days to trips
+
+```{r}
+person<-merge(person, hh, by = c('hh_id', 'survey_year'))
+day<-merge(person,day, by = c('person_id', 'survey_year'))
+trip<-merge(day, trip, by = c('day_id', 'survey_year'))
+
+```
+workplace; workplace by income; telecommute frequency; telecommute frequency by income
+```{r}
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+worker_list<-list(person=workers)
+
+```
+
+
+
+```{r}
+workplace <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'workplace',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight')
+                               )
+
+```
+## Visualize
+```{r}
+
+workplace_summary<-workplace$summary$wtd%>%filter(prop>.005)
+static_bar_chart(workplace_summary, y='workplace', x='prop', fill='survey_year')
+
+```
+2023 only by income
+```{r}
+workers_23<-workers%>%filter(survey_year =='2023')
+
+worker_list_23<- list(person= workers_23)
+```
+
+```{r}
+workplace_gender <- summarize_weighted(hts_data= worker_list_23,
+                               summarize_var = 'workplace',
+                               summarize_by = 'gender_grp',
+                               id_cols='person_id',
+                               wt_cols='person_weight'
+                               )
+
+```
+## Visualize
+```{r}
+
+workplace_gender_summary<-workplace_gender$summary$wtd
+static_bar_chart(workplace_gender_summary, y='workplace', x='prop', fill='gender_grp')
+
+```
+
+```{r}
+
+```
 
 The package expects the data to be in a list of data.tables.
 ```{r}
@@ -143,28 +322,17 @@ hts_data = list(#hh = hh,
                 trip = trip)
 ```
 
-## Prepare data for summary
+##summarize data
 ```{r}
 
-prepped_dt = hts_prep_variable(summarize_var = 'mode_simple',
+mode_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'mode_simple',
                                summarize_by = 'survey_year',
-                               data = hts_data,
-                               id_cols = 'trip_id',
-                               wt_cols = 'trip_weight',
-                               weighted = TRUE,
-                               missing_values = '')
+                               id_cols=c('hh_id', 'trip_id'),
+                               wt_cols=c('hh_weight','trip_weight')
+                               )
 ```
 
-## Summarize data
-```{r}
-
-mode_summary<-hts_summary(prepped_dt = prepped_dt$cat,
-                          summarize_var = 'mode_simple',
-                          summarize_by = 'survey_year',
-                          id_cols = 'trip_id',
-                          wtname='trip_weight',
-                          weighted = TRUE)
-```
 
 ## Visualize
 ```{r}
@@ -173,4 +341,5 @@ common_modes<-mode_summary$summary$wtd%>%filter(prop>.005)
 static_bar_chart(common_modes, y='mode_simple', x='prop', fill='survey_year')
 
 ```
+
 

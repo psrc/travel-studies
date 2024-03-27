@@ -9,9 +9,13 @@ add_values_code<- function(group_labels, value_labels,var_grp_name,group_id_valu
                    distinct(!!sym(group_id_value), .keep_all=TRUE)%>%
                    rowid_to_column(var='value')%>%
                    select(variable, value, sym(group_id_value))%>%
-                   rename(label=sym(group_id_value))
+                   rename(label=sym(group_id_value))%>%
+                   mutate(group_1_title = NA, group_1_value = NA,
+                          group_2_title = NA, group_2_value= NA,
+                          group_3_title = NA, group_3_value = NA)
   
-  value_labels<-value_labels%>%select(variable, value, label)
+  value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
   new_value_labels<-rbind(value_labels, var_val_labels)
   new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
   new_value_labels<-setDT(new_value_labels)
