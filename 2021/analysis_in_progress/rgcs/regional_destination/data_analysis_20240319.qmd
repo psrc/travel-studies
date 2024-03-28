@@ -1,5 +1,5 @@
 ---
-title: "Regional destination data analysis"
+title: "Centers monitoring: regional destinations"
 date: today
 format: 
   html:
@@ -31,16 +31,17 @@ pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
 ```
 
 
+:::{.callout-note}
 ## edits since 2/28 check-in
 - filter trips to UGA geography
 - color code table by area type for clearer visualization
 - use acres instead of sq. miles
 - create hexagon maps
-- create map with trip destination points
-- get more accurate population and employment data
+<!-- - create map with trip destination points -->
+<!-- - get more accurate population and employment data -->
+:::
 
 
-:::{.callout-note}
 - study area: Urban Growth Area (only include trips ended in UGA)
 - trip types:
   1. **non-work trips**: Shop, Meal, Social/Recreation, Escort and Errand/Other purposes
@@ -53,8 +54,41 @@ pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
      - UGA employment count: 2018 LODES block-level data
   3. 2020 OFM population data
      - UGA population count: 2020 OFM block-level data
-:::
 
+- To highlight the intensity of places, we normalize the number of trips by area and by activity units:
+   - activity units: the sum of population and employment counts
+
+```{r}
+#| out-width: 650px
+
+kbl(
+  df_rgc %>% select(d_rgcname,acres,activity_unit) %>%
+    mutate(acres = scales::number(acres,accuracy=1000,big.mark = ","),
+           activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
+    rename(`activity units` = activity_unit)
+  )%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins", full_width = F) %>%
+  row_spec(1, background = psrc_colors$purples_inc[1]) %>%
+  row_spec(2, background = psrc_colors$greens_inc[1])
+```
+
+```{r}
+#| tbl-cap: area and activity units in centers
+#| out-width: 650px
+
+kbl(
+  df_metro_urban %>% select(category,acres,activity_unit) %>%
+    mutate(category=factor(category, levels=c("Metro","Urban","Not RGC")),
+           acres = scales::number(acres,accuracy=100,big.mark = ","),
+           activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
+    arrange(category)%>%
+    rename(`activity units` = activity_unit)
+  )%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins", full_width = F) %>%
+  row_spec(c(1), background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(c(2), background = psrc_colors$blues_inc[1]) %>%
+  row_spec(c(3), background = psrc_colors$greens_inc[1])
+```
 
 ## trips in centers
 
@@ -74,50 +108,62 @@ df_plot <- trip_data_uga_17_19 %>%
          `trip/activity unit` = count/activity_unit)
 df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
 
-plot_ly(data = df_plot %>% filter(d_rgcname != "Total"),
-        x = ~trip_type, y = ~share,type = "bar", color = ~d_rgcname, colors = pal_rgc,
-        error_y = ~list(array = share_moe,
-                        color = '#000000')) %>%
-  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip share', tickformat=".1%"), 
-         title = "share of weekday trip destinations in RCC/ Not RGC",
-         font = list(family="Poppins"))
+# trip share (replaced with table below)
+# plot_ly(data = df_plot %>% filter(d_rgcname != "Total"),
+#         x = ~trip_type, y = ~share,type = "bar", color = ~d_rgcname, colors = pal_rgc,
+#         error_y = ~list(array = share_moe,
+#                         color = '#000000')) %>%
+#   layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip share', tickformat=".1%"), 
+#          title = "share of weekday trip destinations in RCC/ Not RGC",
+#          font = list(family="Poppins"))
 ```
 
 - one-fifth of non-work trips ends in centers
-- To highlight the intensity of places, we normalize the number of trips by area and by activity units:
 
 ```{r}
-#| tbl-cap: area and activity units in centers
+#| tbl-cap: weekday trip counts in centers
 
-kbl(
-  df_rgc %>% select(d_rgcname,acres,activity_unit) %>%
-    mutate(acres = scales::number(acres,accuracy=1000,big.mark = ","),
-           activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
-    rename(`activity units` = activity_unit)
-  )%>%
+df_tab <- df_plot %>%
+  pivot_wider(id_cols = c(trip_type), names_from = d_rgcname, values_from = share) %>%
+  mutate(RGC = scales::percent(RGC,accuracy=1),
+         `Not RGC` = scales::percent(`Not RGC`,accuracy=1))
+df_tab2 <- df_plot %>%
+  pivot_wider(id_cols = c(trip_type), names_from = d_rgcname, values_from = count) %>%
+  mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  rename(`trip type` = trip_type)
+
+kbl(df_tab2 %>% add_column(df_tab[,-1], .name_repair = "minimal"))%>%
   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  row_spec(1, background = psrc_colors$purples_inc[1]) %>%
-  row_spec(2, background = psrc_colors$greens_inc[1])
+  add_header_above(c(" " = 1, "trip count" = 2, "share" = 2)) %>%
+  column_spec(c(4), background = psrc_colors$purples_inc[1]) %>%
+  column_spec(c(5), background = psrc_colors$greens_inc[1])
 ```
+
 
 1. **trips per acre**
    - non-work trip/acre for centers is **8 times** higher than that for non-center
    - work trip/acre for centers is **14 times** higher than that for non-center
 2. **trips per activity unit**
-   - activity units: the sum of population and employment counts
    - non-work trip/activity unit for centers is higher than non-center, showing that an activity unit in centers is more likely to generate more trips
 
 
 ```{r}
-#| tbl-cap: weekday trip destination
+#| layout-ncol: 2
+#| out-height: 350px
 
-kbl(
-  df_plot[,list(d_rgcname,trip_type,share,count,`trip/acre`,`trip/activity unit`)] %>%
-    formatting_func()
-  )%>%
-  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  row_spec(c(1,3), background = psrc_colors$purples_inc[1]) %>%
-  row_spec(c(2,4), background = psrc_colors$greens_inc[1])
+plot_ly(data = df_plot,
+        x = ~trip_type, y = ~`trip/acre`,type = "bar", text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/acre', tickformat=".0f"),
+         title = "trips per acre in centers",
+         font = list(family="Poppins"))
+plot_ly(data = df_plot,
+        x = ~trip_type, y = ~`trip/activity unit`,type = "bar", text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/activity unit', tickformat=".1f"),
+         title = "trips per activity unit in centers",
+         font = list(family="Poppins"))
 ```
 
 
@@ -136,52 +182,71 @@ df_plot3 <- trip_data_uga_17_19 %>%
          `trip/activity unit` = count/activity_unit)
 df_plot3$category <- factor(df_plot3$category, levels=c("Metro","Urban","Not RGC"))
 
-plot_ly(data = df_plot3,
-        x = ~trip_type, y = ~share,type = "bar", color = ~category, colors = pal_rgc_mu,
-        error_y = ~list(array = share_moe,
-                        color = '#000000')) %>%
-  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip share', tickformat=".1%"), 
-         title = "share of weekday trip destinations in Metro/Urban RCC",
-         font = list(family="Poppins"))
+# plot_ly(data = df_plot3,
+#         x = ~trip_type, y = ~share,type = "bar", color = ~category, colors = pal_rgc_mu,
+#         error_y = ~list(array = share_moe,
+#                         color = '#000000')) %>%
+#   layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip share', tickformat=".1%"), 
+#          title = "share of weekday trip destinations in Metro/Urban RCC",
+#          font = list(family="Poppins"))
 ```
 
-```{r}
-#| tbl-cap: area and activity units in centers
 
-kbl(
-  df_metro_urban %>% select(category,acres,activity_unit) %>%
-    mutate(category=factor(category, levels=c("Metro","Urban","Not RGC")),
-           acres = scales::number(acres,accuracy=100,big.mark = ","),
-           activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
-    arrange(category)
-  )%>%
+```{r}
+#| tbl-cap: weekday trip counts in centers
+
+df_tab <- df_plot3 %>%
+  pivot_wider(id_cols = c(trip_type), names_from = category, values_from = share) %>%
+  mutate(Metro = scales::percent(Metro,accuracy=1),
+         Urban = scales::percent(Urban,accuracy=1),
+         `Not RGC` = scales::percent(`Not RGC`,accuracy=1))
+df_tab2 <- df_plot3 %>%
+  pivot_wider(id_cols = c(trip_type), names_from = category, values_from = count) %>%
+  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  rename(`trip type` = trip_type)
+
+kbl(df_tab2 %>% add_column(df_tab[,-1], .name_repair = "minimal"))%>%
   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  row_spec(c(1), background = psrc_colors$oranges_inc[1]) %>%
-  row_spec(c(2), background = psrc_colors$blues_inc[1]) %>%
-  row_spec(c(3), background = psrc_colors$greens_inc[1])
+  add_header_above(c(" " = 1, "trip count" = 3, "share" = 3)) %>%
+  column_spec(c(5), background = psrc_colors$oranges_inc[1]) %>%
+  column_spec(c(6), background = psrc_colors$blues_inc[1]) %>%
+  column_spec(c(7), background = psrc_colors$greens_inc[1])
 ```
 
 - **trips per acre**
-  - non-work trip/acre for metro centers is **9 times** higher than that for non-center
-  - non-work trip/acre for urban centers is **7 times** higher than that for non-center
-  - metro and urban centers have similar share of non-work trips. However, since the area of metro centers is smaller, non-work trip/acre for metro centers is 27% higher than urban centers
+  - non-work trip/acre:
+    - metro centers is **9 times higher** than non-center
+    - urban centers is **7 times higher** than non-center
+    - metro centers is **27% higher** than urban centers
+  - work trip/acre:
+    - metro centers is **26 times higher** than non-center
+    - urban centers is **5 times higher** than non-center
+    - metro centers is **4 times higher** than urban centers
 - **trips per activity unit**
   - non-work trip/activity unit in metro centers is the lowest because metro centers have the densest activity unit
   - among centers and non-centers, an activity unit in metro centers generates the least non-work trips, but generates the most work trips
 
 
-
 ```{r}
-#| tbl-cap: weekday trip destination
-kbl(
-  df_plot3[,list(category,trip_type,share,count,`trip/acre`,`trip/activity unit`)] %>%
-    formatting_func()
-  )%>%
-  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  row_spec(c(1,4), background = psrc_colors$oranges_inc[1]) %>%
-  row_spec(c(2,5), background = psrc_colors$blues_inc[1]) %>%
-  row_spec(c(3,6), background = psrc_colors$greens_inc[1])
+#| layout-ncol: 2
+#| out-height: 350px
+
+plot_ly(data = df_plot3,
+        x = ~trip_type, y = ~`trip/acre`,type = "bar", text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",
+        color = ~category, colors = pal_rgc_mu) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/acre', tickformat=".0f"),
+         title = "trips per acre in centers",
+         font = list(family="Poppins"))
+plot_ly(data = df_plot3,
+        x = ~trip_type, y = ~`trip/activity unit`,type = "bar", text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",
+        color = ~category, colors = pal_rgc_mu) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/activity unit', tickformat=".1f"),
+         title = "trips per activity unit in centers",
+         font = list(family="Poppins"))
 ```
+
 
 ### individual centers
 
@@ -285,70 +350,51 @@ df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
 
 ```
 
-
-1. **trips per acre**
-   - the centers serve significantly more non-work trips
-   - especially meal trips, the centers serves about 16 times more trip/acre than non-centers
-
-```{r}
-#| out-height: 300px
-
-plot_ly(data = df_plot,
-        x = ~dest_purpose_cat, y = ~`trip/acre`,type = "bar", color = ~d_rgcname, colors = pal_rgc) %>%
-  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".2f"), 
-         title = "weekday non-work trip per acre by purpose",
-         font = list(family="Poppins"))
-```
-
   
 ```{r}
-#| tbl-cap: weekday non-work trip per acre by purpose
-df_tab1 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = `trip/acre`) %>%
-  mutate(RGC = scales::number(RGC,accuracy=0.01,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","))
-df_tab2 <- df_plot %>%
+#| tbl-cap: weekday non-work trip counts by purpose
+df_tab <- df_plot %>%
   pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = count) %>%
   mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
          `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
 
-kbl(df_tab2 %>% add_column(df_tab1[,c(2,3)],.name_repair = "minimal"))%>%
+kbl(df_tab)%>%
   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  add_header_above(c(" " = 1, "trip count" = 2, "trip/acre" = 2)) %>%
-  column_spec(4, background = psrc_colors$purples_inc[1]) %>%
-  column_spec(5, background = psrc_colors$greens_inc[1])
+  add_header_above(c(" " = 1, "trip count" = 2)) %>%
+  column_spec(2, background = psrc_colors$purples_inc[1]) %>%
+  column_spec(3, background = psrc_colors$greens_inc[1])
 ```
 
-2. **trips per activity unit**
-   - activity units in centers didn't generate much higher escort and social/recreation trips
-
+1. **trips per acre**
+   - the centers serve significantly more non-work trips
 ```{r}
-#| out-height: 300px
+#| out-height: 350px
 
 plot_ly(data = df_plot,
-        x = ~dest_purpose_cat, y = ~`trip/activity unit`,type = "bar", color = ~d_rgcname, colors = pal_rgc) %>%
+        x = ~dest_purpose_cat, y = ~`trip/acre`,type = "bar", 
+        text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}", 
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f"), 
+         title = "weekday non-work trip per acre by purpose",
+         font = list(family="Poppins"))
+```
+
+
+2. **trips per activity unit**
+   - activity units in non-centers generate more escort and social/recreation trips than centers
+
+```{r}
+#| out-height: 350px
+
+plot_ly(data = df_plot,
+        x = ~dest_purpose_cat, y = ~`trip/activity unit`,type = "bar", 
+        text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}", 
+        color = ~d_rgcname, colors = pal_rgc) %>%
   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f"), 
          title = "weekday non-work trip per activity unit by purpose",
          font = list(family="Poppins"))
 ```
 
-```{r}
-#| tbl-cap: weekday non-work trip per activity unit by purpose
-df_tab1 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = `trip/activity unit`) %>%
-  mutate(RGC = scales::number(RGC,accuracy=0.01,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","))
-df_tab2 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = d_rgcname, values_from = count) %>%
-  mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
-
-kbl(df_tab2 %>% add_column(df_tab1[,c(2,3)],.name_repair = "minimal"))%>%
-  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  add_header_above(c(" " = 1, "trip count" = 2, "trip/activity unit" = 2)) %>%
-  column_spec(4, background = psrc_colors$purples_inc[1]) %>%
-  column_spec(5, background = psrc_colors$greens_inc[1])
-```
 
 
 ### Metro/Urban RGC
@@ -365,85 +411,68 @@ df_plot <- trip_data_uga_17_19 %>%
   mutate(`trip/acre` = count/acres,
          `trip/activity unit` = count/activity_unit)
 df_plot$category <- factor(df_plot$category, levels=c("Metro", "Urban", "Not RGC"))
+
+```
+
+```{r}
+#| tbl-cap: weekday non-work trip count by purpose
+
+df_tab <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = count) %>%
+  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  rename(`trip purpose` = dest_purpose_cat)
+
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 3)) %>%
+  column_spec(2, background = psrc_colors$oranges_inc[1]) %>%
+  column_spec(3, background = psrc_colors$blues_inc[1]) %>%
+  column_spec(4, background = psrc_colors$greens_inc[1])
 ```
 
 1. **trips per acre**
-   - Metro centers serve the most trips for each non-work purpose, except for shopping purpose.   
+   - Metro centers serve the most trips for all non-work purposes, except for shopping purpose.   
    - Urban centers serves the most shopping trips
 ```{r}
-#| out-height: 300px
+#| out-height: 350px
 
 plot_ly(data = df_plot,
-        x = ~dest_purpose_cat, y = ~`trip/acre`,type = "bar", color = ~category, colors = pal_rgc_mu) %>%
-  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".2f"), 
+        x = ~dest_purpose_cat, y = ~`trip/acre`,type = "bar", 
+        text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}", 
+        color = ~category, colors = pal_rgc_mu) %>%
+  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f"), 
          title = "weekday non-work trip per acre by purpose",
          font = list(family="Poppins"))
 ```
 
-```{r}
-#| tbl-cap: weekday non-work trip per square mile by purpose
-df_tab1 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = `trip/acre`) %>%
-  mutate(Metro = scales::number(Metro,accuracy=0.01,big.mark = ","),
-         Urban = scales::number(Urban,accuracy=0.01,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","))
-df_tab2 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = count) %>%
-  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
-         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
 
-
-kbl(df_tab2 %>% add_column(df_tab1[,c(2,3,4)],.name_repair = "minimal"))%>%
-  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  add_header_above(c(" " = 1, "trip count" = 3, "trip/acre" = 3)) %>%
-  column_spec(5, background = psrc_colors$oranges_inc[1]) %>%
-  column_spec(6, background = psrc_colors$blues_inc[1]) %>%
-  column_spec(7, background = psrc_colors$greens_inc[1])
-```
 
 2. **trips per activity unit**
    - activity units in Urban centers generates the most trips, except for Escort trips
 
 ```{r}
-#| out-height: 300px
+#| out-height: 350px
 
 plot_ly(data = df_plot,
-        x = ~dest_purpose_cat, y = ~`trip/activity unit`,type = "bar", color = ~category, colors = pal_rgc_mu) %>%
+        x = ~dest_purpose_cat, y = ~`trip/activity unit`,type = "bar", 
+        text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}", 
+        color = ~category, colors = pal_rgc_mu) %>%
   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f"), 
          title = "weekday non-work trip per activity unit by purpose",
          font = list(family="Poppins"))
 ```
 
-```{r}
-#| tbl-cap: weekday non-work trip per activity unit by purpose
-df_tab1 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = `trip/activity unit`) %>%
-  mutate(Metro = scales::number(Metro,accuracy=0.01,big.mark = ","),
-         Urban = scales::number(Urban,accuracy=0.01,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=0.01,big.mark = ","))
-df_tab2 <- df_plot %>%
-  pivot_wider(id_cols = c(dest_purpose_cat), names_from = category, values_from = count) %>%
-  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
-         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
-         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ","))
-
-
-kbl(df_tab2 %>% add_column(df_tab1[,c(2,3,4)],.name_repair = "minimal"))%>%
-  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
-  add_header_above(c(" " = 1, "trip count" = 3, "trip/activity unit" = 3)) %>%
-  column_spec(5, background = psrc_colors$oranges_inc[1]) %>%
-  column_spec(6, background = psrc_colors$blues_inc[1]) %>%
-  column_spec(7, background = psrc_colors$greens_inc[1])
-```
 
 
 :::
 
-## hex maps: weighted number of trips
+## hex maps: weighted number of non-work trips
 
 - hexagon size: 4 sq. miles
-- color ramp is adjusted using log scale: log<sub>10</sub>\(number of trips\)
+- color ramp is adjusted using log scale: log<sub>10</sub>\(number of non-work trips\)
 
 ```{r}
 #| include: FALSE
@@ -461,7 +490,7 @@ hex.lyr <- st_filter(hex.lyr, bg2020.lyr, .pred = st_intersects)
 
 
 # join trips to hex map
-test <- st_join(sf_trip, hex.lyr, join = st_intersects)
+test <- st_join(sf_trip %>% filter(trip_type=="Non-work"), hex.lyr, join = st_intersects)
 st_geometry(test) <- NULL
 test2 <- test %>% 
   group_by(GRID_ID) %>% 
@@ -478,7 +507,7 @@ hex_trip.lyr <- hex.lyr %>%
 
 :::{.panel-tabset}
 
-### number of trips in hexagons 
+### number of non-work trips in hexagons 
 
 ```{r}
 #| out-height: 800px
@@ -513,7 +542,7 @@ build_hex_map_log <- function(layer, cus_pal, cus_bin){
     addLegend_decreasing(pal = psrc_palette,
                        values = c(min_value_legend, max_value_legend),
                        position = "bottomright",
-                       title="number of trips",
+                       title="number of non-work trips",
                        opacity = 0.7,
                        bins=cus_bin,
                        decreasing = TRUE,
@@ -532,33 +561,34 @@ build_hex_map_log(hex_trip.lyr,psrc_purple_plus,5)
 
 fig <- plot_ly(x = ~hex_trip.lyr$n_trip_wt, type = "histogram",
                marker=list(color=psrc_colors$purples_inc[2])) %>%
-  layout(xaxis = list(title = 'number of trips in a hexagon'), yaxis = list(title = 'hexagon counts'), 
-         title = "histogram for number of trips in a hexagon",
+  layout(xaxis = list(title = 'number of non-work trips in a hexagon'), yaxis = list(title = 'hexagon counts'), 
+         title = "histogram for number of non-work trips in a hexagon",
          font = list(family="Poppins"))
 fig
 ```
 
 
 
-### only hexagons with more than 2000 trips: number of trips in hexagons
+### number of non-work trips in hexagons (> 1000 trips)
 
 ```{r}
 #| out-height: 800px
 #| out-width: 900px
 
-hex_trip_top.lyr <- hex_trip.lyr %>% filter(n_trip_wt>2000)
+hex_trip_top.lyr <- hex_trip.lyr %>% filter(n_trip_wt>990)
 
 
-build_hex_map_log(hex_trip_top.lyr,psrc_purple_plus,2)
+build_hex_map_log(hex_trip_top.lyr,psrc_purple_plus,4)
 ```
 
 <br>
+
 ```{r}
 
 fig <- plot_ly(x = ~hex_trip_top.lyr$n_trip_wt, type = "histogram",
                marker=list(color=psrc_colors$purples_inc[2])) %>%
-  layout(xaxis = list(title = 'number of trips in a hexagon'), yaxis = list(title = 'hexagon counts'), 
-         title = "histogram for number of trips in a hexagon",
+  layout(xaxis = list(title = 'number of non-work trips in a hexagon'), yaxis = list(title = 'hexagon counts'), 
+         title = "histogram for number of non-work trips in a hexagon",
          font = list(family="Poppins"))
 fig
 ```
