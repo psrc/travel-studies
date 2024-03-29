@@ -117,24 +117,14 @@ variable_list<-rbind(
 
 
 # persons day table, gender_grp
+1. find the labels for the group
+2. add the labeled data to the underlying table
+3. add the values code to the values list
 ```{r}
-
-group_labels   <- value_labels%>%
-                    filter(group_1_title == 'gender_grp')%>%
-                    select('label', group_1_value)
-
-value_labels<-add_values_code(group_labels,  value_labels, 'gender_grp','group_1_value')
-
+group_labels<-get_group_labels(value_labels,group_id, group_name, tbl)
+person_gend_group<-add_grp_tbl(group_labels, tbl)
+values_labels<-add_values_code(group_labels, value_labels)
 ```
-
-
-## Create new variable on the household travel survey table, using the grouped variable
-```{r}
-person <-left_join(person, group_labels, by=c('gender' = 'label'))
-setnames(person, 'group_1_value', 'gender_grp')
-
-```
-
 
 
 
@@ -255,9 +245,9 @@ by frequency
 # join days to trips
 
 ```{r}
-person<-merge(person, hh, by = c('hh_id', 'survey_year'))
-day<-merge(person,day, by = c('person_id', 'survey_year'))
-trip<-merge(day, trip, by = c('day_id', 'survey_year'))
+#person<-merge(person, hh, by = c('hh_id', 'survey_year'))
+#day<-merge(person,day, by = c('person_id', 'survey_year'))
+#trip<-merge(day, trip, by = c('day_id', 'survey_year'))
 
 ```
 workplace; workplace by income; telecommute frequency; telecommute frequency by income
@@ -288,8 +278,9 @@ static_bar_chart(workplace_summary, y='workplace', x='prop', fill='survey_year')
 2023 only by income
 ```{r}
 workers_23<-workers%>%filter(survey_year =='2023')
+hh_23<- hh%>%filter(survey_year== '2023')
 
-worker_list_23<- list(person= workers_23)
+worker_list_23<- list(hh=hh_23, person= workers_23)
 ```
 
 ```{r}
@@ -297,7 +288,8 @@ workplace_gender <- summarize_weighted(hts_data= worker_list_23,
                                summarize_var = 'workplace',
                                summarize_by = 'gender_grp',
                                id_cols='person_id',
-                               wt_cols='person_weight'
+                               wt_cols='person_weight',
+                               wt_name="person_weight"
                                )
 
 ```
@@ -308,8 +300,20 @@ workplace_gender_summary<-workplace_gender$summary$wtd
 static_bar_chart(workplace_gender_summary, y='workplace', x='prop', fill='gender_grp')
 
 ```
-
 ```{r}
+workplace_industry <- summarize_weighted(hts_data= worker_list_23,
+                               summarize_var = 'workplace',
+                               summarize_by = c('survey_year', 'hhincome_broad'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols= c('hh_weight', 'person_weight'),
+                               wtname =  'person_weight'
+                               )
+
+```
+```{r}
+
+workplace_industry_summary<-workplace_industry$summary$wtd%>%mutate(group='group')
+static_facet_column_chart(workplace_industry_summary, x='workplace', y='prop', fill='group', facet='industry')
 
 ```
 
