@@ -36,7 +36,7 @@ You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browse
 The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
 ```{r }
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, survey_year, trip_weight 
+person_id, mode_1, survey_year, travelers_total, trip_weight 
                 from HHSurvey.v_trips_labels")
 
 setDT(trip)
@@ -77,18 +77,18 @@ make a function with bunch of default
 variable_list<-rbind(
     variable_list,
     data.table(
-      variable = "mode_simple",
-      is_checkbox = 0,
-      hh = 0,
-      person = 0,
-      day = 0,
-      trip = 1,
-      vehicle = 0,
-      location = 0,
-      description = "mode aggregation",
-      logic = 'mode aggregation',
-      data_type = "integer/categorical",
-      shared_name = "mode_simple"
+      variable = c("mode_simple", "mode_w_sov"),
+      is_checkbox = c(0,0),
+      hh = c(0,0),
+      person = c(0,0),
+      day = c(0,0),
+      trip = c(1,1),
+      vehicle = c(0,0),
+      location = c(0,0),
+      description = c("mode aggregation","SOV mode aggregation"),
+      logic = c("mode aggregation","SOV mode aggregation"),
+      data_type = c("integer/categorical","integer/categorical"),
+      shared_name = c("mode_simple", "mode_w_sov")
     )
   )
 

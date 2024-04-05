@@ -1,0 +1,352 @@
+---
+title: "second-example"
+author: "suzanne"
+date: "2024-03-27"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+source('survey-23-preprocess.R')
+```
+
+
+```{r }
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,survey_year, hh_weight
+                from HHSurvey.v_households_labels")
+
+
+person<- get_query(sql= "select household_id as hh_id,race_category,
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq 
+                from HHSurvey.v_persons_labels")
+                
+day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
+
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
+person_id, mode_1, dest_purpose, survey_year, trip_weight, dest_purpose_cat 
+                from HHSurvey.v_trips_labels")
+setDT(hh)
+setDT(person)
+setDT(day)
+setDT(trip)
+```
+#race_category needs to be added to the codebook
+
+# to do: add Seattle, Bellevue geographies
+
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Set IDs as characters
+TO DO: functionalize convert all ids to characters, or store as characters upfront
+```{r}
+
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+day[, hh_id:=as.character(hh_id)]
+trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+day[, person_id := as.character(person_id)]
+trip[, person_id := as.character(person_id)]
+
+day[, day_id := as.character(day_id)]
+trip[, day_id := as.character(day_id)]
+
+trip[, trip_id := as.character(trip_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
+person <- person%>%mutate(survey_year=as.character(survey_year))
+day <- day%>%mutate(survey_year=as.character(survey_year))
+trip <- trip%>%mutate(survey_year=as.character(survey_year))
+```
+
+Variables that need grouping:
+telework_time: use group_2, group_2_value: telework_time_broad
+gender: gender_grp group_1
+telecommute_freq: telecommute_freq_simple: group_1-- this variable is confusing right now, need some digging
+dest_purpose: dest_purpose_simple, group_1
+mode-> mode_simple, group_1
+
+
+
+
+```{r}
+
+variable_list<-rbind(
+    variable_list,
+    data.table(
+      variable = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad',  'telework_time_hr', 'gender_grp','commute_freq_simple', 'telecommute_freq_simple','telecommute_status', 'telecommute_status_detail', 'telecommute_freq_cond','seattle_bellevue'),
+      is_checkbox = c(0,0,0,0,0,0,0,0,0,0,0),
+      hh = c(0,0,0,0,0,0,0,0,0,0,1),
+      person = c(0,0,0,0,1,1, 1,1,1,1,0),
+      day = c(0,0,1,1,0,0,0, 0,0,0,1),
+      trip = c(1,1, 0,0, 0,0, 0,0,0,0,1),
+      vehicle = c(0,0,0,0,0,0,0,0,0,0,0),
+      location = c(0,0,0,0,0,0,0,0,0,0,0),
+      description = c("Mode Group", "Trip Purpose", "Telework Hours", "Telework Time Group", "Gender", 'Commute Frequency', 'Telecommute Frequency', 'Telecommute Status', 'Telecommute Detail', 'Telecommute or not', 'Home City'),
+      logic = c('mode aggregation', 'destination aggregation',"telework time aggregation","telework time aggregation", "gender group", 'commute frequency aggregation', 'telecommute frequency group', "telecommute status", 'telecommute frequency group detail', 'telework or not',  'home in Seattle or Bellevue'),
+      data_type = c("integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical","integer/categorical","integer/categorical", "integer/categorical","integer/categorical","integer/categorical"),
+      shared_name = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'telework_time_hr','gender_grp', 'commute_freq_simple','telecommute_freq_simple', 'telecommute_status', 'telecommute_status_detail', 'telecommute_freq_cond', 'seattle_bellevue')
+    )
+  )
+
+
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_2', group_name='telecommute_freq_cond')
+value_labels<-add_values_code(group_name='telecommute_freq_cond')
+person<-grp_to_tbl(tbl=person, ungrouped_name='telecommute_freq', grouped_name='telecommute_freq_cond')
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='commute_freq_simple')
+value_labels<-add_values_code(group_name='commute_freq_simple')
+person<-grp_to_tbl(tbl=person, ungrouped_name='commute_freq', grouped_name='commute_freq_simple')
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='telecommute_freq_simple')
+value_labels<-add_values_code(group_name='telecommute_freq_simple')
+person<-grp_to_tbl(tbl=person, ungrouped_name='telecommute_freq', grouped_name='telecommute_freq_simple')
+```
+
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='dest_purpose_simple')
+value_labels<-add_values_code(group_name='dest_purpose_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simple')
+```
+
+
+Classify all workers into a telecommute scheme
+
+
+Remote Workers
+Always work at home
+
+
+Hybrid Workers
+Any worker who teleworks at least once a week
+
+Onsite Workers
+Telework never or less than weekly
+
+
+```{r}
+person<-person%>%mutate(telecommute_status=
+        case_when(workplace %in%c('Missing: Skip logic', "Missing: Skip Logic") 
+                  ~ 'Not Worker',
+                  (is.na(workplace)) ~ 'Not Worker',
+                  (workplace=='At home (telecommute or self-employed with home office)' )
+                  ~ 'Remote',
+                  (telecommute_freq_cond == '1+ days per week')
+                  ~'Hybrid',
+                  .default = 'Onsite'
+        )
+)
+
+```
+
+```{r}
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+worker_list<-list(person=workers)
+
+```
+
+```{r}
+
+value<- c(0,1,2,3)
+label=c('Not Worker', 'Remote', 'Hybrid', 'Onsite')
+tele_val_labels<-data.frame(value, label)
+tele_val_labels<-tele_val_labels%>%mutate(variable='telecommute_status')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, tele_val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_2', group_name='telework_time_broad')
+value_labels<-add_values_code(group_name='telework_time_broad')
+day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_broad')
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_3', group_name='telework_time_23')
+value_labels<-add_values_code(group_name='telework_time_23')
+day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_23')
+```
+
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='telework_time_hr')
+value_labels<-add_values_code(group_name='telework_time_hr')
+day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_hr')
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+
+```{r}
+
+telecommute_status <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+## Visualize
+```{r}
+
+telecommute_summary<-telecommute_status$summary$wtd
+static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Telecommute Status') +
+theme_classic(base_size = 24)
+
+```
+
+Examine 2023 only: 2023 telework time on the day - all disaggregate data, for understanding how people answered the question
+
+Step One.
+Who answered the question? For this include everyone, and non-workers to ensure we understand who answered it.
+
+
+# there were some workers who did not answer the telework question, 
+# I do not understand why, maybe just plain no response, filter out for now
+```{r}
+day_23<- day%>%filter(survey_year=='2023')%>%filter(telework_time!='Missing Response')
+worker_23<-workers%>%filter(survey_year=='2023')
+hh_person_day_trip_list<-list(hh=hh, person=worker_23, day=day_23, trip=trip)
+
+```
+
+
+```{r}
+day_23<- day%>%filter(survey_year=='2023')%>%filter(telework_time!='Missing Response')
+worker_23<-workers%>%filter(survey_year=='2023')
+hh_person_day_trip_list<-list(hh=hh, person=worker_23, day=day_23, trip=trip)
+```
+
+
+
+
+```{r}
+
+telecommute_day_time_all_wrkrs <- summarize_weighted(hts_data= hh_person_day_trip_list,
+                               summarize_var = 'telework_time',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hhid', 'person_id', 'day_id', 'trip_id'),
+                               wt_cols=c('hh_weight', 'person_weight', 'day_weight', 'trip_weight'),
+                               wtname= 'day_weight'
+                               )
+
+```
+```{r}
+static_bar_chart(t=telecommute_day_time_all_wrkrs$summary$wtd,x='prop', y='telework_time', fill='survey_year')
+```
+
+
+
+```{r}
+
+telecommute_status_day_time<- summarize_weighted(hts_data= hh_person_day_trip_list,
+                               summarize_var = 'telework_time_broad',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hhid', 'person_id', 'day_id', 'trip_id'),
+                               wt_cols=c('hh_weight', 'person_weight', 'day_weight', 'trip_weight'),
+                               wtname= 'day_weight'
+                               )
+
+```
+```{r}
+static_bar_chart(t=telecommute_status_day_time$summary$wtd,x='prop', y='telework_time_broad', fill='survey_year')
+```
+```{r}
+telecommute_status_day_hr<- summarize_weighted(hts_data= hh_person_day_trip_list,
+                               summarize_var = 'telework_time_hr',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hhid', 'person_id', 'day_id', 'trip_id'),
+                               wt_cols=c('hh_weight', 'person_weight', 'day_weight', 'trip_weight'),
+                               wtname= 'day_weight'
+                               )
+
+```
+
+```{r}
+static_bar_chart(t=telecommute_status_day_hr$summary$wtd,x='prop', y='telework_time_hr', fill='survey_year')
+```
+
+
+```{r}
+
+telecommute_status_day_time<- summarize_weighted(hts_data= hh_person_day_trip_list,
+                               summarize_var = 'telework_time_broad',
+                               summarize_by = 'telecommute_status',
+                               id_cols=c('hhid', 'person_id', 'day_id', 'trip_id'),
+                               wt_cols=c('hh_weight', 'person_weight', 'day_weight', 'trip_weight'),
+                               wtname= 'day_weight'
+                               )
+
+```
+```{r}
+
+
+static_bar_chart(t=telecommute_status_day_time$summary$wtd,x='prop', y='telework_time_broad', fill='telecommute_status')
+```
+
+
+
+
+```{r}
+static_bar_chart(t=telecommute_status_day_time$summary$wtd,x='count', y='telework_time_broad', fill='telecommute_status')
+```
+# count the number of trips by broad purpose and put back on the days table
+```{r}
+day_trip_purpose<-trip%>%group_by(person_id,day_id, dest_purpose_simple)%>%count()
+# join back to trip table
+# take care of 0 trip days
+day_trip_purpose_wide<-day_trip_purpose%>%pivot_wider(id_cols=c(person_id, day_id),names_from=dest_purpose_simple, ,values_from=n, values_fill=0)
+```
+
+```{r}
+
+
+day<-left_join(day, day_trip_purpose_wide, by=c('person_id','day_id'))
+
+
+
+
+```
+
+
+

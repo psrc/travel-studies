@@ -76,6 +76,133 @@ summarize_weighted<-function(hts_data, summarize_var, summarize_by, id_cols, wt_
 }
 
 
+make_triprate_table = function(summarize_by,
+                               variable_list,
+                               tables,
+                               ids,
+                               wts,
+                               label = FALSE
+){
+  
+  # Prep unweighted data
+  triprate_prep = hts_prep_triprate(summarize_by = summarize_by,
+                                    variables_dt = variable_list,
+                                    hts_data = tables,
+                                    ids = ids,
+                                    wts = wts,
+                                    remove_outliers = FALSE,
+                                    weighted = FALSE)
+  
+  # get unwtd counts
+  unwtd_counts = triprate_prep$num[, .(`Unweighted Days` =  .N,
+                                       `Unweighted Trips` = sum(num_trips_unwtd)),
+                                   summarize_by]
+  
+  
+  # get unwtd trip rates
+  output = hts_summary(triprate_prep$num,
+                       summarize_var = 'num_trips_unwtd',
+                       summarize_by = summarize_by,
+                       summarize_vartype = 'numeric',
+                       id_cols = ids,
+                       wtname = 'day_weight')
+  
+  unwtd_triprate = output$summary$unwtd[, 
+                                        .(
+                                          summarize_by = get(summarize_by),
+                                          'Unweighted Trip Rate' =  round(mean, 2)
+                                        )
+  ]
+  
+  
+  unwtd_tab = merge(unwtd_counts, unwtd_triprate, by.x = summarize_by, by.y = 'summarize_by')
+  
+  # prep weighted data
+  triprate_prep = hts_prep_triprate(summarize_by = summarize_by,
+                                    variables_dt = variable_list,
+                                    hts_data = tables,
+                                    ids = ids,
+                                    wts = wts,
+                                    remove_outliers = FALSE,
+                                    weighted = TRUE)
+  
+  # get weighted counts
+  wtd_counts = triprate_prep$num[, .(`Weighted Days` = round(sum(day_weight)),
+                                     `Weighted Trips` = round(sum(num_trips_wtd))),
+                                 summarize_by]
+  
+  # get weighted trip rates
+  output = hts_summary(triprate_prep$num,
+                       summarize_var = 'num_trips_wtd',
+                       summarize_by = summarize_by,
+                       summarize_vartype = 'numeric',
+                       id_cols = ids,
+                       wtname = 'day_weight')
+  
+  wtd_triprate = output$summary$wtd[, 
+                                    .(
+                                      summarize_by = get(summarize_by),
+                                      'Weighted Trip Rate' = round(mean, 2)
+                                    )
+  ]
+  
+  
+  wtd_tab = merge(wtd_counts, wtd_triprate, by.x = summarize_by, by.y = 'summarize_by')
+  
+  #combined weighted and unweighted
+  tab = merge(unwtd_tab, wtd_tab, by = summarize_by)
+  
+  tab = tab[!get(summarize_by) %in%  c('NULL', 'NA')]
+  
+  # label and order
+  if (label){
+    
+    tab = factorize_df(
+      tab,
+      value_labels,
+      variable_colname = 'variable',
+      value_colname = 'value',
+      value_order_colname = 'value',
+      value_label_colname = "label")
+    
+  }
+  
+  # Add total row
+  total = data.table(
+    summarize_by = 'Total',
+    'Unweighted Days' = sum(tab$`Unweighted Days`),
+    'Unweighted Trips' = sum(tab$`Unweighted Trips`),
+    'Weighted Days' = sum(tab$`Weighted Days`),
+    'Weighted Trips' = sum(tab$`Weighted Trips`)
+  )
+  
+  setnames(total, 'summarize_by', summarize_by)
+  
+  total[, `Unweighted Trip Rate` := `Unweighted Trips` / `Unweighted Days`]
+  total[, `Weighted Trip Rate` := `Weighted Trips` / `Weighted Days`]
+  
+  tab = rbind(tab, total)
+  
+  # round trip rates
+  tab[, `Unweighted Trip Rate` := round(`Unweighted Trip Rate`, 2)]
+  tab[, `Weighted Trip Rate` := round(`Weighted Trip Rate`, 2)]
+  
+  setcolorder(tab, 
+              c(summarize_by,
+                'Unweighted Days',
+                'Unweighted Trips',
+                'Weighted Days',
+                'Weighted Trips',
+                'Unweighted Trip Rate',
+                'Weighted Trip Rate')
+  )
+  
+  #return as flextable
+  return(tab %>% flextable())
+  
+}
+
+
 
   
 
