@@ -1,13 +1,17 @@
 ---
-title: "second-example"
+title: "Telework time, telecommute frequency, commute frequency, work locatino and work trip modeling"
 author: "suzanne"
-date: "2024-03-27"
-output: html_document
+date: "2024-04"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 
-
 ```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
 library(data.table)
 library(stringr)
 library(travelSurveyTools)
@@ -15,6 +19,8 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
+library(stargazer)
+library(nnet)
 source('survey-23-preprocess.R')
 ```
 
@@ -86,7 +92,9 @@ mode-> mode_simple, group_1
 
 
 
+
 ```{r}
+
 
 variable_list<-rbind(
     variable_list,
@@ -134,6 +142,10 @@ value_labels<-add_values_code(group_name='dest_purpose_simple')
 trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simple')
 ```
 
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+trip<- trip%>%distinct(trip_id, .keep_all=TRUE)
+```
 
 Classify all workers into a telecommute scheme
 
@@ -235,6 +247,49 @@ theme_classic(base_size = 24)
 
 ```
 
+# 2023 only
+
+
+## Visualize
+
+```{r}
+worker_23<-workers%>%filter(survey_year=='2023')%>%filter(commute_freq != 'Missing: Skip Logic')
+worker_list<-list(person=worker_23)
+```
+
+```{r}
+commute_summary <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'commute_freq',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+
+commute_summary<-commute_summary$summary$wtd
+static_bar_chart(commute_summary, y='commute_freq', x='prop', fill='survey_year', xlabel='Commute Frequency') +
+theme_classic(base_size = 24)
+
+```
+
+
+```{r}
+telework_freq <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+
+telework_freq<-telework_freq$summary$wtd
+static_bar_chart(telework_freq, y='telecommute_freq', x='prop', fill='survey_year', xlabel='Telecommute Frequency') +
+theme_classic(base_size = 24)
+
+```
+
 Examine 2023 only: 2023 telework time on the day - all disaggregate data, for understanding how people answered the question
 
 Step One.
@@ -258,6 +313,17 @@ hh_person_day_trip_list<-list(hh=hh, person=worker_23, day=day_23, trip=trip)
 ```
 
 
+```{r}
+
+telecommute_day_time_all_wrkrs <- summarize_weighted(hts_data= hh_person_day_trip_list,
+                               summarize_var = 'telework_time',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hhid', 'person_id', 'day_id', 'trip_id'),
+                               wt_cols=c('hh_weight', 'person_weight', 'day_weight', 'trip_weight'),
+                               wtname= 'day_weight'
+                               )
+
+```
 
 
 ```{r}
@@ -332,21 +398,171 @@ static_bar_chart(t=telecommute_status_day_time$summary$wtd,x='count', y='telewor
 ```
 # count the number of trips by broad purpose and put back on the days table
 ```{r}
-day_trip_purpose<-trip%>%group_by(person_id,day_id, dest_purpose_simple)%>%count()
-# join back to trip table
-# take care of 0 trip days
-day_trip_purpose_wide<-day_trip_purpose%>%pivot_wider(id_cols=c(person_id, day_id),names_from=dest_purpose_simple, ,values_from=n, values_fill=0)
+day_23<-day%>%filter(survey_year=='2023')
 ```
 
 ```{r}
+trip_23<-trip%>%filter(survey_year=='2023')
+```
 
+```{r}
+day_trip_purpose<-trip_23%>%group_by(day_id, dest_purpose_simple)%>%count()
+# join back to trip table
+# take care of 0 trip days
+day_trip_purpose_wide<-day_trip_purpose%>%pivot_wider(id_cols=c(day_id),names_from=dest_purpose_simple, ,values_from=n, values_fill=0)
+```
 
-day<-left_join(day, day_trip_purpose_wide, by=c('person_id','day_id'))
-
-
-
-
+```{r}
+day_23_trips<-left_join(day_23, day_trip_purpose_wide, by=c('day_id'))
 ```
 
 
+```{r}
+day_23_trips<-day_23_trips %>% replace(is.na(.), 0)
+```
+
+Filter to workers, summarize weighted days by telework hours by 0, 1, 2+ Work Trips
+```{r}
+workers_day<-right_join(worker_23, day_23_trips, by = c('person_id') )%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%filter(!is.na(workplace))
+```
+
+
+
+```{r}
+workers_day<-workers_day%>%mutate(WorkGrp=case_when(
+  Work==0 ~ '0 work trips',
+  Work==1 ~ '1 work trips',
+  Work==2 ~ '2 work trips',
+  Work>2 ~ ' 3+ work trips',
+  .default = 'missing'
+))
+```
+
+
+```{r}
+workers_work_trips<- workers_day%>%group_by( WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+```
+
+```{r}
+workers_share_work_trips<- workers_work_trips%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+```
+
+
+```{r}
+static_bar_chart(t=workers_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='WorkGrp', color=  "pgnobgy_10" )
+```
+
+
+```{r}
+workers_telework_work_trips<- workers_day%>%group_by(telework_time_hr, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+```
+
+
+```{r}
+workers_teleworktime_share_work_trips<- workers_telework_work_trips%>%group_by(telework_time_hr)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+```
+
+
+```{r}
+static_bar_chart(t=workers_teleworktime_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='telework_time_hr', color=  "pgnobgy_10" )
+```
+
+
+
+```{r}
+workers_telework_work_trips<- workers_day%>%group_by(workplace, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+
+```
+```{r}
+workers_teleworkstatus_share_work_trips<- workers_telework_work_trips%>%group_by(workplace)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+```
+
+
+```{r}
+static_bar_chart(t=workers_teleworkstatus_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='workplace', color=  "pgnobgy_10" ) + 
+theme(legend.position="right")
+```
+
+```{r}
+workers_commute_work_trips<- workers_day%>%group_by(commute_freq, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+
+```
+
+```{r}
+workers_commute_share_work_trips<- workers_commute_work_trips%>%group_by(commute_freq)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+```
+
+
+```{r}
+static_bar_chart(t=workers_commute_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='commute_freq', color=  "pgnobgy_10" )
+```
+
+```{r}
+workers_telework_Freq_work_trips<- workers_day%>%group_by(telecommute_freq, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+
+```
+
+```{r}
+workers_freq_share_work_trips<- workers_telework_Freq_work_trips%>%group_by(telecommute_freq)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+```
+
+
+```{r}
+static_bar_chart(t=workers_freq_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='telecommute_freq', color=  "pgnobgy_10" )
+```
+
+build a logit model with all the variables for 0, 1, 2, 3+ work trips, with all the variables I have lying around at this point, probably should be ordered logit, but I have trouble with interpreting that sometimes so I'm just going to do logit
+```{r, results='asis'}
+
+workers_day<- workers_day%>%mutate(WorkGrp=as.factor(WorkGrp))
+workers_day$WorkGrp <- relevel(workers_day$WorkGrp, ref = "0 work trips")
+
+model<-multinom(WorkGrp~ commute_freq, data=workers_day)
+
+stargazer(model)
+```
+
+
+
+
+```{r, results='asis'}
+library(stargazer)
+
+model<-multinom(WorkGrp~ commute_freq+workplace, data=workers_day)
+
+stargazer(model)
+```
+```{r, results='asis'}
+workers_day<- workers_day%>%mutate(WorkGrp=as.factor(WorkGrp))
+workers_day$WorkGrp <- relevel(workers_day$WorkGrp, ref = "0 work trips")
+
+model<-multinom(WorkGrp~ workplace+telework_time_hr, data=workers_day)
+
+stargazer(model)
+```
+
+
+building an overspecified model to explore
+
+
+```{r}
+model<-multinom(WorkGrp~ commute_freq+telecommute_freq+workplace+age+industry+gender+race_category+office_available+telework_time_hr, data=workers_day)
+
+stargazer(model)
+```
+
+
+
+
+```{r, results='asis'}
+
+model<-multinom(WorkGrp~ workplace, data=workers_day)
+
+stargazer(model)
+```
 
