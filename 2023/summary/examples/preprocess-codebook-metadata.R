@@ -99,3 +99,5 @@ var_seattle_bellevue <- list(variable = "seattle_bellevue",
 
 vars <- str_subset(ls(all.names = TRUE), "var_.*")
 new_groups <- map(vars, ~get(.x)) |> rbindlist()
+
+rm(list = vars)

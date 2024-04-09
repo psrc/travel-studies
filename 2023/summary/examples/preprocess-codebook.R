@@ -51,39 +51,25 @@ for(i in 1:length(dfs)) {
   dfs[[i]][, (cols) := lapply(.SD, as.character), .SDcols = cols]
 }
 
-## new grouping variables
 
 # append to codebook ----
 
 ## append to variables list
 codebook$vars_list <- rbind(codebook$vars_list, new_groups)
 
-## test ## ----
-
-group_labels <- get_grouped_labels(.value_labels = codebook$val_labels,
-                                   group_id = 'group_1',
-                                   group_name = 'gender_grp')
-codebook$val_labels <- add_values_code(.value_labels = codebook$val_labels,
-                                       group_name = 'gender_grp')
-dfs$person <- grp_to_tbl(.group_labels = group_labels,
-                         tbl = dfs$person,
-                         ungrouped_name='gender',
-                         grouped_name='gender_grp')
-
-
-## join grouping variables to datasets 
+## join new grouping variables to datasets 
 
 my_list <- list(value_labels = codebook$val_labels, 
-     group_id = 'group_1', 
-     group_name = 'gender_grp', 
-     tbl = 'person', 
-     ungrouped_name = 'gender')
+                group_id = 'group_1', 
+                group_name = 'gender_grp', 
+                tbl = 'person', 
+                ungrouped_name = 'gender')
 
 my_list2 <- list(value_labels = codebook$val_labels, 
-                group_id = 'group_2', 
-                group_name = 'telework_time_broad', 
-                tbl = 'day', 
-                ungrouped_name = 'telework_time')
+                 group_id = 'group_2', 
+                 group_name = 'telework_time_broad', 
+                 tbl = 'day', 
+                 ungrouped_name = 'telework_time')
 
 my_list3 <- list(value_labels = codebook$val_labels, 
                  group_id = 'group_1', 
@@ -97,16 +83,19 @@ my_list4 <- list(value_labels = codebook$val_labels,
                  tbl = 'person', 
                  ungrouped_name = 'telecommute_freq')
 
-my_lists <- list(my_list, my_list2, my_list3, my_list4)
+lists <- str_subset(ls(all.names = TRUE), "my_list.*")
+my_lists <- map(lists, ~get(.x))
+
+rm(list = lists)
 
 for(i in 1:length(my_lists)) {
-  group_labels <- get_grouped_labels(.value_labels = my_lists[[i]][['value_labels']],
+  group_labels <- get_grouped_labels(.value_labels = codebook$val_labels, 
                                      group_id = my_lists[[i]][['group_id']],
                                      group_name = my_lists[[i]][['group_name']])
   
-  codebook[['val_labels']] <- add_values_code(.value_labels = my_lists[[i]][['value_labels']],
-                                              .group_labels = group_labels,
-                                              group_name = my_lists[[i]][['group_name']])
+  codebook$val_labels <- add_values_code(.value_labels = codebook$val_labels, 
+                                         .group_labels = group_labels,
+                                         group_name = my_lists[[i]][['group_name']])
   
   dfs[[my_lists[[i]][['tbl']]]] <- grp_to_tbl(.group_labels = group_labels,
                                               tbl = dfs[[my_lists[[i]][['tbl']]]],
@@ -114,6 +103,7 @@ for(i in 1:length(my_lists)) {
                                               grouped_name = my_lists[[i]][['group_name']])
 }
 
+# export codebook or dfs
 
 
 
