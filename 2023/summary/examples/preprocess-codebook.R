@@ -12,6 +12,7 @@ library(travelSurveyTools)
 library(psrcelmer)
 library(psrcplot)
 library(tidyverse)
+library(openxlsx)
 source('survey-23-preprocess.R')
 source('preprocess-codebook-metadata.R')
 
@@ -58,7 +59,6 @@ for(i in 1:length(dfs)) {
 codebook$vars_list <- rbind(codebook$vars_list, new_groups)
 
 ## join new grouping variables to datasets 
-
 my_list <- list(value_labels = codebook$val_labels, 
                 group_id = 'group_1', 
                 group_name = 'gender_grp', 
@@ -93,6 +93,7 @@ for(i in 1:length(my_lists)) {
                                      group_id = my_lists[[i]][['group_id']],
                                      group_name = my_lists[[i]][['group_name']])
   
+  # update values list in codebook
   codebook$val_labels <- add_values_code(.value_labels = codebook$val_labels, 
                                          .group_labels = group_labels,
                                          group_name = my_lists[[i]][['group_name']])
@@ -104,6 +105,9 @@ for(i in 1:length(my_lists)) {
 }
 
 # export codebook or dfs
+# names(codebook) <- c('variable_list', 'value_labels')
+# write.xlsx(codebook, paste0("codebook_", Sys.Date(), ".xlsx"))
+
 
 
 
