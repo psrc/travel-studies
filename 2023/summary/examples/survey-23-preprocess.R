@@ -30,7 +30,6 @@ add_values_code <- function(.group_labels = group_labels, .value_labels = value_
 }
 
 grp_to_tbl <- function(.group_labels = group_labels, tbl, ungrouped_name, grouped_name) {
-# browser()
   tbl <- left_join(tbl, .group_labels, by = setNames('label', ungrouped_name))
   #find what the group id is based on the group_labels
   # find the group text based on the group_labels
