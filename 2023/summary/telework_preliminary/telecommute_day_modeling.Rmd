@@ -307,8 +307,8 @@ hh_person_day_trip_list<-list(hh=hh, person=worker_23, day=day_23, trip=trip)
 
 
 ```{r}
-day_23<- day%>%filter(survey_year=='2023')%>%filter(telework_time!='Missing Response')
-worker_23<-workers%>%filter(survey_year=='2023')
+day_23<- day%>%filter(survey_year!='2017')%>%filter(telework_time!='Missing Response')
+worker_23<-workers%>%filter(survey_year!='2017')
 hh_person_day_trip_list<-list(hh=hh, person=worker_23, day=day_23, trip=trip)
 ```
 
@@ -546,7 +546,14 @@ model<-multinom(WorkGrp~ workplace+telework_time_hr, data=workers_day)
 stargazer(model)
 ```
 
+```{r, results='asis'}
+workers_day<- workers_day%>%mutate(WorkGrp=as.factor(WorkGrp))
+workers_day$WorkGrp <- relevel(workers_day$WorkGrp, ref = "0 work trips")
 
+model<-multinom(WorkGrp~ telework_time_hr, data=workers_day)
+
+stargazer(model)
+```
 building an overspecified model to explore
 
 

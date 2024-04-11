@@ -96,23 +96,14 @@ variable_list<-rbind(
 
 
 # Add associated values
+
 ```{r}
-
-group_labels   <- value_labels%>%
-                    filter(group_1_title == 'mode_simple')%>%
-                    select('label', group_1_value)
-
-value_labels<-add_values_code(group_labels,  value_labels, 'mode_simple','group_1_value')
-
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
+value_labels<-add_values_code(group_name='mode_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
 ```
 
 
-## Create new variable on the household travel survey table, using the grouped variable
-```{r}
-trip <-left_join(trip, group_labels, by=c('mode_1' = 'label'))
-setnames(trip, 'group_1_value', 'mode_simple')
-
-```
 
 
 The package expects the data to be in a list of data.tables.
@@ -122,6 +113,12 @@ hts_data = list(#hh = hh,
                 #person = person,
                 #day = day,
                 trip = trip)
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
 ##summarize data
