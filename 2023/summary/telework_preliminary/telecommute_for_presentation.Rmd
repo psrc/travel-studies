@@ -281,7 +281,7 @@ telecommute_status <- summarize_weighted(hts_data= worker_list,
 ```{r}
 
 telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))
-static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Telecommute Status') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=20))
+static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
 
 ```
@@ -348,7 +348,7 @@ commute_freq_all <- summarize_weighted(hts_data= worker_list,
 ```{r}
 
 commute_summary<-commute_freq_all$summary$wtd
-static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Commute Frequency') + theme(axis.text.x=element_text(size=20), axis.text.y=element_text(size=20),legend.text = element_text(size=20))
+static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Days Commuting per Week') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=16), axis.title.x=element_text(size=16))
 
 
 ```
@@ -417,13 +417,18 @@ On an average weekday how much are workers spending teleworking?
 
 
 
+
 ```{r}
-day_23<- day%>%filter(telework_time!='Missing Response')%>%filter((telework_time_broad!='NA'))%>%
-  mutate(telework_time_broad=factor(telework_time_broad, levels=c('0 hours','Less than 1', '1-6 hours', 'More than 6 hours'
-                                                                                                                    )
-                                                                                                                                     ))
-worker_23<-workers
-person_daylist<-list(person=worker_23, day=day_23)
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+day_telework<-day%>%filter(!telework_time_broad %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(telework_time_broad)
+
+```
+                                                                                                                                  
+
+
+```{r}
+person_daylist<-list(person=workers, day=day_telework)
+
 ```
 
 ```{r}
@@ -437,8 +442,23 @@ telecommute_status_day_time<- summarize_weighted(hts_data= person_daylist,
                                )
 
 ```
-```{r}
-static_column_chart(t=telecommute_status_day_time$summary$wtd,y='prop', x='telework_time_broad', fill='survey_year')
-```
-```
 
+```{r}
+static_column_chart(t=telecommute_status_day_time$summary$wtd,y='prop', x='telework_time_broad', fill='survey_year' ,ylabel= 'Worker Share', xlabel='Time spent Teleworking')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+```
+```{r}
+
+telecommute_status_day_time<- summarize_weighted(hts_data= person_daylist,
+                               summarize_var = 'telework_time_broad',
+                               summarize_by = c('telecommute_status','survey_year'),
+                               id_cols=c('person_id', 'day_id'),
+                               wt_cols=c('person_weight', 'day_weight'),
+                               wtname= 'day_weight'
+                               )
+
+```
+```{r}
+static_facet_column_chart(t=telecommute_status_day_time$summary$wtd,y='prop', facet='telework_time_broad', fill='survey_year', x= 'telecommute_status' ,ylabel= 'Worker Share', xlabel='Time spent Teleworking')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+```
