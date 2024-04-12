@@ -103,7 +103,35 @@ value_labels<-add_values_code(group_name='mode_simple')
 trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
 ```
 
+```{r}
 
+value<- c(0,1,2,3,4,5)
+label=c('SOV', 'HOV', 'Walk', 'Transit', 'Bike', 'Other')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='mode_w_sov')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+```
+
+# add mode_w_sov to the trip table
+```{r}
+trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total=='1 traveler', '1 traveler', 'More than 1'))
+trip<-trip%>%
+mutate(mode_w_sov=case_when(
+  mode_simple=='Drive' & travelers_total_fix=='More than 1' ~ 'HOV',
+  mode_simple=="Drive"& travelers_total_fix=='1 traveler' ~ 'SOV',
+  is.na(mode_simple) ~'Other',
+  .default= mode_simple
+))
+```
 
 
 The package expects the data to be in a list of data.tables.
@@ -125,10 +153,11 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```{r}
 
 mode_summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'mode_simple',
+                               summarize_var = 'mode_w_sov',
                                summarize_by = 'survey_year',
                                id_cols='trip_id',
-                               wt_cols='trip_weight'
+                               wt_cols='trip_weight',
+                               wtname='trip_weight'
                                )
 ```
 
@@ -136,8 +165,10 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ## Visualize
 ```{r}
 
-common_modes<-mode_summary$summary$wtd%>%filter(prop>.005)
-static_bar_chart(common_modes, y='mode_simple', x='prop', fill='survey_year')
+common_modes<-mode_summary$summary$wtd%>%
+  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))
+
+static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year')
 
 ```
 
