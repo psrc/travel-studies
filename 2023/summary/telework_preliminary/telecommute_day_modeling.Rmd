@@ -409,7 +409,7 @@ trip_23<-trip%>%filter(survey_year=='2023')
 day_trip_purpose<-trip_23%>%group_by(day_id, dest_purpose_simple)%>%count()
 # join back to trip table
 # take care of 0 trip days
-day_trip_purpose_wide<-day_trip_purpose%>%pivot_wider(id_cols=c(day_id),names_from=dest_purpose_simple, ,values_from=n, values_fill=0)
+day_trip_purpose_wide<-day_trip_purpose%>%pivot_wider(id_cols=c(day_id),names_from=dest_purpose_simple, values_from=n, values_fill=0)
 ```
 
 ```{r}
@@ -431,9 +431,7 @@ workers_day<-right_join(worker_23, day_23_trips, by = c('person_id') )%>%filter(
 ```{r}
 workers_day<-workers_day%>%mutate(WorkGrp=case_when(
   Work==0 ~ '0 work trips',
-  Work==1 ~ '1 work trips',
-  Work==2 ~ '2 work trips',
-  Work>2 ~ ' 3+ work trips',
+  Work>=1 ~ '1+ work trips',
   .default = 'missing'
 ))
 ```
@@ -448,72 +446,77 @@ workers_share_work_trips<- workers_work_trips%>%
   mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
 ```
 
+```{r}
+workers_share_work_trips<-workers_share_work_trips%>%filter(WorkGrp=='1+ work trips')
+```
 
 ```{r}
-static_bar_chart(t=workers_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='WorkGrp', color=  "pgnobgy_10" )
+static_bar_chart(t=workers_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='WorkGrp', color=  "pgnobgy_10" ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 
 ```{r}
-workers_telework_work_trips<- workers_day%>%group_by(telework_time_hr, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+workers_telework_work_trips<- workers_day%>%group_by(telework_time_broad, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
 ```
 
 
 ```{r}
-workers_teleworktime_share_work_trips<- workers_telework_work_trips%>%group_by(telework_time_hr)%>%
-  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+workers_teleworktime_share_work_trips<- workers_telework_work_trips%>%mutate(telework_time_broad=as.factor(telework_time_broad))%>%group_by(telework_time_broad)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))%>%filter(WorkGrp=='1+ work trips')%>%mutate(telework_time_broad=forcats::fct_reorder(telework_time_broad, -share_wtd_wrkers))
 ```
 
 
 ```{r}
-static_bar_chart(t=workers_teleworktime_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='telework_time_hr', color=  "pgnobgy_10" )
+static_column_chart(t=workers_teleworktime_share_work_trips, y='share_wtd_wrkers', x='telework_time_broad', fill='WorkGrp', color=  "pgnobgy_10", ylabel='Share of Workers', xlabel='Telework Time in the Day')  + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 
 
 ```{r}
-workers_telework_work_trips<- workers_day%>%group_by(workplace, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+workers_telework_work_trips<- workers_day%>%mutate(workplace=factor(workplace, levels =c('Usually the same location (outside home)','Workplace regularly varies (different offices or jobsites)','Drives for a living (e.g., bus driver, salesperson)', 'Telework some days and travel to a work location some days','At home (telecommute or self-employed with home office)'
+)))%>%group_by(workplace, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
 
 ```
+
 ```{r}
 workers_teleworkstatus_share_work_trips<- workers_telework_work_trips%>%group_by(workplace)%>%
-  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))%>%filter(WorkGrp=='1+ work trips')
 ```
 
 
 ```{r}
-static_bar_chart(t=workers_teleworkstatus_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='workplace', color=  "pgnobgy_10" ) + 
-theme(legend.position="right")
+static_bar_chart(t=workers_teleworkstatus_share_work_trips, x='share_wtd_wrkers', y='workplace', fill='WorkGrp', color=  "pgnobgy_10" ) + 
+theme(legend.position="right") + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 ```{r}
-workers_commute_work_trips<- workers_day%>%group_by(commute_freq, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
-
-```
-
-```{r}
-workers_commute_share_work_trips<- workers_commute_work_trips%>%group_by(commute_freq)%>%
-  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
-```
-
-
-```{r}
-static_bar_chart(t=workers_commute_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='commute_freq', color=  "pgnobgy_10" )
-```
-
-```{r}
-workers_telework_Freq_work_trips<- workers_day%>%group_by(telecommute_freq, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+workers_commute_work_trips<- workers_day%>%group_by(commute_freq_simple, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
 
 ```
 
 ```{r}
-workers_freq_share_work_trips<- workers_telework_Freq_work_trips%>%group_by(telecommute_freq)%>%
-  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))
+workers_commute_share_work_trips<- workers_commute_work_trips%>%group_by(commute_freq_simple)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))%>%filter(WorkGrp=='1+ work trips')%>%mutate(commute_freq_simple=forcats::fct_reorder(commute_freq_simple, -share_wtd_wrkers))
 ```
 
 
 ```{r}
-static_bar_chart(t=workers_freq_share_work_trips, x='share_wtd_wrkers', y='WorkGrp', fill='telecommute_freq', color=  "pgnobgy_10" )
+static_column_chart(t=workers_commute_share_work_trips, y='share_wtd_wrkers', x='commute_freq_simple', fill='WorkGrp', color=  "pgnobgy_10", ylabel='Share of Workers', xlabel='Commute Frequency' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+
+```{r}
+workers_telework_Freq_work_trips<- workers_day%>%group_by(telecommute_freq_simple, WorkGrp)%>%summarize(estimate_daily_workers=sum(day_weight))
+
+```
+
+```{r}
+workers_freq_share_work_trips<- workers_telework_Freq_work_trips%>%group_by(telecommute_freq_simple)%>%
+  mutate(share_wtd_wrkers=estimate_daily_workers/sum(estimate_daily_workers))%>%filter(WorkGrp=='1+ work trips')%>%filter(telecommute_freq_simple!='Missing: Skip Logic')
+```
+
+
+```{r}
+static_column_chart(t=workers_freq_share_work_trips, y='share_wtd_wrkers', x='telecommute_freq_simple', fill='WorkGrp', color=  "pgnobgy_10" ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 build a logit model with all the variables for 0, 1, 2, 3+ work trips, with all the variables I have lying around at this point, probably should be ordered logit, but I have trouble with interpreting that sometimes so I'm just going to do logit

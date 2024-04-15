@@ -2,7 +2,9 @@
 title: "first-example-mode-summary"
 author: "suzanne"
 date: "2024-03-20"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ## Load in Packages
@@ -123,12 +125,12 @@ value_labels<-new_value_labels
 
 # add mode_w_sov to the trip table
 ```{r}
-trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total=='1 traveler', '1 traveler', 'More than 1'))
-trip<-trip%>%
+trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'))
+trip<-trip%>%mutate(mode_simple= replace_na(mode_simple, 'Drive'))%>%
 mutate(mode_w_sov=case_when(
-  mode_simple=='Drive' & travelers_total_fix=='More than 1' ~ 'HOV',
-  mode_simple=="Drive"& travelers_total_fix=='1 traveler' ~ 'SOV',
-  is.na(mode_simple) ~'Other',
+  mode_simple=="Drive"& travelers_total=='1 traveler' ~ 'SOV',
+  is.na(travelers_total) ~ 'SOV',
+  mode_simple=="Drive"& travelers_total!='1 traveler'~  'HOV',
   .default= mode_simple
 ))
 ```
@@ -169,6 +171,32 @@ common_modes<-mode_summary$summary$wtd%>%
   mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))
 
 static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year')
+
+```
+
+```{r}
+drive_trip<-trip%>%filter(mode_simple=='Drive')
+
+hts_data = list(#hh = hh,
+                #person = person,
+                #day = day,
+                trip = drive_trip)
+
+mode_travelers_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'travelers_total',
+                               summarize_by = 'survey_year',
+                               id_cols='trip_id',
+                               wt_cols='trip_weight',
+                               wtname='trip_weight'
+                               )
+```
+
+## Visualize
+```{r}
+
+mode_travelers<-mode_travelers_summary$summary$wtd
+
+static_column_chart(mode_travelers, x='travelers_total', y='prop', fill='survey_year')
 
 ```
 
