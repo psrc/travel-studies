@@ -3,8 +3,8 @@ title: "Telework time, telecommute frequency, commute frequency, work locatino a
 author: "suzanne"
 date: "2024-04"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 
@@ -501,7 +501,7 @@ workers_commute_share_work_trips<- workers_commute_work_trips%>%group_by(commute
 
 
 ```{r}
-static_column_chart(t=workers_commute_share_work_trips, y='share_wtd_wrkers', x='commute_freq_simple', fill='WorkGrp', color=  "pgnobgy_10", ylabel='Share of Workers', xlabel='Commute Frequency' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static_column_chart(t=workers_commute_share_work_trips, y='share_wtd_wrkers', x='commute_freq_simple', fill='WorkGrp', color=  "pgnobgy_10", ylabel='Share of Workers', xlabel='Commute Frequency (days per week)' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 ```{r}
@@ -516,7 +516,7 @@ workers_freq_share_work_trips<- workers_telework_Freq_work_trips%>%group_by(tele
 
 
 ```{r}
-static_column_chart(t=workers_freq_share_work_trips, y='share_wtd_wrkers', x='telecommute_freq_simple', fill='WorkGrp', color=  "pgnobgy_10" ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static_column_chart(t=workers_freq_share_work_trips, y='share_wtd_wrkers', x='telecommute_freq_simple', fill='WorkGrp', color=  "pgnobgy_10", ylabel='Share of Workers', xlabel='Telecommute Frequency (Days per Week)') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 build a logit model with all the variables for 0, 1, 2, 3+ work trips, with all the variables I have lying around at this point, probably should be ordered logit, but I have trouble with interpreting that sometimes so I'm just going to do logit
