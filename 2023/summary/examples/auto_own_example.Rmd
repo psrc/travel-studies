@@ -146,19 +146,15 @@ vehicle_summary = summarize_weighted(hts_data= hts_data,
 
 
 ```{r}
-var_val_labels<-value_labels%>%filter(variable=='hhincome_detailed')
-vehs<-vehicle_summary$summary$wtd%>%
-  left_join(var_val_labels, join_by(hhincome_detailed==label))%>%
-  arrange(val_order)%>%mutate(hhincome_detailed=factor(hhincome_detailed, unique(hhincome_detailed)))
+vehs<-vehicle_summary$summary$wtd
+vehs<-order_factors(vehs, 'hhincome_detailed', value_labels)
 
 static_column_chart(vehs, x='vehicle_count_simple', y='prop', fill='hhincome_detailed', color='pgnobgy_10')
 
+vehs_pivot<-vehs%>%pivot_wider(id_cols=vehicle_count_simple, names_from=hhincome_detailed, values_from=prop )
 
-write.csv(vehs, 'vehicles_by_hhincome.csv')
-
+write.csv(vehs_pivot, 'vehicles_by_hhincome.csv')
+vehs_pivot
 ```
 
-```{r}
-write.csv(vehs, "vehicle_count_income.csv")
-```
 

@@ -40,6 +40,14 @@ grp_to_tbl <- function(.group_labels = group_labels, tbl, ungrouped_name, groupe
   return(tbl)
 }
 
+order_factors<-function(tbl, variable_name, value_labels){
+  var_val_labels<-value_labels%>%filter(variable==variable_name)
+  tbl<-tbl%>%left_join(var_val_labels, by=join_by(!!sym(variable_name)==label))%>%
+    arrange(val_order)%>%
+    mutate({{variable_name}}:=factor(!!sym(variable_name)))
+  return(tbl)
+}
+
 summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, wt_cols,wtname){
   
   
