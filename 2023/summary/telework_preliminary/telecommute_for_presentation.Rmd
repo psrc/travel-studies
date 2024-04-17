@@ -135,18 +135,42 @@ value_labels<-add_values_code(group_name='telework_time_broad')
 day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_broad')
 ```
 
+
 ```{r}
 person<-person%>%mutate(telecommute_status=
         case_when(workplace %in%c('Missing: Skip logic', "Missing: Skip Logic") 
                   ~ 'Not Worker',
                   (is.na(workplace)) ~ 'Not Worker',
                   (workplace=='At home (telecommute or self-employed with home office)' )
-                  ~ 'Remote',
+                  ~ 'Fully At Home',
                   (telecommute_freq_cond == '1+ days per week')
                   ~'Hybrid',
-                  .default = 'Onsite'
+                  .default = 'Fully In Person'
         )
 )
+
+```
+
+
+
+
+```{r}
+person<-person%>%mutate(telecommute_status_broad=
+        case_when(
+                  (telecommute_freq_broad == '1-2 days')
+                  ~'Mostly In Person',
+                  (telecommute_freq_broad == '3+ days')
+                  ~'Mostly At Home',
+                  .default = telecommute_status
+        )
+)
+
+```
+
+
+```{r}
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+worker_list<-list(person=workers)
 
 ```
 
@@ -166,8 +190,91 @@ new_value_labels<-rbind(all_value_labels, tele_val_labels)
 new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
 value_labels<-new_value_labels  
 
+
 ```
 
+```{r}
+
+value<- c(0,1,2,3,4)
+label=c('Not Worker', 'Remote', 'Mostly In Person', 'Mostly Remote', 'In Person')
+tele_val_labels<-data.frame(value, label)
+tele_val_labels<-tele_val_labels%>%mutate(variable='telecommute_status_broad')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, tele_val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_2', group_name='telework_time_broad')
+value_labels<-add_values_code(group_name='telework_time_broad')
+day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_broad')
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_3', group_name='telework_time_23')
+value_labels<-add_values_code(group_name='telework_time_23')
+day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_23')
+```
+
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='telework_time_hr')
+value_labels<-add_values_code(group_name='telework_time_hr')
+day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_hr')
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+
+
+```{r}
+
+telecommute_status <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))
+static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+```
+```{r}
+
+telecommute_status_2 <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status_broad',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_2<-telecommute_status_2$summary$wtd%>%mutate(telecommute_status_broad=factor(telecommute_status_broad, levels=c('Fully In Person', 'Mostly In Person', 'Mostly At Home', 'Fully At Home')))
+static_column_chart(telecommute_summary_2, y='prop', x='telecommute_status_broad', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+```
 
 ```{r}
 

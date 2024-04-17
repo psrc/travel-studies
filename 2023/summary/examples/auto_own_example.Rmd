@@ -3,8 +3,9 @@ title: "auto-ownership"
 author: "suzanne"
 date: "2024-03-20"
 output:
-  pdf_document: default
   html_document: default
+  word_document: default
+  pdf_document: default
 ---
 
 ## Load in Packages
@@ -77,18 +78,18 @@ make a function with bunch of default
 variable_list<-rbind(
     variable_list,
     data.table(
-      variable = c("vehicle_count_simple", "mode_w_sov"),
-      is_checkbox = c(0,0),
-      hh = c(1,0),
-      person = c(0,0),
-      day = c(0,0),
-      trip = c(0,0),
-      vehicle = c(0,0),
-      location = c(0,0),
-      description = c("vehicle_count_simple","SOV mode aggregation"),
-      logic = c("vehicle_count_simple","SOV mode aggregation"),
-      data_type = c("integer/categorical","integer/categorical"),
-      shared_name = c("vehicle_count_simple", "mode_w_sov")
+      variable = c("vehicle_count_simple"),
+      is_checkbox = c(0),
+      hh = c(1),
+      person = c(0),
+      day = c(0),
+      trip = c(0),
+      vehicle = c(0),
+      location = c(0),
+      description = c("vehicle_count_simple"),
+      logic = c("vehicle_count_simple"),
+      data_type = c("integer/categorical"),
+      shared_name = c("vehicle_count_simple")
     )
   )
 
@@ -124,7 +125,7 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
 ```{r}
-household
+
 
 
 ```
@@ -145,9 +146,15 @@ vehicle_summary = summarize_weighted(hts_data= hts_data,
 
 
 ```{r}
-vehs<-vehicle_summary$summary$wtd%
+var_val_labels<-value_labels%>%filter(variable=='hhincome_detailed')
+vehs<-vehicle_summary$summary$wtd%>%
+  left_join(var_val_labels, join_by(hhincome_detailed==label))%>%
+  arrange(val_order)%>%mutate(hhincome_detailed=factor(hhincome_detailed, unique(hhincome_detailed)))
 
-static_facet_column_chart(vehs, x='hhincome_detailed', y='prop', fill='vehicle_count_simple', facet='vehicle_count')
+static_column_chart(vehs, x='vehicle_count_simple', y='prop', fill='hhincome_detailed', color='pgnobgy_10')
+
+
+write.csv(vehs, 'vehicles_by_hhincome.csv')
 
 ```
 
