@@ -99,18 +99,18 @@ mode-> mode_simple, group_1
 variable_list<-rbind(
     variable_list,
     data.table(
-      variable = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad',  'telework_time_hr', 'gender_grp','commute_freq_simple', 'telecommute_freq_simple','telecommute_status', 'telecommute_status_detail', 'telecommute_freq_cond','seattle_bellevue'),
-      is_checkbox = c(0,0,0,0,0,0,0,0,0,0,0),
+      variable = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad',  'telework_time_hr', 'gender_grp','commute_freq_simple', 'telecommute_freq_simple','telecommute_status', 'telecommute_status_broad', 'telecommute_freq_cond','seattle_bellevue'),
+      is_checkbox = c(0,0,0,0,0,0,0,0,0,0,0,0),
       hh = c(0,0,0,0,0,0,0,0,0,0,1),
-      person = c(0,0,0,0,1,1, 1,1,1,1,0),
-      day = c(0,0,1,1,0,0,0, 0,0,0,1),
-      trip = c(1,1, 0,0, 0,0, 0,0,0,0,1),
-      vehicle = c(0,0,0,0,0,0,0,0,0,0,0),
-      location = c(0,0,0,0,0,0,0,0,0,0,0),
-      description = c("Mode Group", "Trip Purpose", "Telework Hours", "Telework Time Group", "Gender", 'Commute Frequency', 'Telecommute Frequency', 'Telecommute Status', 'Telecommute Detail', 'Telecommute or not', 'Home City'),
-      logic = c('mode aggregation', 'destination aggregation',"telework time aggregation","telework time aggregation", "gender group", 'commute frequency aggregation', 'telecommute frequency group', "telecommute status", 'telecommute frequency group detail', 'telework or not',  'home in Seattle or Bellevue'),
-      data_type = c("integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical","integer/categorical","integer/categorical", "integer/categorical","integer/categorical","integer/categorical"),
-      shared_name = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'telework_time_hr','gender_grp', 'commute_freq_simple','telecommute_freq_simple', 'telecommute_status', 'telecommute_status_detail', 'telecommute_freq_cond', 'seattle_bellevue')
+      person = c(0,0,0,0,1,1, 1,1,1,1,1,0),
+      day = c(0,0,1,1,0,0,0, 0,0,0,0,1),
+      trip = c(1,1, 0,0, 0,0, 0,0,0,0,0,1),
+      vehicle = c(0,0,0,0,0,0,0,0,0,0,0,0),
+      location = c(0,0,0,0,0,0,0,0,0,0,0,0),
+      description = c("Mode Group", "Trip Purpose", "Telework Hours", "Telework Time Group", "Gender", 'Commute Frequency', 'Telecommute Frequency', 'Telecommute Status', 'Telecommute Status Broad','Telecommute Detail', 'Telecommute or not', 'Home City'),
+      logic = c('mode aggregation', 'destination aggregation',"telework time aggregation","telework time aggregation", "gender group", 'commute frequency aggregation', 'telecommute frequency group', "telecommute status","telecommute status broad", 'telecommute frequency group detail', 'telework or not',  'home in Seattle or Bellevue'),
+      data_type = c("integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical","integer/categorical", "integer/categorical","integer/categorical","integer/categorical", "integer/categorical","integer/categorical","integer/categorical"),
+      shared_name = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'telework_time_hr','gender_grp', 'commute_freq_simple','telecommute_freq_simple', 'telecommute_status', 'telecommute_status_broad','telecommute_status_detail', 'telecommute_freq_cond', 'seattle_bellevue')
     )
   )
 
@@ -121,6 +121,12 @@ variable_list<-rbind(
 group_labels<-get_grouped_labels(group_id='group_2', group_name='telecommute_freq_cond')
 value_labels<-add_values_code(group_name='telecommute_freq_cond')
 person<-grp_to_tbl(tbl=person, ungrouped_name='telecommute_freq', grouped_name='telecommute_freq_cond')
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_3', group_name='telecommute_freq_broad')
+value_labels<-add_values_code(group_name='telecommute_freq_broad')
+person<-grp_to_tbl(tbl=person, ungrouped_name='telecommute_freq', grouped_name='telecommute_freq_broad')
 ```
 
 ```{r}
@@ -167,14 +173,31 @@ person<-person%>%mutate(telecommute_status=
                   ~ 'Not Worker',
                   (is.na(workplace)) ~ 'Not Worker',
                   (workplace=='At home (telecommute or self-employed with home office)' )
-                  ~ 'Remote',
+                  ~ 'Fully Remote',
                   (telecommute_freq_cond == '1+ days per week')
                   ~'Hybrid',
-                  .default = 'Onsite'
+                  .default = 'Fully In Person'
         )
 )
 
 ```
+
+
+
+
+```{r}
+person<-person%>%mutate(telecommute_status_broad=
+        case_when(
+                  (telecommute_freq_broad == '1-2 days')
+                  ~'Mostly In Person',
+                  (telecommute_freq_broad == '3+ days')
+                  ~'Mostly Remote',
+                  .default = telecommute_status
+        )
+)
+
+```
+
 
 ```{r}
 workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
@@ -188,6 +211,25 @@ value<- c(0,1,2,3)
 label=c('Not Worker', 'Remote', 'Hybrid', 'Onsite')
 tele_val_labels<-data.frame(value, label)
 tele_val_labels<-tele_val_labels%>%mutate(variable='telecommute_status')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, tele_val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+
+```
+
+```{r}
+
+value<- c(0,1,2,3,4)
+label=c('Not Worker', 'Remote', 'Mostly In Person', 'Mostly Remote', 'In Person')
+tele_val_labels<-data.frame(value, label)
+tele_val_labels<-tele_val_labels%>%mutate(variable='telecommute_status_broad')%>%
     mutate(group_1_title = NA, group_1_value = NA,
            group_2_title = NA, group_2_value= NA,
            group_3_title = NA, group_3_value = NA)
@@ -227,6 +269,7 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
 
+
 ```{r}
 
 telecommute_status <- summarize_weighted(hts_data= worker_list,
@@ -238,13 +281,55 @@ telecommute_status <- summarize_weighted(hts_data= worker_list,
                                )
 
 ```
-## Visualize
+
 ```{r}
 
-telecommute_summary<-telecommute_status$summary$wtd
-static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Telecommute Status') +
-theme_classic(base_size = 24)
+telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))
+static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
+```
+```{r}
+
+telecommute_status_2 <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status_broad',
+                               summarize_by = 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_2<-telecommute_status_2$summary$wtd%>%mutate(telecommute_status_broad=factor(telecommute_status_broad, levels=c('Fully In Person', 'Mostly In Person', 'Mostly Remote', 'Fully Remote')))
+static_column_chart(telecommute_summary_2, y='prop', x='telecommute_status_broad', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+```
+```{r}
+workers<-person#%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip #Logic"))%>%drop_na(workplace)
+worker_list<-list(person=workers)
+
+```
+
+```{r}
+
+
+workplace <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'workplace',
+                               summarize_by= 'survey_year',
+                               id_cols=c('person_id'),
+                               wt_cols=c('person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+
+
+
+```{r}
+#write.csv(workplace_summary, 'workplace_summary.csv')
 ```
 
 # 2023 only

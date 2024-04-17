@@ -101,7 +101,9 @@ variable_list<-rbind(
 group_labels<-get_grouped_labels(group_id='group_1', group_name='vehicle_count_simple')
 value_labels<-add_values_code(group_name='vehicle_count_simple')
 household<-grp_to_tbl(tbl=household, ungrouped_name='vehicle_count', grouped_name='vehicle_count_simple')
+
 ```
+
 
 
 
@@ -121,6 +123,12 @@ hts_data = list(hh = household)
 variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
+```{r}
+household
+
+
+```
+
 ##summarize data
 ```{r}
 
@@ -137,9 +145,9 @@ vehicle_summary = summarize_weighted(hts_data= hts_data,
 
 
 ```{r}
-vehs<-vehicle_summary$summary$wtd
+vehs<-vehicle_summary$summary$wtd%
 
-static_column_chart(vehs, x='vehicle_count_simple', y='prop', fill='hhincome_detailed')
+static_facet_column_chart(vehs, x='hhincome_detailed', y='prop', fill='vehicle_count_simple', facet='vehicle_count')
 
 ```
 
