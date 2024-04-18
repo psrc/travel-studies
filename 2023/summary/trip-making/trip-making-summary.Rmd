@@ -1,0 +1,274 @@
+---
+title: "trip-behaviors"
+author: "suzanne"
+date: "2024-04-18"
+output: html_document
+---
+
+Trips per person per day
+by Purpose
+by Mode
+
+by Worker/Non-Worker
+---
+title: "first-example-mode-summary"
+author: "suzanne"
+date: "2024-03-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Load in Packages
+IF YOU need to download some packages on github: travelSurveyTools, psrcelmer, and psrcplot.
+For this use the syntax:
+library(devtools)
+devtools::install_github('rsgInc/travelSurveyTools')
+devtools::install_github('psrc/psrcelmer')
+devtools::install_github('psrc/psrcplot')
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+source('survey-23-preprocess.R')
+```
+
+## Debugging travelSurveyTools
+
+travelSurveyTools still has many cryptic error messages usually related to data or codebook formatting and naming. You may need to debug to find where or why the problem exists.
+
+You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browser() and put breakpoints in the code to find the problem.
+
+
+## Read in data items from Elmer
+
+The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
+
+
+```{r }
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,survey_year, hh_weight
+                from HHSurvey.v_households_labels")
+
+
+person<- get_query(sql= "select household_id as hh_id,race_category,
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq 
+                from HHSurvey.v_persons_labels")
+                
+day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
+
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
+person_id, mode_1, dest_purpose, travelers_total, survey_year, trip_weight 
+                from HHSurvey.v_trips_labels")
+setDT(hh)
+setDT(person)
+setDT(day)
+setDT(trip)
+```
+#race_category needs to be added to the codebook
+
+# to do: add Seattle, Bellevue geographies
+
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Set IDs as characters
+I guess for joining?, functionalize convert all ids to charcets
+```{r}
+
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+day[, hh_id:=as.character(hh_id)]
+trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+day[, person_id := as.character(person_id)]
+trip[, person_id := as.character(person_id)]
+
+day[, day_id := as.character(day_id)]
+trip[, day_id := as.character(day_id)]
+
+trip[, trip_id := as.character(trip_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
+person <- person%>%mutate(survey_year=as.character(survey_year))
+day <- day%>%mutate(survey_year=as.character(survey_year))
+trip <- trip%>%mutate(survey_year=as.character(survey_year))
+```
+
+## Make a new variable
+
+If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
+
+## Adding a new variable to the codebook
+
+make a function with bunch of default
+#to do make this easier
+```{r}
+
+variable_list<-rbind(
+    variable_list,
+    data.table(
+      variable = c("mode_simple", "mode_w_sov"),
+      is_checkbox = c(0,0),
+      hh = c(0,0),
+      person = c(0,0),
+      day = c(0,0),
+      trip = c(1,1),
+      vehicle = c(0,0),
+      location = c(0,0),
+      description = c("mode aggregation","SOV mode aggregation"),
+      logic = c("mode aggregation","SOV mode aggregation"),
+      data_type = c("integer/categorical","integer/categorical"),
+      shared_name = c("mode_simple", "mode_w_sov")
+    )
+  )
+
+```
+
+
+# Add associated values
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
+value_labels<-add_values_code(group_name='mode_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
+```
+
+```{r}
+
+value<- c(0,1,2,3,4,5)
+label=c('SOV', 'HOV', 'Walk', 'Transit', 'Bike', 'Other')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='mode_w_sov')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+```
+
+# add mode_w_sov to the trip table
+```{r}
+trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'))
+trip<-trip%>%mutate(mode_simple= replace_na(mode_simple, 'Drive'))%>%
+mutate(mode_w_sov=case_when(
+  mode_simple=="Drive"& travelers_total=='1 traveler' ~ 'SOV',
+  is.na(travelers_total) ~ 'SOV',
+  mode_simple=="Drive"& travelers_total!='1 traveler'~  'HOV',
+  .default= mode_simple
+))
+```
+
+
+The package expects the data to be in a list of data.tables.
+```{r}
+
+hts_data = list(#hh = hh,
+                #person = person,
+                #day = day,
+                trip = trip)
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+##summarize data
+```{r}
+
+mode_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'mode_w_sov',
+                               summarize_by = 'survey_year',
+                               id_cols='trip_id',
+                               wt_cols='trip_weight',
+                               wtname='trip_weight'
+                               )
+```
+
+
+## Visualize
+```{r}
+
+common_modes<-mode_summary$summary$wtd%>%
+  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))
+
+static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year')
+
+```
+Trip rate overall
+```{r}
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+
+
+
+hts_data = list(hh = hh,
+                person = person,
+                day = day,
+                trip = trip)
+```
+
+```{r}
+triprate_prep<-hts_prep_triprate(summarize_by = c('survey_year'),
+                    variables_dt = variable_list,
+                    hts_data = hts_data,
+                    ids = ids,
+                    wts = wts,
+                    weighted = TRUE,
+                    remove_outliers=FALSE)
+
+
+```
+```{r}
+output <- hts_summary(triprate_prep$num,
+                       summarize_var = 'num_trips_wtd',
+                       summarize_by = c('survey_year'),
+                       summarize_vartype = 'numeric',
+                       id_cols = ids,
+                       wtname = 'day_weight')
+```
+
+```{r}
+ wtd_triprate = output$summary$wtd[, 
+                                    .(
+                                      summarize_by = c(get('survey_year')),
+                                      'Weighted Trip Rate' = round(mean, 2)
+                                    )
+  ]
+```
+```{r}
+wtd_triprate
+```
+
+
+## Visualize
+
