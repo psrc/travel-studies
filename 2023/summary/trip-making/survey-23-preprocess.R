@@ -69,3 +69,26 @@ summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, w
   return(summary)
 }
 
+add_variable<-function(variable_list,variable_name, table_name, data_type='integer/categorical'){
+
+  new_var_tbl<-
+  data.table(
+    variable = variable_name,
+    is_checkbox = 0,
+    hh = 0,
+    person = 0,
+    day = 0,
+    trip = 0,
+    vehicle = 0,
+    location = 0,
+    description = variable_name,
+    logic = variable_name,
+    data_type =data_type,
+    shared_name = variable_name
+  )
+  
+  new_var_tbl<-new_var_tbl%>%mutate({{table_name}}:=1)
+  variable_list<-rbind(variable_list, new_var_tbl)
+  
+  
+}
