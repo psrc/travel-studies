@@ -13,7 +13,7 @@ by Mode
 
 by Worker/Non-Worker
 ---
-title: "first-example-mode-summary"
+title: "trip info"
 author: "suzanne"
 date: "2024-03-20"
 output:
@@ -37,14 +37,9 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
-source('survey-23-preprocess.R')
+source('../survey-23-preprocess.R')
 ```
 
-## Debugging travelSurveyTools
-
-travelSurveyTools still has many cryptic error messages usually related to data or codebook formatting and naming. You may need to debug to find where or why the problem exists.
-
-You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browser() and put breakpoints in the code to find the problem.
 
 
 ## Read in data items from Elmer
@@ -64,7 +59,7 @@ person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age,
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, dest_purpose, travelers_total, survey_year, trip_weight 
+person_id, mode_1, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight 
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
@@ -115,7 +110,6 @@ trip <- trip%>%mutate(survey_year=as.character(survey_year))
 If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
 
 
-#make this even easier?
 ```{r}
 variable_list<-add_variable(variable_list, 'worker','person')
 group_labels<-get_grouped_labels(group_id='group_1', group_name='worker')
@@ -125,6 +119,11 @@ person<-person%>%mutate(worker=if_else(is.na(worker), 'Not Worker', worker))
 ```
 
 
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='dest_purpose_simple')
+value_labels<-add_values_code(group_name='dest_purpose_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simple')
+```
 
 ```{r}
 #some how a duplicate snuck into the variable list not sure how
@@ -146,6 +145,67 @@ hts_data = list(hh = hh,
 ```
 
 ```{r}
+dist_summ<-summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'distance_miles',
+                               summarize_by = 'survey_year',
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )$summary$wtd%>%filter(distance_miles!='Exactly 0')%>%
+                                filter(survey_year!='2017')
+
+```
+
+
+
+
+```{r}
+static_column_chart(t=dist_summ,y='prop', x='distance_miles', fill='survey_year' ,ylabel= 'Percent of Trips', xlabel='Trip Distance (miles)', dec=0)+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=14), axis.title.x=element_text(size=14))+ylim(0, 0.65)
+
+
+```
+
+
+```{r}
+mean_dist_summ<-summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'distance_miles',
+                               summarize_by = 'survey_year',
+                               summarize_vartype='numeric',
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )$summary$wtd%>%filter(survey_year!='2017')
+
+
+```
+
+
+
+
+```{r}
+z_score<-1.645
+mean_dist_summ<-mean_dist_summ%>%mutate(moe=z_score*mean_se)
+static_column_chart(t=mean_dist_summ,y='mean', x='survey_year', fill='survey_year' ,ylabel= 'Mean Distance', xlabel='Survey Year', dec=0, moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=14), axis.title.x=element_text(size=14))+ylim(0, 6)
+
+```
+
+
+```{r}
+
+
+```
+
+
+
+
+```{r}
+
+static_column_chart(t=mean_dist_summ,y='median', x='survey_year', fill='survey_year' ,ylabel= 'Median Distance', xlabel='Survey Year', dec=1)+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=14), axis.title.x=element_text(size=14))+ylim(0, 3.5)
+
+```
+
+```{r}
+
 triprate_prep<-hts_prep_triprate(summarize_by = c('survey_year'),
                     variables_dt = variable_list,
                     hts_data = hts_data,
@@ -175,7 +235,18 @@ output <- hts_summary(triprate_prep$num,
 ```
 ```{r}
 wtd_triprate
+
+wtd_trip_rate<-output$summary$wtd%>%filter(survey_year!='2017')
 ```
+
+
+```{r}
+static_column_chart(t=wtd_trip_rate,y='mean', x='survey_year', fill='survey_year' ,ylabel= 'Trips per Day', xlabel='Year', dec=1)+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+ylim(0, 5)
+
+
+```
+
+
 
 ```{r}
 triprate_prep<-hts_prep_triprate(summarize_by = c('survey_year', 'worker'),
@@ -198,23 +269,212 @@ output <- hts_summary(triprate_prep$num,
                        wtname = 'day_weight')
 ```
 
+
+
 ```{r}
- wtd_triprate = output$summary$wtd[, 
-                                    .(
-                                      summarize_by = c(get('survey_year', 'worker')),
-                                      'Weighted Trip Rate' = round(mean, 2)
-                                    )
-  ]
+wtd_trip_rate<-output$summary$wtd%>%filter(survey_year!='2017')
+```
+
+
+```{r}
+static_line_chart(t=wtd_trip_rate,y='mean', x='survey_year', fill='worker' ,ylabel= 'Trips per Day', xlabel='Year')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+ylim(0, 5)
+
+```
+```{r}
+
+hts_data_23 = list(hh = hh%>%filter(survey_year=='2023'),
+                person = person%>%filter(survey_year=='2023'),
+                day = day%>%filter(survey_year=='2023'),
+                trip = trip%>%filter(survey_year=='2023'))
+
+```
+
+
+```{r}
+triprate_prep<-hts_prep_triprate(summarize_by = c('dest_purpose_simple'),
+                    variables_dt = variable_list,
+                    hts_data = hts_data_23,
+                    ids = ids,
+                    wts = wts,
+                    weighted = TRUE,
+                    remove_outliers=FALSE)
+
+
 ```
 
 ```{r}
-wtd_triprate
+output <- hts_summary(triprate_prep$num,
+                       summarize_var = 'num_trips_wtd',
+                       summarize_by = c('dest_purpose_simple'),
+                       summarize_vartype = 'numeric',
+                       id_cols = ids,
+                       wtname = 'day_weight',
+                       se=TRUE )
+```
+
+
+
+
+
+```{r}
+wtd_trip_rate_23<-output$summary$wtd
+wtd_trip_rate_23<-output$summary$wtd%>%mutate(times=5*mean)%>%filter(dest_purpose_simple!='NA')%>%
+                                                                    
+  mutate(dest_purpose_simple= fct_reorder(dest_purpose_simple,-times))%>%mutate(survey_year='2023')
+```
+
+
+
+```{r}
+
+hts_data_19 = list(hh = hh%>%filter(survey_year=='2019'),
+                person = person%>%filter(survey_year=='2019'),
+                day = day%>%filter(survey_year=='2019'),
+                trip = trip%>%filter(survey_year=='2019'))
+
+```
+
+
+```{r}
+triprate_prep<-hts_prep_triprate(summarize_by = c('dest_purpose_simple'),
+                    variables_dt = variable_list,
+                    hts_data = hts_data_19,
+                    ids = ids,
+                    wts = wts,
+                    weighted = TRUE,
+                    remove_outliers=FALSE)
+
+
 ```
 
 ```{r}
+output <- hts_summary(triprate_prep$num,
+                       summarize_var = 'num_trips_wtd',
+                       summarize_by = c('dest_purpose_simple'),
+                       summarize_vartype = 'numeric',
+                       id_cols = ids,
+                       wtname = 'day_weight',
+                       se=TRUE )
+```
+
+
+
 ```{r}
-static_line_chart(t=wtd_triprate,y='prop', x='survey year', fill='worker' ,ylabel= 'Trips per Day', xlabel='Year')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+wtd_trip_rate_19<-output$summary$wtd
+wtd_trip_rate_19<-output$summary$wtd%>%mutate(times=5*mean)%>%filter(dest_purpose_simple!='NA')%>%
+                                                                    
+  mutate(dest_purpose_simple= fct_reorder(dest_purpose_simple,-times))%>%mutate(survey_year='2019')
+```
+
+
+
+
+```{r}
+
+hts_data_21 = list(hh = hh%>%filter(survey_year=='2021'),
+                person = person%>%filter(survey_year=='2021'),
+                day = day%>%filter(survey_year=='2021'),
+                trip = trip%>%filter(survey_year=='2021'))
 
 ```
+
+
+```{r}
+triprate_prep<-hts_prep_triprate(summarize_by = c('dest_purpose_simple'),
+                    variables_dt = variable_list,
+                    hts_data = hts_data_21,
+                    ids = ids,
+                    wts = wts,
+                    weighted = TRUE,
+                    remove_outliers=TRUE)
+
+
 ```
 
+```{r}
+output <- hts_summary(triprate_prep$num,
+                       summarize_var = 'num_trips_wtd',
+                       summarize_by = c('dest_purpose_simple'),
+                       summarize_vartype = 'numeric',
+                       id_cols = ids,
+                       wtname = 'day_weight',
+                       se=TRUE )
+```
+
+
+
+```{r}
+wtd_trip_rate_21<-output$summary$wtd
+wtd_trip_rate_21<-output$summary$wtd%>%mutate(times=5*mean)%>%filter(dest_purpose_simple!='NA')%>%
+                                                                    
+  mutate(dest_purpose_simple= fct_reorder(dest_purpose_simple,-times))%>%mutate(survey_year='2021')
+```
+
+```{r}
+z_score<-1.65
+wtd_trip_rate_all<-rbind(wtd_trip_rate_19, wtd_trip_rate_21, wtd_trip_rate_23)%>%filter(dest_purpose_simple!='Home')%>%
+  mutate(moe_time=5*z_score*mean_se)
+
+```
+
+work school
+```{r}
+wtd_trip_rate_mand<-wtd_trip_rate_all%>%filter(dest_purpose_simple %in% c('Primary Work', 'School', 'Work-related'))
+
+```
+
+
+
+
+```{r}
+
+static_facet_column_chart(t=wtd_trip_rate_mand,y='times', x='survey_year', fill='survey_year' ,ylabel= 'Activity Type', xlabel='Times per Work Week went to Do Activity', moe='moe_time', facet='dest_purpose_simple',dec=1,scales='fixed')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+```{r}
+wtd_trip_rate_soc<-wtd_trip_rate_all%>%filter(dest_purpose_simple %in% c('Social/Recreation', 'Eat Meal'))
+
+```
+
+
+
+
+```{r}
+
+static_facet_column_chart(t=wtd_trip_rate_soc,y='times', x='survey_year', fill='survey_year' ,ylabel= 'Activity Type', xlabel='Times per Work Week went to Do Activity', moe='moe_time', facet='dest_purpose_simple',dec=1,scales='fixed')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+```{r}
+wtd_trip_rate_errand<-wtd_trip_rate_all%>%filter(dest_purpose_simple %in% c('Errands/Appointments/Other', 'Pick up/Drop off', 'Shopping'))
+
+```
+
+
+
+
+```{r}
+
+static_facet_column_chart(t=wtd_trip_rate_errand,y='times', x='survey_year', fill='survey_year' ,ylabel= 'Activity Type', xlabel='Times per Work Week went to Do Activity', moe='moe_time', facet='dest_purpose_simple',dec=1,scales='fixed')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+
+
+```{r}
+mean_dist_summ<-summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'distance_miles',
+                               summarize_by = c('survey_year', 'dest_purpose_simple'),
+                               summarize_vartype='numeric',
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )$summary$wtd%>%filter(survey_year!='2017')
+
+
+```
+
+
+
+
+```{r}
+z_score<-1.645
+mean_dist_summ<-mean_dist_summ%>%mutate(moe=z_score*mean_se)
+static_column_chart(t=mean_dist_summ,y='mean', x='survey_year', fill='dest_purpose_simple' ,ylabel= 'Mean Distance', xlabel='Trip Destination Purpose', dec=0, moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=14), axis.title.x=element_text(size=14))+ylim(0, 6)
+
+```

@@ -6,7 +6,7 @@ get_grouped_labels <- function(.value_labels = value_labels, group_id, group_nam
   
   cols <- c('label', group_value)
   group_labels <- .value_labels[get(eval(group_title)) == group_name, ..cols]
-  
+  group_labels<-group_labels%>%distinct(label, .keep_all=TRUE)
   return(group_labels)
 }
 
@@ -48,7 +48,7 @@ order_factors<-function(tbl, variable_name, value_labels){
   return(tbl)
 }
 
-summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, wt_cols,wtname){
+summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, wt_cols,wtname,summarize_vartype='categorical'){
   
   
   prepped_dt <- hts_prep_variable(summarize_var = summarize_var,
@@ -58,13 +58,27 @@ summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, w
                                   wt_cols=wt_cols,
                                   weighted=TRUE)
   
-  summary<-hts_summary(prepped_dt = prepped_dt$cat,
+  if(summarize_vartype=='categorical'){
+      summary<-hts_summary(prepped_dt = prepped_dt$cat,
                        summarize_var = summarize_var,
                        summarize_by = summarize_by,
+                       summarize_vartype = summarize_vartype,
                        id_cols= id_cols,
                        wtname=wtname,
                        weighted=TRUE,
                        se=TRUE)
+  }else{
+    summary<-hts_summary(prepped_dt = prepped_dt$num,
+                         summarize_var = summarize_var,
+                         summarize_by = summarize_by,
+                         summarize_vartype = summarize_vartype,
+                         id_cols= id_cols,
+                         wtname=wtname,
+                         weighted=TRUE,
+                         se=TRUE)
+    
+  }
+  
   
   return(summary)
 }

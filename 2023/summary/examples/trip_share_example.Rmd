@@ -26,6 +26,11 @@ library(tidyverse)
 source('../survey-23-preprocess.R')
 ```
 
+## Debugging travelSurveyTools
+
+travelSurveyTools still has many cryptic error messages usually related to data or codebook formatting and naming. You may need to debug to find where or why the problem exists.
+
+You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browser() and put breakpoints in the code to find the problem.
 
 
 ## Read in data items from Elmer
@@ -33,7 +38,7 @@ source('../survey-23-preprocess.R')
 The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
 ```{r }
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, survey_year, travelers_total, trip_weight 
+person_id, mode_1, survey_year, travelers_total, trip_weight, dest_purpose
                 from HHSurvey.v_trips_labels")
 
 setDT(trip)
@@ -163,7 +168,7 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ```{r}
 
 common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%filter(survey_year!='2017')
+  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))
 
 static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
@@ -193,4 +198,9 @@ mode_travelers<-mode_travelers_summary$summary$wtd
 
 static_column_chart(mode_travelers, x='travelers_total', y='prop', fill='survey_year')
 
+```
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='dest_purpose_simple')
+value_labels<-add_values_code(group_name='dest_purpose_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simple')
 ```
