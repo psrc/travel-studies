@@ -475,6 +475,6 @@ mean_dist_summ<-summarize_weighted(hts_data= hts_data,
 ```{r}
 z_score<-1.645
 mean_dist_summ<-mean_dist_summ%>%mutate(moe=z_score*mean_se)
-static_column_chart(t=mean_dist_summ,y='mean', x='survey_year', fill='dest_purpose_simple' ,ylabel= 'Mean Distance', xlabel='Trip Destination Purpose', dec=0, moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=14), axis.title.x=element_text(size=14))+ylim(0, 6)
+chart<-static_facet_column_chart(t=mean_dist_summ,y='mean', x='survey_year', fill='dest_purpose_simple' ,ylabel= 'Mean Distance', xlabel='Trip Destination Purpose', dec=0, moe='moe', color='pgnobgy_10', facet='dest_purpose_simple')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=14), axis.title.x=element_text(size=14))
 
 ```
