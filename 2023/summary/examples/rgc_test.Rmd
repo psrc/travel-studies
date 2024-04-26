@@ -174,7 +174,7 @@ value_labels<-new_value_labels
 
 ```
 
-# add mode_w_sov to the trip table
+# add rgc_o_d to the trip table
 ```{r}
 trip<- trip%>%mutate(rgc_o_d= ifelse((is.na(origin_rgcname) & is.na(dest_rgcname)|
                                         (origin_rgcname=='Not RGC' & dest_rgcname=='Not RGC')
@@ -224,7 +224,7 @@ mode_rgc_summary = summarize_weighted(hts_data= hts_data,
 
 common_modes<-mode_rgc_summary$summary$wtd%>%
   mutate(mode_simple= fct_reorder(mode_simple,-prop))%>%drop_na(mode_simple)%>%
-  filter(mode_simple!='Drive')
+  filter(mode_simple!='Drive')%>%filter(survey_year!='2023')
 
 static_facet_column_chart(common_modes, x='mode_simple', y='prop', fill='survey_year',ylabel= 'Share', facet=
                             'rgc_o_d',xlabel='Trip Mode')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))

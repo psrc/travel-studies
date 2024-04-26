@@ -15,7 +15,7 @@ library(dplyr)
 library(psrcplot)
 library(tidyverse)
 library(forcats)
-source('survey-23-preprocess.R')
+source('../survey-23-preprocess.R')
 ```
 
 
@@ -314,9 +314,14 @@ telecommute_status <- summarize_weighted(hts_data= worker_list,
 ```{r}
 
 telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))
-static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static<-static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
+inter<-interactive_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share')
+static
+inter
+write.csv(telecommute_summary,'telecommute_summary_trend.csv')
 ```
+
 ```{r}
 
 telecommute_status_2 <- summarize_weighted(hts_data= worker_list,
@@ -431,7 +436,15 @@ commute_freq_all <- summarize_weighted(hts_data= worker_list,
 ```{r}
 
 commute_summary<-commute_freq_all$summary$wtd
-static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Days Commuting per Week') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=16), axis.title.x=element_text(size=16))
+static<-static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Days Commuting per Week') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=16), axis.title.x=element_text(size=16))
+
+inter<-interactive_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', xlabel='Days Commuting per Week', ylabel='Worker Share')
+   
+  
+
+static
+inter
+write.csv(commute_summary,'commute_summary_trend.csv')
 
 
 ```

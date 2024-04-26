@@ -156,7 +156,11 @@ hts_data = list(hh = hh,
                 person = person,
                 day = day,
                 trip = trip)
+
+
+
 ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+
 wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
 ```
 
@@ -228,12 +232,10 @@ mutate(mode_w_sov=case_when(
 
 
 ```{r}
-hts_data = list(hh = hh,
-                person = person,
-                day = day,
+hts_data = list(
                 trip = trip)
-ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
-wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+ids = c('trip_id')
+wts = c('trip_weight')
 ```
 
 ```{r}

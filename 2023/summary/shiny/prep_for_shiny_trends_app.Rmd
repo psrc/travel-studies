@@ -1,5 +1,5 @@
 ---
-title: "second-example"
+title: "prep for shiny trends app"
 author: "suzanne"
 date: "2024-03-27"
 output: html_document
@@ -15,37 +15,30 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
-source('../survey-23-preprocess.R')
+source('..\survey-23-preprocess.R')
 ```
 
 
 
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,survey_year, hh_weight
+hh<- get_query(sql= "select  *
                 from HHSurvey.v_households_labels")
 
 
-person<- get_query(sql= "select household_id as hh_id,race_category,
-person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry 
+person<- get_query(sql= "select *
                 from HHSurvey.v_persons_labels")
                 
-day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
-trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, dest_purpose, survey_year, trip_weight 
+trip<- get_query(sql= "select *
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
-setDT(day)
 setDT(trip)
 ```
-#race_category needs to be added to the codebook
-
-# to do: add Seattle, Bellevue geographies
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+cb_path = str_glue("C:/GitHub/travel-studies/2023/summary/shiny/PSRC_Codebook_2023_for_shiny")
 
 variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
@@ -77,547 +70,65 @@ day <- day%>%mutate(survey_year=as.character(survey_year))
 trip <- trip%>%mutate(survey_year=as.character(survey_year))
 ```
 
-Variables that need grouping:
-telework_time: use group_2, group_2_value: telework_time_broad
-gender: gender_grp group_1
-telecommute_freq: telecommute_freq_simple: group_1-- this variable is confusing right now, need some digging
-dest_purpose: dest_purpose_simple, group_1
-mode-> mode_simple, group_1
-
-
-
 
 ```{r}
-
-variable_list<-rbind(
-    variable_list,
-    data.table(
-      variable = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'gender_grp', 'telecommute_freq_simple','seattle_bellevue'),
-      is_checkbox = c(0,0,0,0,0,0),
-      hh = c(0,0,0,0,0,1),
-      person = c(0,0,0,1, 1,0),
-      day = c(0,0,1,0, 0,1),
-      trip = c(1,1, 0, 0,0,0),
-      vehicle = c(0,0,0,0,0,0),
-      location = c(0,0,0,0,0,0),
-      description = c("Mode Group", "Trip Purpose", "Telework Hours", "Gender", 'Telecommute Frequency', 'Home City'),
-      logic = c('mode aggregation', 'destination aggregation',"telework time aggregation", "gender group", 'telecommute frequency group', 'home in Seattle or Bellevue'),
-      data_type = c("integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical", "integer/categorical","integer/categorical"),
-      shared_name = c("mode_simple", 'dest_purpose_simple', 'telework_time_broad', 'gender_grp', 'telecommute_freq_simple', 'seattle_bellevue')
-    )
-  )
+hts_data = list(hh = hh,
+                person = person,
+                day = day,
+                trip = trip)
 
 
+
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
 ```
 
+# tab 1 content, one variable by survey year
 
-
-# Add associated values
-1. hh: hhincome_broad
-1. persons: telecommute_freq_simple (NOT working over time right now), gender_grp
-2. day: telework_time_broad
-2. trips: mode_simple, dest_purpose_simple
-summarize trip rate by telecommute variables
-
-# persons day table, gender_grp
-1. find the labels for the group
-2. add the labeled data to the underlying table
-3. add the values code to the values list
-
+loop over every variable in the variable_list
 ```{r}
-group_labels<-get_grouped_labels(group_id='group_1', group_name='gender_grp')
-values_label<-add_values_code(group_name='gender_grp')
-person<-grp_to_tbl(tbl=person, ungrouped_name='gender', grouped_name='gender_grp')
-```
-
-```{r}
-group_labels<-get_grouped_labels(group_id='group_1', group_name='telecommute_freq_simple')
-value_labels<-add_values_code(group_name='telecommute_freq_simple')
-person<-grp_to_tbl(tbl=person, ungrouped_name='telecommute_freq', grouped_name='telecommute_freq_simple')%>%
-  mutate(telecommute_freq_simple=gsub("[\r\n]","", telecommute_freq_simple))# there's some weird characters in there i can't figure out how to remove
-```
-
-
-```{r}
-group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
-value_labels<-add_values_code(group_name='mode_simple', group_labels)
-trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
-```
-
-```{r}
-group_labels<-get_grouped_labels(group_id='group_2', group_name='telework_time_broad')
-value_labels<-add_values_code(group_name='telework_time_broad')
-day<-grp_to_tbl(tbl=day, ungrouped_name='telework_time', grouped_name='telework_time_broad')
-```
-
-
-# Summaries from person table:
-# workplace by survey year
-# 2023
-# workplace by gender
-# workplace by hhincome
-
-
-unfortunately the question options changed a lot 2017 differed from 2019, which differed from 2021, so we can only truly compare 2021 and 2023...
-The work at home always category is stable
-The driving category is also stable
-
-all the other ones are NOT stable, require care
-
-2017
-[workplace]
-Usually the same location(outside home)
-Workplace regularly varies(different offices or jobsites)
-At home (telecommute or self employed with home office)
-Drives for a living (e.g., bus driver, salesperson)
-
-
-2019
-[workplace]	
-Only one work location (outside of home, may also telework)
-Work location regularly varies (different offices/jobsites)
-Work at home ONLY (telework, self-employed)
-Drive/travel for work (driver, sales)
-
-2021/2023
-[workplace]	
-Only one work location outside of home
-Work at home ONLY (telework, self-employed)
-Telework some days and travel to a work location some days
-Work location regularly varies (different offices/jobsites)
-Drive/travel for work (driver, sales)
-
-```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
-worker_list<-list(person=workers)
-
-```
-
-```{r}
-#some how a duplicate snuck into the variable list not sure how
-variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
-```
-
-# regional
-```{r}
-
-workplace <- summarize_weighted(hts_data= worker_list,
-                               summarize_var = 'workplace',
+make summary_out_df
+for every variable in the variables_list{}
+new_summary <- summarize_weighted(hts_data= hts_data,
+                               summarize_var = %variable%,
                                summarize_by = 'survey_year',
-                               id_cols=c('person_id'),
-                               wt_cols=c('person_weight'),
-                               wtname= 'person_weight'
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
                                )
 
-```
-## Visualize
-```{r}
-
-workplace_summary<-workplace$summary$wtd%>%filter(workplace== 'At home (telecommute or self-employed with home office)')
-static_column_chart(workplace_summary, y='prop', x='workplace', fill='survey_year', xlabel='Worker share who ONLY work at home')
-
-```
-# to do: generalize, functionalize, just making it work for now;
-```{r}
-# make a generalized dataframe to store the outputs
-
-
-
-summary_out<-workplace_summary%>%
-        mutate(var_1_value=survey_year, var_1_name= 'survey_year',
-         var_2_value= workplace, var_2_name= 'workplace')%>%
-         select(-c(survey_year, workplace))%>%mutate(geography='regional')
-
-
-
+summary_out_df<-rbind(summary)
 ```
 
 ```{r}
-workplace_summary_21_23<-workplace$summary$wtd%>%filter(survey_year %in% c('2021', '2023'))
-static_bar_chart(workplace_summary_21_23, x='prop', y='workplace', fill='survey_year')
+write out summaries to csv summary_trend
+```
 
+# tab 2 content, cross tabs for 2023
+
+```{r}
+filter data to 2023
 ```
 
 
-
-
-2023 only by gender
+loop over every variable in the variable_list
 ```{r}
-workers_23<-workers%>%filter(survey_year =='2023')
-hh_23<- hh%>%filter(survey_year== '2023')
-
-worker_list_23<- list(hh=hh_23, person= workers_23)
-```
-
-```{r}
-workplace_gender <- summarize_weighted(hts_data= worker_list_23,
-                               summarize_var = 'workplace',
-                               summarize_by = 'gender_grp',
-                               id_cols=c('hh_id', 'person_id'),
-                               wt_cols=c('hh_weight','person_weight'),
-                               wtname="person_weight"
+make summary_out_df
+for every variable i in the variables list
+    for every variable i in the variables_list{}
+new_summary <- summarize_weighted(hts_data= hts_data,
+                               summarize_var = variable i,
+                               summarize_by = variable j,
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
                                )
 
-```
-## Visualize
-```{r}
-
-workplace_gender_summary<-workplace_gender$summary$wtd
-static_bar_chart(workplace_gender_summary, y='workplace', x='prop', fill='gender_grp')
-
+summary_out_df<-rbind(summary)
 ```
 
 ```{r}
-summary_out_gender<-workplace_gender_summary%>%
-        mutate(var_1_value=gender_grp, var_1_name= 'gender_grp',
-         var_2_value= workplace, var_2_name= 'workplace')%>%
-         select(-c(gender_grp, workplace))%>%mutate(geography='regional')
-
-summary_out<-rbind(summary_out_gender, summary_out)
+write out summaries to csv summary_crosstab
 ```
 
-
-
-```{r}
-workplace_income <- summarize_weighted(hts_data= worker_list_23,
-                               summarize_var = 'workplace',
-                               summarize_by = 'hhincome_broad',
-                               id_cols=c('hh_id', 'person_id'),
-                               wt_cols=c('hh_weight','person_weight'),
-                               wtname="person_weight"
-                               )
-
-```
-## Visualize
-```{r}
-
-workplace_income_summary<-workplace_income$summary$wtd%>%
-  mutate(hhincome_broad=factor(hhincome_broad,
-levels=c('Under $25,000','$25,000-$49,999','$50,000-$74,999',
-'$75,000-$99,999','$100,000 or more','$100,000-$199,000','$200,000 or more','Prefer not to answer',
-'Missing: Skip Logic')))
-
-static_bar_chart(workplace_income_summary, y='workplace', x='prop', fill='hhincome_broad', color='pgnobgy_10')
-
-```
-
-```{r}
-summary_out_income<-workplace_income_summary%>%
-        mutate(var_1_value=hhincome_broad, var_1_name= 'hhincome_broad',
-         var_2_value= workplace, var_2_name= 'workplace')%>%
-         select(-c(hhincome_broad, workplace))%>%mutate(geography='regional')
-
-summary_out<-rbind(summary_out_income, summary_out)
-```
-
-# telework time and telework frequency were asked to substantially different groups and in
-# different ways comparing 2017/2019 to 2021/203; this will have to be worked through
-
-
-
-
-
-# Summaries from person table:
-# workplace by survey year
-# 2023
-# workplace by gender
-# workplace by hhincome
-
-
-# regional
-
-
-#for the frequency question: let's filter to people who do not always work from home.
-
-```{r}
-workers<-person%>%filter(!telecommute_freq_simple %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%filter(workplace!= 'At home (telecommute or self-employed with home office')%>%drop_na(telecommute_freq_simple)
-worker_list<-list(person=workers)
-
-```
-
-```{r}
-
-telecommute_freq_simple <- summarize_weighted(hts_data= worker_list,
-                               summarize_var = 'telecommute_freq_simple',
-                               summarize_by = 'survey_year',
-                               id_cols=c('person_id'),
-                               wt_cols=c('person_weight'),
-                               wtname= 'person_weight'
-                               )
-
-```
-## Visualize
-
-should we filter to people who do not always work from home?
-
-# in 2019, this was asked of people with jobs
-If commute_freq is not 6-7 days a week
-How many days <do you/does name> work from home or telework (instead of going to work that day)?
-
-
-# in 2021
-How many days worked from home or teleworked last week (instead of going to work that day)?in 2021, this was asked of people if workplace = fixed/varied/telecommute some days
-if workplace = fixed/varied/telecommute some days
-How many days worked from home or teleworked last week (instead of going to work that day)?
-Programmer: Dropdown menu with the following options: 
-o	5+ days 
-o	3-4 days 
-o	1-2 days 
-
-
-in2023
-
-If commute_freq is not 6-7 days a week
-How many days <do you/does name> work from home or telework (instead of going to work that day)?
-6-7 days a week
-5 days a week
-4 days a week
-3 days a week
-2 days a week
-1 day a week
-1-3 days a month
-Less than monthly
-Never hide if job_type is Work ONLY from home or remotely (telework, self-employed)
-
-
-
-
-
-
-```{r}
-
-telecommute_freq_simple_summary<-telecommute_freq_simple$summary$wtd
-static_bar_chart(telecommute_freq_simple_summary, y='telecommute_freq_simple', x='prop', fill='survey_year')
-
-```
-# to do: generalize, functionalize, just making it work for now;
-```{r}
-# make a generalized dataframe to store the outputs
-
-
-
-summary_out<-telecommute_freq_simple_summary%>%
-        mutate(var_1_value=survey_year, var_1_name= 'survey_year',
-         var_2_value= telecommute_freq_simple, var_2_name= 'telecommute_freq_simple')%>%
-         select(-c(survey_year, telecommute_freq_simple))%>%mutate(geography='regional')
-
-
-
-```
-
-
-
-
-2023 only by gender
-```{r}
-workers_23<-workers%>%filter(survey_year =='2023')
-hh_23<- hh%>%filter(survey_year== '2023')
-
-worker_list_23<- list(hh=hh_23, person= workers_23)
-```
-
-```{r}
-telecommute_freq_simple_gender <- summarize_weighted(hts_data= worker_list_23,
-                               summarize_var = 'telecommute_freq_simple',
-                               summarize_by = 'gender_grp',
-                               id_cols=c('hh_id', 'person_id'),
-                               wt_cols=c('hh_weight','person_weight'),
-                               wtname="person_weight"
-                               )
-
-```
-## Visualize
-```{r}
-
-telecommute_freq_simple_gender_summary<-telecommute_freq_simple_gender$summary$wtd
-static_bar_chart(telecommute_freq_simple_gender_summary, y='telecommute_freq_simple', x='prop', fill='gender_grp')
-
-```
-
-```{r}
-summary_out_gender<-telecommute_freq_simple_gender_summary%>%
-        mutate(var_1_value=gender_grp, var_1_name= 'gender_grp',
-         var_2_value= telecommute_freq_simple, var_2_name= 'telecommute_freq_simple')%>%
-         select(-c(gender_grp, telecommute_freq_simple))%>%mutate(geography='regional')
-
-summary_out<-rbind(summary_out_gender, summary_out)
-```
-
-
-
-```{r}
-telecommute_freq_simple_income <- summarize_weighted(hts_data= worker_list_23,
-                               summarize_var = 'telecommute_freq_simple',
-                               summarize_by = 'hhincome_broad',
-                               id_cols=c('hh_id', 'person_id'),
-                               wt_cols=c('hh_weight','person_weight'),
-                               wtname="person_weight"
-                               )
-
-```
-## Visualize
-```{r}
-
-telecommute_freq_simple_income_summary<-telecommute_freq_simple_income$summary$wtd%>%
-  mutate(hhincome_broad=factor(hhincome_broad,
-levels=c('Under $25,000','$25,000-$49,999','$50,000-$74,999',
-'$75,000-$99,999','$100,000 or more','$100,000-$199,000','$200,000 or more','Prefer not to answer',
-'Missing: Skip Logic')))
-
-static_bar_chart(telecommute_freq_simple_income_summary, y='telecommute_freq_simple', x='prop', fill='hhincome_broad', color='pgnobgy_10')
-
-```
-
-```{r}
-summary_out_income<-telecommute_freq_simple_income_summary%>%
-        mutate(var_1_value=hhincome_broad, var_1_name= 'hhincome_broad',
-         var_2_value= telecommute_freq_simple, var_2_name= 'telecommute_freq_simple')%>%
-         select(-c(hhincome_broad, telecommute_freq_simple))%>%mutate(geography='regional')
-
-summary_out<-rbind(summary_out_income, summary_out)
-```
-
-
-
-```{r}
-
-hh_person_trip_list<-list(hh=hh, person=person, trip=trip)
-
-```
-
-```{r}
-#some how a duplicate snuck into the variable list not sure how
-variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
-```
-
-# regional
-```{r}
-
-mode <- summarize_weighted(hts_data= hh_person_trip_list,
-                               summarize_var = 'mode_simple',
-                               summarize_by = 'survey_year',
-                               id_cols=c('hh_id', 'person_id', 'trip_id'),
-                               wt_cols=c('hh_weight', 'person_weight', 'trip_weight'),
-                               wtname= 'trip_weight'
-                               )
-
-```
-## Visualize
-```{r}
-
-mode_summary<-mode$summary$wtd
-static_bar_chart(mode_summary, y='mode_simple', x='prop', fill='survey_year')
-
-```
-# to do: generalize, functionalize, just making it work for now;
-```{r}
-# make a generalized dataframe to store the outputs
-
-
-
-summary_out<-mode_summary%>%
-        mutate(var_1_value=survey_year, var_1_name= 'survey_year',
-         var_2_value= mode_simple, var_2_name= 'mode_simple')%>%
-         select(-c(survey_year, mode_simple))%>%mutate(geography='regional')
-
-
-
-```
-
-
-
-
-2023 only by gender
-```{r}
-trip_23<-trip%>%filter(survey_year =='2023')
-hh_23<- hh%>%filter(survey_year== '2023')
-person_23<-person%>%filter(survey_year=='2023')
-
-data_list_23<- list(hh=hh_23, person= person_23, trip=trip_23)
-```
-
-```{r}
-mode_gender <- summarize_weighted(hts_data= hh_person_trip_list,
-                               summarize_var = 'mode_simple',
-                               summarize_by = 'gender_grp',
-                               id_cols=c('hh_id', 'person_id', 'trip_id'),
-                               wt_cols=c('hh_weight', 'person_weight', 'trip_weight'),
-                               wtname= 'trip_weight'
-                               )
-
-```
-## Visualize
-```{r}
-
-mode_gender_summary<-mode_gender$summary$wtd
-static_bar_chart(mode_gender_summary, y='mode_simple', x='prop', fill='gender_grp')
-
-```
-
-```{r}
-summary_out_gender<-mode_gender_summary%>%
-        mutate(var_1_value=gender_grp, var_1_name= 'gender_grp',
-         var_2_value= mode_simple, var_2_name= 'mode_simple')%>%
-         select(-c(gender_grp, mode_simple))%>%mutate(geography='regional')
-
-summary_out<-rbind(summary_out_gender, summary_out)
-```
-
-
-
-```{r}
-mode_income <- summarize_weighted(hts_data= hh_person_trip_list,
-                               summarize_var = 'mode_simple',
-                               summarize_by = 'hhincome_broad',
-                               id_cols=c('hh_id', 'person_id', 'trip_id'),
-                               wt_cols=c('hh_weight', 'person_weight', 'trip_weight'),
-                               wtname= 'trip_weight'
-                               )
-
-```
-## Visualize
-```{r}
-
-mode_income_summary<-mode_income$summary$wtd
-static_bar_chart(mode_income_summary, y='mode_simple', x='prop', fill='hhincome_broad')
-
-```
-
-```{r}
-summary_out_income<-mode_income_summary%>%
-        mutate(var_1_value=hhincome_broad, var_1_name= 'hhincome_broad',
-         var_2_value= mode_simple, var_2_name= 'mode_simple')%>%
-         select(-c(hhincome_broad, mode_simple))%>%mutate(geography='regional')
-
-summary_out<-rbind(summary_out_income, summary_out)
-```
-
-
-## Visualize
-```{r}
-
-mode_income_summary<-mode_income$summary$wtd%>%
-  mutate(hhincome_broad=factor(hhincome_broad,
-levels=c('Under $25,000','$25,000-$49,999','$50,000-$74,999',
-'$75,000-$99,999','$100,000 or more','$100,000-$199,000','$200,000 or more','Prefer not to answer',
-'Missing: Skip Logic')))
-
-static_bar_chart(mode_income_summary, y='mode_simple', x='prop', fill='hhincome_broad', color='pgnobgy_10')
-
-```
-
-
-
-# rename all variables based on their nice names
-```{r}
-nice_variable_names<-variable_list%>%select(variable, description)
-
-summary_out<-left_join(summary_out,nice_variable_names, join_by(var_1_name==variable))%>%rename(var_1_nice_name=description)
-
-summary_out<-left_join(summary_out,nice_variable_names, join_by(var_2_name==variable))%>%rename(var_2_nice_name=description)%>%mutate(category_1= 'Test1', category_2='Test2')
-
-```
-
-```{r}
-write.csv(summary_out, 'summary_out.csv')
-```
