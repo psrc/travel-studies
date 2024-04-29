@@ -11,7 +11,10 @@ source(here::here('2023/summary/survey-23-preprocess.R'))
 cb_path <- here::here("2023/summary/shiny/PSRC_Codebook_2023_for_shiny.xlsx")
 
 codebook <- map(list('variable_list', 'value_labels'), ~setDT(readxl::read_xlsx(cb_path, sheet = .x)))
-names(codebook) <- c('vars_list', 'val_labels')
+
+variable_list <- as.data.table(codebook[[1]])
+value_labels <- as.data.table(codebook[[2]])
+
 
 ## Read hhts tables
 dataset_types <- c("household", "person", "day", "trip") # 
@@ -52,3 +55,4 @@ new_summary <- summarize_weighted(hts_data = dfs,
                                   id_cols = ids,
                                   wt_cols = wts,
                                   wtname = 'trip_weight')
+
