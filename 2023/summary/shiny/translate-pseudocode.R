@@ -54,5 +54,5 @@ new_summary <- summarize_weighted(hts_data = dfs,
                                   summarize_by = 'survey_year',
                                   id_cols = ids,
                                   wt_cols = wts,
-                                  wtname = 'trip_weight')
+                                  wtname = 'person_weight') # weight name corresponds to variable's table (trip, person, household)
 
