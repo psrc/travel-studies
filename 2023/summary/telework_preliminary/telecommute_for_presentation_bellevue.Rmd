@@ -44,7 +44,7 @@ setDT(trip)
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
 
 variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
@@ -84,6 +84,10 @@ dest_purpose: dest_purpose_simple, group_1
 mode-> mode_simple, group_1
 
 
+```{r}
+hh_person_bellevue<-merge(hh,person, by='hh_id')%>%filter(home_jurisdiction=='Bellevue')
+person<-hh_person_bellevue
+```
 
 
 ```{r}
@@ -283,7 +287,7 @@ person<- person%>%mutate(commute_freq_all=case_when(
 
 
 ```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%rename(survey_year=survey_year.x)
 worker_list<-list(person=workers)
 
 ```
@@ -353,7 +357,7 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
 Summarize Workplace variable
 ```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%rename(survey_year=survey_year.x)
 worker_list<-list(person=workers)
 
 ```
@@ -414,7 +418,7 @@ static_column_chart(workplace_summary, y='prop', x='workplace', fill='survey_yea
 
 
 ```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(commute_freq_all!= 'Missing: Skip Logic')%>%drop_na(commute_freq_all)
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(commute_freq_all!= 'Missing: Skip Logic')%>%drop_na(commute_freq_all)%>%rename(survey_year=survey_year.x)
 worker_list<-list(person=workers)
 
 ```
@@ -451,7 +455,7 @@ write.csv(commute_summary,'commute_summary_trend.csv')
 
 
 ```{r}
-workers<-person%>%filter(!telecommute_freq %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(telecommute_freq)%>%filter(telecommute_freq!='NA')%>% mutate(telecommute_freq_simple=factor(telecommute_freq_simple, levels=c("Never or less than weekly", '1-2 days', '3-4 days', '5+ days')))
+workers<-person%>%filter(!telecommute_freq %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(telecommute_freq)%>%filter(telecommute_freq!='NA')%>% mutate(telecommute_freq_simple=factor(telecommute_freq_simple, levels=c("Never or less than weekly", '1-2 days', '3-4 days', '5+ days')))%>%rename(survey_year=survey_year.x)
 worker_list<-list(person=workers)
 
 ```
@@ -479,7 +483,7 @@ static_column_chart(telecommute_freq_simple_summary, y='prop', x='telecommute_fr
 ```
 
 ```{r}
-workers_23<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(survey_year=='2023')
+workers_23<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(survey_year.x=='2023')%>%rename(survey_year=survey_year.x)
 worker_list_23<-list(person=workers_23)
 ```
 
@@ -509,39 +513,11 @@ office_avail_summary<-office_available$summary$wtd%>%
 static_column_chart(office_avail_summary, x='office_available', y='prop', fill='workplace')+ theme(axis.text.x=element_text(size=20), axis.text.y=element_text(size=20),legend.text = element_text(size=20))
 
 ```
-On an average weekday how much are workers spending teleworking?
 
-
-
-
-```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
-day_telework<-day%>%filter(!telework_time %in% c('Missing: Skip logic', "Missing: Skip Logic", "Missing Response"))%>%drop_na(telework_time_broad)
-
-```
                                                                                                                                   
 
 
-```{r}
-person_daylist<-list(person=workers, day=day_telework)
 
-```
 
-```{r}
-
-telecommute_status_day_time<- summarize_weighted(hts_data= person_daylist,
-                               summarize_var = 'telework_time_broad',
-                               summarize_by = 'survey_year',
-                               id_cols=c('person_id', 'day_id'),
-                               wt_cols=c('person_weight', 'day_weight'),
-                               wtname= 'day_weight'
-                               )
-
-```
-
-```{r}
-static_column_chart(t=telecommute_status_day_time$summary$wtd,y='prop', x='telework_time_broad', fill='survey_year' ,ylabel= 'Worker Share', xlabel='Time spent Teleworking')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-
-```
 
 

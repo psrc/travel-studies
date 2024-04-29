@@ -21,7 +21,7 @@ library(psrcplot)
 library(tidyverse)
 library(stargazer)
 library(nnet)
-source('survey-23-preprocess.R')
+source('../survey-23-preprocess.R')
 ```
 
 
@@ -50,7 +50,7 @@ setDT(trip)
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
 
 variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
