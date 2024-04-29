@@ -46,13 +46,32 @@ for(i in 1:length(dfs)) {
 }
 
 names(dfs)[[1]] <- "hh"
-ids <-  c('household_id', 'person_id', 'day_id', 'trip_id')
-wts <-  c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+ids <- c('household_id', 'person_id', 'day_id', 'trip_id')
+wts <- c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
 
-new_summary <- summarize_weighted(hts_data = dfs,
-                                  summarize_var = "age",
-                                  summarize_by = 'survey_year',
-                                  id_cols = ids,
-                                  wt_cols = wts,
-                                  wtname = 'person_weight') # weight name corresponds to variable's table (trip, person, household)
+test_variables <- c("age", "transit_pass", "broadband")
+trends_df <- NULL
+
+for(var in test_variables) {
+  source_table <- variable_list[variable == var, .(variable, hh, person, day, trip)] |>
+    melt.data.table(id.vars = 'variable',
+                    measure.vars = c('hh', 'person', 'day', 'trip'),
+                    variable.name = 'table')
+  
+  weight_name <- source_table[value == 1,][['table']] |> 
+    as.character() |> 
+    paste0("_weight")
+  
+  summarize_df <- summarize_weighted(hts_data = dfs,
+                                     summarize_var = var,
+                                     summarize_by = 'survey_year',
+                                     id_cols = ids,
+                                     wt_cols = wts,
+                                     wtname = weight_name) # weight name corresponds to table variable is from
+  
+  df <- summarize_df$summary$wtd[, variable_name := var]
+  setnames(df, var, "value")
+  ifelse(is.null(trends_df), trends_df <- df, trends_df <- rbindlist(list(trends_df, df), fill=TRUE))
+}
+
 
