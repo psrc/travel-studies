@@ -33,7 +33,7 @@ source('../survey-23-preprocess.R')
 The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
 ```{r }
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, survey_year, travelers_total, origin_juridiction, dest_jurisdiction, trip_weight 
+person_id, mode_1, survey_year, travelers_total, origin_jurisdiction, dest_jurisdiction, trip_weight 
                 from HHSurvey.v_trips_labels")
 
 setDT(trip)
@@ -62,7 +62,7 @@ trip[, day_id := as.character(day_id)]
 
 ```{r}
 trip <- trip%>%mutate(survey_year=as.character(survey_year))
-trip<-trip%>%filter(origin_jurisdiction=='Seattle' |dest_jurisdiction=='Seattle')
+trip<-trip%>%filter(origin_jurisdiction=='Bellevue' |dest_jurisdiction=='Bellevue')
 ```
 
 ## Make a new variable
@@ -165,11 +165,12 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 
 ## Visualize
 ```{r}
+z_score=1.645
 
-common_modes<-mode_summary$summary$wtd%>%
+common_modes<-mode_summary$summary$wtd%>%mutate(moe=prop_se*z_score)%>%
   mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%filter(survey_year!='2017')
 
-static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
 ```
 
