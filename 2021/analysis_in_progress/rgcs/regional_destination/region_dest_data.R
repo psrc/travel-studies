@@ -1,5 +1,5 @@
 library(tidyverse)
-library(plotly) 
+library(plotly)
 library(psrc.travelsurvey)
 library(psrcelmer)
 library(psrcplot)
@@ -19,39 +19,6 @@ uga.lyr <- st_read_elmergeo("urban_growth_area_evw") %>% select(county_name,sum_
 center.lyr <- st_read_elmergeo('URBAN_CENTERS')
 
 
-
-# ofm data: get uga ofm population data
-# ofm_2020 <- get_table(schema = 'ofm', tbl_name = 'v_estimates_2020') # 2010 geoid
-# block2010.lyr <- st_read_elmergeo("BLOCK2010") %>% select(county_name,geoid10,placename,land_acres,total_pop10)
-# 
-# match_geog <- st_join(st_centroid(block2010.lyr),uga.lyr[,c("UGA")]) %>%
-#   st_join(.,center.lyr[,c("name","category","Shape")]) %>%
-#   full_join(ofm_2020, by=c("geoid10"="block_geoid")) %>%
-#   mutate(UGA = replace_na(UGA,"not UGA"))
-# 
-# test <- match_geog %>% 
-#   group_by(UGA) %>%
-#   summarise(sum(total_pop10,na.rm = TRUE),sum(household_population,na.rm = TRUE))
-# 
-# test <- match_geog %>% 
-#   group_by(name,category) %>%
-#   summarise(sum(total_pop10,na.rm = TRUE),sum(household_population,na.rm = TRUE))
-
-# 2018 lodes data: get uga employment data
-# p_lodes_folder <- "C:/Users/JLin/OneDrive - Puget Sound Regional Council/Documents/psrc_work_files/travel_modeling/lodes_240128/LODES WAC Files"
-# lodes_2018 <- read_csv(file.path(p_lodes_folder,"wa_wac_S000_JT00_2018.csv"),col_select  =c("w_geocode","C000")) %>%
-#   mutate(w_geocode = as.character(w_geocode))
-# 
-# match_geog <- st_join(st_centroid(block2020.lyr),uga.lyr[,c("UGA")]) %>%
-#   st_join(.,center.lyr[,c("name","category","Shape")]) %>%
-#   full_join(lodes_2018, by=c("geoid20"="w_geocode")) %>%
-#   mutate(UGA = replace_na(UGA,"not UGA"))
-# 
-# test <- match_geog %>%
-#   group_by(UGA) %>%
-#   summarise(sum(C000,na.rm = TRUE))
-
-
 # calculate geography area
 psrc_region_area <- sum(bg2020.lyr$land_acres)
 uga_area <- sum(uga.lyr$sum_acres)
@@ -61,7 +28,7 @@ center_data <- center.lyr
 st_geometry(center_data) <- NULL
 # areas: individual rgcs, rgc, urban/metro
 rgc_indv_area <- center_data %>%
-  mutate(d_rgcname="RGC") %>% 
+  mutate(d_rgcname="RGC") %>%
   select(name,d_rgcname,category,acres) %>%
   add_row(data.frame(name=c("Not RGC"),
                      d_rgcname=c("Not RGC"),
@@ -77,35 +44,25 @@ metro_urban_area <- rgc_indv_area %>%
   summarise_at(vars(acres),sum)
 
 # population and employment
+df_au <- read_csv("activity_units.csv") 
 
-# uga population using block-level 2020 ofm table:       3626798.3
-# total population from carol ofm excel data:            4027090
-# uga employment data using block-level 2018 lodes data: 1989680
-# total employment data from carol:                      2134488
-pop_uga = 3626798.3
-emp_uga = 1989680
+df_rgc <- read_csv("activity_units.csv") %>%
+  filter((d_rgcname=="RGC" & category=="Total") | (d_rgcname=="Not RGC")) %>%
+  select(all_of(c("d_rgcname","2017/2019 AU"))) %>%
+  rename(activity_unit = `2017/2019 AU`) %>%
+  left_join(rgc_area, by="d_rgcname")
 
-df_rgc <- data.frame(year=c("2020","2020"), # 2020 population
-                     d_rgcname=c("RGC","Not RGC"),
-                     population=c(266490,pop_uga),
-                     employment=c(713302,emp_uga-713302)) %>% #TODO: get employment data in UGA
-  left_join(rgc_area,by="d_rgcname") %>%
-  mutate(activity_unit=population+employment)
+# df_centers <- read_csv("indv_center_pop_emp_2020.csv") %>%
+#   # add not rgc data
+#   add_row(df_rgc %>% select(d_rgcname,population,employment) %>% rename(d_rgcname_indv=d_rgcname) %>% filter(d_rgcname_indv=="Not RGC")) %>%
+#   left_join(rgc_indv_area[,c("name","acres")], by=c("d_rgcname_indv"="name")) %>%
+#   mutate(activity_unit=population+employment)
 
-df_centers <- read_csv("indv_center_pop_emp_2020.csv") %>%
-  # add not rgc data
-  add_row(df_rgc %>% select(d_rgcname,population,employment) %>% rename(d_rgcname_indv=d_rgcname) %>% filter(d_rgcname_indv=="Not RGC")) %>%
-  left_join(rgc_indv_area[,c("name","acres")], by=c("d_rgcname_indv"="name")) %>%
-  mutate(activity_unit=population+employment)
-
-df_metro_urban <- read_csv("indv_center_pop_emp_2020.csv") %>%
-  # add not rgc data
-  add_row(df_rgc %>% select(d_rgcname,population,employment) %>% rename(d_rgcname_indv=d_rgcname) %>% filter(d_rgcname_indv=="Not RGC")) %>%
-  left_join(rgc_indv_area[,c("name","category","acres")], by=c("d_rgcname_indv"="name")) %>%
-  group_by(category) %>%
-  summarise_at(vars(population,employment,acres),sum) %>%
-  ungroup() %>%
-  mutate(activity_unit=population+employment)
+df_metro_urban <-  read_csv("activity_units.csv") %>%
+  filter(category %in% c("Metro", "Urban","Not RGC")) %>%
+  select(all_of(c("category","2017/2019 AU"))) %>%
+  rename(activity_unit = `2017/2019 AU`) %>%
+  left_join(metro_urban_area, by="category")
 
 # get 2017/2019 trip data
 trip_vars = c("trip_id","driver","mode_1","mode_simple",'dest_purpose_cat', 'origin_purpose_cat',
