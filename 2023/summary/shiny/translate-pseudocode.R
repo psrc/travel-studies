@@ -57,7 +57,7 @@ vars <- unique(variable_list$variable)[!(variable_list$variable %in% exc_vars)]
 
 geogs <- c('Region', 'Seattle', "Bellevue")
 
-tab 1
+# tab 1 ----
 trends_df <- NULL
 
 for(var in vars) {
@@ -91,7 +91,7 @@ for(var in vars) {
   }
 }
 
-# tab 2
+# tab 2 ----
 # matrix of every single variable combo...
 n <- 2
 vars <- c("age", "transit_pass", "broadband")
@@ -113,12 +113,24 @@ for(i in 1:nrow(combos)) {
                       variable.name = 'table')
     
     weight_name <- source_table[value == 1,][['table']] |> unique() |> as.character()
-    if(length(weight_name) == 1) {
-      weight_name <- paste0(weight_name, "_weight")
-    }
     
     # evaluate weight hierarchy
+    if(length(weight_name) > 1) {
+      t <- 'trip' %in% weight_name
+      
+      if(t == TRUE) {
+        weight_name <- 'trip'
+      } else if(t == FALSE) {
+        t <- 'person' %in% weight_name
+        
+        if(t == TRUE) {
+          weight_name <- 'person'
+        } 
+      }
+      
+    }
     
+    weight_name <- paste0(weight_name, "_weight")
 
     # filter dfs tables for current year (2023)
     dfs_cyr <- copy(dfs)
