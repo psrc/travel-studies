@@ -44,7 +44,7 @@ setDT(trip)
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
 
 variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
@@ -414,6 +414,7 @@ static_column_chart(workplace_summary, y='prop', x='workplace', fill='survey_yea
 
 
 ```{r}
+person<- person%>%mutate(commute_freq_all=factor(commute_freq_all, levels=c("Never or less than weekly", '1-2 days', '3-4 days', '5+ days')))
 workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(commute_freq_all!= 'Missing: Skip Logic')%>%drop_na(commute_freq_all)
 worker_list<-list(person=workers)
 

@@ -167,11 +167,14 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ```{r}
 z_score=1.645
 
-common_modes<-mode_summary$summary$wtd%>%mutate(moe=prop_se*z_score)%>%
+common_modes<-mode_summary$summary$wtd%>%mutate(moe=prop_se*z_score)%>%mutate(moe_est=est_se*z_score)%>%
   mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%filter(survey_year!='2017')
 
 static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
+
+
+static_column_chart(common_modes, x='mode_w_sov', y='est', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe_est')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 ```{r}

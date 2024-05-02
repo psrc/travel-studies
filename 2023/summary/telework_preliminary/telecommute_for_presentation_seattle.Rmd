@@ -418,6 +418,7 @@ static_column_chart(workplace_summary, y='prop', x='workplace', fill='survey_yea
 
 
 ```{r}
+person<- person%>%mutate(commute_freq_all=factor(commute_freq_all, levels=c("Never or less than weekly", '1-2 days', '3-4 days', '5+ days')))
 workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(commute_freq_all!= 'Missing: Skip Logic')%>%drop_na(commute_freq_all)%>%rename(survey_year=survey_year.x)
 worker_list<-list(person=workers)
 
