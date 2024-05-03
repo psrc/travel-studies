@@ -1,0 +1,214 @@
+---
+title: "Centers monitoring: mode share"
+date: today
+format: 
+  html:
+    mainfont: Poppins
+    theme: [cosmo, custom.scss]
+    toc: true
+    df-print: kable
+    warning: false
+    echo: false
+---
+
+```{r}
+source("region_dest_data.R")
+
+pal_rgc <- c(psrc_colors$purples_inc[2],psrc_colors$greens_inc[2])
+pal_rgc <- setNames(pal_rgc, c("RGC","Not RGC"))
+
+pal_rgc_mu <- c(psrc_colors$oranges_inc[2],psrc_colors$blues_inc[2],psrc_colors$greens_inc[2])
+pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
+
+```
+
+
+## mode share for trips to centers
+
+- Showing mode share for trips destined to centers to understand how do people get to centers 
+
+### all trips
+
+- trips to centers have lower drive mode share and higher transit and walk mode shares than non-centers
+
+```{r}
+#| layout: [[1,3], [1,3]]
+#| out-height: 300px
+#| out-width: 800px
+
+df_plot <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("d_rgcname","mode_simple"),spec_wgt = "trip_weight_2017_2019",incl_na=FALSE) %>%
+  filter(d_rgcname!= "Total")
+df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
+df_plot$mode_simple <- factor(df_plot$mode_simple, levels=c("Drive","Transit","Walk","Bike","Other"))
+
+df_plot2 <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("category","mode_simple"),spec_wgt = "trip_weight_2017_2019") %>%
+  filter(category!= "Total", !is.na(mode_simple) )
+df_plot2$category <- factor(df_plot2$category, levels=c("Metro", "Urban", "Not RGC"))
+df_plot2$mode_simple <- factor(df_plot2$mode_simple, levels=c("Drive","Transit","Walk","Bike","Other"))
+
+
+df_drive <- df_plot %>% filter(mode_simple=="Drive")
+df_drive2 <- df_plot2 %>% filter(mode_simple=="Drive")
+
+df_plot3 <- df_plot %>%
+  filter(mode_simple %in% c("Transit","Walk","Bike"))
+df_plot3$mode_simple <- factor(df_plot3$mode_simple, levels=c("Transit","Walk","Bike"))
+df_plot4 <- df_plot2 %>%
+  filter(mode_simple %in% c("Transit","Walk","Bike"))
+df_plot4$mode_simple <- factor(df_plot4$mode_simple, levels=c("Transit","Walk","Bike"))
+
+plot_ly(data = df_drive,
+        x = ~d_rgcname, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~d_rgcname, colors = pal_rgc, width=400) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 1)),
+         title = "drive mode share for trips to centers",
+         font = list(family="Poppins"))
+
+plot_ly(data = df_plot3,
+        x = ~mode_simple, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~d_rgcname, colors = pal_rgc, width=600) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 0.32)),
+         title = "trip mode share to centers",
+         font = list(family="Poppins"))
+```
+
+
+- trips to metro centers have the lowest drive mode share and highest transit and walk mode shares than non-centers
+- trips to urban centers have the highest drive mode share (with slightly overlapping error bars with non-centers) and the lowest walk mode share
+
+```{r}
+#| layout: [[1,3], [1,3]]
+#| out-height: 300px
+#| out-width: 800px
+
+plot_ly(data = df_drive2,
+        x = ~category, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~category, colors = pal_rgc_mu, width=400) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 1)),
+         title = "drive mode share for trips to centers",
+         font = list(family="Poppins"))
+plot_ly(data = df_plot4,
+        x = ~mode_simple, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~category, colors = pal_rgc_mu, width=600) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 0.32)),
+         title = "trip mode share to centers",
+         font = list(family="Poppins"))
+```
+
+### Work/Non-work trips
+
+:::{.panel-tabset}
+#### Drive mode share
+
+- non-work trips to centers have higher drive mode share than work trips
+
+```{r}
+#| out-width: 500px
+#| out-height: 300px
+
+df_plot <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("trip_type","d_rgcname","mode_simple"),spec_wgt = "trip_weight_2017_2019",incl_na=FALSE) %>%
+  filter(mode_simple!= "Total")
+df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
+
+df_drive <- df_plot %>% filter(mode_simple=="Drive")
+df_drive$trip_type <- factor(df_drive$trip_type, levels=c("Work","Non-work"))
+
+plot_ly(data = df_drive,
+        x = ~trip_type, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 1)),
+         title = "drive mode share for trips to centers",
+         font = list(family="Poppins"))
+```
+
+```{r}
+#| out-width: 500px
+#| out-height: 300px
+
+df_plot_mu <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("trip_type","category","mode_simple"),spec_wgt = "trip_weight_2017_2019",incl_na=FALSE) %>%
+  filter(category!= "Total")
+df_plot_mu$category <- factor(df_plot_mu$category, levels=c("Metro", "Urban", "Not RGC"))
+# df_plot$mode_simple <- factor(df_plot$mode_simple, levels=c("Drive","Transit","Walk","Bike","Other"))
+
+df_drive_mu <- df_plot_mu %>% filter(mode_simple=="Drive")
+df_drive_mu$trip_type <- factor(df_drive_mu$trip_type, levels=c("Work","Non-work"))
+
+plot_ly(data = df_drive_mu,
+        x = ~trip_type, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~category, colors = pal_rgc_mu) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 1)),
+         title = "drive mode share for trips to centers",
+         font = list(family="Poppins"))
+```
+
+#### Transit/ Walk/ Bike
+
+- work trips to both centers and non-centers have higher transit mode share than non-work trips
+- non-work trips to non-centers have higher walk mode share than work trips
+
+```{r}
+#| layout-ncol: 2
+#| out-height: 300px
+#| out-width: 800px
+
+df_plot2 <- df_plot %>%
+  filter(mode_simple %in% c("Transit","Walk","Bike"))
+df_plot2$mode_simple <- factor(df_plot2$mode_simple, levels=c("Transit","Walk","Bike"))
+
+plot_ly(data = df_plot2 %>% filter(trip_type == "Work"),
+        x = ~mode_simple, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~d_rgcname, colors = pal_rgc, width=470) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 0.21)),
+         title = "work trip mode share to centers",
+         font = list(family="Poppins"))
+
+plot_ly(data = df_plot2 %>% filter(trip_type == "Non-work"),
+        x = ~mode_simple, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~d_rgcname, colors = pal_rgc, width=470) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 0.21)),
+         title = "non-work trip mode share to centers",
+         font = list(family="Poppins"))
+```
+
+
+- work trips to metro centers and non-centers have higher transit mode share than non-work trips
+- walk mode share for non-work trips to metro centers are very high
+
+```{r}
+#| layout-ncol: 2
+#| out-height: 300px
+#| out-width: 400px
+
+df_plot_mu2 <- df_plot_mu %>%
+  filter(mode_simple %in% c("Transit","Walk","Bike"))
+df_plot_mu2$mode_simple <- factor(df_plot_mu2$mode_simple, levels=c("Transit","Walk","Bike"))
+
+plot_ly(data = df_plot_mu2 %>% filter(trip_type == "Work"),
+        x = ~mode_simple, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~category, colors = pal_rgc_mu, width=470) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 0.41)),
+         title = "work trip mode share to centers",
+         font = list(family="Poppins"))
+
+plot_ly(data = df_plot_mu2 %>% filter(trip_type == "Non-work"),
+        x = ~mode_simple, y = ~share, type = "bar", text = ~share, textposition = 'outside',texttemplate =  "%{y:.0%}",
+        error_y = ~list(array = share_moe,color = '#000000'),
+        color = ~category, colors = pal_rgc_mu, width=470) %>%
+  layout(xaxis = list(title = 'mode'), yaxis = list(title = 'percent', tickformat=".0%", range = list(0, 0.41)),
+         title = "non-work trip mode share to centers",
+         font = list(family="Poppins"))
+```
+
