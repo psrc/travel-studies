@@ -48,7 +48,7 @@ get_var_grouping <- function(value_tbl, group_number, grouping_name){
 create_custom_variable <- function(value_tbl, variable_name,label_vector){
   
   value_order_start <- max(value_tbl[,c("val_order")]) +1
-  add_value_tbl <- new_value_tbl(rep(variable_name, times=length(label)),label, value_order_start)
+  add_value_tbl <- new_value_tbl(rep(variable_name, times=length(label_vector)),label_vector, value_order_start)
   
   return(add_value_tbl)
 }
