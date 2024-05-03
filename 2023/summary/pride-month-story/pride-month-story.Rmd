@@ -1,0 +1,104 @@
+---
+title: "telework_for_presentation"
+author: "suzanne"
+date: "2024-04-08"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(forcats)
+source('../survey-23-preprocess.R')
+```
+
+
+```{r }
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hhsize, hh_race_category, hh_weight
+                from HHSurvey.v_households_labels")
+
+
+person<- get_query(sql= "select household_id as hh_id,race_category, employment,
+person_id, workplace, sexuality, person_weight, gender, age, industry, survey_year
+                from HHSurvey.v_persons_labels")
+                
+#day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , #survey_year from HHSurvey.v_days_labels")
+
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
+person_id, mode_1, dest_purpose, survey_year, trip_weight 
+                from HHSurvey.v_trips_labels")
+setDT(hh)
+setDT(person)
+setDT(day)
+setDT(trip)
+```
+#race_category needs to be added to the codebook
+
+
+
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Set IDs as characters
+TO DO: functionalize convert all ids to characters, or store as characters upfront
+```{r}
+
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+
+
+trip[, trip_id := as.character(trip_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
+person <- person%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
+trip <- trip%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
+
+hh<-order_factors(hh, 'hhincome_broad', value_labels)
+
+hts_data = list(hh = hh,
+                person = person,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+
+
+
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'hhincome_broad',
+                               summarize_by = c('sexuality'),
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
+
+
+
+
+
+```{r}
+
+static_bar_chart(summary, x='prop', y='hhincome_broad', fill='sexuality', moe='moe_prop' )+ theme(axis.text.x=element_text(size=20), legend.text = element_text(size=20))
+```
+
+
+
