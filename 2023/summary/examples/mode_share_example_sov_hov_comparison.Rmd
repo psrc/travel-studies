@@ -1,0 +1,192 @@
+---
+title: "mode-comparison"
+date: today
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(psrc.travelsurvey)
+source('../survey-23-preprocess_JLin.R')
+```
+
+
+<!-- Read in Codebook -->
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+
+<!-- Make new variables -->
+```{r Adding new variables to the codebook}
+
+# Add associated variables to variable list table
+variable_list<-rbind(
+    variable_list,
+    data.table(
+      variable = c("mode_simple", "non_motorized_mode","mode_w_sov"),
+      is_checkbox = c(0,0,0),
+      hh = c(0,0,0),
+      person = c(0,0,0),
+      day = c(0,0,0),
+      trip = c(1,1,1),
+      vehicle = c(0,0,0),
+      location = c(0,0,0),
+      description = c("mode aggregation","mode aggregation2","SOV mode aggregation"),
+      logic = c("mode aggregation","mode aggregation2","SOV mode aggregation"),
+      data_type = c("integer/categorical","integer/categorical","integer/categorical"),
+      shared_name = c("mode_simple", "non_motorized_mode","mode_w_sov")
+    )
+  )
+```
+
+
+```{r associated variables/labels to variable label table}
+
+# Add variables from existing grouping
+list_mode_simple <- get_var_grouping(value_tbl = value_labels, group_number = "1", grouping_name = "mode_simple")
+list_non_motorized_mode <- get_var_grouping(value_tbl = value_labels, group_number = "2", grouping_name = "non_motorized_mode")
+# Add custom variable 
+add_mode_w_sov <- create_custom_variable(value_labels, variable_name="mode_w_sov",
+                                         label_vector = c('SOV', 'HOV', 'Walk', 'Transit', 'Bike', 'Other'))
+
+final_value_labels <- value_labels %>% 
+  add_row(list_mode_simple[[1]]) %>% 
+  add_row(list_non_motorized_mode[[1]]) %>%
+  add_row(add_mode_w_sov)
+```
+
+
+<!-- Create HTS data -->
+```{r}
+
+# Read in data items from Elmer
+trip <- get_query(sql= "select survey_year, trip_id, household_id as hh_id, day_id, person_id, 
+                          mode_1, travelers_total, origin_jurisdiction, dest_jurisdiction, trip_weight 
+                        from HHSurvey.v_trips_labels")
+
+# The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
+setDT(trip)
+
+# Set IDs as characters
+cols <- c("survey_year", "trip_id","hh_id","person_id","day_id")
+trip[, (cols) := lapply(.SD, function(x) as.character(x)), .SDcols = cols]
+
+
+# Adding new variables to the trip table
+df_trip <- trip %>%
+  # filter(origin_jurisdiction=='Seattle' |dest_jurisdiction=='Seattle') %>% 
+  add_variable_to_data(list_mode_simple[[2]]) %>%
+  add_variable_to_data(list_non_motorized_mode[[2]]) %>% 
+  mutate(#travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'),
+         mode_simple= replace_na(mode_simple, 'Drive'),
+         mode_w_sov=case_when(mode_simple=="Drive"& travelers_total=='1 traveler' ~ 'SOV',
+                              mode_simple=="Drive"& is.na(travelers_total) ~ 'SOV',
+                              mode_simple=="Drive"~  'HOV',
+                              .default= mode_simple
+                              ))
+
+# The package expects the data to be in a list of data.tables.
+hts_data = list(# hh = hh,
+                # person = person,
+                # day = day,
+                trip = df_trip)
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+# variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+<!-- ##summarize data -->
+```{r}
+# value_labels <- test
+
+prepped_dt <- hts_prep_variable(summarize_var = 'mode_w_sov',
+                                summarize_by = 'survey_year',
+                                data = hts_data,
+                                id_cols='trip_id',
+                                wt_cols='trip_weight',
+                                weighted=TRUE)
+  
+
+mode_summary <- hts_summary(prepped_dt = prepped_dt$cat,
+                            summarize_var = 'mode_w_sov',
+                            summarize_by = 'survey_year',
+                            summarize_vartype = 'categorical',
+                            id_cols = 'trip_id',
+                            wtname ='trip_weight',
+                            weighted=TRUE,
+                            se=TRUE)
+
+# crosstab summary
+common_modes_2023<-mode_summary$summary$wtd%>%
+  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%filter(survey_year!='2017')
+```
+
+
+<!-- ## Visualize -->
+```{r}
+# get 2017/2019 trip data
+trip_vars = c("trip_id","driver","mode_1","travelers_total","mode_simple",'dest_purpose_cat', 'origin_purpose_cat',
+              "google_duration", 'trip_path_distance',
+              "origin_lat","origin_lng","o_rgcname","dest_lat","dest_lng","d_rgcname")
+
+df_trip_17 <- get_hhts("2017", "t", vars=trip_vars) %>% 
+  mutate(mode_simple= replace_na(mode_simple, 'Drive'),
+         mode_w_sov=case_when(mode_simple=="Drive"& travelers_total==1 ~ 'SOV',
+                              mode_simple=="Drive"& is.na(travelers_total) ~ 'SOV',
+                              mode_simple=="Drive"~  'HOV',
+                              .default= mode_simple
+                              ))
+df_trip_19 <- get_hhts("2019", "t", vars=trip_vars) %>% 
+  mutate(mode_simple= replace_na(mode_simple, 'Drive'),
+         mode_w_sov=case_when(mode_simple=="Drive"& travelers_total==1 ~ 'SOV',
+                              mode_simple=="Drive"& is.na(travelers_total) ~ 'SOV',
+                              mode_simple=="Drive"~  'HOV',
+                              .default= mode_simple
+                              ))
+df_trip_21 <- get_hhts("2021", "t", vars=trip_vars) %>% 
+  mutate(mode_simple= replace_na(mode_simple, 'Drive'),
+         mode_w_sov=case_when(mode_simple=="Drive"& travelers_total==1 ~ 'SOV',
+                              mode_simple=="Drive"& is.na(travelers_total) ~ 'SOV',
+                              mode_simple=="Drive"~  'HOV',
+                              .default= mode_simple
+                              ))
+
+common_modes_old <- df_trip_17 %>% hhts_count(group_vars=c("mode_w_sov"), spec_wgt = "trip_weight_2017") %>%
+  add_row(df_trip_19 %>% hhts_count(group_vars=c("mode_w_sov"), spec_wgt = "trip_weight_2019")) %>%
+  add_row(df_trip_21 %>% hhts_count(group_vars=c("mode_w_sov"), spec_wgt = "trip_adult_weight_2021")) %>%
+  select(all_of(c("survey","mode_w_sov","share","share_moe"))) %>%
+  mutate(package = "old") %>%
+  filter(mode_w_sov!="Total")
+common_modes_new <- common_modes_2023 %>%
+  select(all_of(c("survey_year","mode_w_sov","prop","est_se"))) %>%
+  mutate(package = "new")
+colnames(common_modes_new) <- colnames(common_modes_old)
+
+df_plot <- common_modes_old %>% add_row(common_modes_new)
+df_plot$mode_w_sov <- factor(df_plot$mode_w_sov, levels = c("SOV", "HOV", "Transit", "Walk", "Bike", "Other"))
+
+ggplot(df_plot, aes(x= mode_w_sov, y=share, fill=package))+
+  geom_col(position = "dodge") +
+  facet_wrap(vars(survey)) +
+  psrc_style() +
+  scale_y_continuous(labels=scales::percent)
+```
