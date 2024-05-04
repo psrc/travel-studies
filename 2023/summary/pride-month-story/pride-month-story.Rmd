@@ -35,7 +35,7 @@ person_id, mode_1, dest_purpose, survey_year, trip_weight
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
-setDT(day)
+
 setDT(trip)
 ```
 #race_category needs to be added to the codebook
@@ -71,6 +71,37 @@ trip <- trip%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_yea
 
 hh<-order_factors(hh, 'hhincome_broad', value_labels)
 
+
+```
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'sexuality_broad','person')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='sexuality_broad')
+value_labels<-add_values_code(group_name='sexuality_broad')
+person<-grp_to_tbl(tbl=person, ungrouped_name='sexuality', grouped_name='sexuality_broad')
+```
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'gender_grp','person')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='gender_grp')
+value_labels<-add_values_code(group_name='gender_grp')
+```
+
+
+
+
+
+```{r}
+person<-grp_to_tbl(tbl=person, ungrouped_name='gender', grouped_name='gender_grp')
+```
+
+```{r}
+person<-person%>%filter(race_category!='Child')%>%filter(race_category!='Missing')%>%drop_na(race_category)%>%filter(sexuality_broad!='Missing')%>%drop_na(sexuality_broad)
+```
+
+```{r}
 hts_data = list(hh = hh,
                 person = person,
                 trip = trip)
@@ -79,12 +110,11 @@ wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
 ```
 
 
-
 ```{r}
 
 summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'hhincome_broad',
-                               summarize_by = c('sexuality'),
+                               summarize_var = 'sexuality_broad',
+                               summarize_by = c('race_category'),
                                id_cols=id_cols,
                                wt_cols=wt_cols,
                                wtname='person_weight'
@@ -96,9 +126,39 @@ summary = summarize_weighted(hts_data= hts_data,
 
 
 ```{r}
+summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%filter(sexuality_broad!='Heterosexual (straight)')
 
-static_bar_chart(summary, x='prop', y='hhincome_broad', fill='sexuality', moe='moe_prop' )+ theme(axis.text.x=element_text(size=20), legend.text = element_text(size=20))
+static_column_chart(summary_w_moe, y='prop', x='sexuality_broad', fill='race_category', moe='prop_moe' )
 ```
 
+```{r}
 
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'sexuality',
+                               summarize_by=NULL,
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
 
+```{r}
+summary_info<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,prop))%>%filter(sexuality!='Heterosexual (straight)')
+static_column_chart(summary_info, y='prop', x='sexuality', fill='sexuality', moe='prop_moe' )
+```
+
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'sexuality_broad',
+                               summarize_by='gender_grp',
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
+
+```{r}
+summary_info<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)
+static_column_chart(summary_info, y='prop', x='sexuality_broad', fill='gender_grp', moe='prop_moe')
+```
