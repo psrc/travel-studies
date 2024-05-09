@@ -20,27 +20,21 @@ source('../survey-23-preprocess.R')
 
 
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hhsize, hh_race_category, numchildren,hh_weight
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hhsize, hh_race_category, numchildren,home_rgcname, prev_home_rgcname, res_dur, prev_res_factors_community_change, prev_res_factors_forced,prev_res_factors_housing_cost, prev_res_factors_income_change,   hh_weight
                 from HHSurvey.v_households_labels")
 
 
-person<- get_query(sql= "select household_id as hh_id,race_category, employment,
-person_id, workplace, sexuality, person_weight, gender, age, industry, survey_year
-                from HHSurvey.v_persons_labels")
-                
-#day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , #survey_year from HHSurvey.v_days_labels")
-
-trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, dest_purpose, survey_year, trip_weight 
-                from HHSurvey.v_trips_labels")
 setDT(hh)
-setDT(person)
 
-setDT(trip)
 ```
-#race_category needs to be added to the codebook
 
 
+```{r}
+center.lyr <- st_read_elmergeo('URBAN_CENTERS')
+```
+
+
+new columns/variables, prev_home_rgc_type, current_home_rgc_type
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
@@ -58,22 +52,22 @@ TO DO: functionalize convert all ids to characters, or store as characters upfro
 ```{r}
 
 hh[, hh_id:=as.character(hh_id)]
-person[, hh_id:=as.character(hh_id)]
-trip[, hh_id := as.character(hh_id)]
 
-person[, person_id := as.character(person_id)]
-
-
-trip[, trip_id := as.character(trip_id)]
-hh <- hh%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
-person <- person%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
-trip <- trip%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
-
-hh<-order_factors(hh, 'hhincome_broad', value_labels)
-
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
 
 ```
 
+Aggregate res duration
+Aggregate displacement
+
+Res duration by previous home in RGC category 2019, 2021
+Res duration by current home in RGC category 2019, 2021, 2023
+
+Previous Home RGC category by displaced or not 2019, 2021
+Current Home RGC category by displaced or not 2019, 2021, 2023
+
+matrix previous home rgc category-> current home rgc category
+2019, 2023
 
 ```{r}
 variable_list<-add_variable(variable_list, 'sexuality_broad','person')
