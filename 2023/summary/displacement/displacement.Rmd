@@ -1,7 +1,7 @@
 ---
-title: "telework_for_presentation"
+title: "displacement"
 author: "suzanne"
-date: "2024-04-08"
+date: "2024-05-09"
 output: html_document
 ---
 
@@ -57,310 +57,324 @@ hh <- hh%>%mutate(survey_year=as.character(survey_year))
 
 ```
 
+Variables needed: 
+was_displaced on households table
+prev_home_rgc_category
+current_home_rgc_categorry
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'was_displaced','hh')
+variable_list<-add_variable(variable_list, 'prev_home_rgc_cat','hh')
+variable_list<-add_variable(variable_list, 'current_home_rgc_cat','hh')
+```
+
+```{r}
+
+value<- c(0,1,2,3)
+label=c('Displaced Mover', 'Not Displaced Mover', 'Not Mover', 'No Response')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='was_displaced')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+```
+
+
+```{r}
+
+value<- c(0,1,2,3)
+label=c('Previous Home Urban RGC', 'Previous Home Metro RGC','Previous Home Not RGC', 'Not Mover')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='prev_home_rgc_cat')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+```
+
+```{r}
+
+value<- c(0,1,2,3)
+label=c('Current Home Urban RGC', 'Current Home Metro RGC','Current Home Not RGC', 'Not Mover')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='prev_home_rgc_cat')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+```
+
+
+
+prev_home_rgc_category
+current_home_rgc_categorry
+
+```{r}
+variable_list<-add_variable(variable_list, 'res_dur_5',hh)
+group_labels<-get_grouped_labels(group_id='group_1', group_name='res_dur_5')
+value_labels<-add_values_code(group_name='res_dur_5')
+hh<-grp_to_tbl(tbl=hh, ungrouped_name='res_dur', grouped_name='res_dur_5')
+```
+Add new variables to the households table
+
+```{r}
+#hh<-hh%>%drop_na(res_dur)%>%filter(res_dur!='Missing Response')
+```
+
+was_displaced
+not everyone answered the question which makes this a bit challening
+remove non-response
+
+
+
+
+first find the list of movers; then find the non-response on the displacement question
+
+
+
+### Note filtering non-response on residence duration
+
+
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+```{r}
+displacement_reasons<-c('prev_res_factors_forced', 'prev_res_factors_income_change', 'prev_res_factors_housing_cost', 'prev_res_factors_community_change')
+```
+
+```{r}
+hh<-hh%>%mutate(was_displaced = case_when(
+                res_dur_5 == 'More than 5 years' ~ 'Not Mover', 
+                is.na(prev_res_factors_forced) ~ 'No Response',
+                prev_res_factors_forced=='Missing: Skip Logic' ~ 'No Response',
+                prev_res_factors_forced=='Selected'|prev_res_factors_income_change=='Selected'|
+                prev_res_factors_housing_cost =='Selected'| prev_res_factors_community_change=='Selected' 
+                ~ 'Displaced Mover',
+                TRUE ~ 'Not Displaced Mover'
+))
+
+
+```
+
+```{r}
+hts_data<-list(hh=hh)
+```
+
+
 Aggregate res duration
-Aggregate displacement
-
-Res duration by previous home in RGC category 2019, 2021
-Res duration by current home in RGC category 2019, 2021, 2023
-
-Previous Home RGC category by displaced or not 2019, 2021
-Current Home RGC category by displaced or not 2019, 2021, 2023
-
-matrix previous home rgc category-> current home rgc category
-2019, 2023
 
 ```{r}
-variable_list<-add_variable(variable_list, 'sexuality_broad','person')
-group_labels<-get_grouped_labels(group_id='group_1', group_name='sexuality_broad')
-value_labels<-add_values_code(group_name='sexuality_broad')
-person<-grp_to_tbl(tbl=person, ungrouped_name='sexuality', grouped_name='sexuality_broad')
-```
-
-
-```{r}
-variable_list<-add_variable(variable_list, 'gender_grp','person')
-group_labels<-get_grouped_labels(group_id='group_1', group_name='gender_grp')
-value_labels<-add_values_code(group_name='gender_grp')
-```
-
-```{r}
-person<-grp_to_tbl(tbl=person, ungrouped_name='gender', grouped_name='gender_grp')
-```
-
-
-
-```{r}
-variable_list<-add_variable(variable_list, 'age_grp_2','person')
-group_labels<-get_grouped_labels(group_id='group_3', group_name='age_grp_2')
-value_labels<-add_values_code(group_name='age_grp_2')
-```
-
-
-
-check that survey is picking up demographics compare to pums first
-```{r}
-person<-grp_to_tbl(tbl=person, ungrouped_name='age', grouped_name='age_grp_2')
-```
-
-
-
-NOTE THIS HAS NO Non-response filtered- should be everyone
-```{r}
-hts_data = list(hh = hh,
-                person = person,
-                trip = trip)
-id_cols=c('hh_id', 'person_id', 'trip_id')
-wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
-```
-
-```{r}
-
 summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'age',
-                               summarize_by=NULL,
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
+                               summarize_var = 'res_dur',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
                                )
-write.csv(summary$summary$wtd, 'age.csv')
-```
-```{r}
 
+wtd_sum<-order_factors(summary$summary$wtd, 'res_dur', value_labels)
+wtd_sum
 ```
-
 
 
 ```{r}
-
-summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'gender',
-                               summarize_by=NULL,
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
-                               )
-write.csv(summary$summary$wtd,'gender.csv')
+static_column_chart(wtd_sum,x='res_dur', y='prop', fill='survey_year',ylabel= 'Share of households', xlabel='Residence Duration')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 ```{r}
 summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'sexuality',
-                               summarize_by=NULL,
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
+                               summarize_var = 'res_dur_5',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
                                )
-summary$summary$wtd
+
+wtd_sum<-order_factors(summary$summary$wtd, 'res_dur_5', value_labels)
+wtd_sum
 ```
 
 
-NOTE FILTERING OUT NONRESPONSE
 ```{r}
-person<-person%>%filter(sexuality!='Prefer not to answer')
+static_column_chart(wtd_sum,x='res_dur_5', y='prop', fill='survey_year',ylabel= 'Share of households', xlabel='Residence Duration')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
-
-
-
 ```{r}
-hts_data = list(hh = hh,
-                person = person,
-                trip = trip)
-id_cols=c('hh_id', 'person_id', 'trip_id')
-wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
-```
-
-```{r}
-hts_data_filter_race = list(hh = hh,
-                person = person_filter_race,
-                trip = trip)
-id_cols=c('hh_id', 'person_id', 'trip_id')
-wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
-```
-Overall
-```{r}
-
 summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'sexuality',
-                               summarize_by=NULL,
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
+                               summarize_var = 'res_dur_5',
+                               summarize_by = c('survey_year', 'prev_res_factors_forced'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
                                )
-```
 
-```{r}
-summary_info<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,prop))%>%filter(sexuality!='Heterosexual (straight)')
-static_bar_chart(summary_info, x='prop', y='sexuality', fill='sexuality', moe='prop_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+wtd_sum<-order_factors(summary$summary$wtd, 'res_dur_5', value_labels)
+wtd_sum
 ```
-```{r}
-summary_info<-summary$summary$wtd%>%mutate(est_moe=est_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,prop))%>%filter(sexuality!='Heterosexual (straight)')
-static_bar_chart(summary_info, x='est', y='sexuality', fill='sexuality', moe='est_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-```
-
-Gender
 
 
 ```{r}
-person_filter_gender<-person%>%filter(gender!='Prefer not to answer')
-```
-
-```{r}
-hts_data_filter_gender = list(hh = hh,
-                person = person_filter_gender,
-                trip = trip)
-id_cols=c('hh_id', 'person_id', 'trip_id')
-wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
-```
-
-```{r}
-summary = summarize_weighted(hts_data= hts_data_filter_gender,
-                               summarize_var = 'gender_grp',
-                               summarize_by='sexuality_broad',
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
-                               )
-```
-
-```{r}
-summary_info<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)
-static_column_chart(summary_info, y='prop', x='sexuality_broad', fill='gender_grp', moe='prop_moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-```
-Age
-
-
-
-
-
-```{r}
-
 summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'age_grp_2',
-                               summarize_by='sexuality',
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
                                )
-summary$summary$wtd
 
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum
+```
+```{r}
+static_column_chart(wtd_sum,x='was_displaced', y='prop', fill='survey_year',ylabel= 'Share of households', xlabel='Displacement Status')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 
-Income
-
 ```{r}
-hh_filter_inc<-hh%>%filter(hhincome_broad!='Prefer not to answer')
-hts_data_filter_inc = list(hh = hh_filter_inc,
-                person = person,
-                trip = trip)
-id_cols=c('hh_id', 'person_id', 'trip_id')
-wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
-```
-
-```{r}
-
-summary = summarize_weighted(hts_data= hts_data_filter_inc,
-                               summarize_var = 'hhincome_broad',
-                               summarize_by = c('sexuality_broad'),
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
-                               )
-```
-
-
-
-```{r}
-
-summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)
-
-static_column_chart(summary_w_moe, y='prop', x='sexuality_broad', fill='hhincome_broad', moe='prop_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-```
-
-Children in Household
-
-Gender
-```{r}
-
 summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'numchildren',
-                               summarize_by='sexuality_broad',
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
                                )
-summary$summary$wtd
-```
 
-Race
-```{r}
-person_filter_race<-person%>%filter(race_category!='Child')%>%filter(race_category!='Missing')%>%drop_na(race_category)%>%filter(sexuality_broad!='Missing')%>%drop_na(sexuality_broad)
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum
 ```
 
 
-
-
-
-
+NOTE: REMOVING NON RESPONSE
 ```{r}
-hts_data_filter_race = list(hh = hh,
-                person = person_filter_race,
-                trip = trip)
-id_cols=c('hh_id', 'person_id', 'trip_id')
-wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+hh_response<-hh%>%filter(was_displaced!='No Response')%>%filter(survey_year!='2017')
+hts_data_w_response=list(hh=hh_response)
+
 ```
 
-
 ```{r}
-summary = summarize_weighted(hts_data= hts_data_filter_race,
-                               summarize_var = 'race_category',
-                               summarize_by = c('sexuality_broad'),
-                               id_cols=id_cols,
-                               wt_cols=wt_cols,
-                               wtname='person_weight'
+summary = summarize_weighted(hts_data= hts_data_w_response,
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
                                )
+
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum
+```
+
+```{r}
+static_column_chart(wtd_sum,x='was_displaced', y='prop', fill='survey_year',ylabel= 'Share of households', xlabel='Displacement Status')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data_w_response,
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+                               )
+
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum
+```
+```{r}
+hh_response<-left_join(hh_response, center.lyr, by=join_by(prev_home_rgcname==name))
+
 ```
 
 
+we know the current home of people whether they moved in the past five years or no, gives us a bigger sample
+```{r}
+hh_response<-hh_response%>%mutate(current_home_rgc_cat=case_when(
+  is.na(home_rgcname) ~'Not RGC',
+  home_rgcname=='Not RGC' ~ 'Not RGC',
+  TRUE ~ 'RGC'))
 
+
+hts_data_w_response<-list(hh=hh_response)
+```
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data_w_response,
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year', 'current_home_rgc_cat'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+                               )
+
+wtd_sum_all<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum_all
+```
+
+
+FILTER TO ONLY MOVERS, because we don't have previous home locations for non-movers
+```{r}
+hh_response<-hh_response%>%mutate(prev_home_rgc_cat=case_when(
+  is.na(prev_home_rgcname) ~'Not RGC',
+  prev_home_rgcname=='Not RGC' ~ 'Not RGC',
+  TRUE ~ 'RGC'))%>%
+  filter(res_dur_5=='Less than 5 years')
+
+hts_data_w_response<-list(hh=hh_response)
+```
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data_w_response,
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year', 'current_home_rgc_cat'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+                               )
+
+wtd_sum_all<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum_all
+```
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data_w_response,
+                               summarize_var = 'was_displaced',
+                               summarize_by = c('survey_year', 'prev_home_rgc_cat'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+                               )
+
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum
+```
 
 
 ```{r}
-summary$summary$wtd
-summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%filter(sexuality_broad!='Heterosexual (straight)')
-
-static_column_chart(summary_w_moe, y='prop', x='sexuality_broad', fill='race_category', moe='prop_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static_facet_column_chart(wtd_sum,x='was_displaced', y='prop', fill='survey_year', facet='prev_home_rgc_cat',ylabel= 'Share of households', xlabel='Displacement Status')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
+
+
 ```{r}
 
-summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%filter(sexuality_broad!='Heterosexual (straight)')
-
 ```
-
-Q/C against PUMS
-
-```{r}
-library(psrccensus)
-library(dplyr)
-library(magrittr)
-
-pums5_22 <- get_psrc_pums(5,2022,"p",vars=c("AGEP","HUPAC","BINCOME","BIN_AGE"), 
-  dir="J:/Projects/Census/AmericanCommunitySurvey/Data/PUMS/pums_rds")
-pums5_22 %<>% mutate(
-  child_present=case_when(grepl("^No", as.character(HUPAC)) ~"No",
-                          grepl("^With", as.character(HUPAC)) ~"Yes",
-                          is.na(HUPAC) ~ NA_character_))
-rs <- list()
-rs$"Adults by inc cat" <-
-    psrc_pums_count(filter(pums5_22, AGEP>17), group_vars="BINCOME")
-rs$"Adults by child in hh" <-
-    psrc_pums_count(filter(pums5_22, AGEP>17), group_vars="child_present")
-rs$"Adults by age cat" <-
-    psrc_pums_count(filter(pums5_22, AGEP>17), group_vars="BIN_AGE")
-```
-
-
-
-```
-
 

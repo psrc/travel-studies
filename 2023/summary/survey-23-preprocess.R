@@ -44,7 +44,7 @@ order_factors<-function(tbl, variable_name, value_labels){
   var_val_labels<-value_labels%>%filter(variable==variable_name)
   tbl<-tbl%>%left_join(var_val_labels, by=join_by(!!sym(variable_name)==label))%>%
     arrange(val_order)%>%
-    mutate({{variable_name}}:=factor(!!sym(variable_name)))
+    mutate({{variable_name}}:=factor(!!sym(variable_name), levels=unique(!!sym(variable_name))))
   return(tbl)
 }
 
