@@ -55,6 +55,7 @@ hh[, hh_id:=as.character(hh_id)]
 
 hh <- hh%>%mutate(survey_year=as.character(survey_year))
 
+z_score<-1.645
 ```
 
 Variables needed: 
@@ -122,10 +123,6 @@ value_labels<-new_value_labels
 ```
 
 
-
-prev_home_rgc_category
-current_home_rgc_categorry
-
 ```{r}
 variable_list<-add_variable(variable_list, 'res_dur_5',hh)
 group_labels<-get_grouped_labels(group_id='group_1', group_name='res_dur_5')
@@ -146,11 +143,6 @@ remove non-response
 
 
 first find the list of movers; then find the non-response on the displacement question
-
-
-
-### Note filtering non-response on residence duration
-
 
 
 
@@ -193,8 +185,9 @@ summary = summarize_weighted(hts_data= hts_data,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'res_dur', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'res_dur', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+write.csv(wtd_sum, 'res_dur_regional.csv')
 ```
 
 
@@ -211,8 +204,9 @@ summary = summarize_weighted(hts_data= hts_data,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'res_dur_5', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'res_dur_5', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+write.csv(wtd_sum, 'res_dur5_regional.csv')
 ```
 
 
@@ -228,8 +222,9 @@ summary = summarize_weighted(hts_data= hts_data,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'res_dur_5', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'res_dur_5', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+write.csv(wtd_sum, 'res_dur5_forced_regional.csv')
 ```
 
 
@@ -242,8 +237,9 @@ summary = summarize_weighted(hts_data= hts_data,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+write.csv(wtd_sum, 'displaced_all_regional.csv')
 ```
 ```{r}
 static_column_chart(wtd_sum,x='was_displaced', y='prop', fill='survey_year',ylabel= 'Share of households', xlabel='Displacement Status')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
@@ -259,8 +255,9 @@ summary = summarize_weighted(hts_data= hts_data,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+
 ```
 
 
@@ -280,8 +277,9 @@ summary = summarize_weighted(hts_data= hts_data_w_response,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+write.csv(wtd_sum, 'displaced_respondents_regional.csv')
 ```
 
 ```{r}
@@ -297,7 +295,7 @@ summary = summarize_weighted(hts_data= hts_data_w_response,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
 ```
 ```{r}
@@ -326,8 +324,11 @@ summary = summarize_weighted(hts_data= hts_data_w_response,
                                wtname='hh_weight'
                                )
 
-wtd_sum_all<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum_all<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum_all
+
+wtd_sum
+write.csv(wtd_sum, 'displaced_rgc_current_home.csv')
 ```
 
 
@@ -352,7 +353,7 @@ summary = summarize_weighted(hts_data= hts_data_w_response,
                                )
 
 wtd_sum_all<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
-wtd_sum_all
+wtd_sum_all%>%mutate(prop_moe=z_score*prop_se)
 ```
 
 ```{r}
@@ -364,8 +365,10 @@ summary = summarize_weighted(hts_data= hts_data_w_response,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)
+wtd_sum<-order_factors(summary$summary$wtd, 'was_displaced', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 wtd_sum
+wtd_sum
+write.csv(wtd_sum, 'displaced_rgc_prev_home.csv')
 ```
 
 

@@ -1,0 +1,236 @@
+---
+title: "first-example-mode-summary"
+author: "suzanne"
+date: "2024-03-20"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Load in Packages
+IF YOU need to download some packages on github: travelSurveyTools, psrcelmer, and psrcplot.
+For this use the syntax:
+library(devtools)
+devtools::install_github('rsgInc/travelSurveyTools')
+devtools::install_github('psrc/psrcelmer')
+devtools::install_github('psrc/psrcplot')
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+source('../survey-23-preprocess.R')
+```
+
+
+
+## Read in data items from Elmer
+
+The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
+```{r }
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
+person_id, mode_1, dest_purpose,survey_year, travelers_total, origin_rgcname, dest_rgcname, trip_weight 
+                from HHSurvey.v_trips_labels")
+
+setDT(trip)
+```
+
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Set IDs as characters
+I guess for joining?, functionalize convert all ids to charcets
+```{r}
+trip[, trip_id := as.character(trip_id)]
+trip[, hh_id := as.character(hh_id)]
+trip[, person_id := as.character(person_id)]
+trip[, day_id := as.character(day_id)]
+```
+
+
+```{r}
+trip <- trip%>%mutate(survey_year=as.character(survey_year))
+```
+
+
+
+```{r}
+center.lyr <- st_read_elmergeo('URBAN_CENTERS')
+```
+
+```{r}
+
+variable_list<-rbind(
+    variable_list,
+    data.table(
+      variable = c("mode_simple", "mode_w_sov"),
+      is_checkbox = c(0,0),
+      hh = c(0,0),
+      person = c(0,0),
+      day = c(0,0),
+      trip = c(1,1),
+      vehicle = c(0,0),
+      location = c(0,0),
+      description = c("mode aggregation","SOV mode aggregation"),
+      logic = c("mode aggregation","SOV mode aggregation"),
+      data_type = c("integer/categorical","integer/categorical"),
+      shared_name = c("mode_simple", "mode_w_sov")
+    )
+  )
+
+```
+
+trip to/from center by category: rgc_cat_od
+work /not work: work, non_work
+
+totals and shares
+
+Filling in rgc_cat_od
+```{r}
+variable_list<-add_variable(variable_list, 'rgc_cat_od','trip')
+```
+
+```{r}
+variable_list<-add_variable(variable_list, 'work_or_not','trip')
+```
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
+value_labels<-add_values_code(group_name='mode_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
+```
+
+# add mode_w_sov to the trip table
+```{r}
+trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'))
+trip<-trip%>%mutate(mode_simple= replace_na(mode_simple, 'Drive'))%>%
+mutate(mode_w_sov=case_when(
+  mode_simple=="Drive"& travelers_total=='1 traveler' ~ 'SOV',
+  is.na(travelers_total) ~ 'SOV',
+  mode_simple=="Drive"& travelers_total!='1 traveler'~  'HOV',
+  .default= mode_simple
+))
+```
+
+```{r}
+
+value<- c(0,1,2)
+label=c( 'NotRGC','UrbanRGC', 'MetroRGC')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='rgc_cat_od')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+```
+
+
+```{r}
+
+value<- c(0,1)
+label=c('NotWork','Work')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='work_or_not')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+```
+
+```{r}
+trip<-left_join(trip, center.lyr, by=join_by(origin_rgcname==name), suffix= c("", '.origin'))
+```
+
+```{r}
+trip<-left_join(trip, center.lyr, by=join_by(dest_rgcname==name), suffix=c('', '.destination'))
+```
+
+```{r}
+trip<-trip%>%mutate(rgc_cat_od= 
+                      case_when(is.na(category)& is.na(category.destination) ~ 'NotRGC',
+                                category=='Metro' | category.destination=='Metro' ~ 'MetroRGC',
+                                category=='Urban' | category.destination=='Urban' ~ 'UrbanRGC',
+                                TRUE ~'Missing')
+)
+```
+
+```{r}
+work_purposes<-c('Went to work-related place (e.g., meeting, second job, delivery)',
+                                                'Went to primary workplace',
+                                                'Went to work-related activity (e.g., meeting, delivery, worksite)',
+                                                'Went to other work-related activity')
+trip<-trip%>%mutate(work_or_not=if_else(dest_purpose %in% work_purposes, 'Work', 'NotWork'))
+
+```
+
+
+
+The package expects the data to be in a list of data.tables.
+```{r}
+
+hts_data = list(#hh = hh,
+                #person = person,
+                #day = day,
+                trip = trip)
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+##summarize data
+```{r}
+
+mode_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'mode_w_sov',
+                               summarize_by = c('survey_year', 'work_or_not', 'rgc_cat_od'),
+                               id_cols='trip_id',
+                               wt_cols='trip_weight',
+                               wtname='trip_weight'
+                               )
+
+
+
+```
+
+
+## Visualize
+```{r}
+
+common_modes<-mode_summary$summary$wtd%>%
+  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%mutate(prop_moe=prop_se*1.645)
+
+write.csv(common_modes, 'mode_centers_trend.csv')
+
+work_modes<-common_modes%>%filter(work_or_not=='Work')
+not_work_modes<-common_modes%>%filter(work_or_not=='NotWork')
+
+static_facet_column_chart(work_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', facet='rgc_cat_od',scale='fixed')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static_facet_column_chart(not_work_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', facet='rgc_cat_od', scale='fixed')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+```
