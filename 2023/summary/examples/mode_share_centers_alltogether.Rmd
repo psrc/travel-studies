@@ -126,8 +126,8 @@ mutate(mode_w_sov=case_when(
 
 ```{r}
 
-value<- c(0,1,2)
-label=c( 'NotRGC','UrbanRGC', 'MetroRGC')
+value<- c(0,1)
+label=c( 'NotRGC','RGC')
 val_labels<-data.frame(value, label)
 val_labels<-val_labels%>%mutate(variable='rgc_cat_od')%>%
     mutate(group_1_title = NA, group_1_value = NA,
@@ -169,9 +169,9 @@ trip<-left_join(trip, center.lyr, by=join_by(dest_rgcname==name), suffix=c('', '
 
 ```{r}
 trip<-trip%>%mutate(rgc_cat_od= 
-                      case_when(is.na(category)& is.na(category.destination) ~ 'NotRGC',
-                                category=='Metro' | category.destination=='Metro' ~ 'MetroRGC',
-                                category=='Urban' | category.destination=='Urban' ~ 'UrbanRGC',
+                      case_when(is.na(category)& is.na(category.destination) ~ 'Not RGC',
+                                category=='Metro' | category.destination=='Metro' ~ 'RGC',
+                                category=='Urban' | category.destination=='Urban' ~ 'RGC',
                                 TRUE ~'Missing')
 )
 ```
@@ -203,6 +203,25 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
 ##summarize data
+```{r}
+trip_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'mode_w_sov',
+                               summarize_by = c('survey_year', 'rgc_cat_od'),
+                               id_cols='trip_id',
+                               wt_cols='trip_weight',
+                               wtname='trip_weight'
+                               )
+
+```
+
+
+```{r}
+trips_summary_wtd<-trip_summary$summary$wtd%>%filter(survey_year %in% c('2019', '2023'))%>%
+  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%filter(mode_w_sov %in% c('Transit'))
+static_column_chart(trips_summary_wtd, x='rgc_cat_od', y='prop', fill='survey_year', color='pognbgy_5')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+
+
 how many trips overall to centers vs not
 ```{r}
 trip_summary = summarize_weighted(hts_data= hts_data,
@@ -225,7 +244,8 @@ write.csv(trips_summary_wtd, 'trips_centers_trend.csv')
 
 ```
 ```{r}
-static_facet_column_chart(trips_summary_wtd, x='work_or_not', y='est', fill='survey_year',ylabel= 'Share', xlabel='Trips', facet='rgc_cat_od',scale='fixed')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+trips_summary_wtd<-trips_summary_wtd%>%filter(work_or_not=='Work')%>%filter(survey_year!='2017')%>%mutate(est=round(est,-4))
+static_column_chart(trips_summary_wtd, x= 'rgc_cat_od', y='est', fill='survey_year')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 ```{r}
