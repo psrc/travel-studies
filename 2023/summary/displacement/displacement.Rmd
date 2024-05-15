@@ -233,7 +233,7 @@ hh<-hh%>%mutate(was_displaced = case_when(
   mutate(income=(if_else(prev_res_factors_income_change=='Selected',1,0)))%>%
   mutate(community=(if_else(prev_res_factors_community_change=='Selected',1,0)))%>%
   mutate(num_displacement_reasons_int=forced+housing+income+community)%>%
-  mutate(num_displacement_reason=as.character(num_displacement_reasons_int))
+  mutate(num_displacement_reasons=as.character(num_displacement_reasons_int))
 
 
 ```
@@ -620,7 +620,7 @@ summary = summarize_weighted(hts_data= hts_data,
                                wtname='hh_weight'
                                )
 
-wtd_sum<-order_factors(summary$summary$wtd, num_displacement_reasons, value_labels)%>%mutate(prop_moe=z_score*prop_se)
+wtd_sum<-order_factors(summary$summary$wtd, 'num_displacement_reasons', value_labels)%>%mutate(prop_moe=z_score*prop_se)
 
 write.csv(wtd_sum, 'numberreasons__rgc.csv')
 ```
