@@ -177,7 +177,7 @@ wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
 
 ```{r}
 hts_data_filter_race = list(hh = hh,
-                person = person_filter_race,
+                person = person,
                 trip = trip)
 id_cols=c('hh_id', 'person_id', 'trip_id')
 wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
@@ -185,7 +185,7 @@ wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
 Overall
 ```{r}
 
-summary = summarize_weighted(hts_data= hts_data,
+summary_overall = summarize_weighted(hts_data= hts_data,
                                summarize_var = 'sexuality',
                                summarize_by=NULL,
                                id_cols=id_cols,
@@ -195,12 +195,12 @@ summary = summarize_weighted(hts_data= hts_data,
 ```
 
 ```{r}
-summary_info<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,prop))%>%filter(sexuality!='Heterosexual (straight)')
-static_bar_chart(summary_info, x='prop', y='sexuality', fill='sexuality', moe='prop_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+summary_info<-summary_overall$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,-prop))%>%mutate(est=round(est,-4))
+static_bar_chart(summary_info, x='prop', y='sexuality', fill='sexuality')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 ```{r}
-summary_info<-summary$summary$wtd%>%mutate(est_moe=est_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,prop))%>%filter(sexuality!='Heterosexual (straight)')
-static_bar_chart(summary_info, x='est', y='sexuality', fill='sexuality', moe='est_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+summary_info<-summary_overall$summary$wtd%>%mutate(est_moe=est_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,-prop))%>%mutate(est_total=round(3380000*prop, -4))%>%filter(sexuality!='Heterosexual (straight)')
+static_bar_chart(summary_info, x='est_total', y='sexuality', fill='sexuality')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 ```
 
 Gender
