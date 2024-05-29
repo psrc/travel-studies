@@ -31,17 +31,6 @@ pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
 ```
 
 
-:::{.callout-note}
-## edits since 2/28 check-in
-- filter trips to UGA geography
-- color code table by area type for clearer visualization
-- use acres instead of sq. miles
-- create hexagon maps
-<!-- - create map with trip destination points -->
-<!-- - get more accurate population and employment data -->
-:::
-
-
 - study area: Urban Growth Area (only include trips ended in UGA)
 - trip types:
   1. **non-work trips**: Shop, Meal, Social/Recreation, Escort and Errand/Other purposes
@@ -49,11 +38,9 @@ pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
   3. other trips: Home, Change mode
   
 - data source:
-  1. trip data from 2017 and 2019 household travel survey
-  2. 2018 centers employment data
-     - UGA employment count: 2018 LODES block-level data
-  3. 2020 OFM population data
-     - UGA population count: 2020 OFM block-level data
+  1. trip data: 2017 and 2019 household travel survey
+  2. employment data: 2018 Covered Employment Estimates by NAICS2
+  3. population data: 2018 OFM data
 
 - To highlight the intensity of places, we normalize the number of trips by area and by activity units:
    - activity units: the sum of population and employment counts
@@ -256,66 +243,66 @@ plot_ly(data = df_plot3,
 
 
 # TODO: add activity unit
-df_plot2 <- trip_data_uga_17_19 %>%
-  filter(trip_type=="Work") %>%
-  hhts_count(group_vars=c("trip_type","d_rgcname_indv"),spec_wgt = "trip_weight_2017_2019") %>%
-  filter(d_rgcname_indv != "Total") %>%
-  add_row(
-    trip_data_uga_17_19 %>%
-      filter(trip_type=="Non-work") %>%
-      hhts_count(group_vars=c("trip_type","d_rgcname_indv"),spec_wgt = "trip_weight_2017_2019") %>%
-      filter(d_rgcname_indv != "Total")
-  ) %>%
-  left_join(df_centers, by="d_rgcname_indv") %>%
-  mutate(`trip/acre` = count/acres,
-         `trip/activity unit` = count/activity_unit)
-
-# share of weekday trip destinations in RCC
-# plot_ly(data = df_plot2 %>% filter(d_rgcname_indv!="Not RGC"),
-#         x = ~share, y = ~reorder(d_rgcname_indv,share), name=~trip_type, type = "bar", orientation = 'h',
-#         error_x = ~list(array = share_moe,
-#                         color = '#000000')) %>%
-#   layout(xaxis = list(title = 'trip share', tickformat=".1%"), yaxis = list(title = 'regional growth center'), 
-#          title = "share of weekday trip destinations in RCC",
+# df_plot2 <- trip_data_uga_17_19 %>%
+#   filter(trip_type=="Work") %>%
+#   hhts_count(group_vars=c("trip_type","d_rgcname_indv"),spec_wgt = "trip_weight_2017_2019") %>%
+#   filter(d_rgcname_indv != "Total") %>%
+#   add_row(
+#     trip_data_uga_17_19 %>%
+#       filter(trip_type=="Non-work") %>%
+#       hhts_count(group_vars=c("trip_type","d_rgcname_indv"),spec_wgt = "trip_weight_2017_2019") %>%
+#       filter(d_rgcname_indv != "Total")
+#   ) %>%
+#   left_join(df_centers, by="d_rgcname_indv") %>%
+#   mutate(`trip/acre` = count/acres,
+#          `trip/activity unit` = count/activity_unit)
+# 
+# # share of weekday trip destinations in RCC
+# # plot_ly(data = df_plot2 %>% filter(d_rgcname_indv!="Not RGC"),
+# #         x = ~share, y = ~reorder(d_rgcname_indv,share), name=~trip_type, type = "bar", orientation = 'h',
+# #         error_x = ~list(array = share_moe,
+# #                         color = '#000000')) %>%
+# #   layout(xaxis = list(title = 'trip share', tickformat=".1%"), yaxis = list(title = 'regional growth center'), 
+# #          title = "share of weekday trip destinations in RCC",
+# #          font = list(family="Poppins"))
+# 
+# df_plot4 <- df_plot %>%
+#   select(survey,trip_type,d_rgcname,`trip/acre`,`trip/activity unit`) %>%
+#   mutate(d_rgcname_indv = d_rgcname) %>%
+#   add_row(df_plot2 %>% select(survey,trip_type,d_rgcname_indv,`trip/acre`,`trip/activity unit`) %>%
+#             mutate(d_rgcname = "individual centers") %>%
+#             filter(d_rgcname_indv!="Not RGC")) %>%
+#   mutate(d_rgcname = factor(d_rgcname, levels=c("RGC","Not RGC","individual centers"))) %>%
+#   group_by(d_rgcname_indv) %>%
+#   mutate(non_work_value = `trip/acre`[trip_type=="Non-work"]) %>%
+#   ungroup() %>%
+#   arrange(desc(d_rgcname),non_work_value) %>%
+#   mutate(order = c(1:nrow(.)))
+# 
+# plot_ly(data = df_plot4,
+#         x = ~`trip/acre`, y = ~reorder(d_rgcname_indv,order), name=~trip_type, type = "bar", orientation = 'h') %>%
+#   layout(xaxis = list(title = 'trip/acre'), yaxis = list(title = 'regional growth center'),
+#          title = "weekday trip destinations per acre in RCC",
 #          font = list(family="Poppins"))
-
-df_plot4 <- df_plot %>%
-  select(survey,trip_type,d_rgcname,`trip/acre`,`trip/activity unit`) %>%
-  mutate(d_rgcname_indv = d_rgcname) %>%
-  add_row(df_plot2 %>% select(survey,trip_type,d_rgcname_indv,`trip/acre`,`trip/activity unit`) %>%
-            mutate(d_rgcname = "individual centers") %>%
-            filter(d_rgcname_indv!="Not RGC")) %>%
-  mutate(d_rgcname = factor(d_rgcname, levels=c("RGC","Not RGC","individual centers"))) %>%
-  group_by(d_rgcname_indv) %>%
-  mutate(non_work_value = `trip/acre`[trip_type=="Non-work"]) %>%
-  ungroup() %>%
-  arrange(desc(d_rgcname),non_work_value) %>%
-  mutate(order = c(1:nrow(.)))
-
-plot_ly(data = df_plot4,
-        x = ~`trip/acre`, y = ~reorder(d_rgcname_indv,order), name=~trip_type, type = "bar", orientation = 'h') %>%
-  layout(xaxis = list(title = 'trip/acre'), yaxis = list(title = 'regional growth center'),
-         title = "weekday trip destinations per acre in RCC",
-         font = list(family="Poppins"))
-
-df_plot4 <- df_plot %>%
-  select(survey,trip_type,d_rgcname,`trip/acre`,`trip/activity unit`) %>%
-  mutate(d_rgcname_indv = d_rgcname) %>%
-  add_row(df_plot2 %>% select(survey,trip_type,d_rgcname_indv,`trip/acre`,`trip/activity unit`) %>%
-            mutate(d_rgcname = "individual centers") %>%
-            filter(d_rgcname_indv!="Not RGC")) %>%
-  mutate(d_rgcname = factor(d_rgcname, levels=c("RGC","Not RGC","individual centers"))) %>%
-  group_by(d_rgcname_indv) %>%
-  mutate(non_work_value = `trip/activity unit`[trip_type=="Non-work"]) %>%
-  ungroup() %>%
-  arrange(desc(d_rgcname),non_work_value) %>%
-  mutate(order = c(1:nrow(.)))
-
-plot_ly(data = df_plot4,
-        x = ~`trip/activity unit`, y = ~reorder(d_rgcname_indv,order), name=~trip_type, type = "bar", orientation = 'h') %>%
-  layout(xaxis = list(title = 'trip count/ activity unit'), yaxis = list(title = 'regional growth center'), 
-         title = "weekday trip destinations per activity unit in RCC",
-         font = list(family="Poppins"))
+# 
+# df_plot4 <- df_plot %>%
+#   select(survey,trip_type,d_rgcname,`trip/acre`,`trip/activity unit`) %>%
+#   mutate(d_rgcname_indv = d_rgcname) %>%
+#   add_row(df_plot2 %>% select(survey,trip_type,d_rgcname_indv,`trip/acre`,`trip/activity unit`) %>%
+#             mutate(d_rgcname = "individual centers") %>%
+#             filter(d_rgcname_indv!="Not RGC")) %>%
+#   mutate(d_rgcname = factor(d_rgcname, levels=c("RGC","Not RGC","individual centers"))) %>%
+#   group_by(d_rgcname_indv) %>%
+#   mutate(non_work_value = `trip/activity unit`[trip_type=="Non-work"]) %>%
+#   ungroup() %>%
+#   arrange(desc(d_rgcname),non_work_value) %>%
+#   mutate(order = c(1:nrow(.)))
+# 
+# plot_ly(data = df_plot4,
+#         x = ~`trip/activity unit`, y = ~reorder(d_rgcname_indv,order), name=~trip_type, type = "bar", orientation = 'h') %>%
+#   layout(xaxis = list(title = 'trip count/ activity unit'), yaxis = list(title = 'regional growth center'), 
+#          title = "weekday trip destinations per activity unit in RCC",
+#          font = list(family="Poppins"))
 ```
 
 
@@ -535,7 +522,7 @@ build_hex_map_log <- function(layer, cus_pal, cus_bin){
     addPolygons(data = layer, fillOpacity = 0.65,weight = 0.1,color = "#636363",
                 fillColor = ~psrc_palette(layer$n_trip_wt_log10),
                 label=label_n_trip) %>%
-    addPolygons(data = center.lyr, fill = FALSE, weight = 3.5, color = "#636363") %>%
+    addPolygons(data = center.lyr, fill = FALSE, weight = 2.5, color = "#636363") %>%
     # addLegend(pal = psrc_palette, values = layer$n_trip_wt_log10,
     #           labFormat = labelFormat(transform = function(x) round(10^x, 0)),
     #           title="number of trips",position = "bottomright")

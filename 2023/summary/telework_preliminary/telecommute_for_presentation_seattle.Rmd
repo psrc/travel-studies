@@ -280,7 +280,7 @@ person<- person%>%mutate(commute_freq_all=case_when(
   
 ))  
 
-#person<- person%>%mutate(commute_freq_all=factor(commute_freq_all, levels=c("Never or less than #weekly", '1-2 days', '3-4 days', '5+ days')))
+person<- person%>%mutate(commute_freq_all=factor(commute_freq_all, levels=c("Never or less than weekly", '1-2 days', '3-4 days', '5+ days')))
 
 
 ```
@@ -376,6 +376,13 @@ workplace <- summarize_weighted(hts_data= worker_list,
                                )
 
 ```
+
+```{r}
+
+workplace_summary<-workplace$summary$wtd%>%filter(workplace== 'At home (telecommute or self-employed with home office)')%>%filter(survey_year!='2017')
+static_column_chart(workplace_summary, y='prop', x='workplace', fill='survey_year' )+ theme(axis.text.x=element_text(size=20), legend.text = element_text(size=20))
+
+```
 ## Visualize
 
 
@@ -452,6 +459,15 @@ inter
 write.csv(commute_summary,'commute_summary_trend.csv')
 
 
+```
+
+```{r}
+commute_summary<-commute_freq_all$summary$wtd%>%filter(commute_freq_all=='5+ days')%>%filter(survey_year!='2017')
+static<-static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Days Commuting per Week') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=16), axis.title.x=element_text(size=16))
+
+inter<-interactive_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', xlabel='Days Commuting per Week', ylabel='Worker Share')
+static
+   
 ```
 
 

@@ -313,8 +313,8 @@ telecommute_status <- summarize_weighted(hts_data= worker_list,
 
 ```{r}
 
-telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))
-static<-static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))%>%filter(survey_year!='2017')
+static<-static_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
 inter<-interactive_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share')
 static
@@ -407,7 +407,7 @@ static_bar_chart(workplace_summary_21_23, x='prop', y='workplace', fill='survey_
 
 ```{r}
 
-workplace_summary<-workplace$summary$wtd%>%filter(workplace== 'At home (telecommute or self-employed with home office)')
+workplace_summary<-workplace$summary$wtd%>%filter(workplace== 'At home (telecommute or self-employed with home office)')%>%filter(survey_year!='2017')
 static_column_chart(workplace_summary, y='prop', x='workplace', fill='survey_year' )+ theme(axis.text.x=element_text(size=20), legend.text = element_text(size=20))
 
 ```
@@ -437,6 +437,24 @@ commute_freq_all <- summarize_weighted(hts_data= worker_list,
 ```{r}
 
 commute_summary<-commute_freq_all$summary$wtd
+static<-static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Days Commuting per Week') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=16), axis.title.x=element_text(size=16))
+
+inter<-interactive_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', xlabel='Days Commuting per Week', ylabel='Worker Share')
+   
+  
+
+static
+inter
+write.csv(commute_summary,'commute_summary_trend.csv')
+
+
+```
+
+
+
+```{r}
+
+commute_summary<-commute_freq_all$summary$wtd%>%filter(commute_freq_all=='5+ days')%>%filter(survey_year!='2017')
 static<-static_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', ylabel= 'Worker Share', xlabel='Days Commuting per Week') + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=16), axis.title.x=element_text(size=16))
 
 inter<-interactive_column_chart(commute_summary, y='prop', x='commute_freq_all', fill='survey_year', xlabel='Days Commuting per Week', ylabel='Worker Share')
