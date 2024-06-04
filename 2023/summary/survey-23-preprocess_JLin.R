@@ -32,7 +32,8 @@ get_var_grouping <- function(value_tbl, group_number, grouping_name){
   grouping_value <- grouping_tbl %>%
     select(all_of(c("label", group_value))) %>%
     rename(!!variable_name := label,
-           !!grouping_name  := !!sym(group_value))
+           !!grouping_name  := !!sym(group_value)) %>% 
+    distinct()
   distinct_value <- grouping_tbl %>%
     select(all_of(c(group_title, group_value))) %>% 
     distinct()
@@ -63,4 +64,23 @@ add_variable_to_data <- function(hts_data, value_map) {
   return(tbl)
 }
 
-
+get_hts_summary <- function(dt_list, summary_var, id_var, wt_var){
+  
+  prepped_dt <- hts_prep_variable(summarize_var = summary_var[length(summary_var)],
+                                  summarize_by = summary_var[-length(summary_var)],
+                                  data = dt_list,
+                                  id_cols=id_var,
+                                  wt_cols=wt_var,
+                                  weighted=TRUE)
+  summary_dt <- hts_summary(prepped_dt = prepped_dt$cat,
+                            summarize_var = summary_var[length(summary_var)],
+                            summarize_by = summary_var[-length(summary_var)],
+                            summarize_vartype = 'categorical',
+                            id_cols = id_var,
+                            wtname = wt_var,
+                            weighted= TRUE,
+                            se= TRUE)
+  
+  return(summary_dt$summary$wtd)
+  
+}
