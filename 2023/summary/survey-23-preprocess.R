@@ -56,7 +56,9 @@ summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, w
                                   data = hts_data,
                                   id_cols=id_cols,
                                   wt_cols=wt_cols,
-                                  weighted=TRUE)
+                                  weighted=TRUE,
+                                  remove_missing=TRUE)
+
   
   if(summarize_vartype=='categorical'){
       summary<-hts_summary(prepped_dt = prepped_dt$cat,

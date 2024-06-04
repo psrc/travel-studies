@@ -258,6 +258,11 @@ length_purpose_summ<-summarize_weighted(hts_data= hts_data,
 write.csv( length_purpose_summ[["summary"]][["wtd"]]%>%filter(survey_year %in% c('2019', '2023')), 'purpose_length.csv')
 ```
 
+```{r}
+person<-merge(person, hh, by='hh_id')
+
+```
+
 
 ```{r}
 
@@ -265,19 +270,21 @@ persons_vmt<-left_join(person, driving_trip, by = 'person_id')%>%
   mutate(weighted_vmt=replace_na(weighted_vmt, 0))
 
 
-person_vmt_summary<-persons_vmt%>%group_by(survey_year.x, race_category)%>%
+person_vmt_summary<-persons_vmt%>%group_by(survey_year.x, hhincome_broad)%>%
   summarize(total_vmt=sum(weighted_vmt))%>%
   mutate(total_vmt=replace_na(total_vmt,0))%>%
-  filter(survey_year.x %in% c('2019', '2023'))%>%filter(race_category!='Child')%>%rename(survey_year=survey_year.x)
+  filter(survey_year.x %in% c('2019', '2023'))%>%rename(survey_year=survey_year.x)
 
 
-person_race<-person%>%group_by(race_category,survey_year)%>%summarize(people=sum(person_weight))
+person_inc<-person%>%group_by(hhincome_broad,survey_year.x)%>%summarize(people=sum(person_weight))%>%rename(survey_year=survey_year.x)
 
-person_vmt_summary_race<-merge(person_vmt_summary, person_race, by=c('race_category', 'survey_year'='survey_year'))%>%
-mutate(vmt_per_capita=total_vmt/people)%>%filter(survey_year=='2023')
+person_vmt_summary_inc<-merge(person_vmt_summary, person_inc, by=c('hhincome_broad', 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
+
+person_vmt_inc<-order_factors(person_vmt_summary_inc, 'hhincome_broad', value_labels)%>%filter(survey_year=='2023')
 ```
+
 ```{r}
-static_bar_chart(person_vmt_summary_race, y='race_category', x='vmt_per_capita', fill='survey_year')
+static_column_chart(person_vmt_inc, x='hhincome_broad', y='vmt_per_person', fill='survey_year')
 ```
 
 ```{r}
