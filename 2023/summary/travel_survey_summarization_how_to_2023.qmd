@@ -1,3 +1,11 @@
+```{r}
+
+```
+
+```{r}
+
+```
+
 ---
 title: "Travel Survey Summarization"
 format: html
@@ -61,7 +69,7 @@ person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age,
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight 
+person_id, mode_characterization, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight 
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
@@ -94,11 +102,7 @@ day <- day%>%mutate(survey_year=as.character(survey_year))
 trip <- trip%>%mutate(survey_year=as.character(survey_year))
 ```
 
-```{r}
-variable_list<-add_variable(variable_list, 'mode_simple','trip')
-group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
-value_labels<-add_values_code(group_name='mode_simple')
-trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
+```         
 ```
 
 Before you get started on any summary, please review the survey instrument for the question wording and options.
@@ -124,6 +128,17 @@ Also we generally have way too much detail in the responses to have statisticall
 variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
+```{r}
+variable_list<-add_variable(variable_list, 'mode_char1','trip')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_char1')
+value_labels<-add_values_code(group_name='mode_char1')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_characterization', grouped_name='mode_char1')%>%filter(mode_characterization!='Airplane')
+```
+
+```{r}
+work_trip<- trip%>%filter(dest_purpose%in% c('Went to work-related place (e.g., meeting, second job, delivery','Went to other work-related activity','Went to work-related activity (e.g., meeting, delivery, worksite','Went to primary workplace'))
+```
+
 travelSurveyTools expects the data to be in a list of data.tables. You must also specify the names of the ids on each table, and the names of the weights.
 
 ```{r}
@@ -140,7 +155,7 @@ Now mode_simple is on the variables table, the values table, and the trip table.
 ```{r}
 
 mode_summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'mode_simple',
+                               summarize_var = 'mode_char1',
                                summarize_by = 'survey_year',
                                id_cols= ids,
                                wt_cols=wts,
@@ -151,67 +166,29 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ```{r}
 
 common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_simple= fct_reorder(mode_simple,-prop))%>%drop_na(mode_simple)
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
 
-static_column_chart(common_modes, x='mode_simple', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+write.csv(common_modes, 'mode_trend.csv')
 ```
 
-What if we want to summarize a newly created variable that requires multiple fields, for example sov mode.
-
-We still need to add the variable and values to the codebook.
-
-```{r}
-variable_list<-add_variable(variable_list, 'mode_w_sov','trip')
-```
-
-#to do: make this a function
-
-```{r}
-
-new_values<-new_value_tbl(variable_name_list='mode_w_sov', variable_value_list=c('SOV', 'HOV', 'Walk', 'Transit', 'Bike', 'Other'))
-new_value_labels<-rbind(new_values, value_labels)
-value_labels<-new_value_labels  
-
-```
-
-# add mode_w_sov to the trip table
-
-```{r}
-trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'))
-trip<-trip%>%mutate(mode_simple= replace_na(mode_simple, 'Drive'))%>%
-mutate(mode_w_sov=case_when(
-  mode_simple=="Drive"& travelers_total=='1 traveler' ~ 'SOV',
-  is.na(travelers_total) ~ 'SOV',
-  mode_simple=="Drive"& travelers_total!='1 traveler'~  'HOV',
-  .default= mode_simple
-))
+```         
 ```
 
 ```{r}
-trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'))
-trip<-trip%>%mutate(mode_simple= replace_na(mode_simple, 'Drive'))%>%
-mutate(mode_w_sov=case_when(
-  mode_simple=="Drive"& travelers_total=='1 traveler' ~ 'SOV',
-  is.na(travelers_total) ~ 'SOV',
-  mode_simple=="Drive"& travelers_total!='1 traveler'~  'HOV',
-  .default= mode_simple
-))
-```
+work_data = list(hh=hh,
+                person=person,
+                day=day,
+                trip = work_trip)
 
-```{r}
-hts_data = list(
-                trip = trip)
-ids = c('trip_id')
-wts = c('trip_weight')
 ```
 
 ```{r}
 
-mode_summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'mode_w_sov',
+mode_summary = summarize_weighted(hts_data=work_data,
+                               summarize_var = 'mode_char1',
                                summarize_by = 'survey_year',
-                               id_cols=ids,
+                               id_cols= ids,
                                wt_cols=wts,
                                wtname='trip_weight'
                                )
@@ -220,9 +197,14 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ```{r}
 
 common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_w_sov= fct_reorder(mode_w_sov,-prop))%>%
-  drop_na(mode_w_sov)
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
 
-static_column_chart(common_modes, x='mode_w_sov', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode with SOV')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+write.csv(common_modes, 'work_mode_trend.csv')
 ```
+
+{r}
+
+common_modes\<-mode_summary$summary$wtd%\>% mutate(mode_char1= fct_reorder(mode_char1,-prop))%\>%drop_na(mode_char1)%\>%mutate(moe=prop_se\*1.645)
+
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) write.csv(common_modes, 'mode_trend.csv')

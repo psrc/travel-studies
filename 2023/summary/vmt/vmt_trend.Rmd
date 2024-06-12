@@ -280,11 +280,35 @@ person_inc<-person%>%group_by(hhincome_broad,survey_year.x)%>%summarize(people=s
 
 person_vmt_summary_inc<-merge(person_vmt_summary, person_inc, by=c('hhincome_broad', 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
 
-person_vmt_inc<-order_factors(person_vmt_summary_inc, 'hhincome_broad', value_labels)%>%filter(survey_year=='2023')
+person_vmt_inc<-order_factors(person_vmt_summary_inc, 'hhincome_broad', value_labels)%>%filter(hhincome_broad!='Prefer not to answer')
 ```
 
 ```{r}
 static_column_chart(person_vmt_inc, x='hhincome_broad', y='vmt_per_person', fill='survey_year')
+```
+
+
+```{r}
+
+persons_vmt<-left_join(person, driving_trip, by = 'person_id')%>%
+  mutate(weighted_vmt=replace_na(weighted_vmt, 0))
+
+
+person_vmt_summary<-persons_vmt%>%group_by(survey_year.x, race_category)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))%>%
+  filter(survey_year.x %in% c('2019', '2023'))%>%rename(survey_year=survey_year.x)
+
+
+person_inc<-person%>%group_by(race_category,survey_year.x)%>%summarize(people=sum(person_weight))%>%rename(survey_year=survey_year.x)
+
+person_vmt_summary_inc<-merge(person_vmt_summary, person_inc, by=c('race_category', 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
+
+person_vmt_inc<-order_factors(person_vmt_summary_inc, 'race_category', value_labels)
+```
+
+```{r}
+static_column_chart(person_vmt_inc, x='race_category', y='vmt_per_person', fill='survey_year')
 ```
 
 ```{r}
