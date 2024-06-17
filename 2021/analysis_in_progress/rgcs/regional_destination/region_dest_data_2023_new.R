@@ -1,5 +1,6 @@
 library(tidyverse)
 library(plotly)
+library(travelSurveyTools)
 library(psrc.travelsurvey)
 library(psrcelmer)
 library(psrcplot)
@@ -7,95 +8,122 @@ library(sf)
 library(spatialEco)
 library(kableExtra)
 library(leaflet)
+library(data.table)
+
+# read in functions for new package
+source("region_dest_data.R")
+source('../../../../2023/summary/survey-23-preprocess_JLin.R')
 
 
-# calculate centers and region area
-sf_use_s2(FALSE)
+# 2023 population and employment
 
-# get all layers
-bg2020.lyr <- st_read_elmergeo("BLOCKGRP2020_NOWATER")
-block2020.lyr <- st_read_elmergeo("BLOCK2020") %>% select(county_name,geoid20,placename,land_acres,total_pop20)
-uga.lyr <- st_read_elmergeo("urban_growth_area_evw") %>% select(county_name,sum_acres,SDE_STATE_ID,Shape) %>% mutate(UGA = "UGA")
-center.lyr <- st_read_elmergeo('URBAN_CENTERS')
-
-
-# calculate geography area
-psrc_region_area <- sum(bg2020.lyr$land_acres)
-uga_area <- sum(uga.lyr$sum_acres)
-centers_area <- sum(center.lyr$acres)
-
-center_data <- center.lyr
-st_geometry(center_data) <- NULL
-# areas: individual rgcs, rgc, urban/metro
-rgc_indv_area <- center_data %>%
-  mutate(d_rgcname="RGC") %>%
-  select(name,d_rgcname,category,acres) %>%
-  add_row(data.frame(name=c("Not RGC"),
-                     d_rgcname=c("Not RGC"),
-                     category=c("Not RGC"),
-                     acres=c(uga_area-centers_area)))
-
-rgc_area <- rgc_indv_area %>%
-  group_by(d_rgcname) %>%
-  summarise_at(vars(acres),sum)
-
-metro_urban_area <- rgc_indv_area %>%
-  group_by(category) %>%
-  summarise_at(vars(acres),sum)
-
-# population and employment
-df_au <- read_csv("activity_units.csv") 
-
-df_rgc <- read_csv("activity_units.csv") %>%
+df_rgc_2023 <- read_csv("activity_units.csv") %>%
   filter((d_rgcname=="RGC" & category=="Total") | (d_rgcname=="Not RGC")) %>%
-  select(all_of(c("d_rgcname","2017/2019 AU"))) %>%
-  rename(activity_unit = `2017/2019 AU`) %>%
+  select(all_of(c("d_rgcname","2023 AU"))) %>%
+  rename(activity_unit = `2023 AU`) %>%
   left_join(rgc_area, by="d_rgcname")
 
-# df_centers <- read_csv("indv_center_pop_emp_2020.csv") %>%
-#   # add not rgc data
-#   add_row(df_rgc %>% select(d_rgcname,population,employment) %>% rename(d_rgcname_indv=d_rgcname) %>% filter(d_rgcname_indv=="Not RGC")) %>%
-#   left_join(rgc_indv_area[,c("name","acres")], by=c("d_rgcname_indv"="name")) %>%
-#   mutate(activity_unit=population+employment)
-
-df_metro_urban <-  read_csv("activity_units.csv") %>%
+df_metro_urban_2023 <-  read_csv("activity_units.csv") %>%
   filter(category %in% c("Metro", "Urban","Not RGC")) %>%
-  select(all_of(c("category","2017/2019 AU"))) %>%
-  rename(activity_unit = `2017/2019 AU`) %>%
+  select(all_of(c("category","2023 AU"))) %>%
+  rename(activity_unit = `2023 AU`) %>%
   left_join(metro_urban_area, by="category")
 
-# get 2017/2019 trip data
-trip_vars = c("trip_id","driver","mode_1","mode_simple",'dest_purpose_cat', 'origin_purpose_cat',
-              "google_duration", 'trip_path_distance',
-              "origin_lat","origin_lng","o_rgcname","dest_lat","dest_lng","d_rgcname")
 
-trip_data_17_19 <- get_hhts("2017_2019", "t", vars=trip_vars) %>%
-  left_join(rgc_indv_area %>% select(name,category), by = c("d_rgcname"="name")) %>%
-  mutate(trip_type = case_when(dest_purpose_cat %in% c("Errand/Other","Shop","Social/Recreation","Escort","Meal")~"Non-work", 
-                               dest_purpose_cat %in% c("Work","Work-related","School")~"Work",
+# get codebook ----
+cb_path = str_glue("PSRC_Codebook_2023_fix.xlsx")
+
+variable_list <- readxl::read_xlsx(cb_path, sheet = 'variable_list') %>%
+  filter(!is.na(trip))
+
+
+setDT(variable_list)
+
+# 1. add grouping variables to variable_list ----
+variable_list<-rbind(
+  variable_list,
+  data.table(
+    variable = c("mode_simple","d_rgcname","category","trip_type"),
+    is_checkbox = c(0,0,0,0),
+    hh = c(0,0,0,0),
+    person = c(0,0,0,0),
+    day = c(0,0,0,0),
+    trip = c(1,1,1,1),
+    vehicle = c(0,0,0,0),
+    location = c(0,0,0,0),
+    description = c("mode_simple","d_rgcname","category","trip_type"),
+    logic = c("mode_simple","d_rgcname","category","trip_type"),
+    data_type = c("integer/categorical","integer/categorical","integer/categorical","integer/categorical"),
+    shared_name = c("mode_simple","d_rgcname","category","trip_type")
+  )
+)
+value_labels <- readxl::read_xlsx(cb_path, sheet = 'value_labels')
+setDT(value_labels)
+
+
+# 2. add grouping variables to value_labels ----
+# Add variables from existing grouping
+list_mode_simple <- get_var_grouping(value_tbl = value_labels, group_number = "1", grouping_name = "mode_simple")
+list_dest_purpose_simple <- get_var_grouping(value_tbl = value_labels, group_number = "1", grouping_name = "dest_purpose_simple")
+# Add custom variable 
+add_d_rgcname <- create_custom_variable(value_labels, variable_name="d_rgcname",
+                                        label_vector = c("RGC", "Not RGC"))
+add_category <- create_custom_variable(value_labels, variable_name="category",
+                                       label_vector = c("Metro","Urban", "Not RGC"))
+add_trip_type <- create_custom_variable(value_labels, variable_name="trip_type",
+                                       label_vector = c("Work", "Non-work"))
+
+
+value_labels <- value_labels %>%
+  add_row(list_mode_simple[[1]]) %>%
+  add_row(list_dest_purpose_simple[[1]]) %>%
+  add_row(add_d_rgcname) %>%
+  add_row(add_category) %>%
+  add_row(add_trip_type)
+
+# 3. Create HTS data ----
+essential_vars <- c("survey_year", "trip_id", "household_id as hh_id", "day_id", "person_id", "trip_weight")
+trip_vars = c("driver","mode_1","dest_purpose", "dest_rgcname", "dest_lng", "dest_lat")
+
+trip_data_23 <- get_query(sql= paste("select", 
+                                     paste(essential_vars,collapse = ","), 
+                                     ",",
+                                     paste(trip_vars,collapse = ","),
+                                     "from HHSurvey.v_trips_labels")) 
+setDT(trip_data_23)
+
+# Set IDs as characters
+cols <- c("survey_year", "trip_id","hh_id","person_id","day_id")
+trip_data_23[, (cols) := lapply(.SD, function(x) as.character(x)), .SDcols = cols]
+
+
+df_trip_data_23 <- trip_data_23 %>%
+  add_variable_to_data(list_mode_simple[[2]]) %>%
+  add_variable_to_data(list_dest_purpose_simple[[2]]) %>% 
+  left_join(rgc_indv_area %>% select(name,category), by = c("dest_rgcname"="name")) %>%
+  mutate(trip_type = case_when(dest_purpose_simple %in% c("Errand/Other","Shop","Social/Recreation","Escort","Meal")~"Non-work", 
+                               dest_purpose_simple %in% c("Primary Work","Work-related","School")~"Work",
                                TRUE~NA),
-         mode_simple = case_when(mode_1 == "Bicycle owned by my household (rMove only)" ~"Bike",
-                                 mode_1 == "Bike-share bicycle (rMove only)" ~"Bike",
-                                 mode_1 == "Borrowed bicycle (e.g., from a friend) (rMove only)" ~"Bike",
-                                 mode_1 == "Other motorcycle/moped" ~"Other",
-                                 mode_1 == "Other rented bicycle (rMove only)" ~"Bike",
-                                 mode_1 == "Scooter or e-scooter (e.g., Lime, Bird, Razor)" ~"Other",
-                                 is.na(mode_simple)~"Drive",
-                                 TRUE~mode_simple),
-         d_rgcname_indv = ifelse(is.na(d_rgcname), "Not RGC", d_rgcname),
-         d_rgcname = factor(ifelse(is.na(d_rgcname), "Not RGC", "RGC"), levels=c("RGC", "Not RGC")),
+         # d_rgcname_indv = ifelse(is.na(dest_rgcname), "Not RGC", dest_rgcname),
+         d_rgcname = factor(case_when(is.na(dest_rgcname)~ "Not RGC", 
+                                      dest_rgcname=="Not RGC"~ "Not RGC",
+                                      TRUE~ "RGC"), 
+                            levels=c("RGC", "Not RGC")),
          category = factor(ifelse(is.na(category), "Not RGC", category), levels=c("Metro","Urban", "Not RGC"))) %>%
   filter(!is.na(trip_type),!is.na(dest_lat))
 
-
 # include only UGA trips
-sf_trip <- st_as_sf(trip_data_17_19, coords = c("dest_lng","dest_lat"),crs=4326)
-sf_trip_uga <- sf_trip %>%
+sf_trip_23 <- st_as_sf(df_trip_data_23, coords = c("dest_lng","dest_lat"),crs=4326)
+sf_trip_uga_23 <- sf_trip_23 %>%
   st_join(., uga.lyr[,c("UGA")]) %>%
   mutate(UGA = replace_na(UGA,"not UGA")) %>%
   filter(UGA=="UGA")
 
-trip_data_uga_17_19 <- trip_data_17_19 %>% filter(trip_id %in% sf_trip_uga$trip_id)
+df_trip_data_23_uga <- df_trip_data_23 %>% filter(trip_id %in% sf_trip_uga_23$trip_id)
+# hts_data = list(# hh = hh,
+#                 # person = person,
+#                 # day = day,
+#                 trip = df_trip_data_23_uga)
 
 
 addLegend_decreasing <- function (map, position = c("topright", "bottomright", "bottomleft", 
