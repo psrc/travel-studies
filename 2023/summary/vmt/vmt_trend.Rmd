@@ -24,11 +24,11 @@ The travelSurveyTools package expects everything to be a data.table, so run setD
 
 
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,survey_year, hh_weight
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad, survey_year, hh_weight,home_rgcname
                 from HHSurvey.v_households_labels")
 
 
-person<- get_query(sql= "select household_id as hh_id,race_category,
+person<- get_query(sql= "select household_id as hh_id,race_category, 
 person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq, employment
                 from HHSurvey.v_persons_labels")
                 
@@ -311,9 +311,94 @@ person_vmt_inc<-order_factors(person_vmt_summary_inc, 'race_category', value_lab
 static_column_chart(person_vmt_inc, x='race_category', y='vmt_per_person', fill='survey_year')
 ```
 
+
+
+
+
 ```{r}
-people<-person%>%group_by(survey_year)%>%filter(survey_year %in% c('2019', '2023'))%>%
-  summarise(people=sum(person_weight))
-people
-  
+
+persons_vmt<-left_join(person, driving_trip, by = 'person_id')%>%
+  mutate(weighted_vmt=replace_na(weighted_vmt, 0))
+
+
+person_vmt_summary<-persons_vmt%>%group_by(survey_year.x, hhincome_broad)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))%>%
+  filter(survey_year.x %in% c('2019', '2023'))%>%rename(survey_year=survey_year.x)
+
+
+person_inc<-person%>%group_by(hhincome_broad,survey_year.x)%>%summarize(people=sum(person_weight))%>%rename(survey_year=survey_year.x)
+
+person_vmt_summary_inc<-merge(person_vmt_summary, person_inc, by=c('hhincome_broad', 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
+
+person_vmt_inc<-order_factors(person_vmt_summary_inc, 'hhincome_broad', value_labels)%>%filter(hhincome_broad!='Prefer not to answer')
+```
+
+```{r}
+static_column_chart(person_vmt_inc, x='hhincome_broad', y='vmt_per_person', fill='survey_year')
+```
+
+
+```{r}
+center.lyr <- st_read_elmergeo('URBAN_CENTERS')
+```
+
+```{r}
+variable_list<-add_variable(variable_list, 'rgc_cat_home','hh')
+```
+
+```{r}
+
+value<- c(0,1,2)
+label=c( 'Not RGC','Urban RGC', 'Metro RGC')
+val_labels<-data.frame(value, label)
+val_labels<-val_labels%>%mutate(variable='rgc_cat_home')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+```
+
+```{r}
+hh<-left_join(hh, center.lyr, by=join_by(home_rgcname==name), suffix= c("", '.origin'))
+```
+
+```{r }
+hh<-hh%>%mutate(rgc_cat_home= 
+                      case_when(is.na(category) ~ 'NotRGC',
+                                category=='Metro' ~ 'MetroRGC',
+                                category=='Urban' ~ 'UrbanRGC',
+                                TRUE ~'Missing')
+)
+```
+                    
+
+```{r}
+person<-merge(hh, person, by='hh_id')
+
+persons_vmt<-left_join(person, driving_trip, by = 'person_id')%>%
+  mutate(weighted_vmt=replace_na(weighted_vmt, 0))
+
+
+person_vmt_summary<-persons_vmt%>%group_by(survey_year, rgc_cat_home)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))
+
+
+person_inc<-person%>%group_by( rgc_cat_home,survey_year.x)%>%summarize(people=sum(person_weight))%>%rename(survey_year=survey_year.x)
+
+person_vmt_summary_inc<-merge(person_vmt_summary, person_inc, by=c('rgc_cat_home', 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
+
+person_vmt_inc<-order_factors(person_vmt_summary_inc, 'rgc_cat_home', value_labels)%>%filter(rgc_cat_home!='Missing')
+
+```
+
+```{r}
+person_vmt_inc<-order_factors(person_vmt_summary_inc, 'rgc_cat_home', value_labels)%>%filter(rgc_cat_home!='Missing')%>%filter(survey_year=='2023')
+static_column_chart(person_vmt_inc, x='rgc_cat_home', y='vmt_per_person', fill='survey_year')
 ```

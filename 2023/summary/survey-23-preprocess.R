@@ -104,6 +104,7 @@ add_variable<-function(variable_list,variable_name, table_name, data_type='integ
   )
   
   new_var_tbl<-new_var_tbl%>%mutate({{table_name}}:=1)
+  print(new_var_tbl)
   variable_list<-rbind(variable_list, new_var_tbl)
   
   
