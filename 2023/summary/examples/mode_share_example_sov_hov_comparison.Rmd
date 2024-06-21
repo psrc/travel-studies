@@ -35,6 +35,8 @@ setDT(value_labels)
 <!-- Make new variables -->
 ```{r Adding new variables to the codebook}
 
+#TODO: functionalize this part
+
 # Add associated variables to variable list table
 variable_list<-rbind(
     variable_list,
@@ -190,3 +192,14 @@ ggplot(df_plot, aes(x= mode_w_sov, y=share, fill=package))+
   psrc_style() +
   scale_y_continuous(labels=scales::percent)
 ```
+
+```{r}
+test1 <- df_trip_21 %>% select(all_of(c("trip_id","travelers_total","mode_simple","mode_w_sov","trip_adult_weight_2021"))) %>%
+  mutate(trip_id=as.character(trip_id))
+test2 <- df_trip %>% filter(survey_year=="2021") %>% select(all_of(c("trip_id","travelers_total","mode_simple","mode_w_sov","trip_weight")))
+
+test3 <- test1 %>% full_join(test2, by="trip_id", suffix = c("_old","_new"))
+
+test4 <- test3 %>% filter(trip_adult_weight_2021!=trip_weight)
+```
+

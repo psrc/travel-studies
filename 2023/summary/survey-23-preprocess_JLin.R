@@ -64,10 +64,11 @@ add_variable_to_data <- function(hts_data, value_map) {
   return(tbl)
 }
 
-get_hts_summary <- function(dt_list, summary_var, id_var, wt_var){
+get_hts_summary <- function(dt_list, summary_var, variables_dt = variable_list, id_var, wt_var){
   
   prepped_dt <- hts_prep_variable(summarize_var = summary_var[length(summary_var)],
                                   summarize_by = summary_var[-length(summary_var)],
+                                  variables_dt = variables_dt,
                                   data = dt_list,
                                   id_cols=id_var,
                                   wt_cols=wt_var,
