@@ -10,6 +10,8 @@ editor: visual
 ## Setup
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
 library(data.table)
 library(stringr)
 library(travelSurveyTools)
@@ -22,7 +24,7 @@ source("C:/Users/GGibson/GitHub/PSRC/travel-studies/2023/summary/survey-23-prepr
 
 ## Read in codebook
 
-```{r codebook, echo=FALSE}
+```{r codebook}
 cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
 
 variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
@@ -58,7 +60,7 @@ setDT(trip)
 
 ## Set IDs as character type
 
-```{r set_ids, echo=FALSE}
+```{r set_ids}
 hh[, hh_id := as.character(hh_id)]
 
 person[, hh_id := as.character(hh_id)]
@@ -111,14 +113,6 @@ summary_trips <- summarize_weighted(hts_data = hts_data,
 
 mode_summary <- summary_trips$summary$wtd %>% 
   mutate(moe = prop_se * 1.645)
-
-walk_summary <- summary_trips$summary$wtd %>% 
-  filter(mode_simple == "Walk") %>% 
-  mutate(moe = prop_se * 1.645)
-
-bike_summary <- summary_trips$summary$wtd %>% 
-  filter(mode_simple == "Bike") %>% 
-  mutate(moe = prop_se * 1.645)
 ```
 
 ## Initial charts
@@ -127,7 +121,13 @@ bike_summary <- summary_trips$summary$wtd %>%
 static_column_chart(filter(mode_summary, mode_simple == "Walk"),
                     x = "survey_year", y = "est", fill = "mode_simple",
                     ylabel = "# of Trips", xlabel = "Survey Year", title = "Walk Trips - Estimate",
-                    moe = "est_se")
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
 ```
 
 ```{r walk_chart_share, echo=FALSE}
@@ -135,7 +135,13 @@ static_column_chart(filter(mode_summary, mode_simple == "Walk"),
 static_column_chart(filter(mode_summary, mode_simple == "Walk"),
                     x = "survey_year", y = "prop", fill = "mode_simple",
                     ylabel = "% of Trips", xlabel = "Survey Year", title = "Walk Trips - Share",
-                    moe = "moe")
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
 ```
 
 ```{r bike_chart_est, echo=FALSE}
@@ -143,7 +149,14 @@ static_column_chart(filter(mode_summary, mode_simple == "Bike"),
                     x = "survey_year", y = "est", fill = "mode_simple",
                     ylabel = "# of Trips", xlabel = "Survey Year",
                     title = "Bike Trips - Estimate", source = "'Bike' includes standard bicycle or e-bike, privately owned or bike share",
-                    moe = "est_se")
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24),
+                      plot.caption = element_text(size = 14)
+                      )
 ```
 
 ```{r bike_trips_share, echo=FALSE}
@@ -151,5 +164,12 @@ static_column_chart(filter(mode_summary, mode_simple == "Bike"),
                     x = "survey_year", y = "prop", fill = "mode_simple",
                     ylabel = "% of Trips", xlabel = "Survey Year",
                     title = "Bike Trips - Share", source = "'Bike' includes standard bicycle or e-bike, privately owned or bike share",
-                    moe = "moe")
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24),
+                      plot.caption = element_text(size = 14)
+                      )
 ```
