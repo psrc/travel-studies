@@ -154,11 +154,11 @@ center.lyr <- st_read_elmergeo('URBAN_CENTERS')
 ```
 
 ```{r}
-variable_list<-add_variable(variable_list, 'rgc_cat_home','hh')
+variable_list<-add_variable(variable_list, 'rgc_cat_home','day')
 ```
 
 ```{r}
-variable_list<-add_variable(variable_list, 'home_rgc','hh')
+variable_list<-add_variable(variable_list, 'home_rgc','day')
 ```
 
 ```{r}
@@ -209,28 +209,28 @@ hh<-hh%>%mutate(rgc_cat_home=
   if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
 ```
 
+```{r}
+all_days<-left_join(all_days, hh, by=('hh_id'))%>%rename(survey_year=survey_year.x)
 
-                    
-
-
-
+```
 
 
 
 ```{r}
-hh_person_day<-list(hh=hh, day=all_days)
+hh_person_day<-list(day=all_days)
 
 ```
 
 ```{r}
 wtd_summary = summarize_weighted(hts_data= hh_person_day,
                                summarize_var = 'vmt',
-                               summarize_by = 'survey_year',
-                               id_cols= c('hh_id', 'day_id'),
-                               wt_cols=c('hh_weight', 'day_weight'),
+                               summarize_by = c('survey_year', 'rgc_cat_home'),
+                               id_cols= c('day_id'),
+                               wt_cols=c('day_weight'),
                                wtname='day_weight',
                                summarize_vartype='numeric'
                                )
+wtd_summary$summary$wtd
 ```
 
 
