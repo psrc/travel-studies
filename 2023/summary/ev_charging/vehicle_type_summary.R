@@ -102,15 +102,27 @@ veh_count_summary$summary
 # step 1: creates a new column and adds a '1' if it satisfies this condition
 # step 2: groups by household
 # step 3: for each group of hh rows, it sums the column values for each vehicle type
+
+# @tip: get unique values in the "fuel" variable before assigning case_when conditions
+unique(vehicle$fuel)
+
+# @copy and paste directly from this list instead of typing the values on your own to prevent typo
+# [1] "Gas"                                                   
+# [2] "Diesel"                                                
+# [3] "Electric (EV)"                                         
+# [4] "Hybrid (HEV)"                                          
+# [5] "Plug-in hybrid (PHEV)"                                 
+# [6] "Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))"
+
 veh_type_count <- vehicle %>% 
   mutate(
   total_ev = case_when(fuel == 'Electric (EV)' ~ 1, TRUE ~ 0),
   total_gas = case_when(fuel == 'Gas' ~ 1, TRUE ~ 0),
   total_diesel = case_when(fuel == 'Diesel' ~ 1, TRUE ~ 0),
-  total_hybrid = case_when(fuel == 'Hybrid' ~ 1, TRUE ~ 0),
-  total_flex_fuel = case_when(fuel == 'Flex Fuel' ~ 1, TRUE ~ 0),
-  total_biofuel = case_when(fuel == 'Biofuel' ~ 1, TRUE ~ 0),
-  total_natural_gas = case_when(fuel == 'Natural gas' ~ 1, TRUE ~ 0),
+  # total_hybrid = case_when(fuel == 'Hybrid' ~ 1, TRUE ~ 0),
+  # total_flex_fuel = case_when(fuel == 'Flex Fuel' ~ 1, TRUE ~ 0),
+  # total_biofuel = case_when(fuel == 'Biofuel' ~ 1, TRUE ~ 0),
+  # total_natural_gas = case_when(fuel == 'Natural gas' ~ 1, TRUE ~ 0),
   total_other = case_when(fuel == 'Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))' ~ 1, TRUE ~ 0),
   total_hev = case_when(fuel == 'Hybrid (HEV)' ~ 1, TRUE ~ 0),
   total_phev = case_when(fuel == 'Plug-in hybrid (PHEV)' ~ 1, TRUE ~ 0)) %>% 
@@ -118,8 +130,24 @@ veh_type_count <- vehicle %>%
   summarise(across(c(total_ev, total_gas, total_diesel, total_hybrid, total_flex_fuel, total_biofuel, total_natural_gas,
                      total_other, total_hev, total_phev), sum)) %>% 
   mutate(total_vehicles = rowSums(.[2:11]))
+
   
   
 # used to verify the total number of vehicles for each hh is the same as in the vehicles table  
 test <- vehicle %>% group_by(hh_id) %>% summarise(count = n())
 
+
+# @JL 06/24/2024: alternative method
+veh_type_count2 <- vehicle %>% 
+  # count number of vehicles by type and household id
+  group_by(hh_id,hh_weight,survey_year,fuel) %>%
+  summarise(count = n()) %>% 
+  # long to wide format + fill NA with 0
+  pivot_wider(id_cols = hh_id:survey_year, names_from = fuel, values_from = count, values_fill = 0) %>% 
+  # @tip: use `names(veh_type_count2)` to see the new variable names after pivot_wider()
+  # sum values in rows (remember that this is only works with the group_by function upstream or rowwise())
+  mutate(total_vehicles = sum(c_across(`Gas`:`Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))`))) %>%
+  ungroup() %>%
+  full_join(hh, by=c("hh_id","hh_weight","survey_year")) %>%
+  # calculate the difference between vehicle and hh data
+  mutate(vehicle_count_diff = total_vehicles - as.numeric(substr(vehicle_count,1,1)))
