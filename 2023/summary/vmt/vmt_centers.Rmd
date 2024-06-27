@@ -13,6 +13,7 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
+library(sf)
 source('../survey-23-preprocess.R')
 ```
 
@@ -132,7 +133,7 @@ driving_trip<-driving_trip%>%mutate(weighted_vmt=distance_miles*trip_weight/trav
   mutate(weighted_vmt=ifelse(is.na(weighted_vmt), 0, weighted_vmt))%>%
   mutate(unweighted_vmt=distance_miles/travelers_total_num)%>%
   mutate(unweighted_vmt=ifelse(is.na(unweighted_vmt), 0, unweighted_vmt))%>%
-  filter(distance_miles<100)
+  filter(distance_miles<200)
 
 ```
 
@@ -165,41 +166,63 @@ driving_per_person
 write.csv(driving_per_person, 'driving_per_person.csv')
 ```
 
-
+# read in all the geographies
 
 ```{r}
-uga.lyr<-st_read_elmergeo('URBAN_GROWTH_AREA')
+uga.lyr<-st_read_elmergeo('URBAN_GROWTH_AREA_evw')
 ```
 
 
 ```{r}
-center.lyr <- st_read_elmergeo('URBAN_CENTERS')
+center.lyr <- st_read_elmergeo('URBAN_CENTERS_evw')
+```
+
+
+
+```{r}
+hh_geo<-hh%>%
+  st_as_sf(coords=c('home_lng','home_lat'), crs=4326)
+```
+
+
+```{r}
+hh_in_uga<-st_filter(hh_geo, uga.lyr)
 ```
 
 ```{r}
-variable_list<-add_variable(variable_list, 'rgc_cat_home','hh')
+hh_in_uga<-hh_in_uga%>%mutate(in_uga=1)
 ```
 
 ```{r}
-
-value<- c(0,1,2)
-label=c( 'Not RGC','Urban RGC', 'Metro RGC')
-val_labels<-data.frame(value, label)
-val_labels<-val_labels%>%mutate(variable='rgc_cat_home')%>%
-    mutate(group_1_title = NA, group_1_value = NA,
-           group_2_title = NA, group_2_value= NA,
-           group_3_title = NA, group_3_value = NA)
-
-all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
-                                      group_2_title, group_2_value, group_3_title, group_3_value)
-new_value_labels<-rbind(all_value_labels, val_labels)
-new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
-value_labels<-new_value_labels  
+hh<-left_join(hh, hh_in_uga)
+hh<-hh%>%  mutate(in_uga=if_else(is.na(in_uga), 0, 1))
 ```
+
+
+
 
 ```{r}
 hh<-left_join(hh, center.lyr, by=join_by(home_rgcname==name), suffix= c("", '.origin'))
 ```
+
+
+
+
+
+
+
+```{r}
+hh_in_rural<-st_filter(hh_geo, rural)
+```
+
+
+
+
+
+
+
+
+
 
 ```{r }
 hh<-hh%>%mutate(rgc_cat_home= 
@@ -217,29 +240,33 @@ hh%>%group_by(rgc_cat_home, survey_year)%>%summarize( count=n())
 ```
 
 
+
+
+
+
 ```{r}
+hh<-hh%>%mutate(rgc_uga=paste(in_uga, rgc_cat_home, sep='_'))
 hh_day<-right_join(hh, day, by='hh_id')%>%mutate(survey_year=survey_year.x)
 ```
 
-```{r}
-day_rgc_cat<-hh_day%>%group_by(survey_year,rgc_cat_home)%>%summarize(person_days=sum(day_weight))
-```
 
+```{r}
+day_rgc_cat<-hh_day%>%group_by(survey_year,rgc_cat_home)%>%summarize(person_days=sum(day_weight))%>%mutate(home_rgc=
+ if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
+```
+```{r}
+day_rgc_uga<-hh_day%>%group_by(survey_year,rgc_uga)%>%summarize(person_days=sum(day_weight))
+```
 
 ```{r}
 day_vmt<-left_join(hh, driving_trip, by = 'hh_id')%>%
   mutate(weighted_vmt=replace_na(weighted_vmt, 0))%>%rename(survey_year=survey_year.x)
-#day_vmt<-persons_vmt%>%mutate(home_rgc=
- # if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
-#person<-person%>%mutate(home_rgc=
- # if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
+day_vmt<-day_vmt%>%mutate(home_rgc=
+ if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
+
 ```
 
-
-
-
 ```{r}
-
 day_vmt_rgc<-day_vmt%>%group_by(survey_year, rgc_cat_home)%>%
   summarize(total_vmt=sum(weighted_vmt))%>%
   mutate(total_vmt=replace_na(total_vmt,0))
@@ -253,37 +280,80 @@ day_vmt_summary_rgc
 
 ```
 
-
 ```{r}
 
-person_vmt_all<-persons_vmt%>%group_by(survey_year)%>%
-  summarize(total_vmt=sum(weighted_vmt))%>%mutate(total_vmt=replace_na(total_vmt,0))
+day_vmt_summary_2<-day_vmt_summary_rgc%>%group_by(survey_year, home_rgc)%>%
+  summarize(vmt_rgc=sum(total_vmt), person_days_rgc=sum(person_days))%>%
+  mutate(vmt_home_rgc=vmt_rgc/person_days_rgc)
+
+day_vmt_summary_2
 
 
-person_all<-person%>%group_by( survey_year.x)%>%summarize(people=sum(person_weight))%>%rename(survey_year=survey_year.x)
 
-person_vmt_summary_all<-merge(person_vmt_all, person_all, by=c( 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
 
-person_vmt_summary_all
 ```
 
 
+
 ```{r}
-person_vmt_rgc_cat<-persons_vmt%>%group_by(survey_year, rgc_cat_home)%>%
+day_vmt_rgc_uga<-day_vmt%>%group_by(survey_year, rgc_uga)%>%
   summarize(total_vmt=sum(weighted_vmt))%>%
   mutate(total_vmt=replace_na(total_vmt,0))
 
-person_rgc_cat<-person%>%group_by( rgc_cat_home,survey_year.x)%>%summarize(people=sum(person_weight))%>%rename(survey_year=survey_year.x)
-
-person_vmt_summary_rgc_cat<-merge(person_vmt_rgc_cat, person_rgc_cat, by=c('rgc_cat_home', 'survey_year'))%>%mutate(vmt_per_person=total_vmt/people)
-
-person_vmt_rgc_cat<-order_factors(person_vmt_summary_rgc_cat, 'rgc_cat_home', value_labels)%>%filter(rgc_cat_home!='Missing')
 
 
-person_vmt_rgc_cat
+day_vmt_summary_rgc_uga<-merge(day_vmt_rgc_uga, day_rgc_uga, by=c( 'survey_year', 'rgc_uga'))%>%mutate(vmt_per_person=total_vmt/person_days)
+
+day_vmt_summary_rgc_uga
+
+
+```
+
+do a couple more geographies
+
+
+
+
+
+
+#redo analysis with regional geographies
+```{r}
+regional.geogs<-st_read_elmergeo('REGIONAL_GEOGRAPHIES_evw')
 ```
 
 
 
+```{r}
+sf_use_s2(FALSE)
+hh_reg_geog<-st_join(regional.geogs, hh_geo, join=st_intersects)%>%filter(!is.na(hh_id))
+```
+
+```{r}
+hh<-left_join(hh, hh_reg_geog, by='hh_id')
+```
+```{r}
+hh_reg_geog_year<-hh%>%group_by(class_desc, survey_year)%>%summarize( count=n())
+```
+
+```{r}
+
+hh_day<-right_join(hh, day, by='hh_id')%>%mutate(survey_year=survey_year.x)
+```
+
+```{r}
+day_reg_geo<-hh_day%>%group_by(survey_year,class_desc)%>%summarize(person_days=sum(day_weight))
+```
+
+```{r}
+day_vmt_reg_geo<-day_vmt%>%group_by(survey_year, class_desc)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))
 
 
+
+day_vmt_summary_reg_geo<-merge(day_vmt_reg_geo, day_reg_geo, by=c( 'survey_year', 'class_desc'))%>%mutate(vmt_per_person=total_vmt/person_days)
+
+day_vmt_summary_reg_geo
+
+
+```
