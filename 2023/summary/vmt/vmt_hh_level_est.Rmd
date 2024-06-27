@@ -142,105 +142,40 @@ driving_day<-driving_trip%>%group_by(day_id)%>%summarize(total_vmt=sum(weighted_
 ```
 
 
-
-
 ```{r}
 all_days<-left_join(day,driving_day, by='day_id' )%>%mutate(total_vmt=if_else(is.na(total_vmt), 0, total_vmt))%>%mutate(vmt=if_else(is.na(vmt_est_day), 0, vmt_est_day))%>%filter(day_weight!=0)
 ```
 
 
 ```{r}
-center.lyr <- st_read_elmergeo('URBAN_CENTERS')
+hh_person<-merge(hh, person, by ='hh_id')
+```
+
+
+```{r}
+all_days_person<-merge(hh_person, all_days, by ='person_id')%>%filter(vmt<200)
 ```
 
 ```{r}
-variable_list<-add_variable(variable_list, 'rgc_cat_home','hh')
+summary(all_days_person$vmt)
+```
+
+
+
+```{r}
+all_days_person<-all_days_person%>%mutate(ln_vmt=log(vmt+1))
+```
+
+
+```{r}
+model<-lm(ln_vmt ~survey_year+hhincome_broad+race_category+workplace+telecommute_freq+gender+commute_freq,data=all_days_person)
+summary(model)
+
 ```
 
 ```{r}
-variable_list<-add_variable(variable_list, 'home_rgc','hh')
+hhincome_broad+race_category+workplace+ age+industry, 
 ```
-
-```{r}
-
-value<- c(0,1,2)
-label=c( 'Not RGC','Urban RGC', 'Metro RGC')
-val_labels<-data.frame(value, label)
-val_labels<-val_labels%>%mutate(variable='rgc_cat_home')%>%
-    mutate(group_1_title = NA, group_1_value = NA,
-           group_2_title = NA, group_2_value= NA,
-           group_3_title = NA, group_3_value = NA)
-
-all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
-                                      group_2_title, group_2_value, group_3_title, group_3_value)
-new_value_labels<-rbind(all_value_labels, val_labels)
-new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
-value_labels<-new_value_labels  
-```
-
-```{r}
-
-value<- c(0,1)
-label=c( 'Not RGC','RGC')
-val_labels<-data.frame(value, label)
-val_labels<-val_labels%>%mutate(variable='home_rgc')%>%
-    mutate(group_1_title = NA, group_1_value = NA,
-           group_2_title = NA, group_2_value= NA,
-           group_3_title = NA, group_3_value = NA)
-
-all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
-                                      group_2_title, group_2_value, group_3_title, group_3_value)
-new_value_labels<-rbind(all_value_labels, val_labels)
-new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
-value_labels<-new_value_labels  
-```
-
-```{r}
-hh<-left_join(hh, center.lyr, by=join_by(home_rgcname==name), suffix= c("", '.origin'))
-```
-
-```{r }
-hh<-hh%>%mutate(rgc_cat_home= 
-                      case_when(is.na(category) ~ 'NotRGC',
-                                category=='Metro' ~ 'MetroRGC',
-                                category=='Urban' ~ 'UrbanRGC',
-                                TRUE ~'Missing')
-)%>%mutate(home_rgc=
-  if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
-```
-
-
-                    
-
-```{r}
-hh_person_day<-list(hh=hh, day=all_days)
-
-```
-
-# by applying the weights in this manner, so we can look at individual days
-# the resulting estimates are lower than if you apply the trip weights, and day weights together,
-# I think because of sum product impacts
-```{r}
-all_days<-all_days%>%mutate(vmt_day_wt=vmt_est_day*day_weight)%>%mutate(vmt_day_wt=if_else(is.na(vmt_day_wt), 0, vmt_day_wt))
-vmt_year<-all_days%>%group_by(survey_year)%>%summarize(VMT_Year=sum(vmt_day_wt))
-people_year<-person%>%group_by(survey_year)%>%summarize(all_people=sum(person_weight))
-
-vmt_people_year<-merge(vmt_year, people_year, by='survey_year')%>%mutate(vmt_per_person=VMT_Year/all_people)
-
-vmt_people_year
-```
-
-```{r}
-days_hh<-left_join(all_days, hh, by='hh_id')
-vmt_year_rgc<-days_hh%>%group_by(survey_year.x, rgc_cat_home)%>%summarize(VMT_Year=sum(vmt_day_wt))
-person_hh<-merge(person,hh, by=('hh_id'))
-
-people_year_rgc<-person_hh%>%group_by(survey_year.x, rgc_cat_home)%>%summarize(all_people=sum(person_weight))
-
-vmt_people_year<-merge(vmt_year_rgc, people_year_rgc, by=c('survey_year.x', 'rgc_cat_home'))%>%mutate(vmt_per_person=VMT_Year/all_people)
-
-```
-
 
 
 
