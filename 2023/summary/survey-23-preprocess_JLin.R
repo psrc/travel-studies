@@ -1,3 +1,36 @@
+# set IDs to characters
+set_id_as_character <- function(tbl, id_cols=c("survey_year", "hh_id", "person_id", "day_id", "trip_id")){
+  cols <- intersect(colnames(tbl) ,id_cols )
+  return(
+    tbl[, (cols) := lapply(.SD, function(x) as.character(x)), .SDcols = cols]
+    )
+}
+
+
+new_add_variable <- function(variables_dt = variable_list, variable_name, table_name, data_type='integer/categorical'){
+  
+  new_var_tbl<-
+    data.table(
+      variable = variable_name,
+      is_checkbox = 0,
+      hh = 0,
+      person = 0,
+      day = 0,
+      trip = 0,
+      vehicle = 0,
+      location = 0,
+      description = variable_name,
+      logic = variable_name,
+      data_type =data_type,
+      shared_name = variable_name
+    )
+  
+  new_var_tbl<-new_var_tbl%>%mutate({{table_name}}:=1)
+  variable_list<-rbind(variable_list, new_var_tbl)
+  
+  
+}
+
 # Add associated values to value table
 new_value_tbl <- function(variable_name_list, variable_value_list,order_start = 0){
   
@@ -44,6 +77,7 @@ get_var_grouping <- function(value_tbl, group_number, grouping_name){
   
   return(final)
 }
+
 
 # Add custom variable 
 create_custom_variable <- function(value_tbl, variable_name,label_vector){
