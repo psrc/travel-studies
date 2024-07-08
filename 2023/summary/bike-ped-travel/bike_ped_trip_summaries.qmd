@@ -7,7 +7,7 @@ editor: visual
 
 # Travel Mode: Walk, Bike, & Micromobility
 
-## Setup
+## Initial Summaries
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
@@ -22,7 +22,7 @@ library(tidyverse)
 source("C:/Users/GGibson/GitHub/PSRC/travel-studies/2023/summary/survey-23-preprocess.R")
 ```
 
-## Read in codebook
+### Read in codebook
 
 ```{r codebook}
 cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
@@ -34,7 +34,7 @@ setDT(variable_list)
 setDT(value_labels)
 ```
 
-## Read in data from Elmer
+### Read in data from Elmer
 
 ```{r elmer_data}
 hh <- get_query(sql = "SELECT household_id as hh_id, num_trips AS h_num_trips, hhsize, vehicle_count, hhincome_broad,
@@ -58,7 +58,7 @@ setDT(person)
 setDT(trip)
 ```
 
-## Set IDs as character type
+### Set IDs as character type
 
 ```{r set_ids}
 hh[, hh_id := as.character(hh_id)]
@@ -75,7 +75,7 @@ person[, survey_year := as.character(survey_year)]
 trip[, survey_year := as.character(survey_year)]
 ```
 
-## Get unique modes from trips
+### Get unique modes from trips
 
 ```{r trip_modes}
 trip_modes <- unique(trip[, c("mode_1", "mode_type", "mode_characterization", "mode_simple")])
@@ -88,13 +88,51 @@ value_labels <- add_values_code(group_name = "mode_simple")
 
 Based on the modes in the trip data, will need to filter on `mode_characterization` to remove "Airplane"
 
-## Filter trips to walk, bike, micromobility
+### Filter trips to walk, bike, micromobility
 
 ```{r walk_bike filter}
 trip <- filter(trip, mode_characterization != "Airplane")
 ```
 
-## Initial summaries
+### Create summaries
+
+```{r age_cond_variable}
+variable_list <- add_variable(variable_list,
+                              variable_name = "age_condensed",
+                              table_name = "person",
+                              data_type = "character")
+
+person <- person %>% 
+  mutate(age_condensed = case_when(age %in% c("Under 5 years old", "5-11 years", "12-15 years", "16-17 years") ~ "Under 18 years old",
+                                   age %in% c("18-24 years", "25-34 years") ~ "18-34 years",
+                                   age %in% c("35-44 years", "45-54 years", "55-64 years") ~ "35-64 years",
+                                   age %in% c("65-74 years", "75-84 years", "85 or years older") ~ "65 years or older")) %>% 
+  mutate(age_condensed = factor(age_condensed, levels = c("Under 18 years old", "18-34 years", "35-64 years", "65 years or older")))
+```
+
+```{r income_variable}
+variable_list <- add_variable(variable_list,
+                              variable_name = "hhincome_broad_combined",
+                              table_name = "hh",
+                              data_type = "character")
+
+hh <- hh %>% 
+  mutate(hhincome_broad_combined = ifelse(hhincome_broad %in% c("$100,000-$199,000", "$200,000 or more"),
+                                          "$100,000 or more", hhincome_broad)) %>% 
+  mutate(hhincome_broad_combined = factor(hhincome_broad_combined,
+                                          levels = c("Under $25,000", "$25,000-$49,999", "$50,000-$74,999",
+                                                     "$75,000-$99,999", "$100,000 or more", "Prefer not to answer")))
+```
+
+```{r vehicle_owner_variable}
+variable_list <- add_variable(variable_list,
+                              variable_name = "vehicle_ownership",
+                              table_name = "hh",
+                              data_type = "character")
+
+hh <- hh %>% 
+  mutate(vehicle_ownership = ifelse(vehicle_count == "0 (no vehicles)", "Not a vehicle owner", "Vehicle owner"))
+```
 
 ```{r summary}
 hts_data <- list(hh = hh,
@@ -115,7 +153,7 @@ mode_summary <- summary_trips$summary$wtd %>%
   mutate(moe = prop_se * 1.645)
 ```
 
-## Initial charts
+### Initial charts
 
 ```{r walk_chart_est, echo=FALSE}
 static_column_chart(filter(mode_summary, mode_simple == "Walk"),
@@ -131,7 +169,6 @@ static_column_chart(filter(mode_summary, mode_simple == "Walk"),
 ```
 
 ```{r walk_chart_share, echo=FALSE}
-# need to reconfigure full trip table to determine accurate share of trips by mode
 static_column_chart(filter(mode_summary, mode_simple == "Walk"),
                     x = "survey_year", y = "prop", fill = "mode_simple",
                     ylabel = "% of Trips", xlabel = "Survey Year", title = "Walk Trips - Share",
@@ -171,5 +208,196 @@ static_column_chart(filter(mode_summary, mode_simple == "Bike"),
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24),
                       plot.caption = element_text(size = 14)
+                      )
+```
+
+## Walk Mode Share by Demographics
+
+Question: Are there any significant differences in the walk mode share (compared to other modes) by age, race/ethnicity, income, ability, or vehicle ownership? Has this changed from the 2017/2019 and 2021 survey results?
+
+```{r walk_age, echo=FALSE}
+# too many ages - need to aggregate to fewer groups
+mode_by_age <- summarize_weighted(hts_data = hts_data,
+                                  summarize_var = "mode_simple",
+                                  summarize_by = c("survey_year", "age"),
+                                  id_cols = ids,
+                                  wt_cols = wts,
+                                  wtname = "trip_weight"
+                                  )
+
+walk_by_age <- mode_by_age$summary$wtd %>% 
+  filter(mode_simple == "Walk") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_age_chart, echo=FALSE}
+static_column_chart(walk_by_age,
+                    x = "age", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Age Range", title = "Walk Trips by Age - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r walk_age_cond, echo=FALSE}
+# too many ages - need to aggregate to fewer groups
+mode_by_age_cond <- summarize_weighted(hts_data = hts_data,
+                                       summarize_var = "mode_simple",
+                                       summarize_by = c("survey_year", "age_condensed"),
+                                       id_cols = ids,
+                                       wt_cols = wts,
+                                       wtname = "trip_weight"
+                                       )
+
+walk_by_age_cond <- mode_by_age_cond$summary$wtd %>% 
+  filter(mode_simple == "Walk") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_age_cond_chart, echo=FALSE}
+static_column_chart(walk_by_age_cond,
+                    x = "age_condensed", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Age Range", title = "Walk Trips by Age - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+### Bike comparison
+
+```{r bike_age, echo=FALSE}
+# hard to judge differences - use walk shares to determine age groupings
+bike_by_age <- mode_by_age$summary$wtd %>% 
+  filter(mode_simple == "Bike") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r bike_age_chart, echo=FALSE}
+static_column_chart(bike_by_age,
+                    x = "age", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Age Range", title = "Bike Trips by Age - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_age_cond, echo=FALSE}
+# hard to judge differences - use walk shares to determine age groupings
+bike_by_age_cond <- mode_by_age_cond$summary$wtd %>% 
+  filter(mode_simple == "Bike") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r bike_age_cond_chart, echo=FALSE}
+static_column_chart(bike_by_age_cond,
+                    x = "age_condensed", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Age Range", title = "Bike Trips by Age - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r walk_race, echo=FALSE}
+mode_by_race <- summarize_weighted(hts_data = hts_data,
+                                   summarize_var = "mode_simple",
+                                   summarize_by = c("survey_year", "race_category"),
+                                   id_cols = ids,
+                                   wt_cols = wts,
+                                   wtname = "trip_weight"
+                                   )
+
+walk_by_race <- mode_by_race$summary$wtd %>% 
+  filter(mode_simple == "Walk") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_race_chart, echo=FALSE}
+static_column_chart(filter(walk_by_race, race_category != "Child"),
+                    x = "race_category", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Race", title = "Walk Trips by Race - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r walk_income, echo=FALSE}
+# differences in groupings from 2019 to 2021 for >$100k - group together
+mode_by_income <- summarize_weighted(hts_data = hts_data,
+                                     summarize_var = "mode_simple",
+                                     summarize_by = c("survey_year", "hhincome_broad_combined"),
+                                     id_cols = ids,
+                                     wt_cols = wts,
+                                     wtname = "trip_weight"
+                                     )
+
+walk_by_income <- mode_by_income$summary$wtd %>% 
+  filter(mode_simple == "Walk") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_income_chart, echo=FALSE}
+static_column_chart(walk_by_income,
+                    x = "hhincome_broad_combined", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Household Income", title = "Walk Trips by Income - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r walk_vehicle, echo=FALSE}
+mode_by_vehicle <- summarize_weighted(hts_data = hts_data,
+                                      summarize_var = "mode_simple",
+                                      summarize_by = c("survey_year", "vehicle_ownership"),
+                                      id_cols = ids,
+                                      wt_cols = wts,
+                                      wtname = "trip_weight"
+                                      )
+
+walk_by_vehicle <- mode_by_vehicle$summary$wtd %>% 
+  filter(mode_simple == "Walk") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_vehicle_chart, echo=FALSE}
+static_column_chart(walk_by_vehicle,
+                    x = "vehicle_ownership", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Vehicle Ownership", title = "Walk Trips by Vehicle Ownership - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
                       )
 ```
