@@ -1,0 +1,366 @@
+---
+title: "EV Charging Analysis"
+format:
+  html:
+    code-overflow: wrap  
+editor: visual
+toc: true
+toc-location: right
+---
+
+# Set up
+
+This section covers loading in all libraries/packages, connecting the code book, and Elmer data to the R environment.
+
+```{r}
+#| label: Loading in Packages
+#| warning: false
+library(devtools)
+devtools::install_github('rsgInc/travelSurveyTools')
+devtools::install_github('psrc/psrcelmer')
+devtools::install_github('psrc/psrcplot')
+
+# libraries
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(kableExtra)
+```
+
+This code is to read in the code book and adding a new variable.
+
+```{r}
+#| label: reading in codebook
+#| warning: false
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+
+# Creating a new variable
+# ev_typical_charge is a checkbox variable so I am creating a new variable called 
+# 'ev_typical_charge_melted' to the variable list and value labels so that it can 
+# be later referenced when creating a summary.
+
+variable_list = rbind(
+  variable_list,
+  data.table(
+    variable = "ev_typical_charge_melted",
+    is_checkbox = 0,
+    hh = 0,
+    person = 1,
+    day = 0,
+    trip = 0,
+    vehicle = 0,
+    location = 0,
+    data_type = "integer/categorical",
+    description = "ev typical charging location",
+    logic = "ev typical charging location",
+    shared_name = "ev_typical_charge_melted",
+    notes = NA
+  )
+)
+
+# adding to the value labels
+value_labels = rbind(
+  value_labels,
+  data.table(
+    variable = rep("ev_typical_charge_melted", 7),
+    value = c(1, 2, 3, 4, 5, 6, 997),
+    label = c("At home",
+              "At work",
+              "At a commute location (e.g., Park and Ride lot, parking garage)", 
+              "At a shopping location (e.g., grocery store, shopping mall)", 
+              "At a public location (e.g., hospital, library, government building)",
+              "At a hotel/inn",
+              "Other"),
+    val_order = c(6062:6068),
+    group_1_title = rep(NA, 7),
+    group_1_value = rep(NA, 7),
+    group_2_title = rep(NA, 7),
+    group_2_value = rep(NA, 7),
+    group_3_title = rep(NA, 7),
+    group_3_value = rep(NA, 7))
+)
+
+```
+
+This code accesses the data from Elmer via a SQL query. Here I am accessing the person table from the Household Travel Survey.
+
+```{r}
+#| label: reading in data from Elmer
+#| warning: false
+person<- get_query(sql= "select household_id as hh_id,
+person_id, survey_year, ev_typical_charge_1, ev_typical_charge_2, ev_typical_charge_3, ev_typical_charge_4, ev_typical_charge_5,
+ev_typical_charge_6, ev_typical_charge_997, person_weight
+                from HHSurvey.v_persons_labels where survey_year = 2023")
+
+vehicle<- get_query(sql= "select v.household_id as hh_id, v.vehicle_id, v.survey_year, v.fuel, h.hh_weight
+                         from HHSurvey.v_vehicles_labels v
+                              join HHSurvey.v_households_labels h on v.household_id = h.household_id
+                         where v.survey_year = 2023")
+
+hh<- get_query(sql= "select household_id as hh_id, survey_year, vehicle_count, hh_weight
+                         from HHSurvey.v_households_labels
+                         where survey_year = 2023")
+
+setDT(hh)
+setDT(vehicle)
+setDT(person)
+```
+
+This code sets the id columns of each table as character data types.
+
+```{r}
+#| label: characters as ids
+#| warning: false
+person[, hh_id:=as.character(hh_id)]
+person[, person_id := as.character(person_id)]
+person <- person%>%mutate(survey_year=as.character(survey_year))
+
+vehicle[, hh_id:=as.character(hh_id)]
+vehicle[, vehicle_id := as.character(vehicle_id)]
+vehicle <- vehicle%>%mutate(survey_year=as.character(survey_year))
+
+hh[, hh_id:=as.character(hh_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
+```
+
+This code stores the person, hh, and vehicale data tables as lists so they can be used in the hts_summary function.
+
+```{r}
+#| label: tables
+#| warning: false
+hts_data1 = list("person" = person)
+hts_data2 = list("hh" = hh)
+hts_data3 = list("vehicle" = vehicle)
+
+
+```
+
+## Melting
+
+I used the hts_melt_vars variable to create a new person table that stores the ev_typical_charge variables in a long format. Then I joined the new table back to the person table.
+
+```{r}
+new_person_tbl <- hts_melt_vars(
+  shared_name = "ev_typical_charge",
+  shared_name_vars = c("ev_typical_charge_1", "ev_typical_charge_2", "ev_typical_charge_3", "ev_typical_charge_4", "ev_typical_charge_5",
+                       "ev_typical_charge_6", "ev_typical_charge_997"),
+  wide_dt = person,
+  ids = "person_id", 
+  data = hts_data1
+) %>% filter(value == "Selected")
+
+person_new <- person%>%left_join(new_person_tbl, by=c("person_id")) %>% 
+  rename(ev_typical_charge_melted=ev_typical_charge) %>%
+  mutate(ev_typical_charge_melted = gsub('Typical charge location for EV -- ','',ev_typical_charge_melted )) %>%
+  filter(!is.na(ev_typical_charge_melted))
+hts_data1 <- list(person = person_new)
+head(person_new[,c("hh_id", "person_id", "person_weight", "variable", "ev_typical_charge_melted")])
+```
+
+## EV Charging Location
+
+EV typical charging location summary
+
+```{r}
+#| label: Summarizing
+#| warning: false
+prep_data <- hts_prep_variable(
+              summarize_var = "ev_typical_charge_melted",
+              id_cols = "person_id",
+              variables_dt = variable_list,
+              wt_cols="person_weight",
+              data = hts_data1,
+              missing_values=NA)
+
+hts_summary <- hts_summary_cat(prep_data$cat, 
+                               summarize_var = "ev_typical_charge_melted",
+                               wtname = "person_weight",
+                               id_cols =  "person_id")
+ev_charge <- hts_summary$wtd
+ev_charge$prop <- round(ev_charge$prop, 4)
+ev_charge$est <- round(ev_charge$est, 2)
+kbl(ev_charge) %>% 
+   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  column_spec(c(3), background = psrc_colors$purples_inc[1]) %>%
+  column_spec(c(4), background = psrc_colors$greens_inc[1])
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| fig-width: 16
+#| fig-height: 8
+ev_charge$ev_typical_charge_melted <- gsub("\\(.*", "", ev_charge$ev_typical_charge_melted)
+ggplot(ev_charge, aes(x=reorder(ev_typical_charge_melted, prop), y=prop, fill=ev_typical_charge_melted)) +
+  geom_col()+
+  geom_text(aes(y=prop, label=scales::percent(prop, accuracy = 0.1)), size = 5, hjust=-0.1)+
+  # geom_errorbar(aes(ymin=share-share_moe, ymax=share+share_moe), width=0.2) +
+  scale_y_continuous(labels=scales::percent)+
+  scale_fill_manual(values = psrc_colors$pgnobgy_10)+
+  coord_flip()+
+  psrc_style() +
+  labs(title = "Ev Typical Charging Locations", caption = "data: Household Travel Survey 2023", x="Ev Typical Charge") +
+  theme(axis.title = element_blank(), plot.title = element_text(size = 20), legend.position = "none", axis.text = element_text(size= 15), plot.caption = element_text(size = 15))
+```
+## Vehicle Count
+
+This summary shows the counts for the number of people who have a car and those that do not have a car
+
+```{r}
+#| warning: false
+prep_data2 <- hts_prep_variable(
+    summarize_var = "vehicle_count",
+    id_cols = "hh_id",
+    variables_dt = variable_list,
+    wt_cols="hh_weight",
+    data = hts_data2
+  )
+
+veh_count_summary = hts_summary(
+  prepped_dt = prep_data2$cat,
+  summarize_var = "vehicle_count",
+  summarize_by = NULL,
+  summarize_vartype = "categorical",
+  weighted = TRUE,
+  wtname = "hh_weight",
+  id_cols =  "hh_id"
+)
+
+veh_count <- veh_count_summary$summary$wtd
+veh_count$prop <- round(veh_count$prop, 4)
+veh_count$est <- round(veh_count$est, 2)
+kbl(veh_count) %>% 
+   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  column_spec(c(2), background = psrc_colors$purples_inc[1]) %>%
+  column_spec(c(3), background = psrc_colors$greens_inc[1]) %>% 
+  column_spec(c(4), background = psrc_colors$purples_inc[1])
+
+static_column_chart(veh_count, x='vehicle_count', y='prop', fill='vehicle_count')
+```
+
+This summary displays the proportion and counts for each fuel type
+
+```{r}
+#| warning: false
+prep_data3 <- hts_prep_variable(
+    summarize_var = "fuel",
+    id_cols = "hh_id",
+    variables_dt = variable_list,
+    wt_cols="hh_weight",
+    data = hts_data3
+  )
+
+fuel_cat_summary = hts_summary(
+  prepped_dt = prep_data3$cat,
+  summarize_var = "fuel",
+  summarize_by = NULL,
+  summarize_vartype = "categorical",
+  weighted = TRUE,
+  wtname = "hh_weight",
+  id_cols =  "hh_id"
+)
+
+
+
+fuel_cat <- fuel_cat_summary$summary$wtd
+fuel_cat$prop <- round(fuel_cat$prop, 4)
+fuel_cat$est <- round(fuel_cat$est, 2)
+kbl(fuel_cat) %>% 
+   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  column_spec(c(2), background = psrc_colors$purples_inc[1]) %>%
+  column_spec(c(3), background = psrc_colors$greens_inc[1]) %>% 
+  column_spec(c(4), background = psrc_colors$purples_inc[1])
+
+
+# proportion by fuel type
+
+fuel_cat$fuel <- gsub("\\(.*", "", fuel_cat$fuel)
+fuel_cat$fuel <- factor(fuel_cat$fuel, 
+                        levels = fuel_cat$fuel[order(fuel_cat$prop, decreasing = TRUE)])
+static_column_chart(fuel_cat, x='fuel', y='prop', fill='fuel')
+
+
+```
+
+This summary table displays for each household, the number of vehicles it has for each fuel type and the household's total vehicles
+
+step 1: creates a new column and adds a '1' if it satisfies this condition
+
+step 2: groups by household
+
+step 3: for each group of hh rows, it sums the column values for each vehicle type
+
+```{r}
+#| warning: false
+veh_type_count <- vehicle %>% 
+  mutate(
+  total_ev = case_when(fuel == 'Electric (EV)' ~ 1, TRUE ~ 0),
+  total_gas = case_when(fuel == 'Gas' ~ 1, TRUE ~ 0),
+  total_diesel = case_when(fuel == 'Diesel' ~ 1, TRUE ~ 0),
+  total_other = case_when(fuel == 'Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))' ~ 1, TRUE ~ 0),
+  total_hev = case_when(fuel == 'Hybrid (HEV)' ~ 1, TRUE ~ 0),
+  total_phev = case_when(fuel == 'Plug-in hybrid (PHEV)' ~ 1, TRUE ~ 0)) %>% 
+  group_by(hh_id) %>%
+  summarise(across(c(total_ev, total_gas, total_diesel, total_other, total_hev, total_phev), sum)) %>% 
+  mutate(total_vehicles = rowSums(.[2:7])) %>% 
+  ungroup() %>% 
+  full_join(hh, by="hh_id")
+
+head(veh_type_count)
+# used to verify the total number of vehicles for each hh is the same as in the vehicles table  
+test <- vehicle %>% group_by(hh_id) %>% summarise(count = n())
+
+
+```
+
+Verifying if multiple people within a hh answered the 'EV typical charge' location question
+
+```{r}
+hh_response_count <- person_new %>% 
+  group_by(hh_id) %>% 
+  summarise(num_responses = n(),
+            num_people = n_distinct(person_id))
+print(hh_response_count)
+sum(hh_response_count$num_people)
+length(unique(person_new$hh_id))
+```
+finding households who own ev's
+
+```{r}
+ev_hh <- vehicle %>% filter(fuel == 'Electric (EV)') %>% distinct(hh_id, .keep_all = TRUE)
+
+```
+
+
+1. hh income of ev households?
+
+```{r}
+hh2<- get_query(sql= "select household_id as hh_id, hhincome_detailed, home_rgcname, res_type
+                         from HHSurvey.v_households_labels
+                         where survey_year = 2023")
+
+setDT(hh2)
+hh2[, hh_id:=as.character(hh_id)]
+
+ev_hh <- ev_hh %>% 
+  inner_join(hh2, by="hh_id")
+  
+  
+
+```
+
+2. do ev owners live in rgcs?
+
+3. what is their res_type?
+
+
