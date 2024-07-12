@@ -119,17 +119,14 @@ veh_type_count <- vehicle %>%
   total_ev = case_when(fuel == 'Electric (EV)' ~ 1, TRUE ~ 0),
   total_gas = case_when(fuel == 'Gas' ~ 1, TRUE ~ 0),
   total_diesel = case_when(fuel == 'Diesel' ~ 1, TRUE ~ 0),
-  # total_hybrid = case_when(fuel == 'Hybrid' ~ 1, TRUE ~ 0),
-  # total_flex_fuel = case_when(fuel == 'Flex Fuel' ~ 1, TRUE ~ 0),
-  # total_biofuel = case_when(fuel == 'Biofuel' ~ 1, TRUE ~ 0),
-  # total_natural_gas = case_when(fuel == 'Natural gas' ~ 1, TRUE ~ 0),
   total_other = case_when(fuel == 'Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))' ~ 1, TRUE ~ 0),
   total_hev = case_when(fuel == 'Hybrid (HEV)' ~ 1, TRUE ~ 0),
   total_phev = case_when(fuel == 'Plug-in hybrid (PHEV)' ~ 1, TRUE ~ 0)) %>% 
   group_by(hh_id) %>%
-  summarise(across(c(total_ev, total_gas, total_diesel, total_hybrid, total_flex_fuel, total_biofuel, total_natural_gas,
-                     total_other, total_hev, total_phev), sum)) %>% 
-  mutate(total_vehicles = rowSums(.[2:11]))
+  summarise(across(c(total_ev, total_gas, total_diesel, total_other, total_hev, total_phev), sum)) %>% 
+  mutate(total_vehicles = rowSums(.[2:7])) %>% 
+  ungroup() %>% 
+  full_join(hh, by="hh_id")
 
   
   
@@ -151,3 +148,14 @@ veh_type_count2 <- vehicle %>%
   full_join(hh, by=c("hh_id","hh_weight","survey_year")) %>%
   # calculate the difference between vehicle and hh data
   mutate(vehicle_count_diff = total_vehicles - as.numeric(substr(vehicle_count,1,1)))
+
+
+
+
+# Data Visualizations
+
+# proportion by fuel type
+static_column_chart(fuel_cat_summary$summary$wtd, x='fuel', y='prop', fill='fuel')
+
+#
+static_column_chart(veh_count_summary$summary$wtd, x='vehicle_count', y='prop', fill='vehicle_count')

@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.433">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>EV Charging Analysis</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="EV_Analysis_files/libs/clipboard/clipboard.min.js"></script>
+<script src="EV_Analysis_files/libs/quarto-html/quarto.js"></script>
+<script src="EV_Analysis_files/libs/quarto-html/popper.min.js"></script>
+<script src="EV_Analysis_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="EV_Analysis_files/libs/quarto-html/anchor.min.js"></script>
+<link href="EV_Analysis_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="EV_Analysis_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="EV_Analysis_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="EV_Analysis_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="EV_Analysis_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+<script src="EV_Analysis_files/libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="EV_Analysis_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#set-up" id="toc-set-up" class="nav-link active" data-scroll-target="#set-up">Set up</a>
+  <ul class="collapse">
+  <li><a href="#melting" id="toc-melting" class="nav-link" data-scroll-target="#melting">Melting</a></li>
+  <li><a href="#ev-charging-location" id="toc-ev-charging-location" class="nav-link" data-scroll-target="#ev-charging-location">EV Charging Location</a></li>
+  <li><a href="#vehicle-count" id="toc-vehicle-count" class="nav-link" data-scroll-target="#vehicle-count">Vehicle Count</a></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">EV Charging Analysis</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="set-up" class="level1">
+<h1>Set up</h1>
+<p>This section covers loading in all libraries/packages, connecting the code book, and Elmer data to the R environment.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(devtools)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">'rsgInc/travelSurveyTools'</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">'psrc/psrcelmer'</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">'psrc/psrcplot'</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># libraries</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(data.table)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stringr)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(travelSurveyTools)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(psrcelmer)</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(psrcplot)</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This code is to read in the code book and adding a new variable.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>cb_path <span class="ot">=</span> <span class="fu">str_glue</span>(<span class="st">"J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>variable_list <span class="ot">=</span> readxl<span class="sc">::</span><span class="fu">read_xlsx</span>(cb_path, <span class="at">sheet =</span> <span class="st">'variable_list'</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>value_labels <span class="ot">=</span> readxl<span class="sc">::</span><span class="fu">read_xlsx</span>(cb_path, <span class="at">sheet =</span> <span class="st">'value_labels'</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(variable_list)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(value_labels)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Creating a new variable</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co"># ev_typical_charge is a checkbox variable so I am creating a new variable called </span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># 'ev_typical_charge_melted' to the variable list and value labels so that it can </span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="co"># be later referenced when creating a summary.</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>variable_list <span class="ot">=</span> <span class="fu">rbind</span>(</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  variable_list,</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.table</span>(</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">variable =</span> <span class="st">"ev_typical_charge_melted"</span>,</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">is_checkbox =</span> <span class="dv">0</span>,</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>    <span class="at">hh =</span> <span class="dv">0</span>,</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">person =</span> <span class="dv">1</span>,</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">day =</span> <span class="dv">0</span>,</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">trip =</span> <span class="dv">0</span>,</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">vehicle =</span> <span class="dv">0</span>,</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">location =</span> <span class="dv">0</span>,</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">data_type =</span> <span class="st">"integer/categorical"</span>,</span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">description =</span> <span class="st">"ev typical charging location"</span>,</span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>    <span class="at">logic =</span> <span class="st">"ev typical charging location"</span>,</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>    <span class="at">shared_name =</span> <span class="st">"ev_typical_charge_melted"</span>,</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">notes =</span> <span class="cn">NA</span></span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a><span class="co"># adding to the value labels</span></span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>value_labels <span class="ot">=</span> <span class="fu">rbind</span>(</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>  value_labels,</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.table</span>(</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a>    <span class="at">variable =</span> <span class="fu">rep</span>(<span class="st">"ev_typical_charge_melted"</span>, <span class="dv">7</span>),</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>    <span class="at">value =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>, <span class="dv">997</span>),</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>    <span class="at">label =</span> <span class="fu">c</span>(<span class="st">"At home"</span>,</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>              <span class="st">"At work"</span>,</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>              <span class="st">"At a commute location (e.g., Park and Ride lot, parking garage)"</span>, </span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>              <span class="st">"At a shopping location (e.g., grocery store, shopping mall)"</span>, </span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>              <span class="st">"At a public location (e.g., hospital, library, government building)"</span>,</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>              <span class="st">"At a hotel/inn"</span>,</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>              <span class="st">"Other"</span>),</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>    <span class="at">val_order =</span> <span class="fu">c</span>(<span class="dv">6062</span><span class="sc">:</span><span class="dv">6068</span>),</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_1_title =</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="dv">7</span>),</span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_1_value =</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="dv">7</span>),</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_2_title =</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="dv">7</span>),</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_2_value =</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="dv">7</span>),</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_3_title =</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="dv">7</span>),</span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>    <span class="at">group_3_value =</span> <span class="fu">rep</span>(<span class="cn">NA</span>, <span class="dv">7</span>))</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This code accesses the data from Elmer via a SQL query. Here I am accessing the person table from the Household Travel Survey.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>person<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select household_id as hh_id,</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="st">person_id, survey_year, ev_typical_charge_1, ev_typical_charge_2, ev_typical_charge_3, ev_typical_charge_4, ev_typical_charge_5,</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="st">ev_typical_charge_6, ev_typical_charge_997, person_weight</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="st">                from HHSurvey.v_persons_labels where survey_year = 2023"</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>vehicle<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select v.household_id as hh_id, v.vehicle_id, v.survey_year, v.fuel, h.hh_weight</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="st">                         from HHSurvey.v_vehicles_labels v</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="st">                              join HHSurvey.v_households_labels h on v.household_id = h.household_id</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="st">                         where v.survey_year = 2023"</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>hh<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select household_id as hh_id, survey_year, vehicle_count, hh_weight</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="st">                         from HHSurvey.v_households_labels</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="st">                         where survey_year = 2023"</span>)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(hh)</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(vehicle)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(person)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This code sets the id columns of each table as character data types.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>person[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>person[, person_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(person_id)]</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>person <span class="ot">&lt;-</span> person<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>vehicle[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>vehicle[, vehicle_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(vehicle_id)]</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>vehicle <span class="ot">&lt;-</span> vehicle<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>hh[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>hh <span class="ot">&lt;-</span> hh<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This code stores the person, hh, and vehicale data tables as lists so they can be used in the hts_summary function.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>hts_data1 <span class="ot">=</span> <span class="fu">list</span>(<span class="st">"person"</span> <span class="ot">=</span> person)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>hts_data2 <span class="ot">=</span> <span class="fu">list</span>(<span class="st">"hh"</span> <span class="ot">=</span> hh)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>hts_data3 <span class="ot">=</span> <span class="fu">list</span>(<span class="st">"vehicle"</span> <span class="ot">=</span> vehicle)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="melting" class="level2">
+<h2 class="anchored" data-anchor-id="melting">Melting</h2>
+<p>I used the hts_melt_vars variable to create a new person table that stores the ev_typical_charge variables in a long format. Then I joined the new table back to the person table.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>new_person_tbl <span class="ot">&lt;-</span> <span class="fu">hts_melt_vars</span>(</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">shared_name =</span> <span class="st">"ev_typical_charge"</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">shared_name_vars =</span> <span class="fu">c</span>(<span class="st">"ev_typical_charge_1"</span>, <span class="st">"ev_typical_charge_2"</span>, <span class="st">"ev_typical_charge_3"</span>, <span class="st">"ev_typical_charge_4"</span>, <span class="st">"ev_typical_charge_5"</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                       <span class="st">"ev_typical_charge_6"</span>, <span class="st">"ev_typical_charge_997"</span>),</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">wide_dt =</span> person,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">ids =</span> <span class="st">"person_id"</span>, </span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">data =</span> hts_data1</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>) <span class="sc">%&gt;%</span> <span class="fu">filter</span>(value <span class="sc">==</span> <span class="st">"Selected"</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>person_new <span class="ot">&lt;-</span> person<span class="sc">%&gt;%</span><span class="fu">left_join</span>(new_person_tbl, <span class="at">by=</span><span class="fu">c</span>(<span class="st">"person_id"</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rename</span>(<span class="at">ev_typical_charge_melted=</span>ev_typical_charge) <span class="sc">%&gt;%</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">ev_typical_charge_melted =</span> <span class="fu">gsub</span>(<span class="st">'Typical charge location for EV -- '</span>,<span class="st">''</span>,ev_typical_charge_melted )) <span class="sc">%&gt;%</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="sc">!</span><span class="fu">is.na</span>(ev_typical_charge_melted))</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>hts_data1 <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">person =</span> person_new)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(person_new[,<span class="fu">c</span>(<span class="st">"hh_id"</span>, <span class="st">"person_id"</span>, <span class="st">"person_weight"</span>, <span class="st">"variable"</span>, <span class="st">"ev_typical_charge_melted"</span>)])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>      hh_id  person_id person_weight              variable
+1: 23001247 2300124701      38.78895   ev_typical_charge_1
+2: 23001247 2300124702      38.78895   ev_typical_charge_1
+3: 23001322 2300132202    2034.33615   ev_typical_charge_1
+4: 23001767 2300176701      36.82265   ev_typical_charge_1
+5: 23001767 2300176701      36.82265 ev_typical_charge_997
+6: 23002452 2300245201     227.24542   ev_typical_charge_1
+   ev_typical_charge_melted
+1:                  At home
+2:                  At home
+3:                  At home
+4:                  At home
+5:                    Other
+6:                  At home</code></pre>
+</div>
+</div>
+</section>
+<section id="ev-charging-location" class="level2">
+<h2 class="anchored" data-anchor-id="ev-charging-location">EV Charging Location</h2>
+<p>EV typical charging location summary</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>prep_data <span class="ot">&lt;-</span> <span class="fu">hts_prep_variable</span>(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>              <span class="at">summarize_var =</span> <span class="st">"ev_typical_charge_melted"</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>              <span class="at">id_cols =</span> <span class="st">"person_id"</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>              <span class="at">variables_dt =</span> variable_list,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>              <span class="at">wt_cols=</span><span class="st">"person_weight"</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>              <span class="at">data =</span> hts_data1,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>              <span class="at">missing_values=</span><span class="cn">NA</span>)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>hts_summary <span class="ot">&lt;-</span> <span class="fu">hts_summary_cat</span>(prep_data<span class="sc">$</span>cat, </span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_var =</span> <span class="st">"ev_typical_charge_melted"</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wtname =</span> <span class="st">"person_weight"</span>,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>                               <span class="at">id_cols =</span>  <span class="st">"person_id"</span>)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>ev_charge <span class="ot">&lt;-</span> hts_summary<span class="sc">$</span>wtd</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>ev_charge<span class="sc">$</span>prop <span class="ot">&lt;-</span> <span class="fu">round</span>(ev_charge<span class="sc">$</span>prop, <span class="dv">4</span>)</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>ev_charge<span class="sc">$</span>est <span class="ot">&lt;-</span> <span class="fu">round</span>(ev_charge<span class="sc">$</span>est, <span class="dv">2</span>)</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="fu">kbl</span>(ev_charge) <span class="sc">%&gt;%</span> </span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>   <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>), <span class="at">html_font =</span> <span class="st">"Poppins"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">3</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>purples_inc[<span class="dv">1</span>]) <span class="sc">%&gt;%</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">4</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>greens_inc[<span class="dv">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">ev_typical_charge_melted</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">count</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">prop</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">est</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">At a commute location (e.g., Park and Ride lot, parking garage)</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.0073</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">1131.77</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">At a hotel/inn</td>
+<td style="text-align: right;">10</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.0018</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">280.73</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">At a public location (e.g., hospital, library, government building)</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.0116</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">1788.14</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">At a shopping location (e.g., grocery store, shopping mall)</td>
+<td style="text-align: right;">53</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.1475</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">22747.32</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">At home</td>
+<td style="text-align: right;">259</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.7141</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">110095.37</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">At work</td>
+<td style="text-align: right;">28</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.0778</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">11989.09</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Other</td>
+<td style="text-align: right;">20</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">0.0399</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">6151.92</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="EV_Analysis_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="1536"></p>
+</div>
+</div>
+</section>
+<section id="vehicle-count" class="level2">
+<h2 class="anchored" data-anchor-id="vehicle-count">Vehicle Count</h2>
+<p>This summary shows the counts for the number of people who have a car and those that do not have a car</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>prep_data2 <span class="ot">&lt;-</span> <span class="fu">hts_prep_variable</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">summarize_var =</span> <span class="st">"vehicle_count"</span>,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols =</span> <span class="st">"hh_id"</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">variables_dt =</span> variable_list,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">wt_cols=</span><span class="st">"hh_weight"</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> hts_data2</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>veh_count_summary <span class="ot">=</span> <span class="fu">hts_summary</span>(</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">prepped_dt =</span> prep_data2<span class="sc">$</span>cat,</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">summarize_var =</span> <span class="st">"vehicle_count"</span>,</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">summarize_by =</span> <span class="cn">NULL</span>,</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">summarize_vartype =</span> <span class="st">"categorical"</span>,</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">weighted =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">wtname =</span> <span class="st">"hh_weight"</span>,</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">id_cols =</span>  <span class="st">"hh_id"</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>veh_count <span class="ot">&lt;-</span> veh_count_summary<span class="sc">$</span>summary<span class="sc">$</span>wtd</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>veh_count<span class="sc">$</span>prop <span class="ot">&lt;-</span> <span class="fu">round</span>(veh_count<span class="sc">$</span>prop, <span class="dv">4</span>)</span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>veh_count<span class="sc">$</span>est <span class="ot">&lt;-</span> <span class="fu">round</span>(veh_count<span class="sc">$</span>est, <span class="dv">2</span>)</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="fu">kbl</span>(veh_count) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>   <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>), <span class="at">html_font =</span> <span class="st">"Poppins"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">2</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>purples_inc[<span class="dv">1</span>]) <span class="sc">%&gt;%</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">3</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>greens_inc[<span class="dv">1</span>]) <span class="sc">%&gt;%</span> </span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">4</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>purples_inc[<span class="dv">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">vehicle_count</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">count</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">prop</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">est</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">0 (no vehicles)</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">591</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.1003</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">169449.97</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">1 vehicle</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">1622</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.3028</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">511623.38</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2 vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">1057</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.3625</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">612482.40</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">3 vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">271</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.1535</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">259395.08</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">4 vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">88</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0624</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">105372.06</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">5 vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">25</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0148</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">25062.69</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">6 vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">5</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0032</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">5450.26</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">7 vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">1</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0001</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">146.88</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">8 or more vehicles</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">1</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0004</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">626.14</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">static_column_chart</span>(veh_count, <span class="at">x=</span><span class="st">'vehicle_count'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'vehicle_count'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="EV_Analysis_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This summary displays the proportion and counts for each fuel type</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>prep_data3 <span class="ot">&lt;-</span> <span class="fu">hts_prep_variable</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">summarize_var =</span> <span class="st">"fuel"</span>,</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">id_cols =</span> <span class="st">"hh_id"</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">variables_dt =</span> variable_list,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">wt_cols=</span><span class="st">"hh_weight"</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">data =</span> hts_data3</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>fuel_cat_summary <span class="ot">=</span> <span class="fu">hts_summary</span>(</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">prepped_dt =</span> prep_data3<span class="sc">$</span>cat,</span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">summarize_var =</span> <span class="st">"fuel"</span>,</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">summarize_by =</span> <span class="cn">NULL</span>,</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">summarize_vartype =</span> <span class="st">"categorical"</span>,</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">weighted =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">wtname =</span> <span class="st">"hh_weight"</span>,</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">id_cols =</span>  <span class="st">"hh_id"</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>fuel_cat <span class="ot">&lt;-</span> fuel_cat_summary<span class="sc">$</span>summary<span class="sc">$</span>wtd</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>fuel_cat<span class="sc">$</span>prop <span class="ot">&lt;-</span> <span class="fu">round</span>(fuel_cat<span class="sc">$</span>prop, <span class="dv">4</span>)</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>fuel_cat<span class="sc">$</span>est <span class="ot">&lt;-</span> <span class="fu">round</span>(fuel_cat<span class="sc">$</span>est, <span class="dv">2</span>)</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a><span class="fu">kbl</span>(fuel_cat) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>   <span class="fu">kable_styling</span>(<span class="at">bootstrap_options =</span> <span class="fu">c</span>(<span class="st">"striped"</span>, <span class="st">"hover"</span>), <span class="at">html_font =</span> <span class="st">"Poppins"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">2</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>purples_inc[<span class="dv">1</span>]) <span class="sc">%&gt;%</span></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">3</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>greens_inc[<span class="dv">1</span>]) <span class="sc">%&gt;%</span> </span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">column_spec</span>(<span class="fu">c</span>(<span class="dv">4</span>), <span class="at">background =</span> psrc_colors<span class="sc">$</span>purples_inc[<span class="dv">1</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<table class="table table-striped table-hover table-sm small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">fuel</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">count</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">prop</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">est</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Diesel</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">110</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0290</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">89999.04</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Electric (EV)</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">224</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0348</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">107912.89</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Gas</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">4317</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.8470</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">2626077.80</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Hybrid (HEV)</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">358</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0773</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">239642.77</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">6</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0021</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">6534.84</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Plug-in hybrid (PHEV)</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">56</td>
+<td style="text-align: right; background-color: rgba(226, 241, 207, 255) !important;">0.0097</td>
+<td style="text-align: right; background-color: rgba(227, 201, 227, 255) !important;">30146.52</td>
+</tr>
+</tbody>
+</table>
+
+
+</div>
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># proportion by fuel type</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>fuel_cat<span class="sc">$</span>fuel <span class="ot">&lt;-</span> <span class="fu">gsub</span>(<span class="st">"</span><span class="sc">\\</span><span class="st">(.*"</span>, <span class="st">""</span>, fuel_cat<span class="sc">$</span>fuel)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>fuel_cat<span class="sc">$</span>fuel <span class="ot">&lt;-</span> <span class="fu">factor</span>(fuel_cat<span class="sc">$</span>fuel, </span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>                        <span class="at">levels =</span> fuel_cat<span class="sc">$</span>fuel[<span class="fu">order</span>(fuel_cat<span class="sc">$</span>prop, <span class="at">decreasing =</span> <span class="cn">TRUE</span>)])</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="fu">static_column_chart</span>(fuel_cat, <span class="at">x=</span><span class="st">'fuel'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'fuel'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="EV_Analysis_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>This summary table displays for each household, the number of vehicles it has for each fuel type and the household’s total vehicles</p>
+<p>step 1: creates a new column and adds a ‘1’ if it satisfies this condition</p>
+<p>step 2: groups by household</p>
+<p>step 3: for each group of hh rows, it sums the column values for each vehicle type</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>veh_type_count <span class="ot">&lt;-</span> vehicle <span class="sc">%&gt;%</span> </span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_ev =</span> <span class="fu">case_when</span>(fuel <span class="sc">==</span> <span class="st">'Electric (EV)'</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>),</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_gas =</span> <span class="fu">case_when</span>(fuel <span class="sc">==</span> <span class="st">'Gas'</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>),</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_diesel =</span> <span class="fu">case_when</span>(fuel <span class="sc">==</span> <span class="st">'Diesel'</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>),</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_other =</span> <span class="fu">case_when</span>(fuel <span class="sc">==</span> <span class="st">'Other (e.g., natural gas, bio-diesel, Flex fuel (FFV))'</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>),</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_hev =</span> <span class="fu">case_when</span>(fuel <span class="sc">==</span> <span class="st">'Hybrid (HEV)'</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>),</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_phev =</span> <span class="fu">case_when</span>(fuel <span class="sc">==</span> <span class="st">'Plug-in hybrid (PHEV)'</span> <span class="sc">~</span> <span class="dv">1</span>, <span class="cn">TRUE</span> <span class="sc">~</span> <span class="dv">0</span>)) <span class="sc">%&gt;%</span> </span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(hh_id) <span class="sc">%&gt;%</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="fu">across</span>(<span class="fu">c</span>(total_ev, total_gas, total_diesel, total_other, total_hev, total_phev), sum)) <span class="sc">%&gt;%</span> </span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">total_vehicles =</span> <span class="fu">rowSums</span>(.[<span class="dv">2</span><span class="sc">:</span><span class="dv">7</span>])) <span class="sc">%&gt;%</span> </span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span> </span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">full_join</span>(hh, <span class="at">by=</span><span class="st">"hh_id"</span>)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(veh_type_count)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 6 × 11
+  hh_id    total_ev total_gas total_diesel total_other total_hev total_phev
+  &lt;chr&gt;       &lt;dbl&gt;     &lt;dbl&gt;        &lt;dbl&gt;       &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;
+1 23000173        0         3            0           0         0          0
+2 23000381        0         1            0           0         0          0
+3 23000397        0         1            1           0         0          0
+4 23000466        0         1            0           0         0          0
+5 23000621        0         1            0           0         0          0
+6 23000680        0         1            0           0         0          0
+# ℹ 4 more variables: total_vehicles &lt;dbl&gt;, survey_year &lt;chr&gt;,
+#   vehicle_count &lt;chr&gt;, hh_weight &lt;dbl&gt;</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># used to verify the total number of vehicles for each hh is the same as in the vehicles table  </span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>test <span class="ot">&lt;-</span> vehicle <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(hh_id) <span class="sc">%&gt;%</span> <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Verifying if multiple people within a hh answered the ‘EV typical charge’ location question</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>hh_response_count <span class="ot">&lt;-</span> person_new <span class="sc">%&gt;%</span> </span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(hh_id) <span class="sc">%&gt;%</span> </span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">num_responses =</span> <span class="fu">n</span>(),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">num_people =</span> <span class="fu">n_distinct</span>(person_id))</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(hh_response_count)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 196 × 3
+   hh_id    num_responses num_people
+   &lt;chr&gt;            &lt;int&gt;      &lt;int&gt;
+ 1 23001247             2          2
+ 2 23001322             1          1
+ 3 23001767             2          1
+ 4 23002452             2          2
+ 5 23002471             2          2
+ 6 23003394             1          1
+ 7 23005809             6          2
+ 8 23006730             3          2
+ 9 23007176             1          1
+10 23007848             1          1
+# ℹ 186 more rows</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(hh_response_count<span class="sc">$</span>num_people)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 278</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(<span class="fu">unique</span>(person_new<span class="sc">$</span>hh_id))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 196</code></pre>
+</div>
+</div>
+<p>finding households who own ev’s</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>ev_hh <span class="ot">&lt;-</span> vehicle <span class="sc">%&gt;%</span> <span class="fu">filter</span>(fuel <span class="sc">==</span> <span class="st">'Electric (EV)'</span>) <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(hh_id, <span class="at">.keep_all =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<ol type="1">
+<li>hh income of ev households?</li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>hh2<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select household_id as hh_id, hhincome_detailed, home_rgcname, res_type</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="st">                         from HHSurvey.v_households_labels</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="st">                         where survey_year = 2023"</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(hh2)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>hh2[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>ev_hh <span class="ot">&lt;-</span> ev_hh <span class="sc">%&gt;%</span> </span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">full_join</span>(hh2, <span class="at">by=</span><span class="st">"hh_id"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<ol start="2" type="1">
+<li><p>do ev owners live in rgcs?</p></li>
+<li><p>what is their res_type?</p></li>
+</ol>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
