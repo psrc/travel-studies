@@ -20,18 +20,18 @@ source('survey-23-preprocess.R')
 
 
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hh_weight,vehicle_count
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hh_weight,vehicle_count, home_rgcname
                 from HHSurvey.v_households_labels")
 
 
 person<- get_query(sql= "select household_id as hh_id,race_category,
-person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education 
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname
                 from HHSurvey.v_persons_labels")
                 
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, dest_purpose, survey_year, trip_weight 
+person_id, mode_1, dest_purpose, survey_year, trip_weight, distance_miles, mode_characterization 
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
@@ -108,6 +108,13 @@ group_labels<-get_grouped_labels(group_id='group_1', group_name='industry_cond')
 value_labels<-add_values_code(group_name='industry_cond')
 person<-grp_to_tbl(tbl=person, ungrouped_name='industry', grouped_name='industry_cond')
 ```
+```{r}
+variable_list<-add_variable(variable_list, 'industry_usim','person')
+group_labels<-get_grouped_labels(group_id='group_2', group_name='industry_usim')
+value_labels<-add_values_code(group_name='industry_usim')
+person<-grp_to_tbl(tbl=person, ungrouped_name='industry', grouped_name='industry_usim')
+```
+
 
 ```{r}
 variable_list<-add_variable(variable_list, 'age_grp_2','person')
@@ -136,6 +143,12 @@ group_labels<-get_grouped_labels(group_id='group_1', group_name='sexuality_broad
 value_labels<-add_values_code(group_name='sexuality_broad')
 person<-grp_to_tbl(tbl=person, ungrouped_name='sexuality', grouped_name='sexuality_broad')
 ```
+```{r}
+variable_list<-add_variable(variable_list, 'vehicle_count_simple','hh')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='vehicle_count_simple')
+value_labels<-add_values_code(group_name='vehicle_count_simple')
+hh<-grp_to_tbl(tbl=hh, ungrouped_name='vehicle_count', grouped_name='vehicle_count_simple')
+```
 
 ```{r}
 variable_list<-add_variable(variable_list, 'telecommute_status', 'person')
@@ -147,7 +160,32 @@ variable_list<-add_variable(variable_list, 'commute_freq_all', 'person')
 
 # add necessary variables to the persons table
 # update telecommute_freq_cond to also include at home people
+
+
+
+
 ```{r}
+hh<-hh%>%mutate(hhincome_broad=if_else(hhincome_broad %in% 
+c('Under $25,000', '$25,000-$49,999', '$50,000-$74,999'), 'Under $75,000', hhincome_broad ))%>%
+ mutate(hhincome_broad=if_else(hhincome_broad %in% 
+c('$75,000-$99,999', '$100,000-$199,000'), '$75,000-$199,999', hhincome_broad )) 
+```
+
+
+```{r}
+value<- c(0,3)
+label=c('Under $75,000', '$75,000-$199,999')
+inc_val_labels<-data.frame(value, label)
+inc_val_labels<-inc_val_labels%>%mutate(variable='hhincome_broad')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, inc_val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels 
 hh<- order_factors(hh, 'hhincome_broad', value_labels)
 ```
 
@@ -289,18 +327,6 @@ person<- person%>%mutate(commute_freq_all=case_when(
 ```
 
 
-
-
-
-
-
-```{r}
-#some how a duplicate snuck into the variable list not sure how
-variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
-```
-
-
-
 ```{r}
 person<-person%>%mutate(telecommute_status=
         case_when(workplace %in%c('Missing: Skip logic', "Missing: Skip Logic") 
@@ -333,8 +359,20 @@ person<-person%>%mutate(telecommute_status_broad=
 ```
 
 
+
+
+
 ```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)%>%filter(!is.na(telecommute_freq_cond))
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+
+
+
+
+```{r}
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
 worker_list<-list(hh=hh, person=workers)
 
 ```

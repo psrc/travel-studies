@@ -1,0 +1,446 @@
+---
+title: "part2telecommute"
+author: "suzanne"
+date: "2024-07-12"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(forcats)
+source('survey-23-preprocess.R')
+
+```
+Who telecommuted Hybrid vs Not?
+
+```{r}
+
+telecommute_status <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+
+```{r}
+
+telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))%>%filter(telecommute_status!='Fully In Person')
+static<-static_line_chart(telecommute_summary, y='prop', x='survey_year', fill='telecommute_status',lwidth=1.5) + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+ scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,0.3))
+
+inter<-interactive_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share')
+static
+inter
+write.csv(telecommute_summary,'telecommute_summary_trend.csv')
+```
+```{r}
+
+telecommute_status_broad <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status_broad',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+
+```{r}
+
+telecommute_summary<-telecommute_status_broad$summary$wtd%>%mutate(telecommute_status_broad=forcats::fct_reorder(telecommute_status_broad, prop))%>%filter(!telecommute_status_broad %in% c('Fully At Home', 'Fully In Person'))
+static<-static_line_chart(telecommute_summary, y='prop', x='survey_year', fill='telecommute_status_broad', lwidth=1.5) + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.2))
+
+inter<-interactive_column_chart(telecommute_summary, y='prop', x='telecommute_status_broad', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share')
+static
+inter
+write.csv(telecommute_summary,'telecommute_summary_trend_broad.csv')
+```
+
+Location
+Where did people work who telecommuted? What modes did they use prior in 2019 by location?
+
+Where did people live who telecommuted? What modes did they use prior in 2019 by location?
+
+Household Income
+
+```{r}
+
+telecommute_or_not_inc <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'hhincome_broad'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_inc<-telecommute_or_not_inc$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%filter(hhincome_broad!='Prefer not to answer')%>%mutate(moe=prop_se*1.645)%>%mutate(hhincome_broad=fct_relevel(hhincome_broad,
+                                                  c('Under $75,000',
+                                                      '$75,000-$199,999',
+                                                      '$200,000 or more')))
+                                                                                                                                                                                                           
+
+
+static<-static_column_chart(telecommute_summary_inc, y='prop', x='hhincome_broad', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+
+static
+
+write.csv(telecommute_summary_inc,'telecommute_summary_inc.csv')
+
+```
+
+Race and Ethnicity
+
+Gender
+```{r}
+
+telecommute_or_not_gender <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'gender'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_gend<-telecommute_or_not_gender$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(gender=recode(gender, 	
+'Boy/Man (cisgender or transgender)' = "Man/Boy", 'Girl/Woman (cisgender or transgender)'  = "Woman/Girl"))%>%filter(!gender %in% c('Non-binary/Something else fits better', 'Prefer not to answer'))
+                                                                                                   
+static<-static_column_chart(telecommute_summary_gend, y='prop', x='gender', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+
+static
+
+write.csv(telecommute_summary_gend,'telecommute_summary_gender.csv')
+
+```
+Gender
+```{r}
+
+telecommute_or_not_race<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'race_category'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_race<-telecommute_or_not_race$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%filter(!race_category%in% c('Child', 'Missing'))%>%mutate(moe=prop_se*1.645)
+                                                                                                   
+static<-static_column_chart(telecommute_summary_race, y='prop', x='race_category', fill='survey_year', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+
+static
+
+write.csv(telecommute_summary_race,'telecommute_summary_race.csv')
+
+```
+Gender
+```{r}
+
+telecommute_or_not_age<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'age_grp_2'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_age<-telecommute_or_not_age$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(!is.na(age_grp_2))%>%
+  filter(age_grp_2!='Under 18')
+                                                                                                   
+static<-static_column_chart(telecommute_summary_age, y='prop', x='age_grp_2', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+
+static
+
+write.csv(telecommute_summary_age,'telecommute_summary_age.csv')
+```
+
+
+Job Industry
+
+```{r}
+
+telecommute_or_not_ind <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'industry_cond'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_ind<-telecommute_or_not_ind$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%mutate(industry_cond=forcats::fct_reorder(industry_cond, prop))%>%filter(industry_cond!="Missing: Skip Logic")
+static<-static_bar_chart(telecommute_summary_ind, x='prop', y='industry_cond', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_ind,'telecommute_summary_industry.csv')
+
+```
+```{r}
+
+telecommute_or_not_edu<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'edu_simple'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_edu<-telecommute_or_not_edu$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(edu_simple!="Missing: Skip Logic")
+static<-static_bar_chart(telecommute_summary_edu, x='prop', y='edu_simple', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_ind,'telecommute_summary_education.csv')
+
+```
+Sexuality
+
+```{r}
+
+telecommute_or_not_sex <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'sexuality_broad'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_sex<-telecommute_or_not_sex$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(sexuality_broad!="Missing: Skip Logic")
+static<-static_bar_chart(telecommute_summary_sex, x='prop', y='sexuality_broad', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_ind,'telecommute_summary_sexuality.csv')
+
+```
+
+
+Vehicle Count
+
+
+```{r}
+
+telecommute_or_not_veh <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'vehicle_count_simple'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_veh<-telecommute_or_not_veh$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)
+
+static<-static_bar_chart(telecommute_summary_veh, x='prop', y='vehicle_count_simple', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_veh,'telecommute_summary_vehicles.csv')
+
+```
+
+```{r}
+
+industry_income<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'industry_cond',
+                               summarize_by = c('survey_year', 'hhincome_broad'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+industry_income<-industry_income$summary$wtd%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)
+
+static<-static_column_chart(industry_income, y='prop', x='hhincome_broad', fill='industry_cond', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(industry_income, 'industry_income.csv')
+
+```
+```{r}
+
+industry_race<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'industry_cond',
+                               summarize_by = c('survey_year', 'race_category'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+industry_race<-industry_race$summary$wtd%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)
+
+static<-static_column_chart(industry_race, y='prop', x='race_category', fill='industry_cond', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(industry_race, 'industry_race.csv')
+
+```
+```{r}
+
+telecommute_status_inc<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = c('survey_year', 'hhincome_broad'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_inc<-telecommute_status_inc$summary$wtd%>%filter(survey_year=='2023')%>%filter(hhincome_broad!='Prefer not to answer')%>%mutate(moe=prop_se*1.645)%>%mutate(hhincome_broad=fct_relevel(hhincome_broad,
+                                                  c('Under $50,000', 
+                                                      '$50,000-$74,999',
+                                                      '$75,000-$99,999',
+                                                      '$100,000-$199,000',
+                                                      '$200,000 or more')))%>%
+  mutate(telecommute_status=fct_reorder(telecommute_status,prop))
+                                                                                                                                                                                                           
+
+
+static<-static_column_chart(telecommute_summary_inc, y='prop', x='hhincome_broad', fill='telecommute_status') + theme(axis.text.x=element_text(size=12), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_inc,'telecommute_summary_inc.csv')
+
+```
+
+```{r}
+
+telecommute_status_sector<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = c('survey_year', 'industry_cond'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_sector<-telecommute_status_sector$summary$wtd%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(industry_cond!="Missing: Skip Logic")%>%
+  mutate(telecommute_status=fct_reorder(telecommute_status,prop))
+                                                                                                                                                                                                           
+
+
+static<-static_column_chart(telecommute_summary_sector, y='prop', x='industry_cond', fill='telecommute_status') + theme(axis.text.x=element_text(size=12), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_sector,'telecommute_summary_industry_hybrid.csv')
+
+```
+```{r}
+
+telecommute_status_sector<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = c('survey_year', 'industry'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_sector<-telecommute_status_sector$summary$wtd%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(industry!="Missing: Skip Logic")%>%
+  mutate(telecommute_status=fct_reorder(telecommute_status,prop))
+                                                                                                                                                                                                           
+
+
+static<-static_column_chart(telecommute_summary_sector, y='prop', x='industry', fill='telecommute_status') + theme(axis.text.x=element_text(size=12), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_sector,'telecommute_summary_industrydetail_hybrid.csv')
+
+```
+
+```{r}
+
+telecommute_status_sector<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = c('survey_year', 'industry_usim'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary_sector<-telecommute_status_sector$summary$wtd%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(industry!="Missing: Skip Logic")%>%
+  mutate(telecommute_status=fct_reorder(telecommute_status,prop))
+                                                                                                                                                                                                           
+
+
+static<-static_column_chart(telecommute_summary_sector, y='prop', x='industry_usim', fill='telecommute_status') + theme(axis.text.x=element_text(size=12), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
+
+static
+
+write.csv(telecommute_summary_sector,'telecommute_summary_industry_usim.csv')
+
+```
