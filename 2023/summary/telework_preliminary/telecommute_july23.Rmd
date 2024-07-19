@@ -20,7 +20,7 @@ source('survey-23-preprocess.R')
 
 
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hh_weight,vehicle_count, home_rgcname
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hh_weight,vehicle_count, home_rgcname, home_lat, home_lng
                 from HHSurvey.v_households_labels")
 
 
