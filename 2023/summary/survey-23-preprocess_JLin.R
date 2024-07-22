@@ -98,7 +98,7 @@ add_variable_to_data <- function(hts_data, value_map) {
   return(tbl)
 }
 
-get_hts_summary <- function(dt_list, summary_var, variables_dt = variable_list, id_var, wt_var){
+get_hts_summary <- function(dt_list, summary_var, variables_dt = variable_list, id_var, wt_var, wt_name){
   
   prepped_dt <- hts_prep_variable(summarize_var = summary_var[length(summary_var)],
                                   summarize_by = summary_var[-length(summary_var)],
@@ -112,10 +112,14 @@ get_hts_summary <- function(dt_list, summary_var, variables_dt = variable_list, 
                             summarize_by = summary_var[-length(summary_var)],
                             summarize_vartype = 'categorical',
                             id_cols = id_var,
-                            wtname = wt_var,
+                            wtname = wt_name,
                             weighted= TRUE,
                             se= TRUE)
+  res_dt <- summary_dt$summary$wtd %>% 
+    mutate(prop_moe = prop_se * 1.645, .after = prop_se) %>%
+    mutate(est_moe = est_se * 1.645, .after = est_se) %>%
+    select(-c("prop_se","est_se"))
   
-  return(summary_dt$summary$wtd)
+  return(res_dt)
   
 }
