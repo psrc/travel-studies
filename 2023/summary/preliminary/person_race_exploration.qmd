@@ -1,0 +1,412 @@
+```{r}
+
+```
+
+```{r}
+
+```
+
+---
+title: "Travel Survey Summarization"
+format: html
+editor: visual
+---
+
+# New Package travelSurveyTools
+
+PSRC and RSG have built a new package called travelSurveyTools to work with travel survey data. It is recommended to read through this documentation before you start using the package. <https://rsginc.github.io/travelSurveyTools/>
+
+## Read in Libraries
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+# source('../survey-23-preprocess.R')
+source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
+```
+
+YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here's how:
+
+library(devtools)
+
+devtools::install_github('rsgInc/travelSurveyTools') 
+devtools::install_github('psrc/psrcelmer')
+devtools::install_github('psrc/psrcplot')
+
+## Read in Codebook
+
+```{r , echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+variable_list and value_labels will be used by the travelSurveyTools package whenever you summarize.
+
+## Read in Data from Elmer
+
+The 2017, 2019, 2021, and 2023 travel survey data is in Elmer. You will need to select exactly which columns you want to summarize. Note that the variables and values you pull in must match the codebook. (if for some reason in error, there is inconsistency we have to fix it).
+
+The package uses DT and data.table for most operation, so you will usually want inputs to be in data.table format.
+
+```{r }
+# hh<- get_query(sql= "select  household_id as hh_id,
+#                res_dur, prev_home_wa, vehicle_count, numadults, hhincome_detailed,
+#                hhincome_broad,survey_year, prev_home_tract20,
+#                prev_rent_own, rent_own, prev_res_type, res_type, hh_weight, hhsize
+#                 from HHSurvey.v_households_labels")
+
+
+person<- get_query(sql= "select household_id as hh_id, race_category,
+                   race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_other_specify, race_white,
+                   ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999, ethnicity_other,
+                   person_id, survey_year, person_weight, gender, age
+                   from HHSurvey.v_persons_labels")
+                
+# setDT(hh)
+setDT(person)
+```
+
+## Set IDs as characters
+
+We should fix this by writing a function. But for now set all ids to characters for easy joining.
+
+```{r}
+
+# hh[, hh_id:=as.character(hh_id)]
+# person[, hh_id:=as.character(hh_id)]
+# day[, hh_id:=as.character(hh_id)]
+# trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+# day[, person_id := as.character(person_id)]
+# trip[, person_id := as.character(person_id)]
+# 
+# day[, day_id := as.character(day_id)]
+# trip[, day_id := as.character(day_id)]
+
+# trip[, trip_id := as.character(trip_id)]
+# hh <- hh%>%mutate(survey_year=as.character(survey_year))
+person <- person%>%mutate(survey_year=as.character(survey_year))
+# day <- day%>%mutate(survey_year=as.character(survey_year))
+# trip <- trip%>%mutate(survey_year=as.character(survey_year))
+```
+
+```         
+```
+
+Before you get started on any summary, please review the survey instrument for the question wording and options.
+
+Carefully pay attention to which survey participants were asked which question. Often only a subset of the participants answered a question.
+
+Furthermore, if you are going to summarize any data across time, you will need to RECONCILE any changes.
+
+The survey instrument is here: J:/Projects/Surveys/HHTravel/Survey2023/Documents/Survey_Instrument/Puget_Sound_HTS_Questionnaire_2023_Final.docx
+
+Open the codebook and review the variable and it's values. J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx
+
+# Careful with multi-year summaries.
+
+If you are doing a multi year summary, carefully look back at the questionnaire to note question changes. Here are the questionnaires for 2019:<file:///J:/Projects/Surveys/HHTravel/Survey2019/Planning/Survey%20Materials/PSRC_2019_Online_Questionnaire.html#employment_and_commute_questions> and 2021:J:/Projects/Surveys/HHTravel/Survey2021/Questionnaire/PSRC_2021_Questionnaire_032521.docx
+
+Note that in the values table, we have groupings. These groupings can help you handle inconsistencies in the questions over time.
+
+Also we generally have way too much detail in the responses to have statistically significant results, so most of the time you want to summarize grouped data. You can add the groupings to the variables table by using the function get_grouped_labels
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+
+```{r}
+nrow(person) #25364
+nrow(person$ethnicity_999) #prefer not to answer: NULL
+nrow(person$race_noanswer)
+
+table(person$age)
+adult <- person %>%
+  filter(age%in% c('18-24 years', '25-34 years', '35-44 years', '45-54 years', '55-64 years', '65-74 years', '75-84 years', '85 years or older'))
+table(adult$age)
+nrow(adult) #21492
+length(unique(adult$person_id)) #21492 - just to check
+
+unique(adult$race_other_specify) #checking 'other' responses
+length(unique(adult$race_other_specify)) #99 people who selected 'other' 
+```
+
+```{r}
+# RACE ----
+# pivot table so that each row is a different race column
+adult_pivot_race <- adult %>% 
+  pivot_longer(cols = c(race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_white),
+               names_to = "race_group",
+               values_to = "select")
+unique(adult_pivot_race$race_other_specify)
+unique(adult_pivot_race$survey_year)
+table(adult_pivot_race$survey_year)
+
+
+adult_pivot_race_select <- adult_pivot_race %>% 
+  filter(select %in% 'Selected')
+
+person_id_multiple <- adult_pivot_race_select %>% 
+  group_by(person_id) %>% summarize(n=n()) %>% #count how many racial groups were selected per person
+  right_join(adult_pivot_race_select, by = ("person_id")) #join to main table so number connected to races selected
+
+nrow(person_id_multiple) #22056
+table(person_id_multiple$n)
+
+person_id_multiple_23 <- person_id_multiple %>% 
+  filter(survey_year=="2023")
+table(person_id_multiple_23$n)
+
+
+## before making function (for checking) ----
+# adult_1race <- person_id_multiple %>% 
+#   filter(n %in% 1)
+# adult_2race <- person_id_multiple %>% 
+#   filter(n %in% 2)
+# adult_3race <- person_id_multiple %>%
+#   filter(n %in% 3)
+# adult_4race <- person_id_multiple %>% 
+#   filter(n %in% 4)
+# adult_5race <- person_id_multiple %>%
+#   filter(n %in% 5)
+# adult_6race <- person_id_multiple %>% 
+#   filter(n %in% 6)
+
+# adult_2race_summary <- adult_2race %>%
+#   pivot_wider(names_from = race_group, values_from = n, values_fill = 0) %>%
+#   dplyr::select(race_asian:race_other) %>%
+#   group_by(across(race_asian:race_other)) %>% count %>% arrange(desc(n)) %>%
+#   mutate(total=sum(adult_2race_wide$n)) %>%
+#   mutate(prop=(round(n/total, digits = 3)))
+
+## after making function ----
+count_combination <- function(n_races){
+  temp <- person_id_multiple_23 %>% 
+    filter(n %in% n_races)
+  
+  pivot <- temp %>% 
+    pivot_wider(names_from = race_group, values_from = n, values_fill = 0) %>% 
+    dplyr::select(any_of(c('race_afam', 'race_aiak', 'race_asian', 'race_hapi', 'race_noanswer', 'race_other', 'race_white'))) %>% 
+    group_by(across(any_of(c('race_afam', 'race_aiak', 'race_asian', 'race_hapi', 'race_noanswer', 'race_other', 'race_white')))) %>% count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+adult_1race_summary <- count_combination(1) #5652 people
+adult_2race_summary <- count_combination(2) #237 people 
+adult_3race_summary <- count_combination(3) #30 people
+adult_4race_summary <- count_combination(4) #4 people
+adult_5race_summary <- count_combination(5) #0 people
+adult_6race_summary <- count_combination(6) #0 people
+```
+
+
+```{r}
+# ETHNICITY ----
+# pivot table so that each row is a different ethnicity column
+adult_pivot_ethnicity <- adult %>% 
+  pivot_longer(cols = c(ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999),
+               names_to = "ethnicity_group",
+               values_to = "select") #%>% 
+  # mutate(eth_expand=case_when(ethnicity_group=="ethnicity_1"~"Not of Hispanic, Latino, or Spanish origin",
+  #                             ethnicity_group=="ethnicity_2"~"Mexican, Mexican American, Chicano",
+  #                             ethnicity_group=="ethnicity_3"~"Puerto Rican",
+  #                             ethnicity_group=="ethnicity_4"~"Cuban",
+  #                             ethnicity_group=="ethnicity_997"~"Another Hispanic, Latino, or Spanish origin",
+  #                             ethnicity_group=="ethnicity_999"~"Prefer not to answer"))
+unique(adult$ethnicity_1)
+table(adult$ethnicity_1, adult$ethnicity_2)
+unique(adult_pivot_ethnicity$ethnicity_other) #83
+unique(adult_pivot_ethnicity$survey_year) #83
+table(adult_pivot_ethnicity$select)
+
+adult_pivot_ethnicity_select <- adult_pivot_ethnicity %>%
+  filter(select %in% 'Selected')
+
+person_id_multiple <- adult_pivot_ethnicity_select %>% 
+  group_by(person_id) %>% summarize(n=n()) %>% #count how many ethnicity groups were selected per person
+  right_join(adult_pivot_ethnicity_select, by = ("person_id")) #join to main table so number connected to ethnicity selected
+
+nrow(person_id_multiple) #5945
+table(person_id_multiple$n)
+
+person_id_multiple_23 <- person_id_multiple %>% 
+  filter(survey_year=="2023")
+table(person_id_multiple_23$n)
+
+
+unique(person_id_multiple_23$ethnicity_other)
+## before making function (for checking) ----
+# adult_2eth <- person_id_multiple_23 %>%
+#   filter(n %in% 2)
+# adult_3eth <- person_id_multiple_23 %>%
+#   filter(n %in% 3)
+
+# adult_3eth_summary <- adult_3eth %>%
+#   pivot_wider(names_from = ethnicity_group, values_from = n, values_fill = 0) %>%
+#   dplyr::select(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999'))) %>%
+#   group_by(across(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')))) %>% count %>% arrange(desc(n))
+
+# adult_2eth_summary <- adult_2eth %>%
+#   pivot_wider(names_from = eth_expand, values_from = n, values_fill = 0) %>%
+#   dplyr::select(any_of(c('Not of Hispanic, Latino, or Spanish origin', 
+#                            'Mexican, Mexican American, Chicano', 
+#                            'Puerto Rican', 
+#                            'Cuban', 
+#                            'Another Hispanic, Latino, or Spanish origin', 
+#                            'Prefer not to answer'))) %>%
+#   group_by(across(any_of(c('Not of Hispanic, Latino, or Spanish origin', 
+#                            'Mexican, Mexican American, Chicano', 
+#                            'Puerto Rican', 
+#                            'Cuban', 
+#                            'Another Hispanic, Latino, or Spanish origin', 
+#                            'Prefer not to answer')))) %>% count %>% arrange(desc(n)) 
+
+## after making function ----
+count_combination <- function(n_ethnicities){
+  temp <- person_id_multiple %>% 
+    filter(n %in% n_ethnicities)
+  
+  pivot <- temp %>% 
+    pivot_wider(names_from = ethnicity_group, values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999'))) %>%
+  group_by(across(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')))) %>% count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+adult_1eth_summary <- count_combination(1) #5903 people
+adult_2eth_summary <- count_combination(2) #36 people 
+adult_3eth_summary <- count_combination(3) #2 people
+adult_4eth_summary <- count_combination(4) #0 people
+adult_5eth_summary <- count_combination(5) #0 people
+adult_6eth_summary <- count_combination(6) #0 people
+```
+
+```{r}
+# combine race + ethnicity - someone identifies as 1 
+# non-hispanic vs. ethnicity_2 + other race
+# large portion of 2,3,4 will pick race? ignore ethnicity_1 (not picking something - should have picked race)
+# everyone picked ethnicity_1 or one of the other ones - can't have ethnicity_1 and other ethnicity category
+# neither race nor ethnicity - didn't answer 
+
+
+# 1. generating table for re-coding exercise 
+adult_23 <- adult %>% 
+  filter(survey_year=="2023")
+nrow(adult_23) #5931
+
+other_race <- adult_23 %>% 
+  filter(race_other=="Selected") #133
+other_race_specify <- adult_23 %>% 
+  filter(!is.na(race_other_specify)) #133
+other_eth_specify <- adult_23 %>% 
+  filter(!is.na(ethnicity_other)) #132
+
+other_race_eth <- adult_23 %>% 
+  filter(!is.na(race_other_specify) |
+           !is.na(ethnicity_other)) #226
+length(unique(other_race_eth$person_id)) #226 - just to make sure no duplicates
+
+# for writing a data.frame or list of data.frames to an xlsx file
+library(openxlsx)
+write.xlsx(other_race_eth, 'T:/2024July/Mary/HHTS/2023/adult_2023_race_eth_recode.xlsx')
+```
+
+```{r}
+variable_list<-add_variable(variable_list, 'mode_char1','trip')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_char1')
+value_labels<-add_values_code(group_name='mode_char1')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_characterization', grouped_name='mode_char1')%>%filter(mode_characterization!='Airplane')
+```
+
+```{r}
+work_trip<- trip%>%filter(dest_purpose%in% c('Went to work-related place (e.g., meeting, second job, delivery','Went to other work-related activity','Went to work-related activity (e.g., meeting, delivery, worksite','Went to primary workplace'))
+```
+
+travelSurveyTools expects the data to be in a list of data.tables. You must also specify the names of the ids on each table, and the names of the weights.
+
+```{r}
+hts_data = list(hh=hh,
+                person=person,
+                day=day,
+                trip = trip)
+ids = c('hh_id', 'person_id','day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+Now mode_simple is on the variables table, the values table, and the trip table. And we can run a summary.
+
+```{r}
+
+mode_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'mode_char1',
+                               summarize_by = 'survey_year',
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )
+```
+
+```{r}
+
+common_modes<-mode_summary$summary$wtd%>%
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
+
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+write.csv(common_modes, 'mode_trend.csv')
+```
+
+```         
+```
+
+```{r}
+work_data = list(hh=hh,
+                person=person,
+                day=day,
+                trip = work_trip)
+
+```
+
+```{r}
+
+mode_summary = summarize_weighted(hts_data=work_data,
+                               summarize_var = 'mode_char1',
+                               summarize_by = 'survey_year',
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )
+```
+
+```{r}
+
+common_modes<-mode_summary$summary$wtd%>%
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
+
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+write.csv(common_modes, 'work_mode_trend.csv')
+```
+
+{r}
+
+common_modes\<-mode_summary$summary$wtd%\>% mutate(mode_char1= fct_reorder(mode_char1,-prop))%\>%drop_na(mode_char1)%\>%mutate(moe=prop_se\*1.645)
+
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) write.csv(common_modes, 'mode_trend.csv')
