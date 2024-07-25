@@ -106,13 +106,16 @@ adult <- person %>%
 
 # unique(adult$race_other_specify) #checking 'other' responses
 # length(unique(adult$race_other_specify)) #99 people who selected 'other' 
+
+adult_23 <- adult %>% 
+  filter(survey_year=="2023") #5931 - to know how many respondents total
 ```
 
 # Race and Ethnicity
 ## Race
 ```{r}
 # pivot table so that each row is a different race column
-adult_pivot_race <- adult %>% 
+adult_pivot_race <- adult_23 %>% 
   pivot_longer(cols = c(race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_white),
                names_to = "race_group",
                values_to = "select")
@@ -197,7 +200,7 @@ race_afam <- person_id_multiple_23_race %>%
 ## Ethnicity
 ```{r}
 # pivot table so that each row is a different ethnicity column
-adult_pivot_ethnicity <- adult %>% 
+adult_pivot_ethnicity <- adult_23 %>% 
   pivot_longer(cols = c(ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999),
                names_to = "ethnicity_group",
                values_to = "select") #%>% 
@@ -212,14 +215,20 @@ adult_pivot_ethnicity <- adult %>%
 table(adult$ethnicity_1, adult$ethnicity_2)
 # unique(adult_pivot_ethnicity$ethnicity_other) #83
 # unique(adult_pivot_ethnicity$survey_year) #83
+# length(unique(adult_pivot_ethnicity$person_id)) #5931 - correct number of people
 table(adult_pivot_ethnicity$select)
 
 adult_pivot_ethnicity_select <- adult_pivot_ethnicity %>%
   filter(select %in% 'Selected')
 
+length(unique(adult_pivot_ethnicity_select$person_id)) #5923 - 8 people missing
+
+
 person_id_multiple <- adult_pivot_ethnicity_select %>% 
   group_by(person_id) %>% summarize(n=n()) %>% #count how many ethnicity groups were selected per person
   right_join(adult_pivot_ethnicity_select, by = ("person_id")) #join to main table so number connected to ethnicity selected
+
+# length(unique(person_id_multiple$person_id)) #5923 - 8 people missing
 
 nrow(person_id_multiple) #5945
 table(person_id_multiple$n)
@@ -228,7 +237,19 @@ person_id_multiple_23_eth <- person_id_multiple %>%
   filter(survey_year=="2023")
 table(person_id_multiple_23_eth$n)
 
-# unique(person_id_multiple_23$ethnicity_other)
+# unique(person_id_multiple_23_eth$ethnicity_other)
+length(unique(person_id_multiple_23_eth$person_id)) #5923 - 8 people missing
+
+# where are 8 missing people?
+check_join <- adult_pivot_ethnicity %>% 
+  anti_join(adult_pivot_ethnicity_select, by="person_id") 
+
+length(unique(check_join$person_id))
+missing_ids <- unique(check_join$person_id)
+
+missing_people <- adult_23 %>% 
+  filter(person_id %in% missing_ids)
+# the missing 8 people didn't include races, but did answer the ethnicity question
 ```
 
 ```{r, include=FALSE}
@@ -292,6 +313,12 @@ adult_6eth_summary <- count_combination_eth(person_id_multiple_23_eth, 'ethnicit
 eth_3 <- person_id_multiple_23_eth %>% 
   filter(n==1,
          ethnicity_group=="ethnicity_3")
+
+table(person_id_multiple_23_eth$n) #5902 with 1 ethnicity
+filter <- person_id_multiple_23_eth %>% 
+  filter(n==1) #5902
+filter2 <- filter %>% 
+  filter(ethnicity_group=="ethnicity_1") #4801 people reporting 1 ethnicity are not hispanic/latino/Spanish origin
 ```
 
 
@@ -299,8 +326,6 @@ eth_3 <- person_id_multiple_23_eth %>%
 ### For recoding exercise
 ```{r}
 # 1. generating table for re-coding exercise 
-adult_23 <- adult %>% 
-  filter(survey_year=="2023")
 nrow(adult_23) #5931
 
 other_race <- adult_23 %>% 
@@ -396,10 +421,45 @@ race_4_eth_1 <- race_eth_combination(4,1,ethnicity_list)
 ```
 80.6% of respondents who chose 1 race, are not Hispanic/Latino/Spanish origin. 
 ```{r}
-eth_1 <- person_id_multiple_23 %>% 
-  filter(ethnicity_group=="ethnicity_1")
+eth_1 <- person_id_multiple_23_eth %>% 
+  filter(n==1,
+         ethnicity_group=="ethnicity_1") #4801
+length(unique(eth_1$person_id))
+ 
 
-eth1_race1 <- count_combination_race(person_id_multiple_23, 1)
+eth1_race1 <- count_combination_race(eth_1, 'ethnicity_group', 1) #4801
+```
+
+```{r, include=FALSE}
+## CHECKING NUMBERS
+check <- adult_23 %>%
+  filter(ethnicity_1=="Selected",
+         ethnicity_2=="Not selected",
+         ethnicity_3=="Not selected",
+         ethnicity_4=="Not selected",
+         ethnicity_997=="Not selected",
+         ethnicity_999=="Not selected") #4750 
+length(unique(check$person_id))
+
+check <- adult_23 %>%
+  filter(ethnicity_1=="Selected",
+         is.na(ethnicity_2),
+         is.na(ethnicity_3),
+         is.na(ethnicity_4),
+         is.na(ethnicity_997),
+         is.na(ethnicity_999)) #51 
+length(unique(check$person_id))
+
+# why are these numbers not lining up? something is wrong with the person_id_multiple_23_eth dataset?
+check_join <- eth_1 %>% 
+  anti_join(check, by="person_id") 
+
+length(unique(check_join$person_id)) #51
+missing_ids <- unique(check_join$person_id)
+
+missing_people <- adult_23 %>% 
+  filter(person_id %in% missing_ids)
+# the missing 51 people - a recoding issue - NA vs Not Selected after 51 respondents were updated 
 ```
 
 
