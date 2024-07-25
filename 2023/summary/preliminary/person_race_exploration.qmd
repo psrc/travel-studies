@@ -26,6 +26,7 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
+library(table1)
 # source('../survey-23-preprocess.R')
 source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
 ```
@@ -151,7 +152,7 @@ adult_pivot_race <- adult %>%
   pivot_longer(cols = c(race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_white),
                names_to = "race_group",
                values_to = "select")
-unique(adult_pivot_race$race_other_specify)
+# unique(adult_pivot_race$race_other_specify)
 unique(adult_pivot_race$survey_year)
 table(adult_pivot_race$survey_year)
 
@@ -174,7 +175,7 @@ table(person_id_multiple_23$n)
 ## before making function (for checking) ----
 # adult_1race <- person_id_multiple %>% 
 #   filter(n %in% 1)
-# adult_2race <- person_id_multiple %>% 
+# adult_2race <- person_id_multiple %>%
 #   filter(n %in% 2)
 # adult_3race <- person_id_multiple %>%
 #   filter(n %in% 3)
@@ -182,7 +183,7 @@ table(person_id_multiple_23$n)
 #   filter(n %in% 4)
 # adult_5race <- person_id_multiple %>%
 #   filter(n %in% 5)
-# adult_6race <- person_id_multiple %>% 
+# adult_6race <- person_id_multiple %>%
 #   filter(n %in% 6)
 
 # adult_2race_summary <- adult_2race %>%
@@ -191,6 +192,10 @@ table(person_id_multiple_23$n)
 #   group_by(across(race_asian:race_other)) %>% count %>% arrange(desc(n)) %>%
 #   mutate(total=sum(adult_2race_wide$n)) %>%
 #   mutate(prop=(round(n/total, digits = 3)))
+
+# create simplified table for combining with ethnicity data (eventually)
+adult_race <- person_id_multiple_23 %>% 
+  dplyr::select(person_id, race_group, n)
 
 ## after making function ----
 count_combination <- function(n_races){
@@ -229,7 +234,8 @@ adult_pivot_ethnicity <- adult %>%
   #                             ethnicity_group=="ethnicity_4"~"Cuban",
   #                             ethnicity_group=="ethnicity_997"~"Another Hispanic, Latino, or Spanish origin",
   #                             ethnicity_group=="ethnicity_999"~"Prefer not to answer"))
-unique(adult$ethnicity_1)
+
+# unique(adult$ethnicity_1)
 table(adult$ethnicity_1, adult$ethnicity_2)
 unique(adult_pivot_ethnicity$ethnicity_other) #83
 unique(adult_pivot_ethnicity$survey_year) #83
@@ -277,15 +283,20 @@ unique(person_id_multiple_23$ethnicity_other)
 #                            'Another Hispanic, Latino, or Spanish origin', 
 #                            'Prefer not to answer')))) %>% count %>% arrange(desc(n)) 
 
+# create simplified table for combining with race data (eventually)
+adult_eth <- person_id_multiple_23 %>% 
+  dplyr::select(person_id, ethnicity_group, n)
+
 ## after making function ----
 count_combination <- function(n_ethnicities){
-  temp <- person_id_multiple %>% 
+  temp <- person_id_multiple_23 %>% 
     filter(n %in% n_ethnicities)
   
   pivot <- temp %>% 
     pivot_wider(names_from = ethnicity_group, values_from = n, values_fill = 0) %>%
   dplyr::select(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999'))) %>%
-  group_by(across(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')))) %>% count %>% arrange(desc(n))
+  group_by(across(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')))) %>% 
+    count %>% arrange(desc(n))
   
   output <- pivot %>% 
     mutate(total=sum(pivot$n)) %>% 
@@ -300,7 +311,7 @@ adult_5eth_summary <- count_combination(5) #0 people
 adult_6eth_summary <- count_combination(6) #0 people
 ```
 
-```{r}
+```{r, for recoding exercise}
 # combine race + ethnicity - someone identifies as 1 
 # non-hispanic vs. ethnicity_2 + other race
 # large portion of 2,3,4 will pick race? ignore ethnicity_1 (not picking something - should have picked race)
@@ -329,6 +340,92 @@ length(unique(other_race_eth$person_id)) #226 - just to make sure no duplicates
 library(openxlsx)
 write.xlsx(other_race_eth, 'T:/2024July/Mary/HHTS/2023/adult_2023_race_eth_recode.xlsx')
 ```
+
+
+```{r}
+# RACE & ETHNICITY ----
+
+# create simplified table that 
+race_temp <- adult_race %>% 
+  dplyr::group_by(person_id) %>% 
+  summarise(n_race=mean(n)) #5923 - making sure each row is a unique respondent
+eth_temp <- adult_eth %>% 
+  dplyr::group_by(person_id) %>% 
+  summarise(n_eth=mean(n)) #5923 - making sure each row is a unique respondent
+
+race_eth_temp <- race_temp %>% 
+  right_join(eth_temp, by = "person_id") #5923 - making sure each row is a unique respondent
+
+# checking to make sure that there are the correct numbers of respondents with 1,2,3 races/ethnicities
+# table(race_eth_temp$n_race)
+
+# join to original wide table with all race/ethnicity
+adult_race_eth_count <- adult %>% 
+  dplyr::filter(survey_year=="2023") %>% 
+  dplyr::select_if(grepl("person_id", names(.)) | 
+                     grepl("race_", names(.)) | 
+                     grepl("ethnicity_", names(.))) %>% #5931
+  right_join(race_eth_temp, by = "person_id")
+
+length(unique(adult_race_eth_count$person_id)) #5931 - making sure each row is a unique respondent
+
+# detail_names <- c("Not of Hispanic, Latino, or Spanish origin"="ethnicity_1",
+#                   "Mexican, Mexican American, Chicano"="ethnicity_2",
+#                   "Puerto Rican"="ethnicity_3",
+#                   "Cuban"="ethnicity_4",
+#                   "Another ethnicity"="ethnicity_997",
+#                   "Prefer not to answer"="ethnicity_999")
+# rename(adult_race_eth_count, all_of(detail_names))
+
+table(adult_race_eth_count$n_race, adult_race_eth_count$n_eth)
+table1(~ factor(n_race) | (n_eth), data=adult_race_eth_count)
+# 5,637/5,923 respondents : 1 race and 1 ethnicity (95.2%)
+# 17/5,923 respondents : 1 race and 2 ethnicities (0.29%)
+# 1/5,923 respondents : 1 race and 3 ethnicities
+# 
+```
+
+```{r}
+# BREAKDOWN
+race_list <- c('race_afam', 'race_aiak', 'race_asian', 'race_hapi', 'race_noanswer', 'race_other')
+ethnicity_list <- c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')
+
+## before making function (for checking) ----
+race_eth_1 <- adult_race_eth_count %>% 
+  dplyr::filter(n_race==1 & n_eth==1) %>% 
+  dplyr::select(any_of(ethnicity_list)) %>%
+  group_by(across(any_of(ethnicity_list))) %>% 
+    count %>% arrange(desc(n))
+
+## after making function ----
+race_eth_combination <- function(num_race, num_eth, category_list){
+  output <- adult_race_eth_count %>% 
+    dplyr::filter(n_race==num_race & n_eth==num_eth) %>% 
+    dplyr::select(any_of(ethnicity_list)) %>%
+    group_by(across(any_of(ethnicity_list))) %>% 
+    count %>% arrange(desc(n))
+  
+  final <- output %>% 
+    mutate(total=sum(output$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+race_1_eth_1 <- race_eth_combination(1,1,ethnicity_list)
+race_2_eth_1 <- race_eth_combination(2,1,ethnicity_list)
+race_3_eth_1 <- race_eth_combination(3,1,ethnicity_list)
+race_4_eth_1 <- race_eth_combination(4,1,ethnicity_list)
+
+```
+
+
+
+
+
+
+
+
+
+
 
 ```{r}
 variable_list<-add_variable(variable_list, 'mode_char1','trip')
