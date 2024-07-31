@@ -8,7 +8,9 @@
 
 ---
 title: "Race and Ethnicity Analysis"
-format: html
+format: 
+  html:
+    toc: true
 editor: visual
 execute:
   warning: false
@@ -229,6 +231,20 @@ adult_3race_summary
 race_afam <- person_id_multiple_23_race %>% 
   filter(n==1,
          race_group=="race_afam")
+
+check <- person_id_multiple_23_race %>%
+  filter(ethnicity_999=="Selected") #789
+length(unique(check$person_id)) #776 
+
+pivot <- check %>% 
+    pivot_wider(names_from = race_group, values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(race_list)) %>%
+  group_by(across(any_of(race_list))) %>% 
+    count %>% arrange(desc(n))
+
+output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
 ```
 
 
@@ -346,12 +362,12 @@ adult_1eth_summary
 ```
 1 ETHNICITY:
 
-* 81.3%: Not of Hispanic/Latino/Spanish origin
-* 13.1%: 'Prefer not to answer'
-* 3.1%: Mexican, Mexican American, Chicano
-* 1.9%: 'Another'
-* 0.4%: Puerto Rican
-* 0.2%: Cuban
+* 81.3%: Not of Hispanic/Latino/Spanish origin (4801/5902)
+* 13.1%: 'Prefer not to answer' (776/5902)
+* 3.1%: Mexican, Mexican American, Chicano (182/5902)
+* 1.9%: 'Another' (112/5902)
+* 0.4%: Puerto Rican (22/5902)
+* 0.2%: Cuban (9/5902)
 
 ```{r, echo=FALSE}
 adult_2eth_summary
@@ -534,7 +550,7 @@ length(unique(eth_1$person_id))
 ```
 
 ```{r}
-## after making function ----
+## after making functions ----
 count_combination_race_by_ethnicitiy <- function(n_ethnicities, ethnicity_field, group){
   data <- person_id_multiple_23_eth %>% 
     filter(n==n_ethnicities,
@@ -550,11 +566,34 @@ count_combination_race_by_ethnicitiy <- function(n_ethnicities, ethnicity_field,
     mutate(prop=(round(n/total, digits = 3)))
 }
 
-# eth1_race <- count_combination_race('ethnicity_group', 1) #4801
-eth1_race <- count_combination_race_by_ethnicitiy(1, 'ethnicity_1', 'ethnicity_group')
-# eth1_race <- count_combination_race(eth_1, 'ethnicity_group', 1) #4801
+count_combination_race_by_ethnicitiy2 <- function(ethnicity_field, group){
+  data <- person_id_multiple_23_eth %>% 
+    filter(ethnicity_group!=ethnicity_field)
+  
+  pivot <- data %>% 
+    pivot_wider(names_from = group, values_from = n, values_fill = 0) %>% 
+    dplyr::select(any_of(race_list)) %>% 
+    group_by(across(any_of(race_list))) %>% count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
 ```
-Of those who selected 1 ethnicity (Not Hispanic/Latino/Spanish origin), 74.2% were white, 16.4% were asian, 2.7% african american, 2.4% white and asian, 1.2% didn't provide an answer, etc. 
+
+#### Not Hispanic/Latino/Spanish Origin
+```{r}
+eth1_race <- count_combination_race_by_ethnicitiy(1, 'ethnicity_1', 'ethnicity_group')
+
+eth1_race
+```
+1 ETHNICITY (Not Hispanic/Latino/Spanish origin):
+
+* 74.2%: white (3562/4801)
+* 16.4%: asian (786/4801)
+* 2.7% african american (129/4801)
+* 2.4% white AND asian
+* 1.2% didn't provide an answer
 
 ```{r, number check, include=FALSE, eval=FALSE}
 ## CHECKING NUMBERS
@@ -589,92 +628,32 @@ missing_people <- adult_23 %>%
 # the values have been updated 7/25, so all set
 ```
 
+#### Hispanic/Latino/Spanish Origin
+```{r}
+not_eth1_race <- count_combination_race_by_ethnicitiy2('ethnicity_1', 'ethnicity_group') #1122
 
+#check to make sure function works
+# adult_23 #5931 people in dataset
+# person_id_multiple_23_eth #5946 ethnicities (some people have multiple ethnicities)
+# length(unique(adult_23$person_id)) #5931 people in dataset
+# length(unique(person_id_multiple_23_race$person_id)) #5923
+# length(unique(person_id_multiple_23_eth$person_id)) #5923
+# 
+# check <- person_id_multiple_23_eth %>% 
+#   filter(ethnicity_group!="ethnicity_1") #1145
+# length(unique(check$person_id)) #1122
 
-
-
-
-
-
-
-
-```{r, inlcude=FALSE, eval=FALSE}
-variable_list<-add_variable(variable_list, 'mode_char1','trip')
-group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_char1')
-value_labels<-add_values_code(group_name='mode_char1')
-trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_characterization', grouped_name='mode_char1')%>%filter(mode_characterization!='Airplane')
+not_eth1_race
 ```
+1 ETHNICITY (Hispanic/Latino/Spanish origin):
 
-```{r, inlcude=FALSE, eval=FALSE}
-work_trip<- trip%>%filter(dest_purpose%in% c('Went to work-related place (e.g., meeting, second job, delivery','Went to other work-related activity','Went to work-related activity (e.g., meeting, delivery, worksite','Went to primary workplace'))
-```
-
-travelSurveyTools expects the data to be in a list of data.tables. You must also specify the names of the ids on each table, and the names of the weights.
-
-```{r, inlcude=FALSE, eval=FALSE}
-hts_data = list(hh=hh,
-                person=person,
-                day=day,
-                trip = trip)
-ids = c('hh_id', 'person_id','day_id', 'trip_id')
-wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
-```
-
-Now mode_simple is on the variables table, the values table, and the trip table. And we can run a summary.
-
-```{r, inlcude=FALSE, eval=FALSE}
-
-mode_summary = summarize_weighted(hts_data= hts_data,
-                               summarize_var = 'mode_char1',
-                               summarize_by = 'survey_year',
-                               id_cols= ids,
-                               wt_cols=wts,
-                               wtname='trip_weight'
-                               )
-```
-
-```{r, inlcude=FALSE, eval=FALSE}
-
-common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
-
-static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-write.csv(common_modes, 'mode_trend.csv')
-```
-
-```         
-```
-
-```{r, inlcude=FALSE, eval=FALSE}
-work_data = list(hh=hh,
-                person=person,
-                day=day,
-                trip = work_trip)
-
-```
-
-```{r, inlcude=FALSE, eval=FALSE}
-
-mode_summary = summarize_weighted(hts_data=work_data,
-                               summarize_var = 'mode_char1',
-                               summarize_by = 'survey_year',
-                               id_cols= ids,
-                               wt_cols=wts,
-                               wtname='trip_weight'
-                               )
-```
-
-```{r, inlcude=FALSE, eval=FALSE}
-
-common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
-
-static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-write.csv(common_modes, 'work_mode_trend.csv')
-```
-
-{r}
-
-common_modes\<-mode_summary$summary$wtd%\>% mutate(mode_char1= fct_reorder(mode_char1,-prop))%\>%drop_na(mode_char1)%\>%mutate(moe=prop_se\*1.645)
-
-static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) write.csv(common_modes, 'mode_trend.csv')
+* 51.1%: no answer (573/1122)
+* 28.6%: white (321/1122)
+* 7.9% asian (89/1122)
+* 5.1% other 
+* 2.1% african american/black
+* 1.0%: white AND other
+* 0.8%: american indian/alaskan native AND white
+* 0.6%: african american/black AND american indian/alaskan native AND white
+* 0.5%: asian AND white
+* 0.4%: american indian/alaskan native

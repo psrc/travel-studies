@@ -99,14 +99,39 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 
 <link href="person_race_exploration_files/libs/table1-1.0/table1_defaults.css" rel="stylesheet">
 
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
 </head>
 
-<body class="fullcontent">
+<body>
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
-
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#general-setup" id="toc-general-setup" class="nav-link active" data-scroll-target="#general-setup">General setup</a>
+  <ul class="collapse">
+  <li><a href="#read-in-libraries" id="toc-read-in-libraries" class="nav-link" data-scroll-target="#read-in-libraries">Read in Libraries</a></li>
+  <li><a href="#read-in-codebook" id="toc-read-in-codebook" class="nav-link" data-scroll-target="#read-in-codebook">Read in Codebook</a></li>
+  <li><a href="#read-in-data-from-elmer" id="toc-read-in-data-from-elmer" class="nav-link" data-scroll-target="#read-in-data-from-elmer">Read in Data from Elmer</a></li>
+  <li><a href="#set-ids-as-characters" id="toc-set-ids-as-characters" class="nav-link" data-scroll-target="#set-ids-as-characters">Set IDs as characters</a></li>
+  </ul></li>
+  <li><a href="#data-setup" id="toc-data-setup" class="nav-link" data-scroll-target="#data-setup">Data setup</a></li>
+  <li><a href="#race-and-ethnicity" id="toc-race-and-ethnicity" class="nav-link" data-scroll-target="#race-and-ethnicity">Race and Ethnicity</a>
+  <ul class="collapse">
+  <li><a href="#race" id="toc-race" class="nav-link" data-scroll-target="#race">Race</a></li>
+  <li><a href="#ethnicity" id="toc-ethnicity" class="nav-link" data-scroll-target="#ethnicity">Ethnicity</a></li>
+  <li><a href="#race-ethnicity-combinations" id="toc-race-ethnicity-combinations" class="nav-link" data-scroll-target="#race-ethnicity-combinations">Race + ethnicity combinations</a>
+  <ul class="collapse">
+  <li><a href="#for-recoding-exercise" id="toc-for-recoding-exercise" class="nav-link" data-scroll-target="#for-recoding-exercise">For recoding exercise</a></li>
+  <li><a href="#understanding-general-distribution" id="toc-understanding-general-distribution" class="nav-link" data-scroll-target="#understanding-general-distribution">Understanding general distribution</a></li>
+  <li><a href="#exploring-different-combinations" id="toc-exploring-different-combinations" class="nav-link" data-scroll-target="#exploring-different-combinations">Exploring different combinations</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
@@ -545,12 +570,12 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </div>
 <p>1 ETHNICITY:</p>
 <ul>
-<li>81.3%: Not of Hispanic/Latino/Spanish origin</li>
-<li>13.1%: ‘Prefer not to answer’</li>
-<li>3.1%: Mexican, Mexican American, Chicano</li>
-<li>1.9%: ‘Another’</li>
-<li>0.4%: Puerto Rican</li>
-<li>0.2%: Cuban</li>
+<li>81.3%: Not of Hispanic/Latino/Spanish origin (4801/5902)</li>
+<li>13.1%: ‘Prefer not to answer’ (776/5902)</li>
+<li>3.1%: Mexican, Mexican American, Chicano (182/5902)</li>
+<li>1.9%: ‘Another’ (112/5902)</li>
+<li>0.4%: Puerto Rican (22/5902)</li>
+<li>0.2%: Cuban (9/5902)</li>
 </ul>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
@@ -764,7 +789,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>5.9%: Mexican, Mexican American, Chicano AND Cuban</li>
 </ul>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="do">## after making function ----</span></span>
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="do">## after making functions ----</span></span>
 <span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>count_combination_race_by_ethnicitiy <span class="ot">&lt;-</span> <span class="cf">function</span>(n_ethnicities, ethnicity_field, group){</span>
 <span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> person_id_multiple_23_eth <span class="sc">%&gt;%</span> </span>
 <span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(n<span class="sc">==</span>n_ethnicities,</span>
@@ -780,72 +805,106 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">prop=</span>(<span class="fu">round</span>(n<span class="sc">/</span>total, <span class="at">digits =</span> <span class="dv">3</span>)))</span>
 <span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a>}</span>
 <span id="cb29-16"><a href="#cb29-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a><span class="co"># eth1_race &lt;- count_combination_race('ethnicity_group', 1) #4801</span></span>
-<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>eth1_race <span class="ot">&lt;-</span> <span class="fu">count_combination_race_by_ethnicitiy</span>(<span class="dv">1</span>, <span class="st">'ethnicity_1'</span>, <span class="st">'ethnicity_group'</span>)</span>
-<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a><span class="co"># eth1_race &lt;- count_combination_race(eth_1, 'ethnicity_group', 1) #4801</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb29-17"><a href="#cb29-17" aria-hidden="true" tabindex="-1"></a>count_combination_race_by_ethnicitiy2 <span class="ot">&lt;-</span> <span class="cf">function</span>(ethnicity_field, group){</span>
+<span id="cb29-18"><a href="#cb29-18" aria-hidden="true" tabindex="-1"></a>  data <span class="ot">&lt;-</span> person_id_multiple_23_eth <span class="sc">%&gt;%</span> </span>
+<span id="cb29-19"><a href="#cb29-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(ethnicity_group<span class="sc">!=</span>ethnicity_field)</span>
+<span id="cb29-20"><a href="#cb29-20" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb29-21"><a href="#cb29-21" aria-hidden="true" tabindex="-1"></a>  pivot <span class="ot">&lt;-</span> data <span class="sc">%&gt;%</span> </span>
+<span id="cb29-22"><a href="#cb29-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pivot_wider</span>(<span class="at">names_from =</span> group, <span class="at">values_from =</span> n, <span class="at">values_fill =</span> <span class="dv">0</span>) <span class="sc">%&gt;%</span> </span>
+<span id="cb29-23"><a href="#cb29-23" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">select</span>(<span class="fu">any_of</span>(race_list)) <span class="sc">%&gt;%</span> </span>
+<span id="cb29-24"><a href="#cb29-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(<span class="fu">across</span>(<span class="fu">any_of</span>(race_list))) <span class="sc">%&gt;%</span> count <span class="sc">%&gt;%</span> <span class="fu">arrange</span>(<span class="fu">desc</span>(n))</span>
+<span id="cb29-25"><a href="#cb29-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb29-26"><a href="#cb29-26" aria-hidden="true" tabindex="-1"></a>  output <span class="ot">&lt;-</span> pivot <span class="sc">%&gt;%</span> </span>
+<span id="cb29-27"><a href="#cb29-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">total=</span><span class="fu">sum</span>(pivot<span class="sc">$</span>n)) <span class="sc">%&gt;%</span> </span>
+<span id="cb29-28"><a href="#cb29-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">prop=</span>(<span class="fu">round</span>(n<span class="sc">/</span>total, <span class="at">digits =</span> <span class="dv">3</span>)))</span>
+<span id="cb29-29"><a href="#cb29-29" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>Of those who selected 1 ethnicity (Not Hispanic/Latino/Spanish origin), 74.2% were white, 16.4% were asian, 2.7% african american, 2.4% white and asian, 1.2% didn’t provide an answer, etc.</p>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>variable_list<span class="ot">&lt;-</span><span class="fu">add_variable</span>(variable_list, <span class="st">'mode_char1'</span>,<span class="st">'trip'</span>)</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>group_labels<span class="ot">&lt;-</span><span class="fu">get_grouped_labels</span>(<span class="at">group_id=</span><span class="st">'group_1'</span>, <span class="at">group_name=</span><span class="st">'mode_char1'</span>)</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>value_labels<span class="ot">&lt;-</span><span class="fu">add_values_code</span>(<span class="at">group_name=</span><span class="st">'mode_char1'</span>)</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span><span class="fu">grp_to_tbl</span>(<span class="at">tbl=</span>trip, <span class="at">ungrouped_name=</span><span class="st">'mode_characterization'</span>, <span class="at">grouped_name=</span><span class="st">'mode_char1'</span>)<span class="sc">%&gt;%</span><span class="fu">filter</span>(mode_characterization<span class="sc">!=</span><span class="st">'Airplane'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<section id="not-hispaniclatinospanish-origin" class="level4">
+<h4 class="anchored" data-anchor-id="not-hispaniclatinospanish-origin">Not Hispanic/Latino/Spanish Origin</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>eth1_race <span class="ot">&lt;-</span> <span class="fu">count_combination_race_by_ethnicitiy</span>(<span class="dv">1</span>, <span class="st">'ethnicity_1'</span>, <span class="st">'ethnicity_group'</span>)</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>eth1_race</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 24 × 10
+# Groups:   race_afam, race_aiak, race_asian, race_hapi, race_white,
+#   race_noanswer, race_other [24]
+   race_afam  race_aiak race_asian race_hapi race_white race_noanswer race_other
+   &lt;chr&gt;      &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt;         &lt;chr&gt;     
+ 1 Not Selec… Not Sele… Not Selec… Not Sele… Selected   Not Selected  Not Selec…
+ 2 Not Selec… Not Sele… Selected   Not Sele… Not Selec… Not Selected  Not Selec…
+ 3 Selected   Not Sele… Not Selec… Not Sele… Not Selec… Not Selected  Not Selec…
+ 4 Not Selec… Not Sele… Selected   Not Sele… Selected   Not Selected  Not Selec…
+ 5 Not Selec… Not Sele… Not Selec… Not Sele… Not Selec… Selected      Not Selec…
+ 6 Not Selec… Selected  Not Selec… Not Sele… Selected   Not Selected  Not Selec…
+ 7 Not Selec… Selected  Not Selec… Not Sele… Not Selec… Not Selected  Not Selec…
+ 8 Not Selec… Not Sele… Not Selec… Selected  Not Selec… Not Selected  Not Selec…
+ 9 Selected   Not Sele… Not Selec… Not Sele… Selected   Not Selected  Not Selec…
+10 Not Selec… Not Sele… Not Selec… Selected  Selected   Not Selected  Not Selec…
+# ℹ 14 more rows
+# ℹ 3 more variables: n &lt;int&gt;, total &lt;int&gt;, prop &lt;dbl&gt;</code></pre>
 </div>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>work_trip<span class="ot">&lt;-</span> trip<span class="sc">%&gt;%</span><span class="fu">filter</span>(dest_purpose<span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">'Went to work-related place (e.g., meeting, second job, delivery'</span>,<span class="st">'Went to other work-related activity'</span>,<span class="st">'Went to work-related activity (e.g., meeting, delivery, worksite'</span>,<span class="st">'Went to primary workplace'</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<p>travelSurveyTools expects the data to be in a list of data.tables. You must also specify the names of the ids on each table, and the names of the weights.</p>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>hts_data <span class="ot">=</span> <span class="fu">list</span>(<span class="at">hh=</span>hh,</span>
-<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">person=</span>person,</span>
-<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">day=</span>day,</span>
-<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>                <span class="at">trip =</span> trip)</span>
-<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>ids <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'hh_id'</span>, <span class="st">'person_id'</span>,<span class="st">'day_id'</span>, <span class="st">'trip_id'</span>)</span>
-<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>wts <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'hh_weight'</span>, <span class="st">'person_weight'</span>, <span class="st">'day_weight'</span>, <span class="st">'trip_weight'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>1 ETHNICITY (Not Hispanic/Latino/Spanish origin):</p>
+<ul>
+<li>74.2%: white (3562/4801)</li>
+<li>16.4%: asian (786/4801)</li>
+<li>2.7% african american (129/4801)</li>
+<li>2.4% white AND asian</li>
+<li>1.2% didn’t provide an answer</li>
+</ul>
+</section>
+<section id="hispaniclatinospanish-origin" class="level4">
+<h4 class="anchored" data-anchor-id="hispaniclatinospanish-origin">Hispanic/Latino/Spanish Origin</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>not_eth1_race <span class="ot">&lt;-</span> <span class="fu">count_combination_race_by_ethnicitiy2</span>(<span class="st">'ethnicity_1'</span>, <span class="st">'ethnicity_group'</span>) <span class="co">#1122</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="co">#check to make sure function works</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co"># adult_23 #5931 people in dataset</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="co"># person_id_multiple_23_eth #5946 ethnicities (some people have multiple ethnicities)</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a><span class="co"># length(unique(adult_23$person_id)) #5931 people in dataset</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a><span class="co"># length(unique(person_id_multiple_23_race$person_id)) #5923</span></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a><span class="co"># length(unique(person_id_multiple_23_eth$person_id)) #5923</span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a><span class="co"># check &lt;- person_id_multiple_23_eth %&gt;% </span></span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a><span class="co">#   filter(ethnicity_group!="ethnicity_1") #1145</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a><span class="co"># length(unique(check$person_id)) #1122</span></span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>not_eth1_race</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 22 × 10
+# Groups:   race_afam, race_aiak, race_asian, race_hapi, race_white,
+#   race_noanswer, race_other [22]
+   race_afam  race_aiak race_asian race_hapi race_white race_noanswer race_other
+   &lt;chr&gt;      &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt;     &lt;chr&gt;      &lt;chr&gt;         &lt;chr&gt;     
+ 1 Not Selec… Not Sele… Not Selec… Not Sele… Not Selec… Selected      Not Selec…
+ 2 Not Selec… Not Sele… Not Selec… Not Sele… Selected   Not Selected  Not Selec…
+ 3 Not Selec… Not Sele… Selected   Not Sele… Not Selec… Not Selected  Not Selec…
+ 4 Not Selec… Not Sele… Not Selec… Not Sele… Not Selec… Not Selected  Selected  
+ 5 Selected   Not Sele… Not Selec… Not Sele… Not Selec… Not Selected  Not Selec…
+ 6 Not Selec… Not Sele… Not Selec… Not Sele… Selected   Not Selected  Selected  
+ 7 Not Selec… Selected  Not Selec… Not Sele… Selected   Not Selected  Not Selec…
+ 8 Selected   Selected  Not Selec… Not Sele… Selected   Not Selected  Not Selec…
+ 9 Not Selec… Not Sele… Selected   Not Sele… Selected   Not Selected  Not Selec…
+10 Not Selec… Selected  Not Selec… Not Sele… Not Selec… Not Selected  Not Selec…
+# ℹ 12 more rows
+# ℹ 3 more variables: n &lt;int&gt;, total &lt;int&gt;, prop &lt;dbl&gt;</code></pre>
 </div>
-<p>Now mode_simple is on the variables table, the values table, and the trip table. And we can run a summary.</p>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>mode_summary <span class="ot">=</span> <span class="fu">summarize_weighted</span>(<span class="at">hts_data=</span> hts_data,</span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_var =</span> <span class="st">'mode_char1'</span>,</span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_by =</span> <span class="st">'survey_year'</span>,</span>
-<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">id_cols=</span> ids,</span>
-<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wt_cols=</span>wts,</span>
-<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wtname=</span><span class="st">'trip_weight'</span></span>
-<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>                               )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>common_modes<span class="ot">&lt;-</span>mode_summary<span class="sc">$</span>summary<span class="sc">$</span>wtd<span class="sc">%&gt;%</span></span>
-<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">mode_char1=</span> <span class="fu">fct_reorder</span>(mode_char1,<span class="sc">-</span>prop))<span class="sc">%&gt;%</span><span class="fu">drop_na</span>(mode_char1)<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">moe=</span>prop_se<span class="sc">*</span><span class="fl">1.645</span>)</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="fu">static_column_chart</span>(common_modes, <span class="at">x=</span><span class="st">'mode_char1'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,<span class="at">ylabel=</span> <span class="st">'Share'</span>, <span class="at">xlabel=</span><span class="st">'Trip Mode'</span>, <span class="at">moe=</span><span class="st">'moe'</span>)<span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),<span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>))</span>
-<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(common_modes, <span class="st">'mode_trend.csv'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<pre><code></code></pre>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>work_data <span class="ot">=</span> <span class="fu">list</span>(<span class="at">hh=</span>hh,</span>
-<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">person=</span>person,</span>
-<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">day=</span>day,</span>
-<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>                <span class="at">trip =</span> work_trip)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>mode_summary <span class="ot">=</span> <span class="fu">summarize_weighted</span>(<span class="at">hts_data=</span>work_data,</span>
-<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_var =</span> <span class="st">'mode_char1'</span>,</span>
-<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_by =</span> <span class="st">'survey_year'</span>,</span>
-<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">id_cols=</span> ids,</span>
-<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wt_cols=</span>wts,</span>
-<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wtname=</span><span class="st">'trip_weight'</span></span>
-<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>                               )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<div class="cell" data-inlcude="false">
-<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>common_modes<span class="ot">&lt;-</span>mode_summary<span class="sc">$</span>summary<span class="sc">$</span>wtd<span class="sc">%&gt;%</span></span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">mode_char1=</span> <span class="fu">fct_reorder</span>(mode_char1,<span class="sc">-</span>prop))<span class="sc">%&gt;%</span><span class="fu">drop_na</span>(mode_char1)<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">moe=</span>prop_se<span class="sc">*</span><span class="fl">1.645</span>)</span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="fu">static_column_chart</span>(common_modes, <span class="at">x=</span><span class="st">'mode_char1'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,<span class="at">ylabel=</span> <span class="st">'Share'</span>, <span class="at">xlabel=</span><span class="st">'Trip Mode'</span>, <span class="at">moe=</span><span class="st">'moe'</span>)<span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),<span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>))</span>
-<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(common_modes, <span class="st">'work_mode_trend.csv'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
-<p>{r}</p>
-<p>common_modes&lt;-mode_summary<span class="math inline">\(summary\)</span>wtd%&gt;% mutate(mode_char1= fct_reorder(mode_char1,-prop))%&gt;%drop_na(mode_char1)%&gt;%mutate(moe=prop_se*1.645)</p>
-<p>static_column_chart(common_modes, x=‘mode_char1’, y=‘prop’, fill=‘survey_year’,ylabel= ‘Share’, xlabel=‘Trip Mode’, moe=‘moe’)+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) write.csv(common_modes, ‘mode_trend.csv’)</p>
+<p>1 ETHNICITY (Hispanic/Latino/Spanish origin):</p>
+<ul>
+<li>51.1%: no answer (573/1122)</li>
+<li>28.6%: white (321/1122)</li>
+<li>7.9% asian (89/1122)</li>
+<li>5.1% other</li>
+<li>2.1% african american/black</li>
+<li>1.0%: white AND other</li>
+<li>0.8%: american indian/alaskan native AND white</li>
+<li>0.6%: african american/black AND american indian/alaskan native AND white</li>
+<li>0.5%: asian AND white</li>
+<li>0.4%: american indian/alaskan native</li>
+</ul>
+</section>
 </section>
 </section>
 </section>
