@@ -18,6 +18,29 @@ library(forcats)
 source('survey-23-preprocess.R')
 
 ```
+
+```{r}
+
+telecommute_or_not<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+telecommute_summary<-telecommute_or_not$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')
+static<-static_line_chart(telecommute_summary, y='prop', x='survey_year', fill='telecommute_freq_cond',lwidth=1.5) + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+ scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,0.6))
+
+static
+inter
+write.csv(telecommute_summary,'telecommuteornot_summary_trend.csv')
+```
+
 Who telecommuted Hybrid vs Not?
 
 ```{r}
@@ -148,6 +171,30 @@ telecommute_or_not_race<- summarize_weighted(hts_data= worker_list,
 telecommute_summary_race<-telecommute_or_not_race$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%filter(!race_category%in% c('Child', 'Missing'))%>%mutate(moe=prop_se*1.645)
                                                                                                    
 static<-static_column_chart(telecommute_summary_race, y='prop', x='race_category', fill='survey_year', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+
+static
+
+write.csv(telecommute_summary_race,'telecommute_summary_race.csv')
+
+```
+```{r}
+
+industryrace<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'industry_cond',
+                               summarize_by = c('survey_year', 'race_category'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+
+```{r}
+
+industry_race<-industryrace$summary$wtd%>%filter(survey_year=='2023')%>%filter(!race_category%in% c('Child', 'Missing'))%>%mutate(moe=prop_se*1.645)
+                                                                                                   
+static<-static_column_chart(industry_race, y='prop', x='race_category', fill='industry_cond', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
    scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
 
 static
@@ -377,13 +424,13 @@ telecommute_status_sector<- summarize_weighted(hts_data= worker_list,
 ```{r}
 
 telecommute_summary_sector<-telecommute_status_sector$summary$wtd%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)%>%filter(industry_cond!="Missing: Skip Logic")%>%
-  mutate(telecommute_status=fct_reorder(telecommute_status,prop))
+  mutate(telecommute_status=fct_reorder(telecommute_status,est))%>%
+  mutate(industry_cond=fct_reorder(industry_cond,est))%>%filter(telecommute_status!='Fully In Person')
                                                                                                                                                                                                            
 
 
-static<-static_column_chart(telecommute_summary_sector, y='prop', x='industry_cond', fill='telecommute_status') + theme(axis.text.x=element_text(size=12), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
-   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
-
+static<-static_bar_chart(telecommute_summary_sector, x='est', y='industry_cond', fill='telecommute_status', pos='stack') + theme(axis.text.x=element_text(size=12), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+   
 static
 
 write.csv(telecommute_summary_sector,'telecommute_summary_industry_hybrid.csv')

@@ -20,18 +20,18 @@ source('survey-23-preprocess.R')
 
 
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hh_weight,vehicle_count, home_rgcname, home_lat, home_lng
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction, home_county, hh_weight,vehicle_count, home_rgcname, home_lat, home_lng, survey_year
                 from HHSurvey.v_households_labels")
 
 
-person<- get_query(sql= "select household_id as hh_id,race_category,
-person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname
+person<- get_query(sql= "select household_id as hh_id,race_category, race_category_2023,
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname, work_jurisdiction, work_county
                 from HHSurvey.v_persons_labels")
                 
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_1, dest_purpose, survey_year, trip_weight, distance_miles, mode_characterization 
+person_id, mode_1, dest_purpose, survey_year, trip_weight, distance_miles, mode_characterization, travelers_total 
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
@@ -44,7 +44,7 @@ setDT(trip)
 
 ## Read in Codebook
 ```{r pressure, echo=FALSE}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+cb_path = str_glue("PSRC_Codebook_2023_v1_local_fixes.xlsx")
 
 variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')

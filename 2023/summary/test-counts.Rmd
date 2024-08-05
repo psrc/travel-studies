@@ -1,0 +1,89 @@
+---
+title: "check-counts"
+author: "suzanne"
+date: "2024-08-05"
+output: html_document
+---
+
+`
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(forcats)
+source('survey-23-preprocess.R')
+```
+
+
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+
+## R Markdown
+
+```{r}
+person_example<- get_query(sql= "select gender, survey_year
+                from HHSurvey.v_persons_labels")
+
+```
+
+
+In Elmer, count gender by survey year
+
+select count(*), gender, survey_year
+from HHSurvey.v_persons_labels
+group by gender, survey_year
+
+
+
+```{r}
+elmer_check_gender<-read.csv('check_summary.csv')
+```
+
+```{r}
+
+person_data = list(
+                person = person)
+ids<-c('person_id')
+wts<- c('person_weight')
+
+
+```
+
+```{r}
+person_prep<- hts_prep_variable(summarize_var='gender', 
+                                summarize_by='survey_year', variables_dt=variable_list,
+                                data=person_data, id_cols=ids, wt_cols=wts)
+person_year_gender<-hts_summary(prepped_dt=person_prep$cat,
+                                summarize_var='gender',
+                                summarize_by='survey_year',
+                                weighted = TRUE,
+                                wtname='person_weight',
+                                se=TRUE)
+
+
+      
+```
+
+toolspkg_gend<-summarize_weighted(hts_data = person_data,
+                                         summarize_var = 'gender',
+                                         summarize_by ='survey_year',
+                                         id_cols = ids,
+                                         wt_cols = wts,
+                                         wtname = 'person_weight') # weight name corresponds to table variable is from
+```{r}
+merge(elmer_check_gender, person_year_gender$summary$wtd, by=c('survey_year', 'gender') )
+
+```
+
