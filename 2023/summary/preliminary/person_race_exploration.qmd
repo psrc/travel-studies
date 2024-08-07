@@ -63,6 +63,7 @@ setDT(value_labels)
 person<- get_query(sql= "select household_id as hh_id, race_category,
                    race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_other_specify, race_white,
                    ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999, ethnicity_other,
+                   race_category_2023,
                    person_id, survey_year, person_weight, gender, age
                    from HHSurvey.v_persons_labels")
                 
@@ -106,6 +107,9 @@ adult <- person %>%
 # table(adult$age)
 # nrow(adult) #21492
 # length(unique(adult$person_id)) #21492 - just to check
+
+unique(person$race_category_2023)
+table(person$race_category_2023, person$age)
 
 # unique(adult$race_other_specify) #checking 'other' responses
 # length(unique(adult$race_other_specify)) #99 people who selected 'other' 
@@ -188,6 +192,7 @@ adult_4race_summary <- count_combination_race('race_group', 4) #2 people
 adult_5race_summary <- count_combination_race('race_group', 5) #0 people
 adult_6race_summary <- count_combination_race('race_group', 6) #0 people
 ```
+
 ```{r, echo=FALSE}
 adult_1race_summary
 ```
@@ -657,3 +662,114 @@ not_eth1_race
 * 0.6%: african american/black AND american indian/alaskan native AND white
 * 0.5%: asian AND white
 * 0.4%: american indian/alaskan native
+
+
+## Person Race > Household Race
+The new person race variable: 'race_category_2023'
+```{r}
+# table(adult_23$race_category_2023)
+
+adult_23_simp <- adult_23 %>% 
+  select(hh_id, person_id, race_category_2023, age) 
+
+hh_id_multiple_23_prace <- adult_23_simp %>% 
+  group_by(hh_id) %>% summarize(n_members=n()) #count how many people per hh - total hh is 3661, total people is 5931
+```
+total households: 3,661
+total people: 5,931
+```{r}
+# share of households by number of people
+table1(~as.factor(n_members), data=hh_id_multiple_23_prace) 
+```
+
+```{r}
+# full data set (each row is different person) includes number of people in household
+combined <- adult_23_simp %>% 
+  right_join(hh_id_multiple_23_prace, by = ("hh_id"))
+
+updated_race_list <- (unique(combined$race_category_2023))
+```
+
+```{r, include=FALSE, eval=FALSE}
+# before making function (for checking) ----
+# select households with two people
+hh_2people <- combined %>% 
+  filter(n_members==2)
+
+hh_2people_wider <- combined %>% 
+  filter(n_members==2) %>% 
+  pivot_wider(names_from = race_category_2023, values_from = n_members, values_fill = 0) %>% 
+  group_by(hh_id) %>% summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
+  rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
+  group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(n)) %>% 
+  mutate(total=sum(pivot$n)) %>%
+  mutate(prop=(round(n/total, digits = 3)))
+
+hh_2people_wider[,1:ncol(hh_2people_wider)]/2
+```
+
+```{r}
+## after making function ----
+count_combination_prace <- function(n){
+  temp <- combined %>% 
+    filter(n_members==n) 
+  
+  pivot <- temp %>% 
+    pivot_wider(names_from = race_category_2023, values_from = n_members, values_fill = 0) %>% 
+    group_by(hh_id) %>% summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
+    rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
+    group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(n)) 
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n),
+           prop=(round(n/total, digits = 3)))
+  }
+
+hh1 <- count_combination_prace(1)
+hh2 <- count_combination_prace(2)
+hh3 <- count_combination_prace(3)
+hh4 <- count_combination_prace(4)
+hh5 <- count_combination_prace(5)
+hh6 <- count_combination_prace(6)
+```
+
+### 1-Person Households
+```{r}
+hh1
+```
+
+* 60%: White alone non-Hispanic
+* 13%: Asian alone non-Hispanic
+* 12%: Missing/No response
+* 7%: Hispanic
+
+### 2-Person Households
+```{r}
+hh2
+```
+
+### 3-Person Households
+```{r}
+hh3
+```
+
+### 4-Person Households
+```{r}
+hh4
+```
+
+### 5-Person Households
+```{r}
+hh5
+```
+
+### 6-Person Households
+```{r}
+hh6
+```
+
+
+## What are the categories (for 50-100 households?)
+
+* All white?
+* White and other?
