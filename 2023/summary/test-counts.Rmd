@@ -64,13 +64,13 @@ wts<- c('person_weight')
 ```{r}
 person_prep<- hts_prep_variable(summarize_var='gender', 
                                 summarize_by='survey_year', variables_dt=variable_list,
-                                data=person_data, id_cols=ids, wt_cols=wts)
+                                data=person_data, id_cols=ids, wt_cols=wts, remove_missing=FALSE)
 person_year_gender<-hts_summary(prepped_dt=person_prep$cat,
                                 summarize_var='gender',
                                 summarize_by='survey_year',
                                 weighted = TRUE,
                                 wtname='person_weight',
-                                se=TRUE)
+                                se=FALSE)
 
 
       
@@ -83,7 +83,7 @@ toolspkg_gend<-summarize_weighted(hts_data = person_data,
                                          wt_cols = wts,
                                          wtname = 'person_weight') # weight name corresponds to table variable is from
 ```{r}
-merge(elmer_check_gender, person_year_gender$summary$wtd, by=c('survey_year', 'gender') )
+test_counts<-merge(elmer_check_gender, person_year_gender$summary$unwtd, by=c('survey_year', 'gender') )
 
 ```
 
