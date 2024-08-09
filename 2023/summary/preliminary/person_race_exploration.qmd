@@ -63,7 +63,7 @@ setDT(value_labels)
 person<- get_query(sql= "select household_id as hh_id, race_category,
                    race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_other_specify, race_white,
                    ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999, ethnicity_other,
-                   race_category_2023, race_category_2023_optimized, 
+                   race_category_2023, race_category_2023_b, 
                    person_id, survey_year, person_weight, gender, age
                    from HHSurvey.v_persons_labels")
                 
@@ -189,8 +189,8 @@ adult_1race_summary <- count_combination_race('race_group', 1) #5655 people
 adult_2race_summary <- count_combination_race('race_group', 2) #234 people 
 adult_3race_summary <- count_combination_race('race_group', 3) #32 people
 adult_4race_summary <- count_combination_race('race_group', 4) #2 people
-adult_5race_summary <- count_combination_race('race_group', 5) #0 people
-adult_6race_summary <- count_combination_race('race_group', 6) #0 people
+# adult_5race_summary <- count_combination_race('race_group', 5) #0 people
+# adult_6race_summary <- count_combination_race('race_group', 6) #0 people
 ```
 
 ```{r, echo=FALSE}
@@ -670,7 +670,7 @@ The new person race variable: 'race_category_2023'
 # table(adult_23$race_category_2023)
 
 adult_23_simp <- adult_23 %>% 
-  select(hh_id, person_id, race_category_2023_optimized, age) 
+  select(hh_id, person_id, race_category_2023_b, age) 
 
 hh_id_multiple_23_prace <- adult_23_simp %>% 
   group_by(hh_id) %>% dplyr::summarise(n_members=n()) #count how many people per hh - total hh is 3661, total people is 5931
@@ -698,7 +698,7 @@ hh_2people <- combined %>%
 
 hh_2people_wider <- combined %>% 
   filter(n_members==2) %>% 
-  pivot_wider(names_from = race_category_2023_optimized, values_from = n_members, values_fill = 0) %>% 
+  pivot_wider(names_from = race_category_2023_b, values_from = n_members, values_fill = 0) %>% 
   group_by(hh_id) %>% dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
   rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
   group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(freq)) %>% 
@@ -715,7 +715,7 @@ count_combination_prace <- function(n){
     filter(n_members==n) 
   
   pivot <- temp %>% 
-    pivot_wider(names_from = race_category_2023_optimized, values_from = n_members, values_fill = 0) %>% 
+    pivot_wider(names_from = race_category_2023_b, values_from = n_members, values_fill = 0) %>% 
     group_by(hh_id) %>% dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
     rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
     group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(freq)) 
@@ -777,13 +777,13 @@ combined
 updated_race_list
 
 combined_race_number <- combined %>% 
-  dplyr::mutate(race_num=case_when(race_category_2023_optimized=="White non-Hispanic"~1,
-                                   race_category_2023_optimized=="Hispanic"~2,
-                                   race_category_2023_optimized=="Black or African American non-Hispanic"~3,
-                                   race_category_2023_optimized=="Asian non-Hispanic"~4,
-                                   race_category_2023_optimized=="Some Other Race non-Hispanic"~5,
-                                   race_category_2023_optimized=="Two or More Races non-Hispanic"~6,
-                                   race_category_2023_optimized=="Missing/No response"~7))
+  dplyr::mutate(race_num=case_when(race_category_2023_b=="White non-Hispanic"~1,
+                                   race_category_2023_b=="Hispanic"~2,
+                                   race_category_2023_b=="Black or African American non-Hispanic"~3,
+                                   race_category_2023_b=="Asian non-Hispanic"~4,
+                                   race_category_2023_b=="Some Other Race non-Hispanic"~5,
+                                   race_category_2023_b=="Two or More Races non-Hispanic"~6,
+                                   race_category_2023_b=="Missing/No response"~7))
 
 hh_race_num <- combined_race_number %>% 
   group_by(hh_id) %>% 
@@ -810,7 +810,7 @@ one_person_hh_nonwhite <- join %>%
          hh_grouping == "other") %>% #677
   left_join(combined_race_number, by="hh_id")
   
-table1(~race_category_2023_optimized, data=one_person_hh_nonwhite)
+table1(~race_category_2023_b, data=one_person_hh_nonwhite)
 ```
 
 #### More than one-person hh, not just white
@@ -832,7 +832,7 @@ other_hh_race <- other_hh %>%
 #            hh_id==23001700)
 
 pivot <- other_hh_race %>% 
-  pivot_wider(names_from = race_category_2023_optimized, values_from = n_members.x, values_fill = 0) %>% 
+  pivot_wider(names_from = race_category_2023_b, values_from = n_members.x, values_fill = 0) %>% 
   group_by(hh_id, n_members.y) %>% 
   dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>% 
   rename_with(~ sub("_sum$", "", .x), everything()) #remove suffix 'sum'
