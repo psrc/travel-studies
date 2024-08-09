@@ -4,8 +4,8 @@ author: "suzanne"
 date: "2024-07-17"
 output: html_document
 ---
-run telecommue_july23 first
-also run telecommute_july23_part3
+run telecommue_preprocess first
+
 for telecommuters vs not;
 number of trips by type 
 mode
@@ -166,7 +166,34 @@ static
 write.csv(output_trips_grp,'telecommute_summary_trips_mode.csv')
 
 ```
+```{r}
+telecommute_mode_county<- summarize_weighted(hts_data= hh_data_23,
+                               summarize_var = 'mode_characterization',
+                               summarize_by = c('telecommute_status', 'home_county'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
 
+```
+
+```{r}
+
+output_trips<-telecommute_mode_county$summary$wtd
+output_trips_wrker<- left_join(output_trips, output_wrkr_sum, by='telecommute_status')
+output_trips_wrker<-output_trips_wrker%>%mutate(mode_characterization=fct_reorder(mode_characterization, prop.x))%>%mutate(telecommute_status=factor(telecommute_status, levels=c('Fully In Person', 'Hybrid', 'Fully At Home')))
+
+output_trips<-output_trips_wrker%>%mutate(mode_short=if_else(startsWith(as.character(mode_characterization),'Drive'), 'Drive', mode_characterization))
+
+output_trips_grp<-output_trips%>%group_by(mode_short,home_county, telecommute_status)%>%summarize(mode_share=sum(prop.x))%>%mutate(mode_characterization=fct_reorder(mode_short, mode_share))
+                                                                                                   
+static<-static_facet_column_chart(output_trips_grp, x='home_county', y='mode_share', fill='telecommute_status', color='pgnobgy_10', facet='mode_short') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static
+
+write.csv(output_trips_grp,'telecommute_summary_trips_mode_county.csv')
+
+```
 ## analysis outside of the package
 ```{r}
 

@@ -4,7 +4,8 @@ author: "suzanne"
 date: "2024-07-12"
 output: html_document
 ---
-
+First run telecommute_preprocess
+These are the basic summaries below, and show work at home by demographic characteristics.
 
 ```{r setup, include=FALSE}
 library(data.table)
@@ -157,9 +158,9 @@ write.csv(telecommute_summary_gend,'telecommute_summary_gender.csv')
 Gender
 ```{r}
 
-telecommute_or_not_race<- summarize_weighted(hts_data= worker_list,
-                               summarize_var = 'telecommute_freq_cond',
-                               summarize_by = c('survey_year', 'race_category_2023'),
+telecommute_or_not_gender <- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_status',
+                               summarize_by = c('survey_year', 'gender'),
                                id_cols=c('hh_id', 'person_id'),
                                wt_cols=c('hh_weight', 'person_weight'),
                                wtname= 'person_weight'
@@ -168,9 +169,34 @@ telecommute_or_not_race<- summarize_weighted(hts_data= worker_list,
 ```
 ```{r}
 
-telecommute_summary_race<-telecommute_or_not_race$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%filter(!race_category_2023 %in% c('Missing/No response'))%>%mutate(moe=prop_se*1.645)
+telecommute_summary_gend<-telecommute_or_not_gender$summary$wtd%>%filter(survey_year=='2023')%>%mutate(gender=recode(gender, 	
+'Boy/Man (cisgender or transgender)' = "Man/Boy", 'Girl/Woman (cisgender or transgender)'  = "Woman/Girl"))%>%filter(!gender %in% c('Non-binary/Something else fits better', 'Prefer not to answer'))
                                                                                                    
-static<-static_column_chart(telecommute_summary_race, y='prop', x='race_category_2023', fill='survey_year', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+static<-static_column_chart(telecommute_summary_gend, y='prop', x='gender', fill='telecommute_status', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+
+static
+
+write.csv(telecommute_summary_gend,'telecommute_summary_gender.csv')
+
+```
+
+```{r}
+
+telecommute_or_not_race<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'telecommute_freq_cond',
+                               summarize_by = c('survey_year', 'race_category_2023_b'),
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight'
+                               )
+
+```
+```{r}
+
+telecommute_summary_race<-telecommute_or_not_race$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%filter(!race_category_2023_b %in% c('Missing/No response', 'Child'))%>%mutate(moe=prop_se*1.645)
+                                                                                                   
+static<-static_column_chart(telecommute_summary_race, y='prop', x='race_category_2023_b', fill='survey_year', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
    scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
 
 static
