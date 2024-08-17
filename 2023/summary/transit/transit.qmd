@@ -166,9 +166,6 @@ hh <- hh %>%
 hh_total <- hh_test %>%
   mutate(Num = readr::parse_number(hhsize))
 
-person_count <- hh_total %>%
-    count(Num == "1")
-
 aggregate(hh_total$Num, by=list(survey_year=hh_total$survey_year), FUN=sum)
 
 person_w <- person %>%
