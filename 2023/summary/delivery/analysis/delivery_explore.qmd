@@ -1,0 +1,22 @@
+---
+title: "HTS summary 2024"
+format: html
+
+echo: TRUE
+warning: FALSE
+---
+
+```{r}
+library(psrc.travelsurvey)
+
+vars <- c("deliver_elsewhere", "deliver_food", "deliver_grocery", "deliver_none", 
+          "deliver_office", "deliver_package",
+          "hhincome_broad", "home_county", "vehicle_count",
+          "age","transit_freq","race_category")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars) 
+variable_list <- psrc.travelsurvey:::init_variable_list
+rs3 <- psrc_hts_stat(hts_data, "day", c("survey_year","deliver_none"), incl_na=FALSE)
+```
+

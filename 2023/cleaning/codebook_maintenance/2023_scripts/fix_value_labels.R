@@ -15,7 +15,14 @@ cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Cod
 
 variable_list <- readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels <- readxl::read_xlsx(cb_path, sheet = 'value_labels')
-new_value_labels <- value_labels %>% filter(variable %in% variable_list$variable)
+
+geography_variables <- variable_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable))
+factor_variables <- variable_list %>% filter(data_type == "integer/categorical" & 
+                                               !variable %in% c("year","survey_year","sample_segment") &     # no years
+                                               !variable %in% geography_variables$variable) # no geography names
+
+new_value_labels <- value_labels %>% filter(variable %in% factor_variables$variable) %>%
+  mutate(val_order = c(1:nrow(.)))
 # openxlsx::write.xlsx(new_value_labels, file = "value_labels.xlsx")
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -71,7 +78,9 @@ missing_values <- function(data_table){
   view_data <-  list_prep_data[[data_table]][['view_data']]
   
   var_value_notin_cb <- var_codebook %>% 
-    filter(!variable %in% values_codebook$variable)
+    filter(!variable %in% values_codebook$variable &
+             !variable %in% c("year","survey_year","sample_segment") &  
+             !variable %in% geography_variables$variable)
   # list out all values for var_value_notin_cb
   values_missing <- data.frame()
   for(var in var_value_notin_cb$variable){
@@ -99,6 +108,8 @@ values_missing_list_all <- variable_list %>%
            variable %in% unique(values_missing_day$variable) |
            variable %in% unique(values_missing_trip$variable) |
            variable %in% unique(values_missing_vehicle$variable) )
+
+  
 ## write a list of data.frames to individual worksheets using list names as worksheet names
 l <- list("all_variables" = values_missing_list_all,
           "hh" = values_missing_hh, 
@@ -111,6 +122,7 @@ l <- list("all_variables" = values_missing_list_all,
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # ---- step3: find all unique values in views for variables that exist in value_labels (only get integer/categorical variables) ----
+# TODO: fix inconsistencies manually in excel file
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 compare_values <- function(data_table){
   
@@ -151,6 +163,7 @@ compare_values_day <- compare_values('day')
 compare_values_trip <- compare_values('trip')
 compare_values_vehicle <- compare_values('vehicle')
 
+# variables with values consistent between codebook and view
 clean <- compare_values_hh %>%
   add_row(compare_values_person) %>%
   add_row(compare_values_day) %>%
@@ -161,10 +174,11 @@ clean <- compare_values_hh %>%
   ungroup() %>%
   mutate(val_order = NA) %>%
   select(all_of(colnames(value_labels)))
+# other variables
 get_not_clean <- function(.data){
   .data %>%
     group_by(variable) %>%
-    filter(sum(is.na(label))+sum(is.na(label_view))>0) %>%
+    filter(sum(is.na(label))+sum(is.na(label_view))==1) %>%
     ungroup()
 }
 

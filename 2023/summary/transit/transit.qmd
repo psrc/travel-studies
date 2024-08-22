@@ -19,7 +19,9 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
-source("survey-23-preprocess.R")
+library(ggplot2)
+
+source("C:/temp/2023/summary/survey-23-preprocess.R")
 ```
 
 ## Read in codebook
@@ -41,7 +43,7 @@ hh <- get_query(sql = "SELECT household_id as hh_id, num_trips AS h_num_trips, h
                        home_rgcname, home_county, survey_year, hh_weight
                        FROM HHSurvey.v_households_labels;")
 
-person <- get_query(sql = "SELECT person_id, household_id as hh_id, num_trips AS p_num_trips, age, gender, race_category,
+person <- get_query(sql = "SELECT person_id, household_id as hh_id, num_trips AS p_num_trips, age, gender, race_category, disability_person, commute_subsidy_1, industry,
                            employment, workplace, commute_freq, commute_mode, survey_year, person_weight
                            FROM HHSurvey.v_persons_labels;")
 
@@ -94,17 +96,115 @@ Based on the modes in the trip data, will need to filter on `mode_characterizati
 trip <- filter(trip, mode_characterization != "Airplane")
 ```
 
-## Initial summaries
+## Get Industry
+
+```{r}
+# add mode_simple to variables list 
+variable_list <- add_variable(variable_list, "industry_cond", "person")
+group_labels <- get_grouped_labels(group_id = "group_1", group_name = "industry_cond")
+value_labels <- add_values_code(group_name = "industry_cond")
+person<-grp_to_tbl(tbl=person, ungrouped_name="industry", grouped_name="industry_cond")
+
+```
+
+## Get Commute Pass
+
+```{r}
+
+# add commute_subsidy_1 to variables list  
+variable_list <- add_variable(variable_list, "commute_subsidy_1", "person")
+group_labels <- get_grouped_labels(group_id = "group_1", group_name = "commute_subsidy_1") 
+value_labels <- add_values_code(group_name = "commute_subsidy_1") 
+person<-grp_to_tbl(tbl=person, ungrouped_name="commute_subsidy_1", grouped_name="commute_subsidy_1")
+```
+
+## Summaries
+
+```{r age_cond_variable}
+
+variable_list <- add_variable(variable_list, 
+                              variable_name = "age_condensed",
+                              table_name = "person", 
+                              data_type = "character")  
+
+person <- person %>%    
+  mutate(age_condensed = case_when(age %in% c("Under 5 years old", "5-11 years", "12-15 years", "16-17 years") ~ "Under 18 years old", age %in% c("18-24 years", "25-34 years") ~ "18-34 years", age %in% c("35-44 years", "45-54 years", "55-64 years") ~ "35-64 years", age %in% c("65-74 years", "75-84 years", "85 or years older") ~ "65 years or older")) %>% mutate(age_condensed = factor(age_condensed, levels = c("Under 18 years old", "18-34 years", "35-64 years", "65 years or older")))
+```
+
+```{r income_variable}
+
+variable_list <- add_variable(variable_list,
+                              variable_name = "hhincome_broad_combined", 
+                              table_name = "hh", 
+                              data_type = "character")  
+
+hh <- hh %>%    
+      mutate(hhincome_broad_combined = ifelse(hhincome_broad %in% c("$100,000-$199,000", "$200,000 or more"), "$100,000 or more", hhincome_broad)) %>% mutate(hhincome_broad_combined = factor(hhincome_broad_combined, levels = c("Under $25,000", "$25,000-$49,999", "$50,000-$74,999", "$75,000-$99,999", "$100,000 or more", "Prefer not to answer")))
+```
+
+```{r vehicle_owner_variable}
+
+variable_list <- add_variable(variable_list, 
+                              variable_name = "vehicle_ownership", 
+                              table_name = "hh", 
+                              data_type = "character")  
+
+hh <- hh %>%    
+  mutate(vehicle_ownership = ifelse(vehicle_count == "0 (no vehicles)", "Not a vehicle owner", "Vehicle owner"))
+
+## data exploration for zero vehicle households
+
+# hh_test <- hh %>%
+#   filter(vehicle_count == "0 (no vehicles)")
+# 
+# aggregate(hh_test$hh_weight, by=list(survey_year=hh_test$survey_year), FUN=sum)
+# 
+# # count zero vehicle households
+# hh_count <- hh %>%
+#    count(vehicle_count == "0 (no vehicles)")
+
+hh_total <- hh_test %>%
+  mutate(Num = readr::parse_number(hhsize))
+
+aggregate(hh_total$Num, by=list(survey_year=hh_total$survey_year), FUN=sum)
+
+person_w <- person %>%
+  select("person_id", "hh_id", "person_weight")
+
+person_W_noveh <- left_join(hh_total, person_w, by = "hh_id")
+
+aggregate(person_W_noveh$person_weight, by=list(survey_year=person_W_noveh$survey_year), FUN=sum)
+
+```
 
 ```{r summary}
-hts_data <- list(hh = hh,
-                 person = person,
-                 trip = trip)
-ids <- c("hh_id", "person_id", "trip_id")
-wts <- c("hh_weight", "person_weight", "trip_weight")
 
+hts_data <- list(hh = hh, 
+                 person = person,
+                 trip = trip) 
+ids <- c("hh_id", "person_id", "trip_id") 
+wts <- c("hh_weight", "person_weight", "trip_weight") 
+
+#remove duplicates
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+#mode_simple
+summary_trips_simple <- summarize_weighted(hts_data = hts_data, 
+                                    summarize_var = "mode_simple", 
+                                    summarize_by = "survey_year",
+                                    id_cols = ids, 
+                                    wt_cols = wts, 
+                                    wtname = "trip_weight")  
+
+mode_summary_simple <- summary_trips_simple$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645)
+
+mode_summary_simple <- mode_summary_simple %>%
+  filter(mode_simple != "NA")
+
+#mode_characterization
 summary_trips <- summarize_weighted(hts_data = hts_data,
-                                    summarize_var = "mode_1",
+                                    summarize_var = "mode_characterization",
                                     summarize_by = "survey_year",
                                     id_cols = ids,
                                     wt_cols = wts,
@@ -114,24 +214,198 @@ summary_trips <- summarize_weighted(hts_data = hts_data,
 mode_summary <- summary_trips$summary$wtd %>% 
   mutate(moe = prop_se * 1.645)
 
-#filter for Urban Rail
+#rgcs
+summary_trips_centers <- summarize_weighted(hts_data = hts_data,
+                                    summarize_var = "home_rgcname",
+                                    summarize_by = "survey_year",
+                                    id_cols = ids,
+                                    wt_cols = wts,
+                                    wtname = "trip_weight"
+                                    )
 
-mode_summary_rail <- mode_summary |>
-  filter(grepl('Urban Rail', mode_1))
+mode_summary_centers <- summary_trips_centers$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645)
 
-table(trip %>% filter(survey_year==2023, grepl('Urban Rail',mode_1)) %>%select(mode_1))
-
-table(trip %>% filter(survey_year==2023, grepl('rail',mode_1)) %>%select(mode_1))
- 
 ```
 
-## Initial charts
+## Demographics
+
+```{r}
+
+#income
+mode_by_income <- summarize_weighted(hts_data = hts_data,
+                                       summarize_var = "mode_characterization",
+                                       summarize_by = c("survey_year", "hhincome_broad_combined"),
+                                       id_cols = ids,
+                                       wt_cols = wts,
+                                       wtname = "trip_weight"
+                                       )
+
+transit_by_income <- mode_by_income$summary$wtd %>%
+  filter(mode_characterization == "Transit") %>%
+  mutate(moe = prop_se * 1.645)
+
+# aggregate to fewer age groups
+# mode_by_age_cond <- summarize_weighted(hts_data = hts_data,
+#                                        summarize_var = "mode_characterization",
+#                                        summarize_by = c("survey_year", "age_condensed"),
+#                                        id_cols = ids,
+#                                        wt_cols = wts,
+#                                        wtname = "trip_weight"
+#                                        )
+# 
+# transit_by_age_cond <- mode_by_age_cond$summary$wtd %>% 
+#   filter(mode_characterization == "Transit", age_condensed != "NA") %>% 
+#   mutate(moe = prop_se * 1.645)
+
+#race
+mode_by_race <- summarize_weighted(hts_data = hts_data,
+                                   summarize_var = "mode_simple",
+                                   summarize_by = c("survey_year", "race_category"),
+                                   id_cols = ids,
+                                   wt_cols = wts,
+                                   wtname = "trip_weight"
+                                   )
+
+transit_by_race <- mode_by_race$summary$wtd %>% 
+  filter(mode_simple == "Transit",  race_category != "Child") %>% 
+  mutate(moe = prop_se * 1.645)
+
+share_by_race <- transit_by_race %>%
+  group_by(survey_year) %>%
+  mutate(total = sum(est)) %>%
+  mutate(share = (est/total))
+
+#disability
+mode_by_dis <- summarize_weighted(hts_data = hts_data,
+                                   summarize_var = "mode_characterization",
+                                   summarize_by = c("survey_year", "disability_person"),
+                                   id_cols = ids,
+                                   wt_cols = wts,
+                                   wtname = "trip_weight"
+                                   )
+
+transit_by_dis <- mode_by_dis$summary$wtd %>% 
+  filter(mode_characterization == "Transit", survey_year == "2023") %>% 
+  mutate(moe = prop_se * 1.645)
+
+#transit pass
+# mode_by_pass <- summarize_weighted(hts_data = hts_data,
+#                                    summarize_var = "mode_characterization",
+#                                    summarize_by = c("survey_year", "commute_subsidy_1"),
+#                                    id_cols = ids,
+#                                    wt_cols = wts,
+#                                    wtname = "trip_weight"
+#                                    )
+# 
+# transit_by_pass <- mode_by_pass$summary$wtd %>% 
+#   filter(mode_characterization == "Transit") %>% 
+#   mutate(moe = prop_se * 1.645)
+
+#job industry
+summary_trips_ind <- summarize_weighted(hts_data = hts_data,
+                                    summarize_var = "mode_characterization",
+                                    summarize_by = c("survey_year", "industry_cond"),
+                                    id_cols = ids,
+                                    wt_cols = wts,
+                                    wtname = "trip_weight"
+                                    )
+
+mode_summary_ind <- summary_trips_ind$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645)
+
+transit_by_ind <- mode_summary_ind %>% 
+    filter(mode_characterization == "Transit", industry_cond != "NA", industry_cond != "Missing: Skip Logic")
+
+#vehicle ownership
+summary_trips_veh <- summarize_weighted(hts_data = hts_data,
+                                    summarize_var = "mode_characterization",
+                                    summarize_by = c("survey_year", "vehicle_ownership"),
+                                    id_cols = ids,
+                                    wt_cols = wts,
+                                    wtname = "trip_weight"
+                                    )
+
+mode_summary_veh <- summary_trips_veh$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645)
+
+#write.csv(mode_summary_veh, 'noveh2.csv')
+
+transit_by_veh <- mode_summary_veh %>% 
+    filter(mode_characterization == "Transit")
+
+No_veh <- mode_summary_veh %>% 
+    filter(vehicle_ownership == "Not a vehicle owner", mode_characterization != "NA")
+
+#, industry_cond != "NA", industry_cond != "Missing: Skip Logic")
+
+```
+
+`{# {r summary} # hts_data <- list(hh = hh, #                  person = person, #                  trip = trip) # ids <- c("hh_id", "person_id", "trip_id") # wts <- c("hh_weight", "person_weight", "trip_weight") #  # summary_trips <- summarize_weighted(hts_data = hts_data, #                                     summarize_var = "mode_characterization", #                                     summarize_by = "survey_year", #                                     id_cols = ids, #                                     wt_cols = wts, #                                     wtname = "trip_weight" #                                     ) #  # mode_summary <- summary_trips$summary$wtd %>%  #   mutate(moe = prop_se * 1.645)`
+
+## Initial Mode Charts
 
 ```{r urban_rail_chart_est, echo=FALSE}
 
-static_column_chart(filter(mode_summary, grepl('Urban Rail', mode_1)),
-                    x = "survey_year", y = "est", fill = "mode_1",
-                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Urban Rail Trips - Estimate",
+#chart for simple mode
+mode_chart <- static_column_chart(mode_summary_simple,
+                      x = "survey_year", y = "prop", fill = "mode_simple",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Trips - Prop",
+                    moe = "prop_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+#chart for mode characterization
+mode_char_chart <- static_line_chart(mode_summary,
+                    x = "survey_year", y = "prop", fill = "mode_characterization",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Trips - Prop") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+```
+
+## Transit Charts
+
+```{r}
+
+#transit by race
+transitbyrace_chart <- static_line_chart(transit_by_race,
+                    x = "survey_year", y = "prop", fill = "race_category",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Transit Trips by Race - Prop"
+                    #moe = "prop_se"
+                    ) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+
+transitsharebyrace_chart <- static_line_chart(share_by_race,
+                    x = "survey_year", y = "share", fill = "race_category",
+                    ylabel = "Share", xlabel = "Survey Year", title = "Transit Trips by Race - Share"
+                    #moe = "moe"
+                    ) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+#transit by disability
+transitbydis_chart <- static_column_chart(transit_by_dis,
+                    x = "survey_year", y = "est", fill = "disability_person",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Transit Trips by Disability - Estimate",
                     moe = "est_se") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -139,6 +413,81 @@ static_column_chart(filter(mode_summary, grepl('Urban Rail', mode_1)),
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                       )
+
+#transit by industry
+transitbyind_chart <- static_line_chart(transit_by_ind,
+                    x = "survey_year", y = "prop", fill = "industry_cond", 
+                    color = "gnbopgy_10",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Transit Trips by Job Industry - Prop",
+                    #moe = "prop_se"
+                    ) + 
+                      theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+#transit by transit pass
+transitbypass_chart <- static_line_chart(transit_by_pass,
+                    x = "survey_year", y = "prop", fill = "transit_pass",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Transit Trips by Transit Pass - Share",
+                    moe = "prop_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+
+transitbyincome_chart <- static_column_chart(transit_by_income,
+                    x = "survey_year", y = "est", fill = "hhincome_broad_combined",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Transit Trips - Estimate",
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+transitbyage_chart <- static_column_chart(transit_by_age_cond,
+                    x = "survey_year", y = "est", fill = "age_condensed",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Transit Trips - Estimate",
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+transitbyveh_chart <- static_column_chart(transit_by_veh,
+                    x = "survey_year", y = "prop", fill = "vehicle_ownership",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Transit Trips - Prop"
+                    , moe = "moe"
+                    ) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
+noveh_chart_mode <- static_column_chart(No_veh,
+                    x = "survey_year", y = "prop", fill = "mode_characterization",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Trips by Mode for Zero Vehicle HH - Prop"
+                    , moe = "moe"
+                    ) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                      )
+
 ```
 
 ## Summary for Simple Trips
