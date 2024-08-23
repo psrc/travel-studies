@@ -1,0 +1,27 @@
+---
+title: "Structure notes"
+format: html
+
+---
+
+## components of codebook
+1. upstream variable and value label lists from Elmer
+2. variable list 
+    - create using historic variable list and new variables
+    - add filtering columns for different products (must match the variables in views)
+        - internal analyst
+        - data portal
+3. value label list (must match the variables in views)
+    - get value labels from views and match with upstream value label list
+    - add value ordering
+    - include all integer/categorical variables 
+        - except geography variables: county, jurisdiction, rgcname, state
+        - except information variables: `information==0` and sample_segment, hhgroup
+        - except integers: year, survey_year
+4. groupings
+5. notes for variables with discrepencies across the years
+
+## final products
+1. upstream variable and value lists in Elmer: for developers and data import process
+2. internal codebook: for PSRC analysts
+3. external codebook: for data portal

@@ -1,0 +1,27 @@
+project:
+  type: book
+  output-dir: "codebook-maintain-notes"
+  
+book:
+  title: "<br>PSRC HTS Codebook Maintenance"
+  repo-url: https://github.com/psrc/travel-studies/tree/master/2023/cleaning/codebook_maintenance
+  search: false
+  sidebar:
+    logo: PSRClogo2016path.png
+
+  chapters:
+    - index.qmd
+    - value_summary.qmd
+
+format:
+  html:
+    mainfont: Poppins
+    theme: 
+      light: [cosmo, custom.scss]
+      dark: [darkly, custom.scss]
+    echo: false
+    code-tools: true
+    df-print: kable
+    warning: false
+
+toc: true
