@@ -59,7 +59,7 @@ telecommute_status <- summarize_weighted(hts_data= worker_list,
 
 ```{r}
 
-telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))%>%filter(telecommute_status!='Fully In Person')
+telecommute_summary<-telecommute_status$summary$wtd%>%mutate(telecommute_status=forcats::fct_reorder(telecommute_status, -prop))
 static<-static_line_chart(telecommute_summary, y='prop', x='survey_year', fill='telecommute_status',lwidth=1.5) + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+ scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,0.3))
 
 inter<-interactive_column_chart(telecommute_summary, y='prop', x='telecommute_status', fill='survey_year', xlabel='Work Location Status', ylabel='Worker Share')
@@ -82,7 +82,7 @@ telecommute_status_broad <- summarize_weighted(hts_data= worker_list,
 
 ```{r}
 
-telecommute_summary<-telecommute_status_broad$summary$wtd%>%mutate(telecommute_status_broad=forcats::fct_reorder(telecommute_status_broad, prop))%>%filter(!telecommute_status_broad %in% c('Fully At Home', 'Fully In Person'))
+telecommute_summary<-telecommute_status_broad$summary$wtd%>%mutate(telecommute_status_broad=forcats::fct_reorder(telecommute_status_broad, prop))
 static<-static_line_chart(telecommute_summary, y='prop', x='survey_year', fill='telecommute_status_broad', lwidth=1.5) + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
    scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.2))
 
