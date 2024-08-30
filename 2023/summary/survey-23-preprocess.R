@@ -48,7 +48,7 @@ order_factors<-function(tbl, variable_name, value_labels){
   return(tbl)
 }
 
-summarize_weighted <- function(hts_data, summarize_var, summarize_by, id_cols, wt_cols,wtname,summarize_vartype='categorical'){
+summarize_weighted <- function(hts_data, summarize_var, summarize_by = NULL, id_cols, wt_cols,wtname,summarize_vartype='categorical'){
   
   
   prepped_dt <- hts_prep_variable(summarize_var = summarize_var,
