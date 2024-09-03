@@ -7,26 +7,44 @@ set_id_as_character <- function(tbl, id_cols=c("survey_year", "hh_id", "person_i
 }
 
 
-new_add_variable <- function(variables_dt = variable_list, variable_name, table_name, data_type='integer/categorical'){
+new_add_variable <- function(variables_dt = variable_list, variable_names, table_name, data_type='integer/categorical'){
   
-  new_var_tbl<-
-    data.table(
-      variable = variable_name,
-      is_checkbox = 0,
-      hh = 0,
-      person = 0,
-      day = 0,
-      trip = 0,
-      vehicle = 0,
-      location = 0,
-      description = variable_name,
-      logic = variable_name,
-      data_type =data_type,
-      shared_name = variable_name
-    )
+  new_var_tbl <- data.table(
+    variable = variable_names[1],
+    is_checkbox = 0,
+    hh = 0,
+    person = 0,
+    day = 0,
+    trip = 0,
+    vehicle = 0,
+    location = 0,
+    data_type =data_type,
+    description = variable_names[1],
+    logic = variable_names[1],
+    shared_name = variable_names[1]
+  )
+  if(length(variable_names)>1){
+    for(var in variable_names[-1]){
+      add_var <- data.table(
+        variable = var,
+        is_checkbox = 0,
+        hh = 0,
+        person = 0,
+        day = 0,
+        trip = 0,
+        vehicle = 0,
+        location = 0,
+        data_type =data_type,
+        description = var,
+        logic = var,
+        shared_name = var
+      )
+      new_var_tbl <- new_var_tbl %>% add_row(add_var)
+    }
+  }
   
-  new_var_tbl<-new_var_tbl%>%mutate({{table_name}}:=1)
-  variable_list<-rbind(variable_list, new_var_tbl)
+  new_var_tbl <- new_var_tbl %>% mutate({{table_name}}:=1)
+  variable_list <- rbind(variable_list, new_var_tbl)
   
   
 }
