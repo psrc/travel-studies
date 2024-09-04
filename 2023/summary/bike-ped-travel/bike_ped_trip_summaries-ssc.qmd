@@ -19,7 +19,7 @@ library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
-source("C:/Users/GGibson/GitHub/PSRC/travel-studies/2023/summary/survey-23-preprocess.R")
+source("survey-23-preprocess.R")
 ```
 
 ### Read in codebook
@@ -669,99 +669,6 @@ static_column_chart(filter(walk_bike_by_purpose, mode_characterization == "Bike/
                       plot.title = element_text(size = 24)
                       )
 ```
-
-Can we determine prevalence of scootering as a mode share or garner anything from the question on scooter/e-scooter ownership?
-
-```{r scooter_variable, include=FALSE}
-variable_list <- add_variable(variable_list,
-                              variable_name = "scooter_trip",
-                              table_name = "trip",
-                              data_type = "character")
-
-hts_data$trip <- hts_data$trip %>% 
-  mutate(scooter_trip = case_when(mode_1 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
-                                                "Scooter-share (e.g., Bird, Lime)",
-                                                "Skateboard or rollerblade",
-                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
-                                  mode_2 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
-                                                "Scooter-share (e.g., Bird, Lime)",
-                                                "Skateboard or rollerblade",
-                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
-                                  mode_3 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
-                                                "Scooter-share (e.g., Bird, Lime)",
-                                                "Skateboard or rollerblade",
-                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
-                                  mode_4 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
-                                                "Scooter-share (e.g., Bird, Lime)",
-                                                "Skateboard or rollerblade",
-                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
-                                  #mode_acc %in% c() ~ "Scooter Trip",  # mode options not distinct enough
-                                  #mode_egr %in% c() ~ "Scooter Trip",  # mode options not distinct enough
-                                  TRUE ~ "Other"
-                                  ))
-```
-
-```{r scooters, echo=FALSE}
-# Region
-scooter_mode_summary <- summarize_weighted(hts_data = hts_data,
-                                           summarize_var = "scooter_trip",
-                                           summarize_by = "survey_year",
-                                           id_cols = ids,
-                                           wt_cols = wts,
-                                           wtname = "trip_weight"
-                                           )
-
-scooter_sums <- scooter_mode_summary$summary$wtd %>%
-  filter(scooter_trip == "Scooter Trip") %>% 
-  mutate(moe = prop_se * 1.645)
-
-# Seattle only
-hts_data_seattle <- list(hh = hh,
-                         person = person,
-                         trip = filter(hts_data$trip, origin_jurisdiction == "Seattle" | dest_jurisdiction == "Seattle"))
-
-scooter_seattle <- summarize_weighted(hts_data = hts_data_seattle,
-                                      summarize_var = "scooter_trip",
-                                      summarize_by = "survey_year",
-                                      id_cols = ids,
-                                      wt_cols = wts,
-                                      wtname = "trip_weight"
-                                      )
-
-scooter_sums_seattle <- scooter_seattle$summary$wtd %>%
-  filter(scooter_trip == "Scooter Trip") %>% 
-  mutate(moe = prop_se * 1.645)
-```
-
-```{r scooter_region_chart, echo=FALSE}
-static_column_chart(scooter_sums,
-                    x = "survey_year", y = "est", fill = "scooter_trip",
-                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Scooter Trips in Region",
-                    moe = "est_se") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      legend.text = element_text(size=14),
-                      plot.title = element_text(size = 24)
-                      )
-```
-
-```{r scooter_seattle_chart, echo=FALSE}
-static_column_chart(scooter_sums_seattle,
-                    x = "survey_year", y = "est", fill = "scooter_trip",
-                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Scooter Trips in Seattle",
-                    moe = "est_se") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      legend.text = element_text(size=14),
-                      plot.title = element_text(size = 24)
-                      )
-```
-
-Very few records in the data, so shares are too small to count. Scooter share in 2023 is 0.09% for the region vs. 0.27% for trips starting or ending in Seattle.
 
 ## Bike Frequencies
 
