@@ -147,6 +147,8 @@ wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
 
 Now mode_simple is on the variables table, the values table, and the trip table. And we can run a summary.
 
+
+
 ```{r}
 
 mode_summary = summarize_weighted(hts_data= hts_data,
@@ -182,9 +184,9 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ```{r}
 
 common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)%>%filter(survey_year=='2023')%>%filter(!(race_cat2%in% c('Child', 'Missing/No response')))%>%filter(!(mode_char1 %in% c('SOV', 'HOV')))
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)%>%filter(!(race_cat2%in% c('Missing', 'Child')))
 
-static_bar_chart(common_modes, y='race_cat2', x='prop', fill='mode_char1',ylabel= 'Share', xlabel='Trip Mode', , pos='stack')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static_facet_column_chart(common_modes, y='prop', x='survey_year', fill='mode_char1',ylabel= 'Mode Share', xlabel='Year', moe='moe', facet='race_cat2')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 write.csv(common_modes, 'mode_trend.csv')
 ```
 
@@ -194,13 +196,7 @@ write.csv(common_modes, 'mode_trend.csv')
 ```         
 ```
 
-```{r}
-work_data = list(hh=hh,
-                person=person,
-                day=day,
-                trip = work_trip)
 
-```
 
 ```{r}
 
@@ -222,8 +218,31 @@ static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',y
 write.csv(common_modes, 'work_mode_trend.csv')
 ```
 
-{r}
+```{r}
+hts_data = list(hh=hh,
+                person=person)
 
-common_modes\<-mode_summary$summary$wtd%\>% mutate(mode_char1= fct_reorder(mode_char1,-prop))%\>%drop_na(mode_char1)%\>%mutate(moe=prop_se\*1.645)
+ids = c('hh_id', 'person_id')
+wts = c('hh_weight', 'person_weight')
 
-static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) write.csv(common_modes, 'mode_trend.csv')
+```
+
+```{r}
+
+person_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'race_category',
+                               summarize_by = c('survey_year'),
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='person_weight'
+                               )
+```
+
+```{r}
+
+person_race<-person_summary$summary$wtd%>%mutate(moe=prop_se*1.645)%>%
+  mutate(race_category= fct_reorder(race_category,-est))
+
+static_bar_chart(person_race, x='est', y='survey_year', fill='race_category',ylabel= 'Weighted Person Estimate', xlabel='Year', color= 'pgnobgy_10', pos='stack')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=8), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+write.csv(common_modes, 'mode_trend.csv')
+```
