@@ -171,8 +171,7 @@ do not include worked from home
 
 ```{r}
 mode_to_work_summary<-mode_to_work%>%filter(label %in% c(	
-'Estimate!!Total:!!Car, truck, or van:!!Drove alone', 'Estimate!!Total:!!Car, truck, or van:!!Carpooled:','Estimate!!Total:!!Public transportation (excluding taxicab):
-', 'Estimate!!Total:!!Taxicab','Estimate!!Total:!!Motorcycle','Estimate!!Total:!!Bicycle',
+'Estimate!!Total:!!Car, truck, or van:!!Drove alone', 'Estimate!!Total:!!Car, truck, or van:!!Carpooled:','Estimate!!Total:!!Public transportation (excluding taxicab):', 'Estimate!!Total:!!Taxicab','Estimate!!Total:!!Motorcycle','Estimate!!Total:!!Bicycle',
 'Estimate!!Total:!!Walked','Estimate!!Total:!!Other means'))%>%
   mutate(commute_mode= str_replace(label,'Estimate!!Total:!!',''))
 
