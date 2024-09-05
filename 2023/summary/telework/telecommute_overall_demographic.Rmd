@@ -334,7 +334,7 @@ Vehicle Count
 
 telecommute_or_not_veh <- summarize_weighted(hts_data= worker_list,
                                summarize_var = 'telecommute_freq_cond',
-                               summarize_by = c('survey_year', 'vehicle_count_simple'),
+                               summarize_by = c('survey_year', 'has_vehicle'),
                                id_cols=c('hh_id', 'person_id'),
                                wt_cols=c('hh_weight', 'person_weight'),
                                wtname= 'person_weight'
@@ -345,7 +345,7 @@ telecommute_or_not_veh <- summarize_weighted(hts_data= worker_list,
 
 telecommute_summary_veh<-telecommute_or_not_veh$summary$wtd%>%filter(telecommute_freq_cond=='1+ days per week')%>%filter(survey_year=='2023')%>%mutate(moe=prop_se*1.645)
 
-static<-static_bar_chart(telecommute_summary_veh, x='prop', y='vehicle_count_simple', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+static<-static_bar_chart(telecommute_summary_veh, x='prop', y='has_vehicle', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
    scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,1))
 
 static

@@ -149,6 +149,13 @@ group_labels<-get_grouped_labels(group_id='group_1', group_name='vehicle_count_s
 value_labels<-add_values_code(group_name='vehicle_count_simple')
 hh<-grp_to_tbl(tbl=hh, ungrouped_name='vehicle_count', grouped_name='vehicle_count_simple')
 ```
+```{r}
+variable_list<-add_variable(variable_list, 'has_vehicle','hh')
+group_labels<-get_grouped_labels(group_id='group_2', group_name='has_vehicle')
+value_labels<-add_values_code(group_name='has_vehicle')
+hh<-grp_to_tbl(tbl=hh, ungrouped_name='vehicle_count', grouped_name='has_vehicle')
+```
+
 
 ```{r}
 variable_list<-add_variable(variable_list, 'telecommute_status', 'person')
