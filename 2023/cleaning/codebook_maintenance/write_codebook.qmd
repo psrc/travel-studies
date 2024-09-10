@@ -1,0 +1,149 @@
+---
+title: "HTS Codebook: Variable List"
+format: html
+
+echo: TRUE
+warning: FALSE
+---
+
+this script creates reproducible PSRC household travel survey codebooks from csv variable list and views in Elmer
+
+
+```{r}
+library(tidyverse)
+library(psrcelmer)
+library(gt)
+
+# location of full list of variables
+full_list_path <- "variable_lists/PSRC_HTS_variables_full_2023.csv"
+value_labels_path <- "compare_values.xlsx"
+
+# list of table names and view names for each data table
+table_names <- c('hh','person','day','trip','vehicle')
+view_names <- c('v_households_labels','v_persons_labels','v_days_labels','v_trips_labels','v_vehicles_labels')
+names(view_names) <- table_names
+
+df_view_name <- data.frame(table = table_names,
+                           Elmer.view.name = view_names,
+                           row.names = NULL)
+```
+
+## get all variables in Elmer views and csv record
+
+```{r}
+# views
+vars_view <- data.frame()
+for(t_name in table_names){
+  v_name <- view_names[t_name]
+  var_list <- get_query(sql= paste0("SELECT COLUMN_NAME as variable FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='", v_name, "' AND TABLE_SCHEMA='HHSurvey'") )
+  vars_view <- rbind(vars_view,
+                     var_list %>% mutate(table = t_name, view = "view"))
+}
+
+# csv list
+variable_full_list <- read_csv(full_list_path)
+vars_csv <- data.frame()
+for(t_name in table_names){
+  v_name <- view_names[t_name]
+  var_list <- variable_full_list %>% filter(.[[t_name]]==1)
+  vars_csv <- rbind(vars_csv,
+                    var_list %>% select(variable) %>% mutate(table = t_name, csv = "csv"))
+}
+```
+
+## count variables in Elmer views and csv record
+
+```{r}
+#| label: variable-count
+var_view_count <- vars_view |>
+  group_by(table) |>
+  summarise(`Elmer variable counts` = n()) |>
+  ungroup()
+
+var_csv_count <- vars_csv |>
+  group_by(table) |>
+  summarise(`CSV variable counts` = n()) |>
+  ungroup()
+
+df_view_name |>
+  full_join(var_csv_count, by = "table") |>
+  full_join(var_view_count, by = "table") |>
+  knitr::kable(caption = "Variables counts in each Elmer view and in CSV record")
+```
+
+# check for inconsistencies between Elmer views and CSV record
+
+```{r}
+#| label: inconsistent-variables
+check_variable_full_list <- vars_view |>
+  full_join(vars_csv, by = c("variable","table")) |>
+  full_join(df_view_name, by = "table") |>
+  arrange(csv, view)
+
+inconsistent_vars <- check_variable_full_list |> 
+  filter(is.na(csv)+is.na(view)>0) |> 
+  select(c("Elmer.view.name","table","variable","view","csv"))
+
+inconsistent_vars |>
+  knitr::kable(caption = "List of all inconsistent variables")
+
+```
+
+
+
+<!-- # Maintain Value Labels -->
+
+<!-- - value_labels is used for factoring in `psrc.travelsurvey` package -->
+
+<!-- ```{r} -->
+<!-- # find all variables to be included in value labels -->
+<!-- geography_variables <- variable_full_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable)) -->
+
+<!-- factor_variables <- variable_full_list %>%  -->
+<!--   filter(information==0) %>%  -->
+<!--   filter(data_type == "integer/categorical" &  -->
+<!--            !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years -->
+<!--            !variable %in% geography_variables$variable) # no geography names -->
+<!--            # variable %in% vars_view$variable) # variables exist in views -->
+
+
+<!-- ``` -->
+
+
+<!-- # track variables in different years? -->
+
+
+
+<!-- # Generate Multiple Versions of Codebooks -->
+
+<!-- 1. full list for developers -->
+<!-- ```{r} -->
+<!-- final_variable_list_full <- variable_full_list %>% -->
+<!--   arrange(variable) -->
+<!-- ``` -->
+
+
+<!-- 2. internal codebook for analysts -->
+<!-- ```{r} -->
+<!-- # versions of codebook -->
+<!-- # 2. internal (full list of variables, but without data processing information variables) -->
+<!-- variable_internal <- variable_full_list %>% filter(information==0) %>% -->
+<!--   select(-c("in_elmer_view","in_variable_list","information")) -->
+
+<!-- l <- list("variable_list" = variable_internal, -->
+<!--           "value_labels" = match_person_names) -->
+<!-- openxlsx::write.xlsx(l, file = "PSRC_Codebook_2023_internal.xlsx") -->
+<!-- ``` -->
+
+<!-- 3. external codebook for data portal -->
+
+<!-- - need list of variables in data portal -->
+
+<!-- ```{r} -->
+<!-- # variable_external <- variable_full_list %>% filter() -->
+
+<!-- l <- list("variable_list" = variable_internal, -->
+<!--           "value_labels" = match_person_names) -->
+<!-- openxlsx::write.xlsx(l, file = "PSRC_Codebook_2023_internal.xlsx") -->
+<!-- ``` -->
+

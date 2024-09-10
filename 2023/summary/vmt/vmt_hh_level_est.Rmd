@@ -1,118 +1,8 @@
----
-title: "vmt"
-author: "suzanne"
-date: "2024-05-28"
-output: html_document
----
-
-```{r setup, include=FALSE}
-library(data.table)
-library(stringr)
-library(travelSurveyTools)
-library(psrcelmer)
-library(dplyr)
-library(psrcplot)
-library(tidyverse)
-source('../survey-23-preprocess.R')
-```
-
-
-
-## Read in data items from Elmer
-
-The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
-
-
-```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad, survey_year, hh_weight,home_rgcname
-                from HHSurvey.v_households_labels")
-
-
-person<- get_query(sql= "select household_id as hh_id,race_category, 
-person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq, employment
-                from HHSurvey.v_persons_labels")
-                
-day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
-
-trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,driver,
-person_id, mode_1, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight 
-                from HHSurvey.v_trips_labels")
-setDT(hh)
-setDT(person)
-setDT(day)
-setDT(trip)
-```
-#race_category needs to be added to the codebook
-
-# to do: add Seattle, Bellevue geographies
-
-## Read in Codebook
-```{r , echo=FALSE}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
-
-variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
-value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
-
-setDT(variable_list)
-setDT(value_labels)
-```
-
-
-## Set IDs as characters
-I guess for joining?, functionalize convert all ids to charcets
-```{r}
-
-hh[, hh_id:=as.character(hh_id)]
-person[, hh_id:=as.character(hh_id)]
-day[, hh_id:=as.character(hh_id)]
-trip[, hh_id := as.character(hh_id)]
-
-person[, person_id := as.character(person_id)]
-day[, person_id := as.character(person_id)]
-trip[, person_id := as.character(person_id)]
-
-day[, day_id := as.character(day_id)]
-trip[, day_id := as.character(day_id)]
-
-trip[, trip_id := as.character(trip_id)]
-hh <- hh%>%mutate(survey_year=as.character(survey_year))
-person <- person%>%mutate(survey_year=as.character(survey_year))
-day <- day%>%mutate(survey_year=as.character(survey_year))
-trip <- trip%>%mutate(survey_year=as.character(survey_year))
-```
-
-## Make a new variable
-
-If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
-
-
-```{r}
-group_labels<-get_grouped_labels(group_id='group_1', group_name='dest_purpose_simple')
-value_labels<-add_values_code(group_name='dest_purpose_simple')
-trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simple')
-```
-
-
-```{r}
-group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
-value_labels<-add_values_code(group_name='mode_simple')
-trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
-```
-
-```{r}
-variable_list<-add_variable(variable_list, 'vmt','day',data_type='numeric')
-```
-
-
-```{r}
-variable_list<-add_variable(variable_list, 'travelers_total_num','trip',data_type='numeric')
-```
-
 
 
 ```{r}
 
-driving_trip<-trip %>% dplyr::filter(mode_simple=='Drive') %>%
+driving_trip<-trip %>% dplyr::filter(mode_characterization %in% c('Drive HOV2', 'Drive SOV', 'Drive HOV3+')) %>%
   filter(!is.na(travelers_total) | !is.na(distance_miles)| 
           !(travelers_total=='Missing Response'))%>% # remove missing data
   mutate(travelers_total_num=as.numeric(substring(travelers_total,1,1)))%>%
@@ -168,7 +58,8 @@ all_days_person<-all_days_person%>%mutate(ln_vmt=log(vmt+1))
 
 
 ```{r}
-model<-lm(ln_vmt ~survey_year+hhincome_broad+race_category+workplace+telecommute_freq+gender+commute_freq,data=all_days_person)
+model<-lm(ln_vmt ~survey_year+hhincome_broad+home_county+work_county+race_category_2023_c+workplace+telecommute_freq+gender,
+          data=all_days_person)
 summary(model)
 
 ```

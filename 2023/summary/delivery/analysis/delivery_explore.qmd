@@ -1,0 +1,144 @@
+---
+title: "2024 HTS delivery data check"
+format: 
+  html:
+    df-print: kable
+  
+
+echo: FALSE
+warning: FALSE
+---
+
+
+```{r}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcelmer)
+library(travelSurveyTools)
+library(data.table)
+library(psrcplot)
+install_psrc_fonts()
+
+# source("analysis/analysis_funcs.R")
+source("../../survey-23-preprocess_JLin.R")
+
+# reading in codebook
+cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
+variable_list <- readxl::read_xlsx(cb_path, sheet = 'variable_list')
+setDT(variable_list)
+
+
+delivery_vars <- c("deliver_elsewhere", "deliver_food", "deliver_grocery",
+                   "deliver_none", "deliver_office", "deliver_package")
+vars <- c(delivery_vars, "daynum","travel_dow","travel_date",
+          "hhincome_broad", "home_county", "vehicle_count",
+          "age","transit_freq","race_category")
+all_ids <- c("hh_id","person_id","day_id","trip_id","vehicle_id")
+all_weights <- c("hh_weight","person_weight","day_weight","trip_weight")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars) 
+# person_data <- get_query(sql= "select * from HHSurvey.v_persons_labels")
+
+# import variable list
+# variable_list <- psrc.travelsurvey:::init_variable_list
+# edit variable list
+# my_variable_list <- variable_list
+```
+
+
+## delivery data summary
+
+- data: weekday person-day data for age 18 and above
+- no information of how many packages/services were delivered: only `"Yes"` and `"No"` values
+
+:::{.callout-warning}
+
+- missing information : `travel_date` and `travel_dow` only in 2023
+- question: day data from `psrc.travelsurvey` only have weekday data. a decision made?
+- question: what does `NA` mean? missing or not answered? (this wouldn't matter if aggregated to households?)
+
+:::
+
+
+```{r}
+# get only people 18 and above
+person_18 <- hts_data$person %>%
+  filter(!age %in% c("Under 5 years old","5-11 years","12-15 years","16-17 years"))
+
+df_summary <- hts_data$day %>%
+  # keep only people 18 and above
+  filter(person_id %in% person_18$person_id) 
+
+df_summary_count <- data.frame()
+for(var in delivery_vars){
+  df <- df_summary %>% 
+    group_by(survey_year, .[[var]]) %>%
+    summarise(count = n()) %>%
+    ungroup() %>%
+    rename(label = `.[[var]]`) %>%
+    mutate(delivery_type = var, .before = "label")
+  df_summary_count <- rbind(df_summary_count,df)
+}
+```
+
+- home deliveries
+```{r}
+count_delivery_year <- function(.data,var){
+  .data %>% filter(delivery_type==var) %>%
+    pivot_wider(id_cols=c(delivery_type,label), 
+                names_from="survey_year",values_from="count") %>%
+    arrange(desc(label))
+}
+
+df_summary_count %>% count_delivery_year("deliver_food")
+```
+
+
+```{r}
+df_summary_count %>% count_delivery_year("deliver_grocery")
+```
+
+```{r}
+df_summary_count %>% count_delivery_year("deliver_package")
+```
+
+- deliveries to other places (only asked in 2023)
+```{r}
+df_summary_count %>% count_delivery_year("deliver_elsewhere")
+```
+
+```{r}
+df_summary_count %>% count_delivery_year("deliver_office")
+```
+
+## different answers from different persons in a household-day?
+
+### (deliver_food) unique answers in a household-day 
+
+```{r}
+test <- df_summary %>% 
+  filter(!is.na(deliver_food)) %>%
+  group_by(survey_year,hh_id,daynum) %>%
+  summarise(unique_ans = length(unique(deliver_food)))  %>%
+  ungroup()
+
+test %>%
+  group_by(survey_year,unique_ans) %>%
+  summarise(count = n())
+```
+- each household-day can have multiple people with different answers
+- 2017 should only be asked to the first person age 18+ in the household: why more than one unique answer in data?
+
+```{r}
+test2 <- df_summary %>% 
+  filter(survey_year==2017,
+         !is.na(deliver_food),
+         hh_id %in% test[test$unique_ans==2,]$hh_id) %>% 
+  select(survey_year,hh_id,person_id,daynum,deliver_food) %>% 
+  arrange(hh_id,daynum)
+
+head(test2, n=12)
+```
+
+

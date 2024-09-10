@@ -1,0 +1,46 @@
+---
+title: "basic-stats"
+author: "suzanne"
+date: "2024-08-09"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(forcats)
+library(psrc.travelsurvey)
+source('survey-23-preprocess.R')
+```
+
+```{r}
+vars<-c('mode_characterization')
+hts_data<-get_psrc_hts(survey_vars=vars)
+```
+
+
+```{r}
+
+mode_year<-psrc_hts_stat(hts_data, "trip", c("survey_year", 'mode_characterization'), incl_na=FALSE)
+mode_year
+
+```
+
+```{r}
+mode_year<-mode_year%>%mutate(survey_year=factor(survey_year))%>%
+  mutate(mode_characterization=fct_reorder(mode_characterization, -prop))
+
+
+
+static<-static_bar_chart(mode_year, x='prop', y='survey_year', fill='mode_characterization', pos='stack', color='pognbgy_10') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+ scale_y_continuous(labels = scales::percent_format(scale = 100))
+
+static
+```
+```
+

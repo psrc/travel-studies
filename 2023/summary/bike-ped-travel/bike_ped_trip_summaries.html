@@ -105,11 +105,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="travel-mode-walk-bike-micromobility" class="level1">
 <h1>Travel Mode: Walk, Bike, &amp; Micromobility</h1>
-<section id="setup" class="level2">
-<h2 class="anchored" data-anchor-id="setup">Setup</h2>
-</section>
-<section id="read-in-codebook" class="level2">
-<h2 class="anchored" data-anchor-id="read-in-codebook">Read in codebook</h2>
+<section id="initial-summaries" class="level2">
+<h2 class="anchored" data-anchor-id="initial-summaries">Initial Summaries</h2>
+<section id="read-in-codebook" class="level3">
+<h3 class="anchored" data-anchor-id="read-in-codebook">Read in codebook</h3>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>cb_path <span class="ot">=</span> <span class="fu">str_glue</span>(<span class="st">"J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"</span>)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -120,32 +119,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(value_labels)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="read-in-data-from-elmer" class="level2">
-<h2 class="anchored" data-anchor-id="read-in-data-from-elmer">Read in data from Elmer</h2>
+<section id="read-in-data-from-elmer" class="level3">
+<h3 class="anchored" data-anchor-id="read-in-data-from-elmer">Read in data from Elmer</h3>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>hh <span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql =</span> <span class="st">"SELECT household_id as hh_id, num_trips AS h_num_trips, hhsize, vehicle_count, hhincome_broad,</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="st">                       home_rgcname, home_county, survey_year, hh_weight</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="st">                       hhincome_detailed, home_rgcname, home_jurisdiction, home_county, res_type, survey_year, hh_weight</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="st">                       FROM HHSurvey.v_households_labels;"</span>)</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>person <span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql =</span> <span class="st">"SELECT person_id, household_id as hh_id, num_trips AS p_num_trips, age, gender, race_category,</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="st">                           employment, workplace, commute_freq, commute_mode, survey_year, person_weight</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="st">                           FROM HHSurvey.v_persons_labels;"</span>)</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>trip <span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql =</span> <span class="st">"SELECT trip_id, household_id as hh_id, person_id, origin_x_coord, origin_y_coord, origin_county, origin_rgcname,</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="st">                         dest_x_coord, dest_y_coord, dest_county, dest_rgcname, distance_miles, duration_minutes,</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="st">                         origin_purpose_cat, origin_purpose, dest_purpose_cat, dest_purpose,</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="st">                         mode_type, mode_1, mode_characterization, mode_simple, travelers_total, travelers_hh,</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="st">                         survey_year, trip_weight </span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="st">                         FROM HHSurvey.v_trips_labels</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="st">                         WHERE travel_dow NOT IN ('Friday', 'Saturday', 'Sunday');"</span>)</span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(hh)</span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(person)</span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(trip)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="st">                           employment, workplace, bike_freq, bike_freq_pre_2023, walk_freq, walk_freq_pre_2023, disability_person,</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="st">                           survey_year, person_weight</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="st">                           FROM HHSurvey.v_persons_labels;"</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>trip <span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql =</span> <span class="st">"SELECT trip_id, household_id as hh_id, person_id, origin_x_coord, origin_y_coord, origin_county, origin_rgcname,</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="st">                         origin_jurisdiction, dest_x_coord, dest_y_coord, dest_county, dest_rgcname, distance_miles, duration_minutes,</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="st">                         dest_jurisdiction, origin_purpose_cat, origin_purpose, dest_purpose_cat, dest_purpose,</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="st">                         mode_type, mode_1, mode_2, mode_3, mode_4, mode_acc, mode_egr, mode_characterization, mode_simple,</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="st">                         travelers_total, travelers_hh, survey_year, trip_weight </span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="st">                         FROM HHSurvey.v_trips_labels</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="st">                         WHERE travel_dow NOT IN ('Friday', 'Saturday', 'Sunday');"</span>)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(hh)</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(person)</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(trip)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="set-ids-as-character-type" class="level2">
-<h2 class="anchored" data-anchor-id="set-ids-as-character-type">Set IDs as character type</h2>
+<section id="set-ids-as-character-type" class="level3">
+<h3 class="anchored" data-anchor-id="set-ids-as-character-type">Set IDs as character type</h3>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>hh[, hh_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(hh_id)]</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -161,55 +161,42 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>trip[, survey_year <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(survey_year)]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="get-unique-modes-from-trips" class="level2">
-<h2 class="anchored" data-anchor-id="get-unique-modes-from-trips">Get unique modes from trips</h2>
+<section id="get-unique-modes-from-trips" class="level3">
+<h3 class="anchored" data-anchor-id="get-unique-modes-from-trips">Get unique modes from trips</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>trip_modes <span class="ot">&lt;-</span> <span class="fu">unique</span>(trip[, <span class="fu">c</span>(<span class="st">"mode_1"</span>, <span class="st">"mode_type"</span>, <span class="st">"mode_characterization"</span>, <span class="st">"mode_simple"</span>)])</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co"># add mode_simple to variables list</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>variable_list <span class="ot">&lt;-</span> <span class="fu">add_variable</span>(variable_list, <span class="st">"mode_simple"</span>, <span class="st">"trip"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>      variable is_checkbox    hh person   day  trip vehicle location
-        &lt;char&gt;       &lt;num&gt; &lt;num&gt;  &lt;num&gt; &lt;num&gt; &lt;num&gt;   &lt;num&gt;    &lt;num&gt;
-1: mode_simple           0     0      0     0     1       0        0
-   description       logic           data_type shared_name
-        &lt;char&gt;      &lt;char&gt;              &lt;char&gt;      &lt;char&gt;
-1: mode_simple mode_simple integer/categorical mode_simple</code></pre>
-</div>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>group_labels <span class="ot">&lt;-</span> <span class="fu">get_grouped_labels</span>(<span class="at">group_id =</span> <span class="st">"group_1"</span>, <span class="at">group_name =</span> <span class="st">"mode_simple"</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>value_labels <span class="ot">&lt;-</span> <span class="fu">add_values_code</span>(<span class="at">group_name =</span> <span class="st">"mode_simple"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">#trip_modes &lt;- unique(trip[, c("mode_1", "mode_type", "mode_characterization", "mode_simple")])</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Based on the modes in the trip data, will need to filter on <code>mode_characterization</code> to remove “Airplane”</p>
 </section>
-<section id="filter-trips-to-walk-bike-micromobility" class="level2">
-<h2 class="anchored" data-anchor-id="filter-trips-to-walk-bike-micromobility">Filter trips to walk, bike, micromobility</h2>
+<section id="filter-trips-to-walk-bike-micromobility" class="level3">
+<h3 class="anchored" data-anchor-id="filter-trips-to-walk-bike-micromobility">Filter trips to walk, bike, micromobility</h3>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>trip <span class="ot">&lt;-</span> <span class="fu">filter</span>(trip, mode_characterization <span class="sc">!=</span> <span class="st">"Airplane"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>trip <span class="ot">&lt;-</span> <span class="fu">filter</span>(trip, mode_characterization <span class="sc">!=</span> <span class="st">"Airplane"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
-<section id="initial-summaries" class="level2">
-<h2 class="anchored" data-anchor-id="initial-summaries">Initial summaries</h2>
-<div class="cell">
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>hts_data <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">hh =</span> hh,</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">person =</span> person,</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                 <span class="at">trip =</span> trip)</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>ids <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"hh_id"</span>, <span class="st">"person_id"</span>, <span class="st">"trip_id"</span>)</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>wts <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">"hh_weight"</span>, <span class="st">"person_weight"</span>, <span class="st">"trip_weight"</span>)</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>summary_trips <span class="ot">&lt;-</span> <span class="fu">summarize_weighted</span>(<span class="at">hts_data =</span> hts_data,</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">summarize_var =</span> <span class="st">"mode_simple"</span>,</span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">summarize_by =</span> <span class="st">"survey_year"</span>,</span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">id_cols =</span> ids,</span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">wt_cols =</span> wts,</span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">wtname =</span> <span class="st">"trip_weight"</span></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>                                    )</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>mode_summary <span class="ot">&lt;-</span> summary_trips<span class="sc">$</span>summary<span class="sc">$</span>wtd <span class="sc">%&gt;%</span> </span>
-<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">moe =</span> prop_se <span class="sc">*</span> <span class="fl">1.645</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</div>
+<section id="create-summaries" class="level3">
+<h3 class="anchored" data-anchor-id="create-summaries">Create summaries</h3>
 </section>
-<section id="initial-charts" class="level2">
-<h2 class="anchored" data-anchor-id="initial-charts">Initial charts</h2>
+<section id="initial-charts" class="level3">
+<h3 class="anchored" data-anchor-id="initial-charts">Initial charts</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/trip_counts_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/all_modes_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -246,6 +233,159 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+</section>
+</section>
+<section id="walk-mode-share-by-demographics" class="level2">
+<h2 class="anchored" data-anchor-id="walk-mode-share-by-demographics">Walk Mode Share by Demographics</h2>
+<section id="household-income" class="level3">
+<h3 class="anchored" data-anchor-id="household-income">Household Income</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_income_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="race-ethnicity" class="level3">
+<h3 class="anchored" data-anchor-id="race-ethnicity">Race &amp; Ethnicity</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_race_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="disability-status" class="level3">
+<h3 class="anchored" data-anchor-id="disability-status">Disability Status</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_disability_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="gender" class="level3">
+<h3 class="anchored" data-anchor-id="gender">Gender</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_gender_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="age" class="level3">
+<h3 class="anchored" data-anchor-id="age">Age</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_age_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="home-geography" class="level3">
+<h3 class="anchored" data-anchor-id="home-geography">Home Geography</h3>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_rgc_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/bike_rgc_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_home_geo_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/bike_home_geo_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="mode-share-by-purpose" class="level3">
+<h3 class="anchored" data-anchor-id="mode-share-by-purpose">Mode Share by Purpose</h3>
+<p>Looking at walking and biking trips by trip purpose: “utility” trips (work, shopping, errands, etc.) versus recreational trips</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/walk_trip_purpose_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/bike_trip_purpose_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Can we determine prevalence of scootering as a mode share or garner anything from the question on scooter/e-scooter ownership?</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/scooter_region_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="bike_ped_trip_summaries_files/figure-html/scooter_seattle_chart-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Very few records in the data, so shares are too small to count. Scooter share in 2023 is 0.09% for the region vs.&nbsp;0.27% for trips starting or ending in Seattle.</p>
+</section>
+</section>
+<section id="bike-frequencies" class="level2">
+<h2 class="anchored" data-anchor-id="bike-frequencies">Bike Frequencies</h2>
+<p>Bike trip shares are hard to cross-tabulate by demographic categories due to lower numbers. Looking at reported biking frequency to see if that can be analyzed by demographics.</p>
+<p>2023 survey questionnaire: 1. “Typical Travel” is asked of adults 2. Respondents see the question “Which of the following travel methods, if any, do you use? Select all that apply.” 3. If respondent selected “Bike (outside for 15 minutes or more),” then asked “How often have you ridden a bike outside for 15 or more minutes in the past 30 days?” 4. Repsondents who did not select “Bike” are not asked the question</p>
+<section id="bike-frequency-by-demographics" class="level3">
+<h3 class="anchored" data-anchor-id="bike-frequency-by-demographics">Bike frequency by demographics</h3>
+</section>
 </section>
 </section>
 

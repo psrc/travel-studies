@@ -1,0 +1,127 @@
+```{r}
+
+```
+
+```{r}
+
+```
+
+---
+title: "Travel Survey Summarization"
+format: html
+editor: visual
+---
+
+# New Package travelSurveyTools
+
+PSRC and RSG have built a new package called travelSurveyTools to work with travel survey data. It is recommended to read through this documentation before you start using the package. <https://rsginc.github.io/travelSurveyTools/>
+
+## Read in Libraries
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+source('survey-23-preprocess.R')
+```
+
+YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here's how:
+
+library(devtools)
+
+devtools::install_github('rsgInc/travelSurveyTools') devtools::install_github('psrc/psrcelmer')
+
+devtools::install_github('psrc/psrcplot')
+run preprocess.Rmd first
+
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'hhincome_broadest','hh')
+group_labels<-get_grouped_labels(group_id='group_3', group_name='hhincome_broadest')
+value_labels<-add_values_code(group_name='hhincome_broadest')
+hh<-grp_to_tbl(tbl=hh, ungrouped_name='hhincome_broad', grouped_name='hhincome_broadest')
+```
+
+```{r}
+variable_list<-add_variable(variable_list, 'mode_char1','trip')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_char1')
+value_labels<-add_values_code(group_name='mode_char1')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_characterization', grouped_name='mode_char1')%>%filter(mode_characterization!='Airplane')
+```
+
+```{r}
+work_trip<- trip%>%filter(dest_purpose%in% c('Went to work-related place (e.g., meeting, second job, delivery','Went to other work-related activity','Went to work-related activity (e.g., meeting, delivery, worksite','Went to primary workplace'))
+```
+
+travelSurveyTools expects the data to be in a list of data.tables. You must also specify the names of the ids on each table, and the names of the weights.
+
+```{r}
+hts_data = list(hh=hh,
+                person=person,
+                day=day,
+                trip = trip)
+ids = c('hh_id', 'person_id','day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+Now mode_simple is on the variables table, the values table, and the trip table. And we can run a summary.
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+```{r}
+
+mode_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'mode_char1',
+                               summarize_by = 'survey_year',
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )
+```
+
+```{r}
+
+mode_summary = summarize_weighted(hts_data=hts_data,
+                               summarize_var = 'mode_char1',
+                               summarize_by = c('survey_year', 'hhincome_broadest', 'home_county'),
+                               id_cols= ids,
+                               wt_cols=wts,
+                               wtname='trip_weight'
+                               )
+```
+
+```{r}
+
+common_modes<-mode_summary$summary$wtd%>%filter(hhincome_broadest=='Under $50,000')
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)%>%
+  mutate(hhincome_broadest=factor(hhincome_broadest, levels=c('Under $50,000', '$50,000-$100,000', '$100,000 or more')))%>%filter(!is.na(hhincome_broadest))
+
+static_facet_column_chart(common_modes, facet='home_county', y='prop', x='survey_year',ylabel= 'Share', xlabel='survey_year', fill= 'mode_char1', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+write.csv(common_modes, 'mode_trend.csv')
+```
+
+```         
+```
+
+```{r}
+work_data = list(hh=hh,
+                person=person,
+                day=day,
+                trip = work_trip)
+
+```
+
+
+{r}
+
+common_modes\<-mode_summary$summary$wtd%\>% mutate(mode_char1= fct_reorder(mode_char1,-prop))%\>%drop_na(mode_char1)%\>%mutate(moe=prop_se\*1.645)
+
+static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) write.csv(common_modes, 'mode_trend.csv')
