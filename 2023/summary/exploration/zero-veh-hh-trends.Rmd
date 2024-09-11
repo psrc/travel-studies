@@ -175,8 +175,8 @@ static
 # number of trips by purpose by vehicles or not trend
 ```{r}
 output_hh <- summarize_weighted(hts_data= hh_only,
-                               summarize_var = 'has_vehicle',
-                               summarize_by= c('survey_year', 'hhsize'),
+                               summarize_var = 'hhsize',
+                               summarize_by= c('survey_year', 'has_vehicle'),
                                id_cols=c('hh_id'),
                                wt_cols=c('hh_weight'),
                                wtname= 'hh_weight'
