@@ -79,7 +79,7 @@ hh<- get_query(sql= "select  num_days_complete_weekday, household_id as hh_id,hh
 
 
 ```{r}
-day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , daynum, deliver_grocery,travel_dow, deliver_elsewhere, deliver_none, deliver_office, deliver_other, deliver_food, deliver_package, survey_year from HHSurvey.v_days_labels")
+day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , daynum, hh_day_iscomplete, deliver_grocery,travel_dow, deliver_elsewhere, deliver_none, deliver_office, deliver_other, deliver_food, deliver_package, survey_year from HHSurvey.v_days_labels")
 ```
 
 On an average weekday, what is the proportion of households that received a package?
@@ -124,3 +124,35 @@ hh_pkg_agg<-hhdays_pkg_1%>%mutate(corrected_no=if_else(Yes>0, 0, No),
 summary<-hh_pkg_agg%>%ungroup()%>%summarize(HasPkg=sum(Yes), NoPkg=sum(corrected_no), Total=sum(Total), MissingData=sum(corrected_missing))%>%mutate(share=HasPkg/Total)
 ```
 
+```{r}
+summary
+```
+What if I do the analysis with household_weights, num of complete weekday and household day is complete?
+
+```{r}
+hh_day_23_wkday<-hh_day_23%>%filter(travel_dow %in% c('Monday', 'Tuesday', 'Wednesday', 'Thursday'))%>%filter(hh_day_iscomplete=='Yes')%>%mutate(
+  num_days_complete_weekday=as.numeric(num_days_complete_weekday), hh_weight=as.numeric(hh_weight))%>%mutate(day_weight_new=hh_weight/num_days_complete_weekday)
+
+
+hhdays_pkg<-hh_day_23_wkday%>%
+  group_by(hh_id,daynum,deliver_package)%>%
+  summarize(person_days=sum(day_weight_new), day_weight_old=sum(day_weight))
+
+```
+
+```{r}
+hhdays_pkg_1<-hhdays_pkg%>%pivot_wider(names_from=deliver_package, values_from=person_days)%>% replace(is.na(.), 0)
+```
+
+```{r}
+hh_pkg_agg<-hhdays_pkg_1%>%mutate(corrected_no=if_else(Yes>0, 0, No),
+                                  corrected_missing=if_else((Yes>0 | No>0), 0, `Missing Response`))%>%
+  mutate('Total'=sum(Yes+corrected_no+corrected_missing))
+```
+```{r}
+summary<-hh_pkg_agg%>%ungroup()%>%summarize(HasPkg=sum(Yes), NoPkg=sum(corrected_no), Total=sum(Total), MissingData=sum(corrected_missing))%>%mutate(share=HasPkg/Total)
+```
+
+```{r}
+summary
+```
