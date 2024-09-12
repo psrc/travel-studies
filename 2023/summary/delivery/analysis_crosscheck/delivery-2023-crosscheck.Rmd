@@ -91,6 +91,8 @@ for now
 4. Account for multiple weekdays in RMove num_days_complete_weekday
 ```{r}
 hh_day<-hh%>%right_join(day, by='hh_id')
+#multiple people
+# mutiple days
 hh_day_23<-hh_day%>%filter(survey_year.x=='2023')
 
 
@@ -107,7 +109,7 @@ sum(hh_day_23_wkday$day_weight)
 I'm going to use day weights from now on
 
 ```{r}
-hhdays_pkg<-hh_day_23_wkday%>%group_by(hh_id,daynum,deliver_package)%>%summarize(person_days=sum(day_weight))
+hhdays_pkg<-hh_day_23_wkday%>%group_by(hh_id,daynum,deliver_package)%>%summarize(person_days=first(day_weight))
 
 ```
 
@@ -128,31 +130,3 @@ summary<-hh_pkg_agg%>%ungroup()%>%summarize(HasPkg=sum(Yes), NoPkg=sum(corrected
 summary
 ```
 What if I do the analysis with household_weights, num of complete weekday and household day is complete?
-
-```{r}
-hh_day_23_wkday<-hh_day_23%>%filter(travel_dow %in% c('Monday', 'Tuesday', 'Wednesday', 'Thursday'))%>%filter(hh_day_iscomplete=='Yes')%>%mutate(
-  num_days_complete_weekday=as.numeric(num_days_complete_weekday), hh_weight=as.numeric(hh_weight))%>%mutate(day_weight_new=hh_weight/num_days_complete_weekday)
-
-
-hhdays_pkg<-hh_day_23_wkday%>%
-  group_by(hh_id,daynum,deliver_package)%>%
-  summarize(person_days=sum(day_weight_new), day_weight_old=sum(day_weight))
-
-```
-
-```{r}
-hhdays_pkg_1<-hhdays_pkg%>%pivot_wider(names_from=deliver_package, values_from=person_days)%>% replace(is.na(.), 0)
-```
-
-```{r}
-hh_pkg_agg<-hhdays_pkg_1%>%mutate(corrected_no=if_else(Yes>0, 0, No),
-                                  corrected_missing=if_else((Yes>0 | No>0), 0, `Missing Response`))%>%
-  mutate('Total'=sum(Yes+corrected_no+corrected_missing))
-```
-```{r}
-summary<-hh_pkg_agg%>%ungroup()%>%summarize(HasPkg=sum(Yes), NoPkg=sum(corrected_no), Total=sum(Total), MissingData=sum(corrected_missing))%>%mutate(share=HasPkg/Total)
-```
-
-```{r}
-summary
-```
