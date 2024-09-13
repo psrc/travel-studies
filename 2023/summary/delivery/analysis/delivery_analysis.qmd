@@ -19,6 +19,7 @@ library(psrcelmer)
 library(travelSurveyTools)
 library(data.table)
 library(psrcplot)
+library(sf)
 install_psrc_fonts()
 
 source("survey-23-preprocess_JLin.R")
@@ -33,16 +34,16 @@ hh_day_delivery <- readRDS("hh_day_delivery.rds")%>%
   mutate_at(vars(deliver_elsewhere:deliver_home_any), ~ifelse(is.na(.),"No",.))
 setDT(hh_day_delivery)
 
-hh <- get_query(sql= "select household_id as hh_id, survey_year, hhincome_broad, home_county, hh_weight
-                         from HHSurvey.v_households_labels") %>% 
+hh <- get_query(sql= "select  household_id as hh_id, hhsize, hhincome_broad,home_jurisdiction, home_county, hh_weight,vehicle_count, home_rgcname, home_lat, home_lng, survey_year, hh_race_category
+                from HHSurvey.v_households_labels") %>% 
   mutate_at(vars(hh_id,survey_year), ~as.character(.)) %>%
-  mutate(hhincome = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999","$50,000-$74,999")~"Under $75,000",
-                              hhincome_broad %in% c("$75,000-$99,999","$100,000 or more","$100,000-$199,000",
-                                                    "$200,000 or more")~"$75,000+",
+  mutate(hhincome = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999","$50,000-$74,999",
+                                                    "$75,000-$99,999")~"Under $100,000",
+                              hhincome_broad %in% c("$100,000 or more","$100,000-$199,000",
+                                                    "$200,000 or more")~"$100,000+",
                               TRUE~hhincome_broad),
          hhincome2 = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999")~"Under $50,000",
-                               hhincome_broad %in% c("$50,000-$74,999","$75,000-$99,999","$100,000 or more","$100,000-$199,000",
-                                                     "$200,000 or more")~"$50,000+",
+                               hhincome_broad %in% c("$50,000-$74,999","$75,000-$99,999","$100,000 or more","$100,000-$199,000","$200,000 or more")~"$50,000+",
                                TRUE~hhincome_broad),
          hhincome3 = case_when(hhincome_broad %in% c("Under $25,000","$25,000-$49,999")~"Under $50,000",
                                hhincome_broad %in% c("$50,000-$74,999","$75,000-$99,999")~"$50,000-$99,999",
@@ -55,6 +56,76 @@ hh <- get_query(sql= "select household_id as hh_id, survey_year, hhincome_broad,
                                TRUE~hhincome_broad))
 
 setDT(hh)
+```
+
+
+```{r}
+uga.lyr<-st_read_elmergeo('URBAN_GROWTH_AREA_evw')
+```
+
+
+```{r}
+center.lyr <- st_read_elmergeo('URBAN_CENTERS_evw')
+```
+
+
+
+```{r}
+hh_geo<-hh%>%
+  st_as_sf(coords=c('home_lng','home_lat'), crs=4326)
+```
+
+
+```{r}
+hh_in_uga<-st_filter(hh_geo, uga.lyr)
+```
+
+```{r}
+hh_in_uga<-hh_in_uga%>%mutate(in_uga=1)
+```
+
+```{r}
+hh<-left_join(hh, hh_in_uga)
+hh<-hh%>%  mutate(in_uga=if_else(is.na(in_uga), 0, 1))
+```
+
+
+
+
+```{r}
+hh<-left_join(hh, center.lyr, by=join_by(home_rgcname==name), suffix= c("", '.origin'))
+```
+
+
+
+
+
+
+
+
+```{r }
+hh<-hh%>%mutate(rgc_cat_home= 
+                      case_when(is.na(category) ~ 'NotRGC',
+                                category=='Metro' ~ 'MetroRGC',
+                                category=='Urban' ~ 'UrbanRGC',
+                                TRUE ~'Missing')
+)
+
+```
+
+```{r}
+
+
+hh<-hh%>%mutate(homegeog=case_when(
+  home_rgcname=='Seattle Downtown'~ 'Seattle Downtown',
+  (home_rgcname!='Seattle Downtown' & home_jurisdiction=='Seattle') ~ 'Seattle Outside Downtown',
+   home_jurisdiction=='Bellevue' ~ 'Bellevue',
+  ((home_county=='King' &!home_jurisdiction %in% c('Seattle', 'Bellevue'))|home_county=='Snohomish')~'Snohomish-King Suburban',
+  .default=home_county
+))
+```
+
+```{r}
 
 hts_hh <- list("hh" = hh)
 hts_hh_day <- list("day" = hh_day_delivery %>% left_join(hh, by=c("hh_id","survey_year")))
@@ -64,6 +135,8 @@ hts_hh_day <- list("day" = hh_day_delivery %>% left_join(hh, by=c("hh_id","surve
 # reading in codebook
 cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
 variable_list <- readxl::read_xlsx(cb_path, sheet = 'variable_list')
+variable_list<-add_variable(variable_list, 'homegeog','hh')
+variable_list<-add_variable(variable_list, 'rgc_cat_home','hh')
 setDT(variable_list)
 my_variable_list <- new_add_variable(variables_dt = variable_list, 
                                      variable_names = c("deliver_home_any","hhincome","hhincome2","hhincome3","hhincome4","hhincome5","hh_day_weight"), 
@@ -362,7 +435,7 @@ test <- get_hts_summary(hts_hh_day,
                           wt_var="hh_day_weight",
                           wt_name="hh_day_weight") %>% 
   filter(deliver_home_any == "Yes", hhincome!="Prefer not to answer") %>%
-  mutate(hhincome = factor(hhincome,levels=c("Under $75,000","$75,000+")))
+  mutate(hhincome = factor(hhincome,levels=c("Under $100,000","$100,000+")))
 
 plot_delivery2(test,"hhincome","delivery by household income")
 ```
@@ -392,7 +465,7 @@ test <- get_hts_summary(hts_hh_day,
                           wt_var="hh_day_weight",
                           wt_name="hh_day_weight") %>% 
   filter(deliver_home_any == "Yes", hhincome5!="Prefer not to answer") %>%
-  mutate(hhincome5 = factor(hhincome5,levels=c("Under $50,000","$50,000-$99,999","$100,000 or more","$100,000-$199,000", "$200,000 or more" )))
+  mutate(hhincome5 = factor(hhincome5,levels=c("Under $50,000","$50,000-$99,999","$100,000 or more","$100,000-$199,000", "$200,000 or more" )))%>%filter(survey_year==2023)
 
 plot_delivery2(test,"hhincome5","delivery by household income")
 ```
@@ -408,7 +481,7 @@ test <- get_hts_summary(hts_hh_day,
                           id_var="day_id",
                           wt_var="hh_day_weight",
                           wt_name="hh_day_weight") %>% 
-  filter(deliver_home_any == "Yes")
+  filter(deliver_home_any == "Yes")%>%filter(survey_year==2023)
 
 plot_delivery2(test,"home_county","delivery by home county")
 ```
@@ -441,7 +514,7 @@ test <- get_hts_summary(hts_hh_day,
                           id_var="day_id",
                           wt_var="hh_day_weight",
                           wt_name="hh_day_weight") %>% filter(deliver_home_any == "Yes", hhincome!="Prefer not to answer")%>%
-  mutate(hhincome = factor(hhincome,levels=c("Under $75,000","$75,000+")))
+  mutate(hhincome = factor(hhincome,levels=c("Under $100,000","$100,000+")))
 
 
 
@@ -462,6 +535,25 @@ test <- get_hts_summary(hts_hh_day,
   filter(deliver_home_any == "Yes")
 
 plot_delivery_line2(test,"home_county","delivery by home county")
+```
+
+```{r}
+day<- hh_day_delivery %>% left_join(hh, by=c("hh_id","survey_year"))
+
+hh_data<-
+  list(hh=hh, day=day)
+
+ids = c('hh_id', 'day_id')
+wts = c('hh_weight', 'hh_day_weight')
+variable_list<-my_variable_list
+output <- summarize_weighted(hts_data= hh_data,
+                               summarize_var = 'deliver_home_any',
+                               summarize_by = c('survey_year', 'hhsize'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'hh_day_weight'
+                               )
+```
 ```
 
 :::
