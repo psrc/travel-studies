@@ -1,0 +1,87 @@
+---
+title: "more-transit"
+author: "suzanne"
+date: "2024-09-16"
+output: html_document
+---
+
+A few more questions came up about transit for TOC and TOD.
+
+Transit Access Mode
+- 2023
+and trend
+Transit Trips by purpose
+-2023
+and trend
+
+The intersection between work at home and transit use.
+Work location by number of trips by mode
+
+Transit Access Mode
+
+
+
+```{r setup, include=FALSE}
+
+hh_data<-
+  list(hh=hh, person=person, day=day, trip=trip)
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'mode_acc_1','trip')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_acc_1')
+value_labels<-add_values_code(group_name='mode_acc_1')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_acc', grouped_name='mode_acc_1')
+```
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+```{r}
+transit_trips<-trip%>%filter(mode_characterization=='Transit')%>%filter(!mode_acc_1 %in% c("Missing", "Transfer"))%>%drop_na(mode_acc_1)
+## very many missing data points...
+
+
+
+```
+
+```{r}
+access_mode<-transit_trips%>%group_by(survey_year, mode_acc, mode_characterization)%>%summarize(n=n())
+write.csv(access_mode, 'access_mode.csv')
+```
+```{r}
+hh_transit_data<-
+  list(hh=hh, person=person, day=day, trip=transit_trips)
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+
+
+
+```{r}
+output <- summarize_weighted(hts_data= hh_transit_data,
+                               summarize_var = 'mode_acc_1',
+                               summarize_by = c('survey_year'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+```
+
+
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)
+static<-static_column_chart(output_summary, y='prop', x='survey_year', fill='mode_acc_1', color='pognbgy_10', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```
+
+
