@@ -78,10 +78,47 @@ output <- summarize_weighted(hts_data= hh_transit_data,
 ```{r}
 
 output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)
-static<-static_column_chart(output_summary, y='prop', x='survey_year', fill='mode_acc_1', color='pognbgy_10', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static<-static_column_chart(output_summary, y='prop', x='survey_year', fill='mode_acc_1', color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
 
 static
 ```
 
+```{r}
+output <- summarize_weighted(hts_data= hh_transit_data,
+                               summarize_var = 'mode_acc_1',
+                               summarize_by = c('survey_year', 'dest_purpose_simpler'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+```
 
+
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)%>%filter(survey_year=='2023')
+static<-static_column_chart(output_summary, y='prop', x='dest_purpose_simpler', fill='mode_acc_1', color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```
+```{r}
+output <- summarize_weighted(hts_data= hh_transit_data,
+                               summarize_var = 'mode_acc_1',
+                               summarize_by = c('survey_year', 'homegeog'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+```
+
+
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)%>%filter(survey_year=='2023')
+static<-static_column_chart(output_summary, y='prop', x='homegeog', fill='mode_acc_1', color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```
