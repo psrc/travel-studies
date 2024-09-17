@@ -27,7 +27,7 @@ person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age,
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,mode_acc,
-person_id, mode_1, dest_purpose, survey_year, trip_weight, distance_miles, mode_characterization, travelers_total 
+person_id, mode_1, dest_purpose, survey_year, trip_weight, distance_miles, dest_rgcname, mode_characterization, travelers_total 
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
