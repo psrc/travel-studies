@@ -74,6 +74,36 @@ vehs<-get_acs_recs(geography = 'county',
              table.names = 'B08201',
              years = c(2016, 2017, 2018, 2019,  2021,2022),
              acs.type = 'acs1')
+```
+
+```{r}
+library(stringr)
+veh_fix<-vehs%>%mutate(across(everything(), stringr::str_remove_all, pattern =':'))
+vehs_size_no_veh<-veh_fix%>%
+  filter(label %in% c('Estimate!!Total!!1-person household!!No vehicle available',
+                'Estimate!!Total!!2-person household!!No vehicle available',
+                'Estimate!!Total!!3-person household!!No vehicle available',
+                'Estimate!!Total!!4-or-more-person household!!No vehicle available'
+
+                      
+))%>%filter(GEOID =='REGION')%>%mutate(estimate=as.numeric(estimate))
+# just get totals by household size
+
+```
+
+
+
+
+```{r}
+static<-static_line_chart(vehs_size_no_veh, x='year', y='estimate', fill='label') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=12), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+ scale_colour_discrete(labels = function(x) str_wrap(x, width = 20))
+
+static
+
+```
+
+```{r}
+
 vehs_0<-vehs%>%filter(label%in% c('Estimate!!Total:', 'Estimate!!Total:!!No vehicle available', 'Estimate!!Total',	
 'Estimate!!Total!!No vehicle available'))
 ```
@@ -175,8 +205,8 @@ static
 # number of trips by purpose by vehicles or not trend
 ```{r}
 output_hh <- summarize_weighted(hts_data= hh_only,
-                               summarize_var = 'has_vehicle',
-                               summarize_by= c('survey_year', 'hhsize'),
+                               summarize_var = 'hhsize',
+                               summarize_by= c('survey_year', 'has_vehicle'),
                                id_cols=c('hh_id'),
                                wt_cols=c('hh_weight'),
                                wtname= 'hh_weight'

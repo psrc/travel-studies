@@ -14,37 +14,13 @@ source("ev_analysis2024.R")
 
 ## EV Charging Location
 
-EV typical charging location summary
+This shows ev charging location based on a hierarchial approach. If a hh had access to charging at work, they are in this category If a hh had access to public/other, they are in this category The rest of the hh only charged at home
 
 ```{r}
-#| label: Summarizing
+#| echo: false
 #| warning: false
-prep_data <- hts_prep_variable(
-              summarize_var = "ev_typical_charge_melted",
-              id_cols = "person_id",
-              variables_dt = variable_list,
-              wt_cols="person_weight",
-              data = hts_data1,
-              missing_values=NA,
-              weighted = TRUE)
 
-hts_summary <- hts_summary_cat(prep_data$cat, 
-                               summarize_var = "ev_typical_charge_melted",
-                               wtname = "person_weight",
-                               id_cols =  "person_id",
-                               se = TRUE)
 
-# creating the moe
-# removing the () section in the 'melted' column values
-# recoding shopping and park and ride as public location and hotel/inn as a Other
-ev_charge <- hts_summary$wtd %>% mutate(moe = prop_se * 1.645)
-ev_charge$ev_typical_charge_melted <- gsub("\\(.*", "", ev_charge$ev_typical_charge_melted)
-ev_charge[c(1, 4), 1] = "At a public location "
-ev_charge[2, 1] = "Other"
-ev_charge <- ev_charge %>% group_by(ev_typical_charge_melted) %>% summarise(across(c(count, prop, prop_se, est, est_se, moe), sum))
-
-ev_charge$prop <- round(ev_charge$prop, 4)
-ev_charge$est <- round(ev_charge$est, 2)
 kbl(ev_charge) %>% 
    kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
   column_spec(c(3), background = psrc_colors$purples_inc[1]) %>%
@@ -52,25 +28,55 @@ kbl(ev_charge) %>%
   column_spec(c(5), background = psrc_colors$purples_inc[1]) %>% 
   column_spec(c(6), background = psrc_colors$greens_inc[1])
 
+static_column_chart(ev_charge, x='top_ev_loc', y='prop', fill='top_ev_loc', moe="prop_moe") +
+  scale_y_continuous(labels=scales::percent) +
+  labs(title = "EV Typical Charging Locations", caption = "data: Household Travel Survey 2023", x="EV Typical Charge", y="Share of Households") +
+  theme(axis.text=element_text(size=20), axis.title=element_text(size=20), plot.title=element_text(size=20), plot.caption = element_text(size=20))
+
 ```
+
+This method I found the ratio of hh who charged their ev at a location compared to the rest of the hh who did not charge at that location
+
+This is saying 96% of hh have access to at home charging
+
+14% of hh have access to charging at work
+
+28% of hh have access to charging at a public or other location
 
 ```{r}
 #| echo: false
 #| warning: false
-#| fig-width: 16
-#| fig-height: 8
 
-ggplot(ev_charge, aes(x=reorder(ev_typical_charge_melted, prop), y=prop, fill=ev_typical_charge_melted)) +
-  geom_col()+
-  geom_text(aes(y=prop, label=scales::percent(prop, accuracy = 0.1)), size = 5, hjust=-0.1)+
-  geom_errorbar(aes(ymin=prop-moe, ymax=prop+moe), width=0.2) + # Ask Joanne about this
-  scale_y_continuous(labels=scales::percent)+
-  scale_fill_manual(values = psrc_colors$pgnobgy_10)+
-  coord_flip()+
-  psrc_style() +
-  labs(title = "Ev Typical Charging Locations", caption = "data: Household Travel Survey 2023", x="Ev Typical Charge") +
-  theme(axis.title = element_blank(), plot.title = element_text(size = 20), legend.position = "none", axis.text = element_text(size= 15), plot.caption = element_text(size = 15))
 
+kbl(ev_charge1) %>% 
+   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  column_spec(c(3), background = psrc_colors$purples_inc[1]) %>%
+  column_spec(c(4), background = psrc_colors$greens_inc[1]) %>% 
+  column_spec(c(5), background = psrc_colors$purples_inc[1]) %>% 
+  column_spec(c(6), background = psrc_colors$greens_inc[1])
+
+static_column_chart(ev_charge1, x='ev_loc', y='prop', fill='ev_loc', moe="prop_moe") +
+  scale_y_continuous(labels=scales::percent) +
+  labs(title = "EV Typical Charging Locations", caption = "data: Household Travel Survey 2023", x="Charging Location", y="Share of Households") +
+  theme(axis.text=element_text(size=20), axis.title=element_text(size=20), plot.title=element_text(size=20), plot.caption = element_text(size=20))
+
+```
+
+## Home vs. Not Home
+
+```{r}
+#| warning: false
+#| echo: false
+static_column_chart(home_comparison, x='home_comp', y='prop', fill='home_comp', moe='moe') +
+  scale_y_continuous(labels=scales::percent) +
+    labs(title = "Households with Home Access to EV Charging", caption = "data: Household Travel Survey 2023", x="EV Charging Location", y="Percentage of Households") +
+    theme(axis.text=element_text(size=20), axis.title=element_text(size=20), plot.title=element_text(size=20), plot.caption = element_text(size=20))
+
+# Just at Home
+static_column_chart(at_home, x='home_comp', y='prop', fill='home_comp', moe='moe') +
+  scale_y_continuous(labels=scales::percent) +
+    labs(title = "Households with Home Access to EV Charging", caption = "data: Household Travel Survey 2023", x="EV Charging Location", y="Percentage of Households") +
+    theme(axis.text=element_text(size=20), axis.title=element_text(size=20), plot.title=element_text(size=20), plot.caption = element_text(size=20))
 ```
 
 ## Vehicle Count
@@ -78,43 +84,27 @@ ggplot(ev_charge, aes(x=reorder(ev_typical_charge_melted, prop), y=prop, fill=ev
 This summary shows the counts for the number of people who have a car and those that do not have a car
 
 ```{r}
+#| echo: false
 #| warning: false
-prep_data2 <- hts_prep_variable(
-    summarize_var = "vehicle_count",
-    id_cols = "hh_id",
-    variables_dt = variable_list,
-    wt_cols="hh_weight",
-    data = hts_data2,
-    weighted = TRUE
-  )
-
-veh_count_summary = hts_summary(
-  prepped_dt = prep_data2$cat,
-  summarize_var = "vehicle_count",
-  summarize_by = NULL,
-  summarize_vartype = "categorical",
-  weighted = TRUE,
-  wtname = "hh_weight",
-  id_cols =  "hh_id",
-  se = TRUE
-)
-
-veh_count <- veh_count_summary$summary$wtd %>% mutate(moe = prop_se * 1.645)
-
-veh_count[c(5:9), 1] = "4+ vehicles"
-veh_count <- veh_count%>% group_by(vehicle_count) %>% summarise(across(c(count, prop, prop_se, est, est_se, moe), sum))
 
 
-
+veh_count <- veh_count_summary$wtd %>% mutate(moe = prop_se * 1.645)
 veh_count$prop <- round(veh_count$prop, 4)
 veh_count$est <- round(veh_count$est, 2)
+
 kbl(veh_count) %>% 
    kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
   column_spec(c(2), background = psrc_colors$purples_inc[1]) %>%
   column_spec(c(3), background = psrc_colors$greens_inc[1]) %>% 
-  column_spec(c(4), background = psrc_colors$purples_inc[1])
+  column_spec(c(4), background = psrc_colors$purples_inc[1]) %>% 
+  column_spec(c(5), background = psrc_colors$greens_inc[1]) %>% 
+  column_spec(c(6), background = psrc_colors$purples_inc[1]) %>% 
+  column_spec(c(7), background = psrc_colors$greens_inc[1])
 
-static_column_chart(veh_count, x='vehicle_count', y='prop', fill='vehicle_count', moe="moe")
+static_column_chart(veh_count, x='veh_count', y='prop', fill='veh_count', moe="moe") +
+    scale_y_continuous(labels=scales::percent) +
+    labs(title = "Number of Vehicles per a Household", caption = "data: Household Travel Survey 2023", x="Number of Vehicles", y="Share of Households") +
+    theme(axis.text=element_text(size=20), axis.title=element_text(size=20), plot.title=element_text(size=20), plot.caption = element_text(size=20))
 ```
 
 ## Fuel Type
@@ -122,64 +112,42 @@ static_column_chart(veh_count, x='vehicle_count', y='prop', fill='vehicle_count'
 This summary displays the proportion and counts for each fuel type
 
 ```{r}
+#| echo: false
 #| warning: false
-prep_data3 <- hts_prep_variable(
-    summarize_var = "fuel",
-    id_cols = "hh_id",
-    variables_dt = variable_list,
-    wt_cols="hh_weight",
-    data = hts_data3,
-    weighted = TRUE
-  )
 
-fuel_cat_summary = hts_summary(
-  prepped_dt = prep_data3$cat,
-  summarize_var = "fuel",
-  summarize_by = NULL,
-  summarize_vartype = "categorical",
-  weighted = TRUE,
-  wtname = "hh_weight",
-  id_cols =  "hh_id",
-  se = TRUE
-)
-
-
-
-fuel_cat <- fuel_cat_summary$summary$wtd %>% mutate(moe = prop_se * 1.645)
-
-fuel_cat[6, 1] = "Hybrid (HEV)"
-fuel_cat <- fuel_cat%>% group_by(fuel) %>% summarise(across(c(count, prop, prop_se, est, est_se, moe), sum))
-fuel_cat$fuel <- gsub("\\(.*", "", fuel_cat$fuel)
-
+fuel_cat <- fuel_summary_df1
 fuel_cat$prop <- round(fuel_cat$prop, 4)
 fuel_cat$est <- round(fuel_cat$est, 2)
 kbl(fuel_cat) %>% 
    kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
   column_spec(c(2), background = psrc_colors$purples_inc[1]) %>%
   column_spec(c(3), background = psrc_colors$greens_inc[1]) %>% 
-  column_spec(c(4), background = psrc_colors$purples_inc[1])
+  column_spec(c(4), background = psrc_colors$purples_inc[1]) %>% 
+  column_spec(c(5), background = psrc_colors$greens_inc[1]) %>% 
+  column_spec(c(6), background = psrc_colors$purples_inc[1]) %>% 
+  column_spec(c(7), background = psrc_colors$greens_inc[1])
 
 
-# proportion by fuel type
-
-
-fuel_cat$fuel <- factor(fuel_cat$fuel, 
-                        levels = fuel_cat$fuel[order(fuel_cat$prop, decreasing = TRUE)])
-static_column_chart(fuel_cat, x='fuel', y='prop', fill='fuel', moe='moe')
+# chart by fuel type
+static_column_chart(fuel_summary_df1, x='fuel_type', y='prop', fill='fuel_type', moe="prop_moe") +
+    scale_y_continuous(labels=scales::percent) +
+    labs(title = "Share of vehicle fuel types by Household", caption = "data: Household Travel Survey 2023", x="Vehicle Fuel Type", y="Share of Households") +
+    theme(axis.text=element_text(size=20), axis.title=element_text(size=20), plot.title=element_text(size=20), plot.caption = element_text(size=20))
 
 
 ```
 
-This summary table displays for each household, the number of vehicles it has for each fuel type and the household's total vehicles
-
-step 1: creates a new column and adds a '1' if it satisfies this condition
-
-step 2: groups by household
-
-step 3: for each group of hh rows, it sums the column values for each vehicle type
+Fuel Type By Household
 
 ```{r}
 #| warning: false
+#| echo: false
+
+# This summary table displays for each household, the number of vehicles it has for each fuel type and the household's total vehicles
+# step 1: creates a new column and adds a '1' if it satisfies this condition
+# step 2: groups by household
+# step 3: for each group of hh rows, it sums the column values for each vehicle type
+
 veh_type_count <- vehicle %>% 
   mutate(
   total_ev = case_when(fuel == 'Electric (EV)' ~ 1, TRUE ~ 0),
@@ -194,7 +162,9 @@ veh_type_count <- vehicle %>%
   ungroup() %>% 
   full_join(hh, by="hh_id")
 
-kbl(veh_type_count) %>% 
+vtc_short <- head(veh_type_count)
+
+kbl(vtc_short) %>% 
    kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins")
 # used to verify the total number of vehicles for each hh is the same as in the vehicles table  
 test <- vehicle %>% group_by(hh_id) %>% summarise(count = n())
@@ -204,67 +174,25 @@ test <- vehicle %>% group_by(hh_id) %>% summarise(count = n())
 Verifying if multiple people within a hh answered the 'EV typical charge' location question
 
 ```{r}
-hh_response_count <- person_new %>% 
+#| echo: false
+#| warning: false
+hh_response_count <- person %>% 
   group_by(hh_id) %>% 
   summarise(num_responses = n(),
             num_people = n_distinct(person_id))
-print(hh_response_count)
+
 sum(hh_response_count$num_people)
-length(unique(person_new$hh_id))
-```
+# length(unique(person_new$hh_id))
 
-finding households who own ev's
+hhrc_short <- head(hh_response_count)
 
-```{r}
-ev_hh <- vehicle %>% filter(fuel == 'Electric (EV)') %>% distinct(hh_id, .keep_all = TRUE)
-
-```
-
-## Home vs. Not Home Charging Locations
-
-```{r}
-# Aggregating responses on the person level, need to aggregate public location data and then look at responses again
-person_new$ev_typical_charge_melted <- gsub("\\(.*", "", person_new$ev_typical_charge_melted)
-person_new[person_new == "At a commute location " | person_new == "At a shopping location " ] <- "At a public location "
-person_new[person_new == "At a hotel/inn"] <- "Other"
-
-
-hh_ev_loc <- person_new %>% group_by(person_id) %>% 
-  summarise(hh_loc = paste(unique(ev_typical_charge_melted), collapse = ", "), 
-            num_person = length(unique(person_id)))
-
-hh_ev_loc2 <- hh_ev_loc %>% subset(., hh_loc != 'At home')
-
-# this tells you where individuals parked their ev
-hh_ev_loc <- person_new %>% group_by(person_id) %>% 
-  summarise(hh_loc = paste(unique(ev_typical_charge_melted), collapse = ", "), 
-            num_choice = n())
-
-home_comp <- hts_summary$wtd %>% mutate(moe = prop_se * 1.645)
-home_comp$ev_typical_charge_melted <- gsub("\\(.*", "", home_comp$ev_typical_charge_melted)
-home_comp[c(1:4, 6, 7), 1] = "Not home"
-home_comp <- home_comp %>% group_by(ev_typical_charge_melted) %>% summarise(across(c(count, prop, prop_se, est, est_se, moe), sum))
-static_column_chart(home_comp, x='ev_typical_charge_melted', y='prop', fill='ev_typical_charge_melted', moe='moe')
+kbl(hhrc_short) %>% 
+   kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins")
 ```
 
 ## Further Exploration Questions...
 
 1.  hh income of ev households?
-
-```{r, include=FALSE}
-hh2<- get_query(sql= "select household_id as hh_id, hhincome_detailed, home_rgcname, res_type
-                         from HHSurvey.v_households_labels
-                         where survey_year = 2023")
-
-setDT(hh2)
-hh2[, hh_id:=as.character(hh_id)]
-
-ev_hh <- ev_hh %>% 
-  inner_join(hh2, by="hh_id")
-  
-  
-
-```
 
 2.  do ev owners live in rgcs?
 
