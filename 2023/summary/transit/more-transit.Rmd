@@ -122,3 +122,69 @@ static<-static_column_chart(output_summary, y='prop', x='homegeog', fill='mode_a
 
 static
 ```
+
+```{r}
+transit_trips<-trip%>%filter(mode_characterization=='Transit')
+```
+
+```{r}
+hh_transit_data<-
+  list(hh=hh, person=person, day=day, trip=transit_trips)
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+
+```{r}
+output <- summarize_weighted(hts_data= hh_transit_data,
+                               summarize_var = 'dest_purpose_simplest',
+                               summarize_by = c('survey_year'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+```
+# Percent of transit trips by broad purpose
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)%>%filter(dest_purpose_simplest!='Missing')
+static<-static_column_chart(output_summary, y='prop', x='survey_year', fill='dest_purpose_simplest', color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```
+# Percent of transit trips by broad purpose
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)%>%filter(dest_purpose_simplest!='Missing')
+static<-static_column_chart(output_summary, y='est', x='survey_year', fill='dest_purpose_simplest', color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```
+
+```{r}
+work_trips<-trip%>%filter(grepl("Work"))
+worker_data<-
+  list(hh=hh, person=workers, day=day, trip=work_trips)
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+```{r}
+output <- summarize_weighted(hts_data= worker_data,
+                               summarize_var = 'mode_characterization',
+                               summarize_by = c('survey_year', 'workgeog'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+```
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)%>%mutate(workgeog=factor(workgeog, levels=c('Kitsap', 'Pierce','Snohomish-King Suburban', 'Seattle Outside Downtown', 'Bellevue','Seattle Downtown')))%>%filter(!is.na(workgeog))%>%filter(survey_year==2023)
+static<-static_column_chart(output_summary, y='est', x='mode_characterization', fill='workgeog',color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```

@@ -273,10 +273,12 @@ plot_delivery_line <- function(delivery_varname, plot_title){
                           wt_var="hh_day_weight",
                           wt_name="hh_day_weight")
   
-  df_delivery <- test %>% filter(.[[delivery_varname]] == "Yes")
+  df_delivery <- test %>% filter(.[[delivery_varname]] == "Yes") %>% 
+    mutate(Year=as.factor(survey_year))%>%
+    mutate(Proportion=prop)
   
   # plot
-  my_plot<- ggplot(df_delivery, aes(x=as.factor(survey_year),y=prop, group=1)) +
+  my_plot<- ggplot(df_delivery, aes(x=Year,y=Proportion, group=1)) +
     geom_line() +
     geom_point() +
     theme_bw() +
