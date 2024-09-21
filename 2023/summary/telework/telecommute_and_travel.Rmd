@@ -32,13 +32,17 @@ variable_list<-add_variable(variable_list, 'mode_char1','trip')
 group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_char1')
 value_labels<-add_values_code(group_name='mode_char1')
 trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_characterization', grouped_name='mode_char1')%>%filter(mode_characterization!='Airplane')
+```
+
+
+```{r}
+
 
 variable_list<-add_variable(variable_list, 'dest_purpose_simpler','trip')
-group_labels<-get_grouped_labels(group_id='group_2', group_name='dest_purpose_simpler')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='dest_purpose_simpler')
 value_labels<-add_values_code(group_name='dest_purpose_simpler')
 trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simpler')
-```
-```{r}
+
 hh<-hh%>%mutate(homegeog=case_when(
   home_rgcname=='Seattle Downtown'~ 'Seattle Downtown',
   (home_rgcname!='Seattle Downtown' & home_jurisdiction=='Seattle') ~ 'Seattle Outside Downtown',

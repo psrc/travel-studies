@@ -41,6 +41,16 @@ static<-static_column_chart(output_summary, y='prop', x='mode_characterization',
 static
 ```
 
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)
+static<-static_facet_column_chart(output_summary, y='prop', x='mode_characterization', fill='rgcdest', color='pognbgy_10', facet='survey_year', scales='fixed') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+```
+
+
 ## R Markdown
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.

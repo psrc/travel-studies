@@ -497,6 +497,71 @@ value_labels<-add_values_code(group_name='dest_purpose_simpler')
 trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simpler')
 ```
 
+```{r}
+variable_list<-add_variable(variable_list, 'dest_purpose_simplest','trip')
+group_labels<-get_grouped_labels(group_id='group_2', group_name='dest_purpose_simplest')
+value_labels<-add_values_code(group_name='dest_purpose_simplest')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simplest')
+```
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'workgeog','person')
+
+value<- c(0,1,2,3,4,5)
+label=c('Kitsap', 'Pierce', 'Seattle Outside Downtown', 'Bellevue', 'Seattle Downtown', 'Snohomish-King Suburban' )
+workgeo_val_labels<-data.frame(value, label)
+workgeo_val_labels<-workgeo_val_labels%>%mutate(variable='workgeog')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, workgeo_val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+
+```
+```{r}
+variable_list<-add_variable(variable_list, 'work_county','person')
+
+value<- c(0,1,2,3)
+label=c('Kitsap', 'Pierce', 'Snohomish', 'King')
+workgeo_val_labels<-data.frame(value, label)
+workgeo_val_labels<-workgeo_val_labels%>%mutate(variable='work_county')%>%
+    mutate(group_1_title = NA, group_1_value = NA,
+           group_2_title = NA, group_2_value= NA,
+           group_3_title = NA, group_3_value = NA)
+
+all_value_labels<-value_labels%>%select(variable, value, label, group_1_title, group_1_value,
+                                      group_2_title, group_2_value, group_3_title, group_3_value)
+new_value_labels<-rbind(all_value_labels, workgeo_val_labels)
+new_value_labels[, val_order := seq_len(nrow(new_value_labels))]
+value_labels<-new_value_labels  
+
+
+```
+
+
+
+```{r}
+workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+worker_list<-list(hh=hh, person=workers)
+
+```
+
+```{r}
+
+workers<-workers%>%mutate(workgeog=case_when(
+  work_rgcname=='Seattle Downtown' ~ 'Seattle Downtown',
+  (work_rgcname!='Seattle Downtown' &work_jurisdiction=='Seattle') ~ 'Seattle Outside Downtown',
+  work_jurisdiction=='Bellevue' ~ 'Bellevue',
+  ((work_county=='King' &!work_jurisdiction %in% c('Seattle', 'Bellevue'))|work_county=='Snohomish')~'Snohomish-King Suburban',
+  .default=work_county
+))
+```
 
 ```{r}
 #some how a duplicate snuck into the variable list not sure how
@@ -507,11 +572,6 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
 
 
-```{r}
-workers<-person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
-worker_list<-list(hh=hh, person=workers)
-
-```
 
 
 
