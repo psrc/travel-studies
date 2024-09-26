@@ -35,11 +35,17 @@ hh_day_delivery <- day %>%
                     deliver_none, deliver_elsewhere, deliver_office),
                ~case_when(sum(.=="Yes", na.rm=TRUE)>0~"Yes",
                           sum(.=="No", na.rm=TRUE)>0~"No",
+                          sum(.=="Selected", na.rm=TRUE)>0~"Yes",
+                          sum(.=="Not Selected", na.rm=TRUE)>0~"No",
                           TRUE~NA))
 
 hh_day_weight<- day%>%
   group_by(survey_year, hh_id, daynum) %>%
   summarize(hh_day_weight=first(day_weight))
+
+home_delivery_cols<-c('deliver_food', 'deliver_grocery', 'deliver_package', 'deliver_work')
+hh_day_delivery<-hh_day_delivery%>%
+  mutate(deliver_home_any= if_else( deliver_food=="Yes" | deliver_grocery=="Yes" | deliver_package=="Yes" | deliver_work=="Yes" | deliver_other=="Yes", "Yes", "No"))
 
 hh_day_delivery<-merge(hh_day_delivery, hh_day_weight, by=c('survey_year','hh_id', 'daynum'))
 # 
