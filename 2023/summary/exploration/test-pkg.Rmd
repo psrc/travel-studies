@@ -36,25 +36,47 @@ hts_data <- get_psrc_hts(survey_vars = all_vars)
 ```
 
 ```{r}
+```
+
+
+```{r}
 hts_data<-hts_data%>%hts_bin_sexuality()%>%hts_bin_age()
 ```
 
+I realized I need a different categorization, recode the prefer not to answer to NA, so that we don't summarize them
 ```{r}
-sexuality_age<-psrc_hts_stat(hts_data, "person", c('sexuality_bin3', 'age_bin5'))%>%
-  filter(survey_year=='2023')%>% # only started asking in 2023
-  filter(!is.na(sexuality_bin3))%>% # children under 18 didn't answer
-  mutate(sexuality_short= case_when(
-    str_detect(sexuality_bin3, 'Heterosexual' ) ~ 'Heterosexual',
-    str_detect(sexuality_bin3, 'gay' ) ~ 'Gay, Don\'t Know, or Other',
-    .default = 'Missing'
-    
-  ))
-         
+hts_data$person<-hts_data$person%>%
+  mutate(sexuality_bin4=case_when(sexuality=='Prefer not to answer' ~ NA,
+                                  str_detect(sexuality_bin3, 'gay') ~'Gay/Don\'t Know/and Other',
+                                 .default=sexuality_bin3))
+
 ```
 
 ```{r}
-static<-static_column_chart(sexuality_age, y='prop', x='age_bin5', fill='sexuality_short')
+sexuality_age<-psrc_hts_stat(hts_data, "person", c('age_bin5','sexuality_bin4'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')%>% # only started asking in 2023%>%
+filter(age_bin5!='Under 18 Years')
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_age, y='prop', x='age_bin5', fill='sexuality_bin4')
 static
 ```
 
+```{r}
+sexuality_mode<-psrc_hts_stat(hts_data, "trip", c('sexuality_bin4','mode_characterization'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')%>%# only started asking in 2023%>%
+mutate()
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_mode, y='prop', x='mode_characterization', fill='sexuality_bin4', moe='prop_moe')
+static
+```
 
