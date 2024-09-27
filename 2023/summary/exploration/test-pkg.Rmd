@@ -1,0 +1,60 @@
+---
+title: "test-new-package"
+author: "suzanne"
+date: "2024-09-27"
+output: html_document
+---
+reading in libraries I usually need
+```{r , include=FALSE}
+library(psrc.travelsurvey)
+library(travelSurveyTools)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+library(stringr)
+```
+
+
+I'm going to analyze sexuality and travel behavior data as a test case-won't be able to do a multi-year comparision though. So after that I'll do a summary of transit access modes.
+
+```{r}
+demo_summary_vars<-c('age', 'disability_person', 'education', 'employment','gender', 'industry',
+               'hhincome_broad', 'home_county','home_lat', 'home_lng','hh_race_category','home_rgcname',
+               'numadults', 'numchildren', 'numworkers','res_type', 'rent_own','sexuality',
+               'student', 'vehicle_count')
+travel_summary_vars<-c('bike_freq', 'benefits_3', 'dest_purpose', 'commute_freq', 'commute_mode',
+                       'mode_characterization', 'mode_acc', 'transit_freq', 'tnc_freq','telecommute_freq','walk_freq','workplace')
+
+all_vars<-c(demo_summary_vars, travel_summary_vars)
+               
+
+```
+
+```{r}
+hts_data <- get_psrc_hts(survey_vars = all_vars)
+
+```
+
+```{r}
+hts_data<-hts_data%>%hts_bin_sexuality()%>%hts_bin_age()
+```
+
+```{r}
+sexuality_age<-psrc_hts_stat(hts_data, "person", c('sexuality_bin3', 'age_bin5'))%>%
+  filter(survey_year=='2023')%>% # only started asking in 2023
+  filter(!is.na(sexuality_bin3))%>% # children under 18 didn't answer
+  mutate(sexuality_short= case_when(
+    str_detect(sexuality_bin3, 'Heterosexual' ) ~ 'Heterosexual',
+    str_detect(sexuality_bin3, 'gay' ) ~ 'Gay, Don\'t Know, or Other',
+    .default = 'Missing'
+    
+  ))
+         
+```
+
+```{r}
+static<-static_column_chart(sexuality_age, y='prop', x='age_bin5', fill='sexuality_short')
+static
+```
+
+
