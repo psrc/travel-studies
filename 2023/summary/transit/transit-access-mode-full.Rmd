@@ -791,7 +791,7 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 ```
 
 ```{r}
-transit_trips<-trip%>%filter(mode_characterization=='Transit')%>%filter(!mode_acc_1 %in% c("Missing", "Transfer"))%>%drop_na(mode_acc_1)
+transit_trips<-trip%>%filter(mode_characterization=='Transit')#%>%filter(!mode_acc_1 %in% c("Missing", #"Transfer"))%>%drop_na(mode_acc_1)
 ## very many missing data points...
 
 
@@ -825,11 +825,12 @@ output <- summarize_weighted(hts_data= hh_transit_data,
 
 ```{r}
 
-output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)%>%filter(!is.na(mode_acc_1))
 static<-static_column_chart(output_summary, y='prop', x='survey_year', fill='mode_acc_1', color='pognbgy_10', pos='stack') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
 
 static
+write.csv(output_summary, 'mode_access.csv')
 ```
 
 ```{r}
@@ -850,6 +851,7 @@ static<-static_column_chart(output_summary, y='prop', x='dest_purpose_simpler', 
 
 
 static
+write.csv(output_summary, 'mode_purpose_access.csv')
 ```
 ```{r}
 output <- summarize_weighted(hts_data= hh_transit_data,
@@ -869,6 +871,8 @@ static<-static_column_chart(output_summary, y='prop', x='homegeog', fill='mode_a
 
 
 static
+
+write.csv(output_summary, 'mode_access_geog.csv')
 ```
 
 ```{r}
@@ -900,6 +904,8 @@ static<-static_column_chart(output_summary, y='prop', x='survey_year', fill='des
 
 
 static
+
+write.csv(output_summary, 'mode_access_broad_purpose.csv')
 ```
 # Percent of transit trips by broad purpose
 ```{r}
@@ -909,5 +915,6 @@ static<-static_column_chart(output_summary, y='est', x='survey_year', fill='dest
 
 
 static
+write.csv(output_summary, 'mode_broad_purpose_count_access.csv')
 ```
 
