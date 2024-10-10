@@ -111,7 +111,6 @@ ev_typical_charge_997,1,0,1,0,0,0,0,integer/categorical,Typical charge location 
 flag_teleport,0,0,0,0,1,0,0,integer/categorical,>=250m gap occurs after trip,>=250m gap occurs after trip,flag_teleport,1,0,1
 fuel,0,0,0,0,0,1,0,integer/categorical,Fuel type,Fuel type,fuel,1,1,0
 gender,0,0,1,0,0,0,0,integer/categorical,Gender,Gender,gender,1,1,0
-google_duration,0,0,0,0,1,0,0,numeric,Bing-estimated trip duration,Bing-estimated trip duration,google_duration,0,1,0
 hh_day_iscomplete,0,0,0,1,1,0,0,integer/categorical,All surveys are completed for travel date for all household members (Monday - Thursday),All surveys are completed for travel date for all household members (Monday - Thursday),hh_day_iscomplete,1,1,0
 hh_is_complete,0,1,1,0,0,0,0,integer/categorical,Household provided complete travel information for one travel day,Household provided complete travel information for one travel day,hh_is_complete,1,0,1
 hh_race_category,0,1,0,0,0,0,0,integer/categorical,"Household Race Category, including Asian, most detail","Household Race Category, including Asian, most detail",hh_race_category,1,1,0
@@ -144,7 +143,7 @@ hours_work,0,0,1,0,0,0,0,integer/categorical,Number of hours typically worked la
 household_id,0,1,1,1,1,1,0,character,Unique identifier for each household,Unique identifier for each household,household_id,1,1,0
 industry,0,0,1,0,0,0,0,integer/categorical,Current employment industry,Current employment industry,industry,1,1,0
 industry_other,0,0,1,0,0,0,0,character,Current employment industry: user specified in text box,Current employment industry: user specified in text box,industry_other,1,1,0
-is_participant,0,0,1,1,0,0,0,integer/categorical,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)","Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",is_participant,1,1,0
+is_participant,0,0,1,1,0,0,0,integer/categorical,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)","Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",is_participant,1,1,1
 jobs_count,0,0,1,0,0,0,0,integer/categorical,Number of jobs,Number of jobs,jobs_count,1,1,0
 license,0,0,1,0,0,0,0,integer/categorical,"Answers yes to ""Do you/household person drive?""","Answers yes to ""Do you/household person drive?""",license,1,1,0
 lifecycle,0,1,0,0,0,0,0,integer/categorical,Household lifecycle stage,Household lifecycle stage,lifecycle,0,1,0
@@ -159,11 +158,6 @@ mode_4,0,0,0,0,1,0,0,integer/categorical,Fourth mode chosen,Fourth mode chosen,m
 mode_acc,0,0,0,0,1,0,0,integer/categorical,Travel mode to transit,Travel mode to transit,mode_acc,1,1,0
 mode_characterization,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode,Primary Trip Mode,mode_characterization,1,1,0
 mode_egr,0,0,0,0,1,0,0,integer/categorical,Travel mode from transit,Travel mode from transit,mode_egr,1,1,0
-mode_freq_1,0,0,1,0,0,0,0,integer/categorical,Times ridden transit in past 30 days,Times ridden transit in past 30 days,mode_freq_1,0,1,0
-mode_freq_2,0,0,1,0,0,0,0,integer/categorical,Times ridden a bike in past 30 days,Times ridden transit in past 30 days,mode_freq_2,0,1,0
-mode_freq_3,0,0,1,0,0,0,0,integer/categorical,Times gone for a walk in past 30 days,Times ridden transit in past 30 days,mode_freq_3,0,1,0
-mode_freq_4,0,0,1,0,0,0,0,integer/categorical,Times used carshare in past 30 days,Times ridden transit in past 30 days,mode_freq_4,0,1,0
-mode_freq_5,0,0,1,0,0,0,0,integer/categorical,Times used rideshare in past 30 days,Times ridden transit in past 30 days,mode_freq_5,0,1,0
 mode_other_specify,0,0,0,0,1,0,0,character,Other mode specified in textbox,Other mode specified in textbox,mode_other_specify,1,1,0
 mode_simple,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode simplified,Primary Trip Mode simplified,mode_simple,1,1,0
 mode_type,0,0,0,0,1,0,0,integer/categorical,Synthesized mode (derived),Synthesized mode (derived),mode_type,1,1,0

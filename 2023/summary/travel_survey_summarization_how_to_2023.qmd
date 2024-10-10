@@ -57,19 +57,20 @@ The 2017, 2019, 2021, and 2023 travel survey data is in Elmer. You will need to 
 
 The package uses DT and data.table for most operation, so you will usually want inputs to be in data.table format.
 
+
 ```{r }
-hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,survey_year, hh_weight
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction, home_county, hh_weight,vehicle_count, home_rgcname, home_lat, home_lng, survey_year, hh_race_category
                 from HHSurvey.v_households_labels")
 
 
 person<- get_query(sql= "select household_id as hh_id,race_category,
-person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq, employment
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname, work_jurisdiction, work_county
                 from HHSurvey.v_persons_labels")
                 
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
 
 trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
-person_id, mode_characterization, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight 
+person_id, mode_1, dest_purpose, survey_year, trip_weight, distance_miles, mode_characterization, travelers_total 
                 from HHSurvey.v_trips_labels")
 setDT(hh)
 setDT(person)
@@ -134,6 +135,18 @@ group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_char1')
 value_labels<-add_values_code(group_name='mode_char1')
 trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_characterization', grouped_name='mode_char1')%>%filter(mode_characterization!='Airplane')
 ```
+```{r}
+variable_list<-add_variable(variable_list, 'age_grp_2','person')
+group_labels<-get_grouped_labels(group_id='group_3', group_name='age_grp_2')
+value_labels<-add_values_code(group_name='age_grp_2')
+person<-grp_to_tbl(tbl=person, ungrouped_name='age', grouped_name='age_grp_2')
+```
+```{r}
+variable_list<-add_variable(variable_list, 'gender_grp','person')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='gender_grp')
+value_labels<-add_values_code(group_name='gender_grp')
+person<-grp_to_tbl(tbl=person, ungrouped_name='gender', grouped_name='gender_grp')
+```
 
 ```{r}
 work_trip<- trip%>%filter(dest_purpose%in% c('Went to work-related place (e.g., meeting, second job, delivery','Went to other work-related activity','Went to work-related activity (e.g., meeting, delivery, worksite','Went to primary workplace'))
@@ -156,7 +169,7 @@ Now mode_simple is on the variables table, the values table, and the trip table.
 
 mode_summary = summarize_weighted(hts_data= hts_data,
                                summarize_var = 'mode_char1',
-                               summarize_by = 'survey_year',
+                               summarize_by = c('survey_year', 'gender'),
                                id_cols= ids,
                                wt_cols=wts,
                                wtname='trip_weight'
@@ -166,9 +179,9 @@ mode_summary = summarize_weighted(hts_data= hts_data,
 ```{r}
 
 common_modes<-mode_summary$summary$wtd%>%
-  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)
+  mutate(mode_char1= fct_reorder(mode_char1,-prop))%>%drop_na(mode_char1)%>%mutate(moe=prop_se*1.645)%>%filter(mode_char1=='Bike/Micromobility')%>%filter(gender %in% c('Female', 'Male'))
 
-static_column_chart(common_modes, x='mode_char1', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static_column_chart(common_modes, x='gender', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Trip Mode', moe='moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 write.csv(common_modes, 'mode_trend.csv')
 ```
 

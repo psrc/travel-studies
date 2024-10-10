@@ -1,0 +1,216 @@
+---
+title: "zero-veh-trends"
+author: "suzanne"
+date: "2024-09-05"
+output: html_document
+---
+
+```{r}
+library(psrccensus)
+```
+
+
+
+
+
+```{r setup, include=FALSE}
+
+hh_data<-
+  list(hh=hh, person=person, day=day, trip=trip)
+ids = c('hh_id', 'person_id', 'day_id', 'trip_id')
+wts = c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
+```
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+```{r}
+output <- summarize_weighted(hts_data= hh_data,
+                               summarize_var = 'mode_characterization',
+                               summarize_by = c('survey_year', 'has_vehicle'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+```
+
+
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)
+static<-static_facet_column_chart(output_summary, y='prop', x='mode_characterization', fill='survey_year', facet='has_vehicle', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+
+```
+
+```{r}
+output <- summarize_weighted(hts_data= hh_data,
+                               summarize_var = 'has_vehicle',
+                               summarize_by = c('survey_year', 'home_county'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'hh_weight'
+                               )
+```
+
+
+```{r}
+
+output_summary<-output$summary$wtd%>%mutate(moe=prop_se*1.645)
+static<-static_facet_column_chart(output_summary, y='prop', x='home_county', fill='survey_year', facet='has_vehicle', moe='moe') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+
+static
+
+```
+
+
+```{r}
+vehs<-get_acs_recs(geography = 'county',
+             table.names = 'B08201',
+             years = c(2016, 2017, 2018, 2019,  2021,2022),
+             acs.type = 'acs1')
+```
+
+```{r}
+library(stringr)
+veh_fix<-vehs%>%mutate(across(everything(), stringr::str_remove_all, pattern =':'))
+vehs_size_no_veh<-veh_fix%>%
+  filter(label %in% c('Estimate!!Total!!1-person household!!No vehicle available',
+                'Estimate!!Total!!2-person household!!No vehicle available',
+                'Estimate!!Total!!3-person household!!No vehicle available',
+                'Estimate!!Total!!4-or-more-person household!!No vehicle available'
+
+                      
+))%>%filter(GEOID =='REGION')%>%mutate(estimate=as.numeric(estimate))
+# just get totals by household size
+
+```
+
+
+
+
+```{r}
+static<-static_line_chart(vehs_size_no_veh, x='year', y='estimate', fill='label') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=12), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+ scale_colour_discrete(labels = function(x) str_wrap(x, width = 20))
+
+static
+
+```
+
+```{r}
+
+vehs_0<-vehs%>%filter(label%in% c('Estimate!!Total:', 'Estimate!!Total:!!No vehicle available', 'Estimate!!Total',	
+'Estimate!!Total!!No vehicle available'))
+```
+
+
+```{r}
+vehs_0_wide<-vehs_0%>%group_by(name, year,label)%>%summarize(estimate=sum(estimate), moe=sum(moe))%>%
+  mutate(label=case_when(label %in% c('Estimate!!Total:','Estimate!!Total') ~ 'total_hh',
+                         label %in% c('Estimate!!Total:!!No vehicle available', 'Estimate!!Total!!No vehicle available') ~ 'no_veh_hh'))
+vehs_0_wide_2<-vehs_0_wide%>%pivot_wider(names_from=label, values_from=c(estimate,moe))%>%mutate(share=estimate_no_veh_hh/estimate_total_hh)
+write.csv(vehs_0_wide_2, 'zero_veh.csv')
+
+```
+```{r}
+static<-static_facet_column_chart(vehs_0_wide_2, x='year', y='share', fill='name', facet='name', scales='fixed') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static
+```
+```{r}
+hh_only=list(hh=hh)
+```
+
+# number of trips by purpose by vehicles or not trend
+```{r}
+output_hh <- summarize_weighted(hts_data= hh_only,
+                               summarize_var = 'has_vehicle',
+                               summarize_by= 'survey_year',
+                               id_cols=c('hh_id'),
+                               wt_cols=c('hh_weight'),
+                               wtname= 'hh_weight'
+                               )
+
+output_hh_by_veh<-output_hh$summary$wtd
+```
+
+```{r}
+output_trips <- summarize_weighted(hts_data= hh_data,
+                               summarize_var = 'dest_purpose_simpler',
+                               summarize_by= c('survey_year', 'has_vehicle'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+
+output_trip_by_veh<-output_trips$summary$wtd
+```
+
+
+```{r}
+
+output_trip_by_veh<-output_trip_by_veh%>%filter(dest_purpose_simpler!='Go Home')
+output_trip_veh_hh<- left_join(output_trip_by_veh, output_hh_by_veh, by=c('has_vehicle', 'survey_year'))%>%filter(dest_purpose_simpler!='Go Home')
+
+output_trip_veh_sum<-output_trip_veh_hh%>%mutate(trips_per_hh=est.x/est.y)%>%mutate(trips_per_hh= trips_per_hh*5)%>%mutate(dest_purpose_simpler=fct_reorder(dest_purpose_simpler, trips_per_hh))%>%filter(dest_purpose_simpler!='Go Home')
+                                                                                                   
+static<-static_facet_column_chart(output_trip_veh_sum, x='has_vehicle', y='trips_per_hh', fill='dest_purpose_simpler', pos='stack', dec=1, color='pgnobgy_10', facet='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static
+
+output_trip_noveh_sum<-output_trip_veh_sum%>%filter(has_vehicle==0)
+
+static<-static_column_chart(output_trip_noveh_sum, x='survey_year', y='trips_per_hh', fill='dest_purpose_simpler', pos='stack', dec=1, color='pgnobgy_10') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static
+
+```
+
+```{r}
+output_trips <- summarize_weighted(hts_data= hh_data,
+                               summarize_var = 'mode_characterization',
+                               summarize_by= c('survey_year', 'has_vehicle'),
+                               id_cols=ids,
+                               wt_cols=wts,
+                               wtname= 'trip_weight'
+                               )
+
+output_trip_by_veh<-output_trips$summary$wtd
+```
+
+
+```{r}
+
+
+output_trip_veh_hh<- left_join(output_trip_by_veh, output_hh_by_veh, by=c('has_vehicle', 'survey_year'))
+output_trip_veh_sum<-output_trip_veh_hh%>%mutate(trips_per_hh=est.x/est.y)
+                                                                                                   
+static<-static_facet_column_chart(output_trip_veh_sum, x='has_vehicle', y='trips_per_hh', fill='mode_characterization', pos='stack', dec=1, color='pgnobgy_10', facet='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static
+
+output_trip_noveh_sum<-output_trip_veh_sum%>%filter(has_vehicle==0)
+
+static<-static_column_chart(output_trip_noveh_sum, x='survey_year', y='trips_per_hh', fill='mode_characterization', pos='stack', dec=1, color='pgnobgy_10') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+static
+
+```
+
+# number of trips by purpose by vehicles or not trend
+```{r}
+output_hh <- summarize_weighted(hts_data= hh_only,
+                               summarize_var = 'hhsize',
+                               summarize_by= c('survey_year', 'has_vehicle'),
+                               id_cols=c('hh_id'),
+                               wt_cols=c('hh_weight'),
+                               wtname= 'hh_weight'
+                               )
+
+output_hh_by_veh<-output_hh$summary$wtd
+```

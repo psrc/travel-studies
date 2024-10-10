@@ -1,13 +1,17 @@
 ---
-title: "HTS Elmer Views - Value Summary"
+title: "Value labels summary"
 format: html
-
-echo: TRUE
 ---
 
-this script creates summary spreadsheet for values of all variables in the views 
+matching labels between views and the codebook
+turn `generate_spreadsheet` to `TRUE` to generate value summary spreadsheet
 
+```{r}
+# save to files for manual update
+generate_spreadsheet <- FALSE
+```
 
+- all tables
 ```{r}
 library(tidyverse)
 library(psrcelmer)
@@ -30,17 +34,19 @@ names(view_names) <- table_names
 df_view_name <- data.frame(table = table_names,
                            Elmer.view.name = view_names,
                            row.names = NULL)
+df_view_name
 ```
 
 
 ```{r}
-# read all tables
+# import all views
 hh_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['hh']))
 person_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['person']))
 day_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['day']))
 trip_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['trip']))
 vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['vehicle']))
 ```
+
 
 ```{r}
 # find all variables to be included in value labels
@@ -51,14 +57,18 @@ factor_variables <- variable_list %>%
            information ==0 &
            !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years
            !variable %in% geography_variables$variable) # no geography names
-```
 
 ## groupings
-```{r}
-value_labels_groupings <- value_labels %>% filter(!is.na(group_1_title))
+# value_labels_groupings <- value_labels %>% filter(!is.na(group_1_title))
+# write_csv(value_labels_groupings, "variable_lists/value_labels_groupings.csv",na = "")
+dest_purpose <- value_labels_groupings %>%
+  filter(variable == "dest_purpose")
+test <- value_labels_groupings %>%
+  filter(variable == "dest_purpose") %>%
+  group_by(variable,label) %>%
+  summarise(value = first(value))
+# write_csv(test, "variable_lists/dest_purpose.csv",na = "")
 ```
-
-# match codebook values with views
 
 ```{r}
 # require factor_variables and value_labels objects
@@ -103,11 +113,63 @@ compare_values_day <- compare_values(day_data,'day')
 compare_values_trip <- compare_values(trip_data,'trip')
 compare_values_vehicle <- compare_values(vehicle_data,'vehicle')
 
-l <- list("hh edit" = compare_values_hh, 
+# save to 
+if(generate_spreadsheet){
+  l <- list("hh edit" = compare_values_hh, 
           "person edit" = compare_values_person,
           "day edit" = compare_values_day, 
           "trip edit" = compare_values_trip, 
           "vehicle edit" = compare_values_vehicle)
-# openxlsx::write.xlsx(l, file = "manual_changes/values_summary.xlsx")
+  openxlsx::write.xlsx(l, file = "manual_changes/values_summary.xlsx")
+}
 ```
+
+## inconsistent values between views and codebook
+
+:::{.panel-tabset}
+
+### households
+
+```{r}
+get_inconsist <- function(compare_values){
+  var_list <- compare_values %>%
+    filter(is.na(label) & !is.na(label_view)) %>%
+    distinct(variable)
+  return(compare_values %>% filter(variable %in% var_list$variable))
+}
+
+get_inconsist(compare_values_hh)
+```
+
+
+### persons
+
+```{r}
+
+get_inconsist(compare_values_person)
+```
+
+### days
+
+```{r}
+
+get_inconsist(compare_values_day)
+```
+
+### trips
+
+```{r}
+
+get_inconsist(compare_values_trip)
+```
+
+### vehicles
+
+```{r}
+
+get_inconsist(compare_values_vehicle)
+```
+:::
+
+
 
