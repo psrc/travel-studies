@@ -28,6 +28,7 @@ PSRC and RSG have built a new package called travelSurveyTools to work with trav
 # devtools::install_github('rsgInc/travelSurveyTools') 
 # devtools::install_github('psrc/psrcelmer')
 # devtools::install_github('psrc/psrcplot')
+devtools::install_github('psrc/psrc.travelsurvey')
 
 library(data.table)
 library(stringr)
@@ -37,6 +38,7 @@ library(dplyr)
 library(psrcplot)
 library(tidyverse)
 library(table1)
+library(psrc.travelsurvey)
 # source('../survey-23-preprocess.R')
 source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
 ```
@@ -54,31 +56,27 @@ setDT(value_labels)
 
 ## Read in Data from Elmer
 ```{r }
-# hh<- get_query(sql= "select  household_id as hh_id,
-#                res_dur, prev_home_wa, vehicle_count, numadults, hhincome_detailed,
-#                hhincome_broad,survey_year, prev_home_tract20,
-#                prev_rent_own, rent_own, prev_res_type, res_type, hh_weight, hhsize
-#                 from HHSurvey.v_households_labels")
+hh<- get_query(sql= "select  household_id as hh_id, hh_race_category, hh_weight, survey_year
+                from HHSurvey.v_households_labels")
 
-person<- get_query(sql= "select household_id as hh_id, race_category,
+person<- get_query(sql= "select household_id as hh_id, race_category, survey_year,
                    race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_other_specify, race_white,
                    ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999, ethnicity_other,
-                   race_category_2023, race_category_2023_b, race_category_2023_c,
-                   person_id, survey_year, person_weight, gender, age
+                   person_id, person_weight, gender, age
                    from HHSurvey.v_persons_labels")
                 
-# setDT(hh)
+setDT(hh)
 setDT(person)
 ```
 
 ## Set IDs as characters
 ```{r}
 
-# hh[, hh_id:=as.character(hh_id)]
+hh[, hh_id:=as.character(hh_id)]
 person[, hh_id:=as.character(hh_id)]
 person[, person_id := as.character(person_id)]
 
-# hh <- hh%>%mutate(survey_year=as.character(survey_year))
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
 person <- person%>%mutate(survey_year=as.character(survey_year))
 ```
 
@@ -108,14 +106,22 @@ adult <- person %>%
 # nrow(adult) #21492
 # length(unique(adult$person_id)) #21492 - just to check
 
-unique(person$race_category_2023)
-table(person$race_category_2023, person$age)
+# check <- adult %>% 
+#   filter(hh_id=="23226964")
+unique(person$race_category)
+table(person$race_category, person$age)
 
 # unique(adult$race_other_specify) #checking 'other' responses
 # length(unique(adult$race_other_specify)) #99 people who selected 'other' 
 
 adult_23 <- adult %>% 
   filter(survey_year=="2023") #5931 - to know how many respondents total
+
+# some_other <- adult_23  %>% 
+#   filter(race_category=="Some Other Race non-Hispanic")
+check_race_eth <- adult_23 %>%
+  filter(ethnicity_999=="Selected",
+         race_noanswer=="Selected")
 ```
 
 # Person Race and Ethnicity
@@ -138,7 +144,7 @@ person_id_multiple_23_race <- adult_pivot_race_select %>%
 
 # nrow(person_id_multiple_23_race) #22056
 table(person_id_multiple_23_race$n)
-table1(~race_category_2023_c, data=adult_23)
+table1(~race_category, data=adult_23)
 ```
 
 ```{r, include = FALSE, eval=FALSE}
@@ -666,17 +672,17 @@ not_eth1_race
 
 ### Spot checking race category designations
 ```{r, include=FALSE, eval=FALSE}
-table(adult_23$race_category_2023_c)
-table1(~race_category_2023_c, data = adult_23)
+table(adult_23$race_category)
+table1(~race_category, data = adult_23)
 
 no_missing_race_cat_2023_b <- adult_23 %>% 
-  filter(race_category_2023_c!="Missing/No response")
-table1(~race_category_2023_c, data = no_missing_race_cat_2023_b)
+  filter(race_category!="Missing/No response")
+table1(~race_category, data = no_missing_race_cat_2023_b)
 
 # spot check - random sample
 check_df <- adult_23 %>% 
   dplyr::select(-c(hh_id, race_category, survey_year, person_weight, 
-                   gender, age, race_category_2023, race_category_2023_b,  
+                   gender, age,  
                    race_other_specify, ethnicity_other)) %>% 
   dplyr::sample_frac(size=0.005) 
 
@@ -685,7 +691,7 @@ check_df[check_df== 'Not Selected' | #to account for race categories
 
 # hapi_check <- adult_23 %>% 
 #   dplyr::select(-c(hh_id, race_category, survey_year, person_weight, 
-#                    gender, age, race_category_2023, 
+#                    gender, age, 
 #                    race_other_specify, ethnicity_other)) %>%
 #   dplyr::filter(race_hapi=="Selected" & race_asian=="Selected")
 #   dplyr::sample_frac(size=0.5)
@@ -700,7 +706,7 @@ check_df[check_df== 'Not Selected' | #to account for race categories
 
 check_df_ids <- adult_23 %>% 
   dplyr::select(-c(hh_id, race_category, survey_year, person_weight, 
-                   gender, age, race_category_2023,  
+                   gender, age, race_category,  
                    race_other_specify, ethnicity_other)) %>% 
   dplyr::filter(person_id=="2301887102")
 
@@ -709,21 +715,21 @@ check_df_ids <- adult_23 %>%
 missing_norace_eth <- adult_23 %>% 
   filter(ethnicity_2=="Selected",
          race_noanswer=="Selected") %>% #30 select ethnicity_2, but do provide race
-  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category_2023_c, person_id)
+  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category, person_id)
 # 2 cases when race_noanswer and ethnicity_3 were selected and was grouped as Hispanic, person_id=2334480902, 2335237701 
 # 2 cases when race_noanswer and ethnicity_997 were selected and was grouped as Hispanic, person_id=2334480902, 2315385501   
 missing_norace_eth <- adult_23 %>% 
   filter(ethnicity_1!="Selected",
          ethnicity_999!="Selected",
          race_noanswer=="Selected") %>% #30 select ethnicity_2, but do provide race
-  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category_2023_c, person_id)
+  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category, person_id)
 
 # THIRD CHECK -------------------------------------------
 # case when race_white and ethnicity_999 were selected and was grouped as missing/no response, but should be white? person_id=2302993902, 2334376002, 2324371402, 2316054601, 2324640701
 white_999 <- adult_23 %>% 
   filter(race_white=="Selected",
          ethnicity_999=="Selected") %>% #124
-  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category_2023_c, person_id)
+  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category, person_id)
 
 # 838 missing/no response ---
 # looking into overlap between `race_noanswer` and `ethnicity_999`
@@ -731,11 +737,11 @@ white_999 <- adult_23 %>%
 missing_eth <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_noanswer!="Selected") %>% #235 don't provide ethnicity, but do provide race
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id)
+  dplyr::select(race_afam:race_white, race_category, person_id)
 
 # how many of that group was classified as "Missing/No response" but had a race chosen?
 missing_eth_999 <- missing_eth %>% 
-  filter(race_category_2023_c=="Missing/No response") #119
+  filter(race_category=="Missing/No response") #119
 table(missing_eth_999$race_white) #119
 
 # looking into each race -----
@@ -743,35 +749,35 @@ table(missing_eth_999$race_white) #119
 missing_eth_afam <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_afam=="Selected") %>% #13
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id, ethnicity_999)
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
 # person_id = 2322282101 selected ethnicity_999, but was categorized as 2+ races (selected afam, aiak, white) 
 
 # table1(~race_asian, data=missing_eth) #88 asian
 missing_eth_asian <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_asian=="Selected") %>% #88
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id, ethnicity_999)
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
 # person_id = 2315970702 selected ethnicity_999, but was categorized as 2+ races (asian, hapi, other)
 
 # table1(~race_aiak, data=missing_eth) #3 aiak
 missing_eth_aiak <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_aiak=="Selected") %>% #3
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id, ethnicity_999)
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
 # person_id = 2322282101 selected ethnicity_999, but was categorized as 2+ races (selected afam, aiak, white) 
 
 # table1(~race_hapi, data=missing_eth) #5 hapi
 missing_eth_hapi <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_hapi=="Selected") %>% #5
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id, ethnicity_999)
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
 # person_id = 2315970702 selected ethnicity_999, but was categorized as 2+ races (asian, hapi, other)
 
 # table1(~race_white, data=missing_eth) #124 white
 missing_eth_white <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_white=="Selected") %>% #124
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id, ethnicity_999)
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
 # person_id = 2322282101 selected ethnicity_999, but was categorized as 2+ races (selected afam, aiak, white) 
 # person_id = 2304197102 selected white and ethnicity_999, but was categorized as other
 
@@ -779,10 +785,10 @@ missing_eth_white <- adult_23 %>%
 missing_eth_other <- adult_23 %>% 
   filter(ethnicity_999=="Selected", #776
          race_other=="Selected") %>% #8
-  dplyr::select(race_afam:race_white, race_category_2023_c, person_id, ethnicity_999)
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
 # person_id = 2315970702 selected ethnicity_999, but was categorized as 2+ races (asian, hapi, other)
 
-table1(~race_category_2023_c, data=missing_eth) # mistake - shouldn't have any race categories other than 'missing/no response' because ethnicity_999 was selected for this subgroup of 235 people
+table1(~race_category, data=missing_eth) # mistake - shouldn't have any race categories other than 'missing/no response' because ethnicity_999 was selected for this subgroup of 235 people
 
 # how many people identify as race_noanswer but provide ethnicity
 missing_race <- adult_23 %>% 
@@ -798,17 +804,17 @@ missing_both <- adult_23 %>%
   filter(ethnicity_999=="Selected",
          race_noanswer=="Selected") #541
 
-# table1(~race_category_2023_c, data=missing_both) #to check - result as expected
+# table1(~race_category, data=missing_both) #to check - result as expected
 ```
 
-# race_category_2023_c
+# race_category_2023_c > race_category
 ## Person Race > Household Race 
 ### By size
 The new person race variable: 'race_category_2023' and 'race_category_2023_b'
 ```{r}
-# table(adult_23$race_category_2023)
+# table(adult_23$race_category)
 adult_23_simp <- adult_23 %>% 
-  select(hh_id, person_id, race_category_2023_c, age) 
+  select(hh_id, person_id, race_category, age) 
 
 hh_id_multiple_23_prace <- adult_23_simp %>% 
   group_by(hh_id) %>% dplyr::summarise(n_members=n()) #count how many people per hh - total hh is 3661, total people is 5931
@@ -825,7 +831,7 @@ table1(~as.factor(n_members), data=hh_id_multiple_23_prace)
 combined <- adult_23_simp %>% 
   right_join(hh_id_multiple_23_prace, by = ("hh_id"))
 
-updated_race_list <- (unique(combined$race_category_2023))
+updated_race_list <- (unique(combined$race_category))
 ```
 
 ```{r, include=FALSE, eval=FALSE}
@@ -836,7 +842,7 @@ hh_2people <- combined %>%
 
 hh_2people_wider <- combined %>% 
   filter(n_members==2) %>% 
-  pivot_wider(names_from = race_category_2023_c, values_from = n_members, values_fill = 0) %>% 
+  pivot_wider(names_from = race_category, values_from = n_members, values_fill = 0) %>% 
   group_by(hh_id) %>% dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
   rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
   group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(n)) %>% 
@@ -853,7 +859,7 @@ count_combination_prace <- function(n){
     filter(n_members==n) 
   
   pivot <- temp %>% 
-    pivot_wider(names_from = race_category_2023_c, values_from = n_members, values_fill = 0) %>% 
+    pivot_wider(names_from = race_category, values_from = n_members, values_fill = 0) %>% 
     group_by(hh_id) %>% dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
     rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
     group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(n)) 
@@ -915,13 +921,13 @@ combined
 updated_race_list
 
 combined_race_number <- combined %>% 
-  dplyr::mutate(race_num=case_when(race_category_2023_c=="White non-Hispanic"~1,
-                                   race_category_2023_c=="Hispanic"~2,
-                                   race_category_2023_c=="Black or African American non-Hispanic"~3,
-                                   race_category_2023_c=="Asian non-Hispanic"~4,
-                                   race_category_2023_c=="Some Other Race non-Hispanic"~5,
-                                   race_category_2023_c=="Two or More Races non-Hispanic"~6,
-                                   race_category_2023_c=="Missing/No response"~7))
+  dplyr::mutate(race_num=case_when(race_category=="White non-Hispanic"~1,
+                                   race_category=="Hispanic"~2,
+                                   race_category=="Black or African American non-Hispanic"~3,
+                                   race_category=="Asian non-Hispanic"~4,
+                                   race_category=="Some Other Race non-Hispanic"~5,
+                                   race_category=="Two or More Races non-Hispanic"~6,
+                                   race_category=="Missing/No response"~7))
 
 hh_race_num <- combined_race_number %>% 
   group_by(hh_id) %>% 
@@ -938,13 +944,13 @@ table1(~hh_grouping|n_members, data=join)
 #### All people
 ```{r}
 all_people <- combined %>% 
-  dplyr::mutate(person_cat=case_when(race_category_2023_c=="Black or African American non-Hispanic"~"African American",
-                                 race_category_2023_c=="Asian non-Hispanic"~"AANHPI",
-                                 race_category_2023_c=="Hispanic"~"Hispanic",
-                                 race_category_2023_c=="Missing/No response"~"Missing",
-                                 race_category_2023_c=="White non-Hispanic"~"White",
-                                 race_category_2023_c=="Some Other Race non-Hispanic" |
-                                   race_category_2023_c=="Two or More Races non-Hispanic"~"Other"))
+  dplyr::mutate(person_cat=case_when(race_category=="Black or African American non-Hispanic"~"African American",
+                                 race_category=="Asian non-Hispanic"~"AANHPI",
+                                 race_category=="Hispanic"~"Hispanic",
+                                 race_category=="Missing/No response"~"Missing",
+                                 race_category=="White non-Hispanic"~"White",
+                                 race_category=="Some Other Race non-Hispanic" |
+                                   race_category=="Two or More Races non-Hispanic"~"Other"))
 
 table1(~person_cat, data=all_people)
 
@@ -974,7 +980,7 @@ one_person_hh_nonwhite <- join %>%
          hh_grouping == "other") %>% #652
   left_join(combined_race_number, by="hh_id") #652
   
-table1(~race_category_2023_c, data=one_person_hh_nonwhite)
+table1(~race_category, data=one_person_hh_nonwhite)
 ```
 
 ##### More than one-person hh, not just white
@@ -997,14 +1003,14 @@ length(unique(other_hh_race$hh_id)) #960 - confirming that this is the correct n
 #            hh_id==23001700)
 
 pivot <- other_hh_race %>% 
-  pivot_wider(names_from = race_category_2023_c, values_from = n_members.x, values_fill = 0) %>% 
+  pivot_wider(names_from = race_category, values_from = n_members.x, values_fill = 0) %>% 
   group_by(hh_id, n_members.y) %>% 
   dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>% 
   rename_with(~ sub("_sum$", "", .x), everything()) #remove suffix 'sum'
 
 twoplus_person_notjustwhite <- pivot %>% 
   group_by(hh_id, n_members.y) %>% 
-  dplyr::summarise(across(any_of(updated_race_list), ~.x/n_members.y))
+  dplyr::summarise(across(any_of(updated_race_list), ~.x/n_members.y)) %>% ungroup()
 ```
 #### Household combinations
 ##### All combinations (with hh size)
@@ -1064,16 +1070,16 @@ all_hh_justwhite_categories <- join_justwhite %>%
 
 ### Non-white, 1 person households
 ```{r}
-# unique(one_person_hh_nonwhite$race_category_2023_c)
-# table(one_person_hh_nonwhite$race_category_2023_c)
+# unique(one_person_hh_nonwhite$race_category)
+# table(one_person_hh_nonwhite$race_category)
 
 oneperson_hh_nonwhite_categories <- one_person_hh_nonwhite %>% 
-  dplyr::mutate(hh_cat=case_when(race_category_2023_c=="Black or African American non-Hispanic"~"African American",
-                                 race_category_2023_c=="Asian non-Hispanic"~"AANHPI",
-                                 race_category_2023_c=="Hispanic"~"Hispanic",
-                                 race_category_2023_c=="Missing/No response"~"Missing",
-                                 race_category_2023_c=="Some Other Race non-Hispanic" |
-                                   race_category_2023_c=="Two or More Races non-Hispanic"~"Other"))
+  dplyr::mutate(hh_cat=case_when(race_category=="Black or African American non-Hispanic"~"African American",
+                                 race_category=="Asian non-Hispanic"~"AANHPI",
+                                 race_category=="Hispanic"~"Hispanic",
+                                 race_category=="Missing/No response"~"Missing",
+                                 race_category=="Some Other Race non-Hispanic" |
+                                   race_category=="Two or More Races non-Hispanic"~"Other"))
 
 # to check
 # table(oneperson_hh_nonwhite_categories$hh_cat)
@@ -1093,18 +1099,20 @@ twoplus_person_nonwhite <- twoplus_person_notjustwhite %>%
                                    `White non-Hispanic`>0~"African American",
                                  `Asian non-Hispanic`>0 |
                                    `Asian non-Hispanic`>0 &
-                                   `White non-Hispanic`>0~"AANHPI",
-                                 TRUE ~ "Other")) %>% 
+                                   `White non-Hispanic`>0 ~"AANHPI",
+                                 `Some Other Race non-Hispanic`>0 | 
+                                   `Two or More Races non-Hispanic`>0 ~ "Other")) %>% 
   dplyr::select(hh_id, hh_cat)
 
-length(unique(twoplus_hh_nonwhite$hh_id)) #960 - households
+length(unique(twoplus_person_nonwhite$hh_id)) #960 - households
 nrow(twoplus_person_nonwhite) #960 - persons
 
+
 # getting data in same format as other data sets
-colnames(twoplus_hh_nonwhite)
+colnames(twoplus_person_nonwhite)
 colnames(other_hh_race)
 
-twoplus_hh_nonwhite_categories <- twoplus_hh_nonwhite %>% 
+twoplus_hh_nonwhite_categories <- twoplus_person_nonwhite %>% 
   inner_join(other_hh_race, by=c('hh_id'), multiple="first") #join to base data to keep all fields but at hh level - 960
 ```
 
@@ -1130,7 +1138,7 @@ all_hh <- all_hh_extra %>%
 ```{r}
 table1(~ hh_cat, data=all_hh)
 table1(~ hh_cat| n_members.x, data=all_hh)
-# table1(~ hh_cat| race_category_2023_c, data=all_hh)
+# table1(~ hh_cat| race_category, data=all_hh)
 ```
 
 #### Without Missing
@@ -1141,5 +1149,77 @@ all_hh_nomissing <- all_hh %>%
 
 table1(~ hh_cat, data=all_hh_nomissing)
 table1(~ hh_cat| n_members.x, data=all_hh_nomissing)
-# table1(~ hh_cat| race_category_2023_c, data=all_hh_nomissing)
+# table1(~ hh_cat| race_category_c, data=all_hh_nomissing)
+```
+
+### Spot checking hh race category designations
+```{r}
+# need to look at household view for 2023 data
+hh_2023 <- hh %>% 
+  dplyr::filter(survey_year=="2023")
+
+table1(~hh_race_category, data = hh_2023)
+table1(~ hh_cat, data=all_hh) #checking against my manually coded categorizations
+# Both tables include 3,661 which is a good initial check
+# Missing and Non-hispanic white include the same numbers: 434 and 2049
+# African American, Asian, Hispanic, and Other values are slightly off
+
+
+
+# check
+hispanic_1hh_check <- oneperson_hh_nonwhite_categories %>% 
+  dplyr::filter(hh_cat=="Hispanic") #117
+hispanic_hh_check <- twoplus_person_notjustwhite %>% 
+  dplyr::filter(Hispanic>0) #171
+
+
+# check rows
+# join hh data with person level data - one person hh and 2+ person hh
+hh_1person_2023 <- one_person_hh_nonwhite %>% 
+  left_join(hh_2023, by="hh_id") #652
+hh_2person_2023 <- twoplus_person_notjustwhite %>% 
+  left_join(hh_2023, by="hh_id") #960
+# correct number of columns when added with just white
+
+# check 1 person hh - make sure the race_category aligns with the hh raca
+table(hh_1person_2023$race_category, hh_1person_2023$hh_race_category)
+
+# check 2 person hh - make sure the race_categories align with the hh_race_category
+check_df_2person <- hh_2person_2023 %>% 
+  dplyr::select(c(-survey_year, -n_members.y)) %>%
+  dplyr::sample_frac(size=0.04) 
+
+check_df_2person
+```
+
+### Weighted hh_race_category
+```{r}
+table1(~hh_race_category, data=hh_2023)
+
+# RSG function
+summary_hh_race <-  hts_summary(
+  prepped_dt = hh_2023,
+  summarize_var = "hh_race_category",
+  summarize_vartype = "categorical",
+  wtname = "hh_weight",
+  weighted = TRUE,
+  se=TRUE)
+
+hts_data=list(hh=hh)
+hh_race<- summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'hh_race_category',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hh_id'),
+                               wt_cols=c('hh_weight'),
+                               wtname= 'hh_weight'
+                               )
+
+
+# using PSRC package -- not working
+hts_data <- get_psrc_hts(survey_vars = c("hh_race_category"))  # default includes all survey_years
+# Calculate a categorical summary, i.e. count/share
+rs2 <- psrc_hts_stat(hts_data, "household", c("hh_race_category"))
+
+dplyr::select(rs2[survey_year==2023], 
+                   -c(survey_year))
 ```
