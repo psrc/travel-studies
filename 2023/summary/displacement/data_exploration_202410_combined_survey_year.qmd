@@ -83,6 +83,9 @@ vars <- c(
 
 # Retrieve the data
 hts_data <- get_psrc_hts(survey_vars = vars)  # default includes all survey_years
+
+# For calculating moe
+z_score<-1.645
 ```
 
 The survey instrument is here: J:/Projects/Surveys/HHTravel/Survey2023/Documents/Survey_Instrument/Puget_Sound_HTS_Questionnaire_2023_Final.docx
@@ -194,12 +197,12 @@ To identify displacement, respondents were asked about their reasons for moving.
 
 ```{r}
 # unique(hts_data$hh$res_dur)
-
 hts_data$hh <- hts_data$hh %>% 
   mutate(movers=case_when(res_dur=="Less than a year" |
                             res_dur=="Between 1 and 2 years" | 
                             res_dur=="Between 2 and 3 years" |
-                            res_dur=="Between 3 and 5 years" ~ 'Did move',
+                            res_dur=="Between 3 and 5 years"
+                          ~ 'Did move',
                           res_dur=="Missing Response" ~ 'No response',
                           TRUE ~ 'Did not move'),
          displaced=case_when(prev_res_factors_forced=='Selected'|
@@ -208,7 +211,44 @@ hts_data$hh <- hts_data$hh %>%
                                prev_res_factors_community_change=='Selected'~ 'Displaced',
                              TRUE~'Not displaced'))
 
-table(hts_data$hh$movers, hts_data$hh$survey_year)
+table(hts_data$hh$movers, hts_data$hh$displaced)
+
+# There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
+
+hts_data$hh <- hts_data$hh %>%
+  filter(movers != "Did not move")
+
+# to check
+table(hts_data$hh$movers, hts_data$hh$displaced)
+table(hts_data$hh$movers, hts_data$hh$res_dur)
+table(hts_data$hh$res_dur, hts_data$hh$displaced)
+```
+
+### Less than 2 years
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  mutate(movers=case_when(res_dur=="Less than a year" |
+                            res_dur=="Between 1 and 2 years" #| 
+                          # res_dur=="Between 2 and 3 years" |
+                          # res_dur=="Between 3 and 5 years" 
+                          ~ 'Did move',
+                          res_dur=="Missing Response" ~ 'No response',
+                          TRUE ~ 'Did not move'),
+         displaced=case_when(prev_res_factors_forced=='Selected'|
+                               prev_res_factors_income_change=='Selected'|
+                               prev_res_factors_housing_cost =='Selected'|
+                               prev_res_factors_community_change=='Selected'~ 'Displaced',
+                             TRUE~'Not displaced'))
+
+# There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
+
+hts_data$hh <- hts_data$hh %>%
+  filter(movers != "Did not move")
+
+# to check
+table(hts_data$hh$movers, hts_data$hh$displaced)
+table(hts_data$hh$movers, hts_data$hh$res_dur)
+table(hts_data$hh$res_dur, hts_data$hh$displaced)
 ```
 
 Some of these movers came from out of the state or country
@@ -225,7 +265,7 @@ hts_data$hh <- hts_data$hh %>%
    filter(prev_home_wa=="Yes, previous home was in Washington")
 ```
 
-Based on a denominator of 1286 in 2023, we can look at displacement.
+Based on a denominator of 1276 in 2023, we can look at displacement.
 
 ```{r}
 table(hts_data$hh$displaced, hts_data$hh$survey_year)
@@ -267,8 +307,6 @@ table(hts_data$hh$prev_res_factors_other, hts_data$hh$survey_year)
 
 ## Household Race
 
-### 2023
-
 #### All races
 
 AANHIPI non-Hispanic, Black or African American non-Hispanic, Hispanic, Missing/No response, Some Other Races non-Hispanic, White non-Hispanic
@@ -279,35 +317,32 @@ The prop field is weighted and matches the estimate.
 # unique(hts_data$hh$hh_race_category)
 # table(hts_data$hh$hh_race_category)
 
-# Calculate a categorical summary, i.e. count/share
-disp_allrace <- psrc_hts_stat(hts_data, 
-                              analysis_unit="hh", 
-                              group_vars=c("hh_race_category", "displaced"))
-focus_year <- 2023
+# add new variable
+variable_list<-add_variable(variable_list, 'displaced','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
-# view data
-head(dplyr::select(disp_allrace[survey_year==focus_year],
-                   -c(survey_year)))
+hta_data_all <- list(hh=hts_data$hh)
+
+# Calculate a categorical summary, i.e. count/share
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('hh_race_category'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
+
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
+
 
 # create chart
-static_column_chart(filter(disp_allrace, survey_year == focus_year, 
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "hh_race_category", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
+                    title = "Displacement by Household Race (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-
-static_line_chart(filter(disp_allrace, 
-                           displaced=="Displaced"),
-                    x = "survey_year", y = "prop", fill = "hh_race_category",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -330,21 +365,31 @@ hts_data$hh <- mutate(hts_data$hh,
 # unique(hts_data$hh$hh_race_category_4)
 # table(hts_data$hh$hh_race_category_4)
 
-# Calculate a categorical summary, i.e. count/share
-disp_4race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_4", "displaced"))
+# add new variable
+variable_list<-add_variable(variable_list, 'hh_race_category_4','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
-# view data
-head(dplyr::select(disp_4race[survey_year==focus_year],
-                   -c(survey_year)))
+hta_data_all <- list(hh=hts_data$hh)
+
+# Calculate a categorical summary, i.e. count/share
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('hh_race_category_4'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
+
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
+
 
 # create chart
-static_column_chart(filter(disp_4race, survey_year == focus_year, 
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "hh_race_category_4", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
+                    title = "Displacement by Household Race (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -369,21 +414,31 @@ hts_data$hh <- mutate(hts_data$hh,
 # unique(hts_data$hh$hh_race_category_3)
 table(hts_data$hh$hh_race_category_3)
 
-# Calculate a categorical summary, i.e. count/share
-disp_3race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_3", "displaced"))
+# add new variable
+variable_list<-add_variable(variable_list, 'hh_race_category_3','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
-# view data
-head(dplyr::select(disp_3race[survey_year==focus_year],
-                   -c(survey_year)))
+hta_data_all <- list(hh=hts_data$hh)
+
+# Calculate a categorical summary, i.e. count/share
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('hh_race_category_3'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
+
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
+
 
 # create chart
-static_column_chart(filter(disp_3race, survey_year == focus_year, 
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "hh_race_category_3", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
+                    title = "Displacement by Household Race (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -409,21 +464,31 @@ hts_data$hh <- mutate(hts_data$hh,
 # unique(hts_data$hh$hh_race_category_2)
 # table(hts_data$hh$hh_race_category_2)
 
-# Calculate a categorical summary, i.e. count/share
-disp_2race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_2", "displaced"))
+# add new variable
+variable_list<-add_variable(variable_list, 'hh_race_category_2','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
-# view data
-head(dplyr::select(disp_2race[survey_year==focus_year],
-                   -c(survey_year)))
+hta_data_all <- list(hh=hts_data$hh)
+
+# Calculate a categorical summary, i.e. count/share
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('hh_race_category_2'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
+
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
+
 
 # create chart
-static_column_chart(filter(disp_2race, survey_year == focus_year, 
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "hh_race_category_2", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
+                    title = "Displacement by Household Race (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -433,279 +498,6 @@ static_column_chart(filter(disp_2race, survey_year == focus_year,
                     )
 ```
 
-### 2021
-
-#### All races
-
-AANHIPI non-Hispanic, Black or African American non-Hispanic, Hispanic, Missing/No response, Some Other Races non-Hispanic, White non-Hispanic
-
-The prop field is weighted and matches the estimate.
-
-```{r}
-# unique(hts_data$hh$hh_race_category)
-# table(hts_data$hh$hh_race_category)
-
-# Calculate a categorical summary, i.e. count/share
-disp_allrace <- psrc_hts_stat(hts_data, 
-                              analysis_unit="hh", 
-                              group_vars=c("hh_race_category", "displaced"))
-
-focus_year <- 2021
-
-# view data
-head(dplyr::select(disp_allrace[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_allrace, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-#### 4 races
-
-AANHPI non-Hispanic, Hispanic, Missing/No response, Other POC non-Hispanic, White non-Hispanic
-
-```{r}
-# checking numbers
-# unique(hts_data$hh$hh_race_category_4)
-# table(hts_data$hh$hh_race_category_4)
-
-# Calculate a categorical summary, i.e. count/share
-disp_4race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_4", "displaced"))
-
-# view data
-head(dplyr::select(disp_4race[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_4race, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category_4", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-#### 3 races
-
-AANHPI non-Hispanic, Missing/No response, Non-Asian POC, White non-Hispanic
-
-```{r}
-# checking numbers
-# unique(hts_data$hh$hh_race_category_3)
-# table(hts_data$hh$hh_race_category_3)
-
-# Calculate a categorical summary, i.e. count/share
-disp_3race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_3", "displaced"))
-
-# view data
-head(dplyr::select(disp_3race[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_3race, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category_3", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-#### 2 races
-
-People of Color, Missing/No response, White non-Hispanic
-
-```{r}
-# checking numbers
-# unique(hts_data$hh$hh_race_category_2)
-# table(hts_data$hh$hh_race_category_2)
-
-# Calculate a categorical summary, i.e. count/share
-disp_2race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_2", "displaced"))
-
-# view data
-head(dplyr::select(disp_2race[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_2race, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category_2", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-### 2019
-
-#### All races
-
-AANHIPI non-Hispanic, Black or African American non-Hispanic, Hispanic, Missing/No response, Some Other Races non-Hispanic, White non-Hispanic
-
-The prop field is weighted and matches the estimate.
-
-```{r}
-# unique(hts_data$hh$hh_race_category)
-# table(hts_data$hh$hh_race_category)
-
-# Calculate a categorical summary, i.e. count/share
-disp_allrace <- psrc_hts_stat(hts_data, 
-                              analysis_unit="hh", 
-                              group_vars=c("hh_race_category", "displaced"))
-
-focus_year <- 2019
-
-# view data
-head(dplyr::select(disp_allrace[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_allrace, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-#### 4 races
-
-AANHPI non-Hispanic, Hispanic, Missing/No response, Other POC non-Hispanic, White non-Hispanic
-
-```{r}
-# checking numbers
-# unique(hts_data$hh$hh_race_category_4)
-# table(hts_data$hh$hh_race_category_4)
-
-# Calculate a categorical summary, i.e. count/share
-disp_4race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_4", "displaced"))
-
-# view data
-head(dplyr::select(disp_4race[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_4race, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category_4", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-#### 3 races
-
-AANHPI non-Hispanic, Missing/No response, Non-Asian POC, White non-Hispanic
-
-```{r}
-# checking numbers
-# unique(hts_data$hh$hh_race_category_3)
-# table(hts_data$hh$hh_race_category_3)
-
-# Calculate a categorical summary, i.e. count/share
-disp_3race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_3", "displaced"))
-
-# view data
-head(dplyr::select(disp_3race[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_3race, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category_3", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
-
-#### 2 races
-
-People of Color, Missing/No response, White non-Hispanic
-
-```{r}
-# checking numbers
-# unique(hts_data$hh$hh_race_category_2)
-# table(hts_data$hh$hh_race_category_2)
-
-# Calculate a categorical summary, i.e. count/share
-disp_2race <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hh_race_category_2", "displaced"))
-
-# view data
-head(dplyr::select(disp_2race[survey_year==focus_year],
-                   -c(survey_year)))
-
-# create chart
-static_column_chart(filter(disp_2race, survey_year == focus_year, 
-                           displaced=="Displaced"),
-                    x = "hh_race_category_2", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 20),
-                      axis.title.x = element_text(size = 20),
-                      plot.title = element_text(size = 24)
-                    )
-```
 
 ### Checking with previous reports
 
@@ -752,23 +544,31 @@ table(hts_data$hh$prev_res_factors_other, hts_data$hh$survey_year)
 unique(hts_data$hh$hhsize) #13 options
 unique(hts_data$hh$hhsize_bin4) #standard groupings: 4 options
 
+# add new variable
+variable_list<-add_variable(variable_list, 'hhsize_bin4','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_hhsize <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("hhsize_bin4", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('hhsize_bin4'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_hhsize[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_hhsize, survey_year == focus_year, , 
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "hhsize_bin4", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Household size", 
-                    title = paste0("Displacement by Household Size (", focus_year, ")"),
+                    ylabel = "% of respondents", xlabel = "Household Size", 
+                    title = "Displacement by Household Size (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -793,24 +593,31 @@ hts_data$hh <- mutate(hts_data$hh,
 unique(hts_data$hh$numchildren_simp)
 table(hts_data$hh$numchildren_simp)
 
+# add new variable
+variable_list<-add_variable(variable_list, 'numchildren_simp','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_children <- psrc_hts_stat(hts_data, 
-                                  analysis_unit="hh", 
-                                  group_vars=c("numchildren_simp", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('numchildren_simp'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_children[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_children, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "numchildren_simp", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Number of Children", 
-                    title = paste0("Displacement by Number of Children (", focus_year, ")"),
+                    title = "Displacement by Number of Children (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -828,24 +635,31 @@ static_column_chart(filter(disp_children,
 # unique(hts_data$hh$hhincome_bin3) #standard groupings
 unique(hts_data$hh$hhincome_bin5) #standard groupings
 
+# add new variable
+variable_list<-add_variable(variable_list, 'hhincome_bin5','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_inc <- psrc_hts_stat(hts_data, 
-                          analysis_unit="hh", 
-                          group_vars=c("hhincome_bin5", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('hhincome_bin5'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_inc[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_inc, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
-                    x = "displaced", y = "prop", fill = "hhincome_bin5",
+                    x = "hhincome_bin5", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household Income", 
-                    title = paste0("Displacement by Household Income (", focus_year, ")"),
+                    title = "Displacement by Household Income (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -862,24 +676,31 @@ static_column_chart(filter(disp_inc,
 
 # unique(hts_data$hh$vehicle_count_bin4) #standard groupings
 
+# add new variable
+variable_list<-add_variable(variable_list, 'vehicle_count_bin4','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_veh <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("vehicle_count_bin4", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('vehicle_count_bin4'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_veh[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_veh, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "vehicle_count_bin4", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Number of Vehicles", 
-                    title = paste0("Displacement by Household Vehicles (", focus_year, ")"),
+                    title = "Displacement by Household Vehicle Count (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -912,24 +733,31 @@ table(edu_person$edu_hh_max)
 hts_data$hh <- hts_data$hh %>% 
   right_join(edu_person, by="hh_id")
 
+# add new variable
+variable_list<-add_variable(variable_list, 'edu_hh_max','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_edu <- psrc_hts_stat(hts_data, 
-                            analysis_unit="hh", 
-                            group_vars=c("edu_hh_max", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('edu_hh_max'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_edu[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_edu, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "edu_hh_max", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Education Attainment", 
-                    title = paste0("Displacement by Household's Highest Education (", focus_year, ")"),
+                    title = "Displacement by Household's Highest Education (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -975,25 +803,31 @@ check <- hts_data$hh %>%
   filter(adult_workers=="More workers")
 
 
+# add new variable
+variable_list<-add_variable(variable_list, 'adult_workers','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_worker <- psrc_hts_stat(hts_data, 
-                             analysis_unit="hh", 
-                             group_vars=c("adult_workers", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('adult_workers'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_worker[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_worker, 
-                           survey_year == focus_year, 
-                           !is.na(adult_workers),
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "adult_workers", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Workers in Household", 
-                    title = paste0("Displacement by Household Employment (", focus_year, ")"),
+                    ylabel = "% of respondents", xlabel = "Employment", 
+                    title = "Displacement by Household Employment (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1023,25 +857,31 @@ hts_data$hh <- mutate(hts_data$hh,
 unique(hts_data$hh$prev_rent_own_bin2)
 table(hts_data$hh$prev_rent_own_bin2, hts_data$hh$survey_year)
 
+# add new variable
+variable_list<-add_variable(variable_list, 'prev_rent_own_bin2','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_prev_tenure <- psrc_hts_stat(hts_data, 
-                                  analysis_unit="hh", 
-                                  group_vars=c("prev_rent_own_bin2", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('prev_rent_own_bin2'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_prev_tenure[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_prev_tenure, 
-                           survey_year == focus_year, 
-                           !is.na(prev_rent_own_bin2),
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "prev_rent_own_bin2", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Previous Housing Tenure", 
-                    title = paste0("Displacement by Previous Housing Tenure (", focus_year, ")"),
+                    title = "Displacement by Previous Housing Tenure (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1049,19 +889,6 @@ static_column_chart(filter(disp_prev_tenure,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
-
-static_facet_column_chart(disp_prev_tenure,
-                          x = "prev_rent_own_bin2", y = "prop", fill = "displaced",
-                          facet="survey_year",
-                          ylabel = "% of respondents", xlabel = "Previous Housing Tenure",
-                          title = "Displacement by Previous Housing Tenure",
-                          moe = "prop_moe", ncol=2, pos="stack") + theme(
-                            axis.text.x = element_text(size = 14),
-                            axis.text.y = element_text(size = 14),
-                            axis.title.y = element_text(size = 20),
-                            axis.title.x = element_text(size = 20),
-                            plot.title = element_text(size = 24)
-                          )
 ```
 
 ### Current
@@ -1072,25 +899,31 @@ static_facet_column_chart(disp_prev_tenure,
 # unique(hts_data$hh$rent_own_bin2) #standard groupings
 table(hts_data$hh$rent_own_bin2, hts_data$hh$survey_year)
 
+# add new variable
+variable_list<-add_variable(variable_list, 'rent_own_bin2','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_current_tenure <- psrc_hts_stat(hts_data, 
-                                  analysis_unit="hh", 
-                                  group_vars=c("rent_own_bin2", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('rent_own_bin2'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_current_tenure[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_current_tenure, 
-                           survey_year == focus_year, 
-                           !is.na(rent_own_bin2),
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "rent_own_bin2", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Current Housing Tenure", 
-                    title = paste0("Displacement by Housing Tenure (", focus_year, ")"),
+                    ylabel = "% of respondents", xlabel = "Current Tenure", 
+                    title = "Displacement by Current Tenure (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1098,19 +931,6 @@ static_column_chart(filter(disp_current_tenure,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
-
-static_facet_column_chart(disp_current_tenure,
-                          x = "rent_own_bin2", y = "prop", fill = "displaced",
-                          facet="survey_year",
-                          ylabel = "% of respondents", xlabel = "Current Housing Tenure",
-                          title = "Displacement by Housing Tenure",
-                          moe = "prop_moe", ncol=2, pos="stack") + theme(
-                            axis.text.x = element_text(size = 14),
-                            axis.text.y = element_text(size = 14),
-                            axis.title.y = element_text(size = 20),
-                            axis.title.x = element_text(size = 20),
-                            plot.title = element_text(size = 24)
-                          )
 ```
 
 ### Transition
@@ -1129,27 +949,31 @@ hts_data$hh <- mutate(hts_data$hh,
                                                        TRUE~"No change"))
 
 
+# add new variable
+variable_list<-add_variable(variable_list, 'res_tenure_transition','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_tenure_transition <- psrc_hts_stat(hts_data, 
-                                analysis_unit="hh", 
-                                group_vars=c("res_tenure_transition", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('res_tenure_transition'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-# table(hts_data$hh$res_tenure_transition)
-# table(hts_data$hh$res_tenure_transition, hts_data$hh$survey_year)
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-focus_year <- 2023
-
-# view data
-head(dplyr::select(disp_tenure_transition[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_tenure_transition, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "res_tenure_transition", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Change in Housing Tenure", 
-                    title = paste0("Displacement by Change in Housing Tenure (", focus_year, ")"),
+                    title = "Displacement by Change in Housing Tenure (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1166,24 +990,31 @@ static_column_chart(filter(disp_tenure_transition,
 ```{r}
 unique(hts_data$hh$prev_res_type) #original variables
 
+# add new variable
+# variable_list<-add_variable(variable_list, 'res_tenure_transition','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_prev_type <- psrc_hts_stat(hts_data, 
-                                analysis_unit="hh", 
-                                group_vars=c("prev_res_type", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('prev_res_type'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_prev_type[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_prev_type, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "displaced", y = "prop", fill = "prev_res_type",
-                    ylabel = "% of respondents", xlabel = "Current Housing Type", 
-                    title = paste0("Displacement by Housing Type (", focus_year, ")"),
+                    ylabel = "% of respondents", xlabel = "Previous Housing Type", 
+                    title = "Displacement by Change in Previous Housing Type (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1214,23 +1045,30 @@ To explore how this recategorization aligns with other SES
 ```{r}
 # HOUSING TYPE & RACE (ALL) ----
 
+# add new variable
+variable_list<-add_variable(variable_list, 'prev_res_type_simp','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-raceall_prev_type_simple <- psrc_hts_stat(hts_data, 
-                                          analysis_unit="hh", 
-                                          group_vars=c("prev_res_type_simp","hh_race_category"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'prev_res_type_simp',
+                             summarize_by = c('hh_race_category'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(raceall_prev_type_simple[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(raceall_prev_type_simple, 
-                           survey_year == focus_year),
+static_column_chart(wtd_sum,
                     x = "prev_res_type_simp", y = "prop", fill = "hh_race_category",
                     ylabel = "% of respondents", xlabel = "Previous Housing Type", 
-                    title = paste0("Previous Housing Type by Race/Ethnicity (", focus_year, ")"),
+                    title = "Previous Housing Type by Race/Ethnicity (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1239,24 +1077,32 @@ static_column_chart(filter(raceall_prev_type_simple,
                       plot.title = element_text(size = 24)
                     )
 
+
 # HOUSING TYPE & INCOME (3 categories) ----
+# add new variable
+variable_list<-add_variable(variable_list, 'hhincome_bin3','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-inc3_prev_type_simple <- psrc_hts_stat(hts_data, 
-                                       analysis_unit="hh", 
-                                       group_vars=c("prev_res_type_simp","hhincome_bin3"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'prev_res_type_simp',
+                             summarize_by = c('hhincome_bin3'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(inc3_prev_type_simple[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(inc3_prev_type_simple, 
-                           survey_year == focus_year),
+static_column_chart(wtd_sum,
                     x = "prev_res_type_simp", y = "prop", fill = "hhincome_bin3",
                     ylabel = "% of respondents", xlabel = "Previous Housing Type", 
-                    title = paste0("Previous Housing Type by Income (", focus_year, ")"),
+                    title = "Previous Housing Type by Income (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1271,24 +1117,30 @@ static_column_chart(filter(inc3_prev_type_simple,
 ```{r}
 unique(hts_data$hh$prev_res_type_simp) #aggregated variable
 
+# add new variable
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_prev_type_simple <- psrc_hts_stat(hts_data, 
-                                       analysis_unit="hh", 
-                                       group_vars=c("prev_res_type_simp", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('prev_res_type_simp'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_prev_type_simple[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_prev_type_simple, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "prev_res_type_simp", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Previous Housing Type", 
-                    title = paste0("Displacement by Previous Housing Type (", focus_year, ")"),
+                    title = "Displacement by Previous Housing Type (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1313,24 +1165,31 @@ hts_data$hh <- mutate(hts_data$hh,
                                                res_type=="Building with 4 or more apartments/condos" ~ "Higher-density shared walls",
                                                TRUE~"Other"))
 
+# add new variable
+variable_list<-add_variable(variable_list, 'res_type_simp','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_type_simple <- psrc_hts_stat(hts_data, 
-                                       analysis_unit="hh", 
-                                       group_vars=c("res_type_simp", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('res_type_simp'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_type_simple[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_type_simple, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "res_type_simp", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Current Housing Type", 
-                    title = paste0("Displacement by Current Housing Type (", focus_year, ")"),
+                    title = "Displacement by Current Housing Type (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1364,24 +1223,31 @@ hts_data$hh <- mutate(hts_data$hh,
 
 table(hts_data$hh$res_type_transition)
 
+# add new variable
+variable_list<-add_variable(variable_list, 'res_type_transition','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_type_transition <- psrc_hts_stat(hts_data, 
-                                      analysis_unit="hh", 
-                                      group_vars=c("res_type_transition", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('res_type_transition'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_type_transition[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_type_transition, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "res_type_transition", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Change in Housing Type", 
-                    title = paste0("Displacement by Change in Housing Type (", focus_year, ")"),
+                    title = "Displacement by Change in Housing Type (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
@@ -1411,32 +1277,38 @@ hts_data$hh <- mutate(hts_data$hh,
 table(hts_data$hh$prev_RGC, hts_data$hh$survey_year)
 table(hts_data$hh$RGC, hts_data$hh$survey_year)
 
+# add new variable
+variable_list<-add_variable(variable_list, 'RGC','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_rgc <- psrc_hts_stat(hts_data, 
-                          analysis_unit="hh", 
-                          group_vars=c("RGC", "res_type_simp", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('RGC'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_rgc[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_rgc, 
-                                 survey_year == focus_year,
-                                 displaced=="Displaced"),
-                          x = "res_type_simp", y = "prop", fill = "RGC",
-                          #facet="RGC", pos="stack",
-                          ylabel = "% of respondents", xlabel = "Home Location", 
-                          title = paste0("Displacement by Location in RGC (", focus_year, ")"),
-                          moe = "prop_moe") + theme(
-                            axis.text.x = element_text(size = 14),
-                            axis.text.y = element_text(size = 14),
-                            axis.title.y = element_text(size = 20),
-                            axis.title.x = element_text(size = 20),
-                            plot.title = element_text(size = 24)
-                          )
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
+                           displaced=="Displaced"),
+                    x = "RGC", y = "prop", fill = "displaced",
+                    ylabel = "% of respondents", xlabel = "Home Location", 
+                    title = "Displacement by Location in RGC (2019, 2021, 2023)",
+                    moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ## Counties
@@ -1445,24 +1317,32 @@ static_column_chart(filter(disp_rgc,
 # unique(hts_data$hh$home_county) #original variables
 # table(hts_data$hh$home_county)
 
+
+# add new variable
+variable_list<-add_variable(variable_list, 'home_county','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
 # Calculate a categorical summary, i.e. count/share
-disp_county <- psrc_hts_stat(hts_data, 
-                          analysis_unit="hh", 
-                          group_vars=c("home_county", "displaced"))
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('home_county'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
 
-focus_year <- 2023
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
 
-# view data
-head(dplyr::select(disp_county[survey_year==focus_year],
-                   -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_county, 
-                           survey_year == focus_year,
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "displaced", y = "prop", fill = "home_county",
                     ylabel = "% of respondents", #xlabel = "Home County", 
-                    title = paste0("Displacement by County (", focus_year, ")"),
+                    title = "Displacement by County (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),

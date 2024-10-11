@@ -194,12 +194,12 @@ To identify displacement, respondents were asked about their reasons for moving.
 
 ```{r}
 # unique(hts_data$hh$res_dur)
-
 hts_data$hh <- hts_data$hh %>% 
   mutate(movers=case_when(res_dur=="Less than a year" |
                             res_dur=="Between 1 and 2 years" | 
                             res_dur=="Between 2 and 3 years" |
-                            res_dur=="Between 3 and 5 years" ~ 'Did move',
+                            res_dur=="Between 3 and 5 years"
+                          ~ 'Did move',
                           res_dur=="Missing Response" ~ 'No response',
                           TRUE ~ 'Did not move'),
          displaced=case_when(prev_res_factors_forced=='Selected'|
@@ -208,7 +208,17 @@ hts_data$hh <- hts_data$hh %>%
                                prev_res_factors_community_change=='Selected'~ 'Displaced',
                              TRUE~'Not displaced'))
 
-table(hts_data$hh$movers, hts_data$hh$survey_year)
+table(hts_data$hh$movers, hts_data$hh$displaced)
+
+# There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
+
+hts_data$hh <- hts_data$hh %>%
+  filter(movers != "Did not move")
+
+# to check
+table(hts_data$hh$movers, hts_data$hh$displaced)
+table(hts_data$hh$movers, hts_data$hh$res_dur)
+table(hts_data$hh$res_dur, hts_data$hh$displaced)
 ```
 
 Some of these movers came from out of the state or country
@@ -225,7 +235,7 @@ hts_data$hh <- hts_data$hh %>%
    filter(prev_home_wa=="Yes, previous home was in Washington")
 ```
 
-Based on a denominator of 1286 in 2023, we can look at displacement.
+Based on a denominator of 1276 in 2023, we can look at displacement.
 
 ```{r}
 table(hts_data$hh$displaced, hts_data$hh$survey_year)
@@ -236,7 +246,9 @@ table(hts_data$hh$displaced, hts_data$hh$survey_year)
 ```
 
 ### Remove 2017 year from data
+
 The 2017 survey did not ask respondents about why they moved, so they cannot be categorized as displaced or not displaced.
+
 ```{r}
 hts_data$hh <- hts_data$hh %>% 
   filter(survey_year!=2017)
