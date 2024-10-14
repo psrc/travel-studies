@@ -33,6 +33,10 @@ library(psrcplot)
 library(tidyverse)
 library(table1)
 library(psrc.travelsurvey)
+
+library(sf) #for regional geographies
+sf_use_s2(FALSE)
+
 source('../survey-23-preprocess.R')
 # source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
 ```
@@ -72,6 +76,7 @@ vars <- c(
   'prev_res_factors_quality', 'prev_res_factors_school', 
   'prev_res_factors_specify', 'prev_res_factors_telework', 
   'hh_race_category',
+  "home_jurisdiction","home_lat","home_lng",
   
   #person-level variables
   'race_category', 'race_afam', 'race_aiak', 'race_asian', 'race_hapi', 
@@ -315,11 +320,12 @@ static_column_chart(filter(disp_allrace, survey_year == focus_year,
                       plot.title = element_text(size = 24)
                     )
 
+# All years
 static_line_chart(filter(disp_allrace, 
                            displaced=="Displaced"),
                     x = "survey_year", y = "prop", fill = "hh_race_category",
                     ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")")) + theme(
+                    title = paste0("Displacement by Household Race")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -358,6 +364,19 @@ static_column_chart(filter(disp_4race, survey_year == focus_year,
                     ylabel = "% of respondents", xlabel = "Household race", 
                     title = paste0("Displacement by Household Race (", focus_year, ")"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_4race, 
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "hh_race_category_4",
+                    ylabel = "% of respondents", xlabel = "Household race", 
+                    title = paste0("Displacement by Household Race")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -403,6 +422,19 @@ static_column_chart(filter(disp_3race, survey_year == focus_year,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_3race,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "hh_race_category_3",
+                    ylabel = "% of respondents", xlabel = "Household race", 
+                    title = paste0("Displacement by Household Race")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 #### 2 races
@@ -435,8 +467,21 @@ static_column_chart(filter(disp_2race, survey_year == focus_year,
                            displaced=="Displaced"),
                     x = "hh_race_category_2", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household race", 
-                    title = paste0("Displacement by Household Race (", focus_year, ")"),
+                    title = paste0("Displacement by Household Race"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_2race,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "hh_race_category_2",
+                    ylabel = "% of respondents", xlabel = "Household race", 
+                    title = paste0("Displacement by Household Race (", focus_year, ")")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -776,12 +821,25 @@ head(dplyr::select(disp_hhsize[survey_year==focus_year],
                    -c(survey_year)))
 
 # create chart
-static_column_chart(filter(disp_hhsize, survey_year == focus_year, , 
+static_column_chart(filter(disp_hhsize, survey_year == focus_year, 
                            displaced=="Displaced"),
                     x = "hhsize_bin4", y = "prop", fill = "displaced",
                     ylabel = "% of respondents", xlabel = "Household size", 
                     title = paste0("Displacement by Household Size (", focus_year, ")"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_hhsize,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "hhsize_bin4",
+                    ylabel = "% of respondents", xlabel = "Household size", 
+                    title = paste0("Displacement by Household Size")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -830,6 +888,19 @@ static_column_chart(filter(disp_children,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_children,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "numchildren_simp",
+                    ylabel = "% of respondents", xlabel = "Number of Children", 
+                    title = paste0("Displacement by Number of Children")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ## Household Income
@@ -865,6 +936,19 @@ static_column_chart(filter(disp_inc,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_inc,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "hhincome_bin5",
+                    ylabel = "% of respondents", xlabel = "Household Income", 
+                    title = paste0("Displacement by Household Income")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ## Number of Vehicles
@@ -893,6 +977,19 @@ static_column_chart(filter(disp_veh,
                     ylabel = "% of respondents", xlabel = "Number of Vehicles", 
                     title = paste0("Displacement by Household Vehicles (", focus_year, ")"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_veh, 
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "vehicle_count_bin4",
+                    ylabel = "% of respondents", xlabel = "Number of Vehicles", 
+                    title = paste0("Displacement by Household Vehicles")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -949,9 +1046,79 @@ static_column_chart(filter(disp_edu,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_edu,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "edu_hh_max",
+                    ylabel = "% of respondents", xlabel = "Education Attainment", 
+                    title = paste0("Displacement by Household's Highest Education")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ## Employment
+
+### Number of workers
+```{r}
+# unique(hts_data$hh$numworkers) #original variables
+# table(hts_data$hh$numworkers)
+
+hts_data$hh <- mutate(hts_data$hh,
+                      num_workers_4bin= factor(
+                        fcase(grepl("^(3|4|5|6|7|8|9|10|11|12|13)", numworkers) ,"3+ workers",
+                               !is.na(numworkers), as.character(numworkers))))
+
+
+table(hts_data$hh$num_workers_4bin)
+
+# Calculate a categorical summary, i.e. count/share
+disp_workers_4 <- psrc_hts_stat(hts_data, 
+                                analysis_unit="hh", 
+                                group_vars=c("num_workers_4bin", "displaced"))
+
+focus_year <- 2023
+
+# view data
+head(dplyr::select(disp_workers_4[survey_year==focus_year],
+                   -c(survey_year)))
+
+# create chart
+static_column_chart(filter(disp_workers_4, 
+                           survey_year == focus_year, 
+                           !is.na(num_workers_4bin),
+                           displaced=="Displaced"),
+                    x = "num_workers_4bin", y = "prop", fill = "displaced",
+                    ylabel = "% of respondents", xlabel = "Workers in Household", 
+                    title = paste0("Displacement by Household Employment (", focus_year, ")"),
+                    moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_workers_4, 
+                           !is.na(num_workers_4bin),
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "num_workers_4bin",
+                    ylabel = "% of respondents", xlabel = "Workers in Household", 
+                    title = paste0("Displacement by Household Employment")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+```
+
+### Relationship between Workers and Adults
 
 ```{r}
 # unique(hts_data$person$employment) #original variables
@@ -1004,9 +1171,23 @@ static_column_chart(filter(disp_worker,
                            !is.na(adult_workers),
                            displaced=="Displaced"),
                     x = "adult_workers", y = "prop", fill = "displaced",
-                    ylabel = "% of respondents", xlabel = "Workers in Household", 
-                    title = paste0("Displacement by Household Employment (", focus_year, ")"),
+                    ylabel = "% of respondents", xlabel = "Workers:Adults in Household", 
+                    title = paste0("Displacement by Household Workers:Adults (", focus_year, ")"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_worker, 
+                           !is.na(adult_workers),
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "adult_workers",
+                    ylabel = "% of respondents", xlabel = "Workers:Adults in Household", 
+                    title = paste0("Displacement by Household Workers:Adults")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -1074,6 +1255,20 @@ static_facet_column_chart(disp_prev_tenure,
                             axis.title.x = element_text(size = 20),
                             plot.title = element_text(size = 24)
                           )
+
+# All years
+static_line_chart(filter(disp_prev_tenure,  
+                           !is.na(prev_rent_own_bin2),
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "prev_rent_own_bin2",
+                    ylabel = "% of respondents", xlabel = "Previous Housing Tenure", 
+                    title = paste0("Displacement by Previous Housing Tenure")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ### Current
@@ -1123,6 +1318,21 @@ static_facet_column_chart(disp_current_tenure,
                             axis.title.x = element_text(size = 20),
                             plot.title = element_text(size = 24)
                           )
+
+# All years
+static_line_chart(filter(disp_current_tenure,
+                           !is.na(rent_own_bin2),
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "rent_own_bin2",
+                    ylabel = "% of respondents", xlabel = "Current Housing Tenure", 
+                    title = paste0("Displacement by Housing Tenure")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
 ```
 
 ### Transition
@@ -1169,6 +1379,19 @@ static_column_chart(filter(disp_tenure_transition,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_tenure_transition,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "res_tenure_transition",
+                    ylabel = "% of respondents", xlabel = "Change in Housing Tenure", 
+                    title = paste0("Displacement by Change in Housing Tenure")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ## Housing Type
@@ -1177,6 +1400,7 @@ static_column_chart(filter(disp_tenure_transition,
 
 ```{r}
 unique(hts_data$hh$prev_res_type) #original variables
+table(hts_data$hh$prev_res_type, hts_data$hh$survey_year)
 
 # Calculate a categorical summary, i.e. count/share
 disp_prev_type <- psrc_hts_stat(hts_data, 
@@ -1197,6 +1421,18 @@ static_column_chart(filter(disp_prev_type,
                     ylabel = "% of respondents", xlabel = "Current Housing Type", 
                     title = paste0("Displacement by Housing Type (", focus_year, ")"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+static_line_chart(filter(disp_prev_type,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "prev_res_type",
+                    ylabel = "% of respondents", xlabel = "Current Housing Type", 
+                    title = paste0("Displacement by Housing Type")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -1308,6 +1544,19 @@ static_column_chart(filter(disp_prev_type_simple,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_prev_type_simple, 
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "prev_res_type_simp",
+                    ylabel = "% of respondents", xlabel = "Previous Housing Type", 
+                    title = paste0("Displacement by Previous Housing Type")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
 ```
 
 ### Current
@@ -1344,6 +1593,19 @@ static_column_chart(filter(disp_type_simple,
                     ylabel = "% of respondents", xlabel = "Current Housing Type", 
                     title = paste0("Displacement by Current Housing Type (", focus_year, ")"),
                     moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_type_simple,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "res_type_simp",
+                    ylabel = "% of respondents", xlabel = "Current Housing Type", 
+                    title = paste0("Displacement by Current Housing Type")) + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
                       axis.title.y = element_text(size = 20),
@@ -1401,6 +1663,19 @@ static_column_chart(filter(disp_type_transition,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
+# All years
+static_line_chart(filter(disp_type_transition,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "res_type_transition",
+                    ylabel = "% of respondents", xlabel = "Change in Housing Type", 
+                    title = paste0("Displacement by Change in Housing Type")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
                                                        
 ```
 
@@ -1449,6 +1724,21 @@ static_column_chart(filter(disp_rgc,
                             axis.title.x = element_text(size = 20),
                             plot.title = element_text(size = 24)
                           )
+
+# All years
+static_line_chart(filter(disp_rgc,
+                         displaced=="Displaced",
+                         RGC=="RGC"),
+                  x = "survey_year", y = "prop", fill = "res_type_simp",
+                  #facet="RGC", pos="stack",
+                  ylabel = "% of respondents", xlabel = "Home Location", 
+                  title = paste0("Displacement by Location in RGC")) + theme(
+                    axis.text.x = element_text(size = 14),
+                    axis.text.y = element_text(size = 14),
+                    axis.title.y = element_text(size = 20),
+                    axis.title.x = element_text(size = 20),
+                    plot.title = element_text(size = 24)
+                  )
 ```
 
 ## Counties
@@ -1483,4 +1773,39 @@ static_column_chart(filter(disp_county,
                       plot.title = element_text(size = 24)
                     )
 
+# All years
+static_line_chart(filter(disp_county,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "home_county",
+                    ylabel = "% of respondents", #xlabel = "Home County", 
+                    title = paste0("Displacement by County")) + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+```
+
+## Regional Geographies
+```{r}
+# # read hts data
+# vars <- c("hhsize","home_jurisdiction","home_lat","home_lng")
+# hts_data <- get_psrc_hts(survey_vars = vars,survey_years = 2023)
+
+# create household home location layer
+hh <- hts_data$hh %>%
+  st_as_sf(coords = c("home_lng", "home_lat"), 
+           crs = 4326)
+
+test <- hh %>% filter(is.na(home_lat) | is.na(home_lng))
+head(hts_data$hh$home_lng)
+
+# create regional geography layer
+region_geo <- st_read_elmergeo('REGIONAL_GEOGRAPHIES')
+my_layer <-  region_geo %>% group_by(class_desc) %>% summarise()
+
+# spatial join
+hh_region_geo <- hh[c(1:10),] %>% st_join(my_layer, join = st_within)
+st_geometry(hh_region_geo) <- NULL
 ```
