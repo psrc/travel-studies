@@ -78,7 +78,8 @@ dest_lat,0,0,0,0,1,0,0,numeric,Destination latitude,Destination latitude,dest_la
 dest_lng,0,0,0,0,1,0,0,numeric,Destination longitude,Destination longitude,dest_lng,1,1,0
 dest_name,0,0,0,0,1,0,0,character,Destination name,Destination name,dest_name,1,1,0
 dest_purpose,0,0,0,0,1,0,0,integer/categorical,Destination purpose,Destination purpose,dest_purpose,1,1,0
-dest_purpose_cat,0,0,0,0,1,0,0,integer/categorical,Destination purpose category (derived),Destination purpose category (derived),dest_purpose_cat,1,1,0
+dest_purpose_cat,0,0,0,0,1,0,0,integer/categorical,Destination purpose category,Destination purpose category (derived),dest_purpose_cat,1,1,0
+dest_purpose_cat_3,0,0,0,0,1,0,0,integer/categorical,Destination purpose category (3 categories),Destination purpose category (derived),dest_purpose_cat_3,1,1,0
 dest_purpose_other,0,0,0,0,1,0,0,character,Other trip destination textbox answer,Other trip destination textbox answer,dest_purpose_other,1,1,0
 dest_rgcname,0,0,0,0,1,0,0,integer/categorical,Destination location: Regional Growth Center,Destination location: Regional Growth Center,dest_rgcname,1,1,0
 dest_tract10,0,0,0,0,1,0,0,character,Destination Census Tract 2010,Destination Census Tract 2010,dest_tract10,1,0,1
@@ -157,7 +158,9 @@ mode_3,0,0,0,0,1,0,0,integer/categorical,Third mode chosen,Third mode chosen,mod
 mode_4,0,0,0,0,1,0,0,integer/categorical,Fourth mode chosen,Fourth mode chosen,mode_4,1,1,0
 mode_acc,0,0,0,0,1,0,0,integer/categorical,Travel mode to transit,Travel mode to transit,mode_acc,1,1,0
 mode_characterization,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode,Primary Trip Mode,mode_characterization,1,1,0
+mode_class,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode (derived from mode_1~mode_4),Primary Trip Mode (derived from mode_1~mode_4),mode_class,1,1,0
 mode_egr,0,0,0,0,1,0,0,integer/categorical,Travel mode from transit,Travel mode from transit,mode_egr,1,1,0
+mode_main_5,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode (5 categories),Primary Trip Mode (5 categories),mode_main_5,1,1,0
 mode_other_specify,0,0,0,0,1,0,0,character,Other mode specified in textbox,Other mode specified in textbox,mode_other_specify,1,1,0
 mode_simple,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode simplified,Primary Trip Mode simplified,mode_simple,1,1,0
 mode_type,0,0,0,0,1,0,0,integer/categorical,Synthesized mode (derived),Synthesized mode (derived),mode_type,1,1,0
@@ -259,8 +262,6 @@ race_afam,1,0,1,0,0,0,0,integer/categorical,Race -- African American or Black,Ra
 race_aiak,1,0,1,0,0,0,0,integer/categorical,Race -- American Indian or Alaska Native,Race -- American Indian or Alaska Native,race,1,1,0
 race_asian,1,0,1,0,0,0,0,integer/categorical,Race -- Asian,Race -- Asian,race,1,1,0
 race_category,0,0,1,0,0,0,0,integer/categorical,Race Group,Race Group,race_category,1,1,0
-race_category_2023,0,0,1,0,0,0,0,integer/categorical,Race Category Consistent with Demographic Profile,Race Group,race_category_2023,1,1,0
-race_category_2023_b,0,0,1,0,0,0,0,integer/categorical,Race Category as Previous,Race Group,race_category_2023_b,1,1,0
 race_hapi,1,0,1,0,0,0,0,integer/categorical,Race -- Native Hawaiian or Pacific Islander,Race -- Native Hawaiian or Pacific Islander,race,1,1,0
 race_hisp,0,0,1,0,0,0,0,integer/categorical,Race -- Hispanic,Race -- Hispanic,race,1,1,0
 race_noanswer,1,0,1,0,0,0,0,integer/categorical,Race -- Prefer not to answer,Race -- Prefer not to answer,race,1,1,0
@@ -311,6 +312,18 @@ toll_transponder,0,0,0,0,0,1,0,integer/categorical,Vehicle has toll transponder,
 trace_quality_flag,0,0,0,0,1,0,0,integer/categorical,Flag. Trip trace data of poor quality,Flag. Trip trace data of poor quality,trace_quality_flag,1,0,1
 transit_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days","How often the person used transit (e.g., bus, rail, ferry) in the past 30 days",transit_freq,1,1,0
 transit_pass,0,0,1,0,0,0,0,integer/categorical,Respondent has transit pass,Respondent has transit pass,transit_pass,1,1,0
+tran_pass_1,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Cash,if ridden transit in past 30 days,tran_pass_1,1,1,0
+tran_pass_10,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Ride free,if ridden transit in past 30 days,tran_pass_10,1,1,0
+tran_pass_11,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Other,if ridden transit in past 30 days,tran_pass_11,1,1,0
+tran_pass_12,0,0,1,0,0,0,0,integer/categorical,School pays for part of all of pass value,"if age = 12+, travels to school, and uses transit pass",tran_pass_12,1,1,0
+tran_pass_2,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Tickets,if ridden transit in past 30 days,tran_pass_2,1,1,0
+tran_pass_3,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: ORCA card,if ridden transit in past 30 days,tran_pass_3,1,1,0
+tran_pass_4,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: UPass or Husky Card,if ridden transit in past 30 days,tran_pass_4,1,1,0
+tran_pass_5,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Regional Reduced-Fare Permit,if ridden transit in past 30 days,tran_pass_5,1,1,0
+tran_pass_6,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Flexpass/Passport,if ridden transit in past 30 days,tran_pass_6,1,1,0
+tran_pass_7,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Access Pass,if ridden transit in past 30 days,tran_pass_7,1,1,0
+tran_pass_8,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: School District Card/Pass,if ridden transit in past 30 days,tran_pass_8,1,1,0
+tran_pass_9,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: City/County Employee Badge,if ridden transit in past 30 days,tran_pass_9,1,1,0
 travel_date,0,0,0,1,1,0,0,date,Travel date,Travel date,travel_date,1,1,0
 travel_day,0,0,0,1,1,0,0,integer/categorical,Is travel day,Is travel day,travel_day,1,1,0
 travel_dow,0,0,0,1,1,0,0,integer/categorical,Travel day of week,Travel day of week,travel_dow,1,1,0
