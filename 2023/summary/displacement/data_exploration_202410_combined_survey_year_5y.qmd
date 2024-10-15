@@ -738,7 +738,7 @@ edu_person <- hts_data$person %>%
 table(edu_person$edu_hh_max)
 
 hts_data$hh <- hts_data$hh %>% 
-  right_join(edu_person, by="hh_id")
+  left_join(edu_person, by="hh_id")
 
 # add new variable
 variable_list<-add_variable(variable_list, 'edu_hh_max','hh')
@@ -842,7 +842,7 @@ worker_person <- hts_data$person %>%
 table(worker_person$worker_num_sum)
 
 hts_data$hh <- hts_data$hh %>%
-  right_join(worker_person, by="hh_id") %>% 
+  left_join(worker_person, by="hh_id") %>% 
   # mutate(numadults_simp= factor(
   #   fcase(grepl("^(6|7|8|9|10|11|12)", numadults) ,"6+ adults",
   #         !is.na(numadults), as.character(numadults)))) %>%
@@ -1437,12 +1437,28 @@ static_column_chart(filter(wtd_sum, #survey_year == focus_year,
 Regional Growth Strategies 6 categories: Metro cities, HCTs, Rural, etc.
 
 ```{r}
-# unique(hts_data$hh$home_county) #original variables
-# table(hts_data$hh$home_county)
+# regional geography layer
+region_geo.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/Regional_Geographies/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson"
+region_geo <- st_read(region_geo.url)
 
+home_loc <- hts_data$hh %>%
+  st_as_sf(coords = c("home_lng", "home_lat"), 
+           crs = 4326) %>% 
+  select(hh_id, geometry)
+
+hh <- st_intersection(home_loc, region_geo) %>%
+  select(hh_id, cnty_name, feat_type, juris, class_desc)
+
+# add geography data to hts_data$hh
+hts_data$hh <- hts_data$hh %>% 
+  left_join(hh, by="hh_id")
+
+# check
+unique(hts_data$hh$class_desc)
+table(hts_data$hh$survey_year, hts_data$hh$class_desc)
 
 # add new variable
-variable_list<-add_variable(variable_list, 'home_county','hh')
+variable_list<-add_variable(variable_list, 'class_desc','hh')
 variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
 hta_data_all <- list(hh=hts_data$hh)
@@ -1450,7 +1466,7 @@ hta_data_all <- list(hh=hts_data$hh)
 # Calculate a categorical summary, i.e. count/share
 summary = summarize_weighted(hts_data= hta_data_all,
                              summarize_var = 'displaced',
-                             summarize_by = c('home_county'),
+                             summarize_by = c('class_desc'),
                              id_cols='hh_id',
                              wt_cols='hh_weight',
                              wtname='hh_weight'
@@ -1459,13 +1475,12 @@ summary = summarize_weighted(hts_data= hta_data_all,
 wtd_sum<-summary$summary$wtd %>%
   mutate(prop_moe=z_score*prop_se)
 
-
 # create chart
 static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
                            displaced=="Displaced"),
-                    x = "displaced", y = "prop", fill = "home_county",
+                    x = "displaced", y = "prop", fill = "class_desc",
                     ylabel = "% of respondents", #xlabel = "Home County", 
-                    title = "Displacement by County (2019, 2021, 2023)",
+                    title = "Displacement by Regional Geography (2019, 2021, 2023)",
                     moe = "prop_moe") + theme(
                       axis.text.x = element_text(size = 14),
                       axis.text.y = element_text(size = 14),
