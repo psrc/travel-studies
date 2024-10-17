@@ -1,22 +1,10 @@
----
-title: "Value labels summary"
-format: html
----
-
-matching labels between views and the codebook
-turn `generate_spreadsheet` to `TRUE` to generate value summary spreadsheet
-
-```{r}
-# save to files for manual update
-generate_spreadsheet <- FALSE
-```
-
-- all tables
-```{r}
 library(tidyverse)
 library(psrcelmer)
 library(gt)
 library(gtsummary)
+
+# save to files for manual update
+generate_spreadsheet <- FALSE
 
 # location of full list of variables
 variable_list_path <- "variable_lists/PSRC_HTS_variables_full_2023.csv"
@@ -34,43 +22,25 @@ names(view_names) <- table_names
 df_view_name <- data.frame(table = table_names,
                            Elmer.view.name = view_names,
                            row.names = NULL)
-df_view_name
-```
 
-
-```{r}
 # import all views
 hh_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['hh']))
 person_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['person']))
 day_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['day']))
 trip_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['trip']))
 vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['vehicle']))
-```
 
-
-```{r}
 # find all variables to be included in value labels
 geography_variables <- variable_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable))
 
 factor_variables <- variable_list %>% 
   filter(data_type == "integer/categorical" & 
-           information ==0 &
-           !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years
-           !variable %in% geography_variables$variable) # no geography names
+         information ==0 &
+         !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years
+         !variable %in% geography_variables$variable) # no geography names
 
-## groupings
-# value_labels_groupings <- value_labels %>% filter(!is.na(group_1_title))
-# write_csv(value_labels_groupings, "variable_lists/value_labels_groupings.csv",na = "")
-dest_purpose <- value_labels_groupings %>%
-  filter(variable == "dest_purpose")
-test <- value_labels_groupings %>%
-  filter(variable == "dest_purpose") %>%
-  group_by(variable,label) %>%
-  summarise(value = first(value))
-# write_csv(test, "variable_lists/dest_purpose.csv",na = "")
-```
 
-```{r}
+
 # require factor_variables and value_labels objects
 compare_values <- function(view_data, t_name){
   
@@ -122,54 +92,5 @@ if(generate_spreadsheet){
           "vehicle edit" = compare_values_vehicle)
   openxlsx::write.xlsx(l, file = "manual_changes/values_summary.xlsx")
 }
-```
-
-## inconsistent values between views and codebook
-
-:::{.panel-tabset}
-
-### households
-
-```{r}
-get_inconsist <- function(compare_values){
-  var_list <- compare_values %>%
-    filter(is.na(label) & !is.na(label_view)) %>%
-    distinct(variable)
-  return(compare_values %>% filter(variable %in% var_list$variable))
-}
-
-get_inconsist(compare_values_hh)
-```
-
-
-### persons
-
-```{r}
-
-get_inconsist(compare_values_person)
-```
-
-### days
-
-```{r}
-
-get_inconsist(compare_values_day)
-```
-
-### trips
-
-```{r}
-
-get_inconsist(compare_values_trip)
-```
-
-### vehicles
-
-```{r}
-
-get_inconsist(compare_values_vehicle)
-```
-:::
-
 
 
