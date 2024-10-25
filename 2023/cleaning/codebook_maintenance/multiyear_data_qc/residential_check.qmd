@@ -1,0 +1,43 @@
+---
+title: "other variables"
+date: today
+---
+
+## residential variables
+
+```{r}
+library(tidyverse)
+library(psrcelmer)
+
+# read data
+hh <- get_query(sql= "select * from HHSurvey.v_households_labels where survey_year=2023")
+hh_delivered <- read_csv("J:/Projects/Surveys/HHTravel/Survey2023/Data/old_stuff/data_deliverable_81823/2023/delivered_230907/hh.csv") %>%
+  mutate(hhid = as.integer(hhid))
+
+# households with missing residential information
+hh_weight_ok <- hh %>% filter(hh_weight>0)
+hh_res_miss <- hh_weight_ok %>% filter(rent_own=="Missing Response")
+hh_delivered_res_miss <- hh_delivered %>% filter(rent_own==995)
+```
+
+
+- issue: `{r} table(hh_res_miss$rent_own)[["Missing Response"]]` households with missing responses in residential variables (`rent_own`, `res_dur`, `res_months`, `res_type`) 
+- question logic: if rMove or (rMove for Web and person 1)
+  - delivery questions have the same logic but do not have the same missing response issue
+- Missing response happened directly in data delivered by RSG: `{r} table(hh_delivered$rent_own)[["995"]]` households
+- all households with missing residential variables skipped pre_home variables
+  - `{r} table(hh_res_miss$rent_own)[["Missing Response"]]` out of `{r} table(hh_res_miss$prev_rent_own)[["Missing: Skip Logic"]]` households with `prev_rent_own=="Missing: Skip Logic"` are missing residential variables (hh_weight=0 households removed)
+
+
+
+
+
+
+
+
+
+
+
+
+
+

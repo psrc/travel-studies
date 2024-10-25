@@ -222,48 +222,48 @@ person_pct_trips_flagged,0,0,1,0,0,0,0,numeric,Percent of person's total trip tr
 person_weight,0,0,1,0,0,0,0,numeric,Person-level weight,,person_weight
 person_weight_2017_2019_combined,0,0,1,0,0,0,0,numeric,Person-level weight for 2017 and 2019 combined,,person_weight_2017_2019_combined
 point_dist_index,0,0,0,0,1,0,0,numeric,Percentage points over expected for largest distance between two points on trip,,point_dist_index
+proxy,0,0,1,0,0,0,0,numeric,Percentage points over expected for largest distance between two points on trip,if ABS or (online panel and pernum = 1),point_dist_index
 prev_home_county,0,1,0,0,0,0,0,integer/categorical,Previous home address: County,,prev_home_county
 prev_home_jurisdiction,0,1,0,0,0,0,0,integer/categorical,Previous home address: Jurisdiction,,prev_home_jurisdiction
-prev_home_lat,0,1,0,0,0,0,0,numeric,Previous home address latitude,if moved in last 5 years from outside WA,prev_home_lat
-prev_home_lng,0,1,0,0,0,0,0,numeric,Previous home address longitude,if moved in last 5 years from outside WA,prev_home_lng
-prev_home_notwa_city,0,1,0,0,0,0,0,character,Previous home address city,if moved in last 5 years from outside WA,prev_home_notwa_city
-prev_home_notwa_state,0,1,0,0,0,0,0,integer/categorical,Previous home address state,if moved in last 5 years from outside WA,prev_home_notwa_state
-prev_home_notwa_zip,0,1,0,0,0,0,0,character,Previous home address zip,if moved in last 5 years from outside WA,prev_home_notwa_zip
-prev_home_rgcname,0,1,0,0,0,0,0,integer/categorical,Previous home address Regional Growth Center name,if moved in last 5 years from outside WA,prev_home_rgcname
-prev_home_tract20,0,1,0,0,0,0,0,character,Previous home address: Census tract,,prev_home_tract20
+prev_home_lat,0,1,0,0,0,0,0,numeric,Previous home address latitude,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_lat
+prev_home_lng,0,1,0,0,0,0,0,numeric,Previous home address longitude,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_lng
+prev_home_notwa_city,0,1,0,0,0,0,0,character,Previous home address city,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_notwa_city
+prev_home_notwa_state,0,1,0,0,0,0,0,integer/categorical,Previous home address state,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_notwa_state
+prev_home_notwa_zip,0,1,0,0,0,0,0,character,Previous home address zip,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_notwa_zip
+prev_home_rgcname,0,1,0,0,0,0,0,integer/categorical,Previous home address Regional Growth Center name,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_rgcname
+prev_home_tract20,0,1,0,0,0,0,0,character,Previous home address: Census tract,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_tract20
 prev_home_wa,0,1,0,0,0,0,0,integer/categorical,Previous home in State of Washington (WA),if moved in last 5 years,prev_home_wa
-prev_rent_own,0,1,0,0,0,0,0,integer/categorical,Previous home tenure status,if moved in last 5 years from outside WA,prev_rent_own
-prev_res_factors_amenities,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities",if moved in last 5 years,prev_res_factors
-prev_res_factors_community_change,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area",if moved in last 5 years,prev_res_factors_community_change
-prev_res_factors_crime,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Concerns about safety or crime,if moved in last 5 years,prev_res_factors
-prev_res_factors_employment,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)",if moved in last 5 years,prev_res_factors
-prev_res_factors_forced,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)",if moved in last 5 years,prev_res_factors_forced
-prev_res_factors_hh_size,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Changes in household size, establish own household",if moved in last 5 years,prev_res_factors_hh
-prev_res_factors_housing_cost,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,if moved in last 5 years,prev_res_factors_housing_cost
-prev_res_factors_income_change,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,if moved in last 5 years,prev_res_factors_income_change
-prev_res_factors_less_space,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed less space,if moved in last 5 years,prev_res_factors_less
-prev_res_factors_more_space,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed more space,if moved in last 5 years,prev_res_factors_more
-prev_res_factors_no_answer,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Prefer not to answer,if moved in last 5 years,prev_res_factors_no
-prev_res_factors_other,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Other,if moved in last 5 years,prev_res_factors
-prev_res_factors_quality,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,if moved in last 5 years,prev_res_factors
-prev_res_factors_school,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Access to a different K-12 school,if moved in last 5 years,prev_res_factors
+prev_rent_own,0,1,0,0,0,0,0,integer/categorical,Previous home tenure status,if moved in last 5 years,prev_rent_own
+prev_res_factors_amenities,1,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities",if moved in last 5 years,prev_res_factors
+prev_res_factors_community_change,1,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area",if moved in last 5 years,prev_res_factors
+prev_res_factors_crime,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Concerns about safety or crime,if moved in last 5 years,prev_res_factors
+prev_res_factors_employment,1,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)",if moved in last 5 years,prev_res_factors
+prev_res_factors_forced,1,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)",if moved in last 5 years,prev_res_factors
+prev_res_factors_hh_size,1,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Changes in household size, establish own household",if moved in last 5 years,prev_res_factors
+prev_res_factors_housing_cost,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,if moved in last 5 years,prev_res_factors
+prev_res_factors_income_change,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,if moved in last 5 years,prev_res_factors
+prev_res_factors_less_space,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed less space,if moved in last 5 years,prev_res_factors
+prev_res_factors_more_space,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed more space,if moved in last 5 years,prev_res_factors
+prev_res_factors_no_answer,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Prefer not to answer,if moved in last 5 years,prev_res_factors
+prev_res_factors_other,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Other,if moved in last 5 years,prev_res_factors
+prev_res_factors_quality,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,if moved in last 5 years,prev_res_factors
+prev_res_factors_school,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Access to a different K-12 school,if moved in last 5 years,prev_res_factors
+prev_res_factors_telework,1,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,if moved in the last 5 years,prev_res_factors
 prev_res_factors_specify,0,1,0,0,0,0,0,character,"Other factor in decision to move away from prior residence, write-in text","if selected ""other"" factor in decision to move",prev_res_factors_specify
-prev_res_factors_telework,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,if moved in the last 5 years,prev_res_factors
 prev_res_type,0,1,0,0,0,0,0,integer/categorical,Previous home residence type,if moved in last 5 years,prev_res_type
-proxy,0,0,1,0,0,0,0,numeric,Percentage points over expected for largest distance between two points on trip,if ABS or (online panel and pernum = 1),point_dist_index
 proxy_complete,0,0,0,1,0,0,0,integer/categorical,Proxy completion status,,proxy_complete
 proxy_parent,0,0,1,0,0,0,0,integer/categorical,Person is proxy reporter for children in household,if hhgroup = rMove,proxy_parent
 pt_density,0,0,0,0,1,0,0,numeric,Location points per minute (time adjusted for probable trip splitting),,pt_density
 race_afam,1,0,1,0,0,0,0,integer/categorical,Race -- African American or Black,if age 18+,race
 race_aiak,1,0,1,0,0,0,0,integer/categorical,Race -- American Indian or Alaska Native,if age 18+,race
 race_asian,1,0,1,0,0,0,0,integer/categorical,Race -- Asian,if age 18+,race
-race_category,0,0,1,0,0,0,0,integer/categorical,Race Group,,race_category
 race_hapi,1,0,1,0,0,0,0,integer/categorical,Race -- Native Hawaiian or Pacific Islander,if age 18+,race
-race_hisp,0,0,1,0,0,0,0,integer/categorical,Race -- Hispanic,if age 18+,race
+race_hisp,1,0,1,0,0,0,0,integer/categorical,Race -- Hispanic,if age 18+,race
 race_noanswer,1,0,1,0,0,0,0,integer/categorical,Race -- Prefer not to answer,if age 18+,race
 race_other,1,0,1,0,0,0,0,integer/categorical,Race -- Other,if age 18+,race
-race_other_specify,0,0,1,0,0,0,0,character,Other race textbox answer,"if selected ""other"" race",race_other_specify
 race_white,1,0,1,0,0,0,0,integer/categorical,Race -- White,if age 18+,race
+race_category,0,0,1,0,0,0,0,integer/categorical,Race Group,,race_category
+race_other_specify,0,0,1,0,0,0,0,character,Other race textbox answer,"if selected ""other"" race",race_other_specify
 relationship,0,0,1,0,0,0,0,integer/categorical,Relationship to primary respondent,,relationship
 remote_class_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person attends classes online from a location that is not school (e.g., home, library, coffee shop)",if adult student or if child who is not cared for at home or attending daycare,remote_class_freq
 rent_own,0,1,0,0,0,0,0,integer/categorical,Residence tenure status,,rent_own
@@ -286,12 +286,12 @@ second_home_in_region,0,0,1,0,0,0,0,integer/categorical,Second home is in PSRC M
 second_home_lat,0,0,1,0,0,0,0,numeric,Second home latitude,If person regularly spends the night at a second home,second_home_lat
 second_home_lon,0,0,1,0,0,0,0,numeric,Second home longitude,If person regularly spends the night at a second home,second_home_lon
 sexuality,0,0,1,0,0,0,0,integer/categorical,Sexuality,if age 18+,sexuality
-share_1,0,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Walk (outside for 15-minutes or more),if age 18+,share_1
-share_2,0,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Bike (outside for 15-minutes or more),if age 18+,share_2
-share_3,0,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Transit (e.g., bus, rail, ferry)",if age 18+,share_3
-share_4,0,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)",if age 18+,share_4
-share_5,0,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",if age 18+,share_5
-share_996,0,0,1,0,0,0,0,integer/categorical,Typical travel methods -- None of the above,if age 18+,share_996
+share_1,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Walk (outside for 15-minutes or more),if age 18+,share
+share_2,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Bike (outside for 15-minutes or more),if age 18+,share
+share_3,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Transit (e.g., bus, rail, ferry)",if age 18+,share
+share_4,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)",if age 18+,share
+share_5,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",if age 18+,share
+share_996,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- None of the above,if age 18+,share
 speed_flag,0,0,0,0,1,0,0,integer/categorical,Unusually high speed given mode,,speed_flag
 speed_mph,0,0,0,0,1,0,0,numeric,Trip speed in miles per hour (derived),,speed_mph
 student,0,0,1,0,0,0,0,integer/categorical,Student status,if age 18+,student

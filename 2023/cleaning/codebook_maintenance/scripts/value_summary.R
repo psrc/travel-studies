@@ -7,7 +7,7 @@ library(gtsummary)
 generate_spreadsheet <- FALSE
 
 # location of full list of variables
-variable_list_path <- "variable_lists/PSRC_HTS_variables_full_2023.csv"
+variable_list_path <- "variable_lists/PSRC_HTS_variables_full_2023_logic.csv"
 cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
 
 # codebook pages
@@ -34,10 +34,11 @@ vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['veh
 geography_variables <- variable_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable))
 
 factor_variables <- variable_list %>% 
-  filter(data_type == "integer/categorical" & 
-         information ==0 &
-         !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years
-         !variable %in% geography_variables$variable) # no geography names
+  filter(data_type == "integer/categorical" #& 
+         # information ==0 &
+         # !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years
+         # !variable %in% geography_variables$variable # no geography names
+         )
 
 
 
@@ -54,23 +55,25 @@ compare_values <- function(view_data, t_name){
   
     v_values <- t_data %>%
       group_by(.[[var]]) %>%
-      summarise(n(),
-                years = paste(unique(sort(survey_year)),collapse = ",")) %>%
+      summarise(year_2017 = sum(survey_year==2017),
+                year_2019 = sum(survey_year==2019),
+                year_2021 = sum(survey_year==2021),
+                year_2023 = sum(survey_year==2023)) %>%
       ungroup() %>%
       mutate(variable = var)
-    colnames(v_values) <- c("label_view", "n_record", "years", "variable")
+    colnames(v_values) <- c("label_view","year_2017","year_2019","year_2021","year_2023","variable")
     t_data_values <- rbind(t_data_values,v_values)
     
     }
   
   t_data_values <- t_data_values %>% 
     filter(variable != "survey_year") %>%
-    select(c("variable", "label_view", "n_record", "years"))
+    select(c("variable", "label_view","year_2017","year_2019","year_2021","year_2023"))
   
   values_match <- t_value_labels %>%
       full_join(t_data_values, by = c("variable","label"="label_view"), keep = TRUE) %>%
       mutate(variable = ifelse(!is.na(variable.x),variable.x,variable.y)) %>%
-      select(variable,value,label,label_view,n_record,years) %>%
+      select(variable,value,label,label_view,year_2017,year_2019,year_2021,year_2023) %>%
       arrange(variable,value,label_view,label)
   
   return(values_match)
@@ -90,7 +93,7 @@ if(generate_spreadsheet){
           "day edit" = compare_values_day, 
           "trip edit" = compare_values_trip, 
           "vehicle edit" = compare_values_vehicle)
-  openxlsx::write.xlsx(l, file = "manual_changes/values_summary.xlsx")
+  openxlsx::write.xlsx(l, file = "manual_changes/values_summary6.xlsx")
 }
 
 

@@ -1,0 +1,94 @@
+---
+title: "day weights"
+date: today
+---
+
+```{r}
+library(tidyverse)
+library(psrcelmer)
+
+# read data
+day_data <- get_query(sql= "select * from HHSurvey.v_days_labels")
+trip_data <- get_query(sql= "select * from HHSurvey.v_trips_labels")
+person_data <- get_query(sql= "select * from HHSurvey.v_persons_labels")
+hh_data <- get_query(sql= "select * from HHSurvey.v_households_labels")
+
+# person-days with 0 day weight
+day_0 <- day_data %>% filter(day_weight==0 | is.na(day_weight))
+hh_0 <- hh_data %>% filter(hh_weight==0 | is.na(hh_weight))
+person_0 <- person_data %>% filter(person_weight==0 | is.na(person_weight))
+```
+
+## trips 
+
+:::{.panel-tabset}
+### zero day weight
+
+- total trip count
+```{r}
+vars_list <- c("trip_id","household_id","person_id","day_id","day_iscomplete","svy_complete",
+               "speed_mph","speed_flag","dest_purpose_cat",
+               "survey_year","hh_day_iscomplete","trip_weight","trip_weight_2017_2019_combined")
+# all trips made in test_day with valid trip weights
+trip_day_0 <- trip_data %>% 
+  filter(day_id %in% day_0$day_id & trip_weight!=0) %>%
+  select(all_of(vars_list)) %>%
+  # add day weights
+  left_join(day_0 %>% select(day_id,day_weight), by="day_id") %>%
+  left_join(hh_data %>% select(household_id,hh_weight), by="household_id")
+
+table(trip_day_0$survey_year)
+```
+
+```{r}
+#| layout-ncol: 2
+trip_day_0_2021 <- trip_day_0 %>% filter(survey_year==2021)
+trip_day_0_2023 <- trip_day_0 %>% filter(survey_year==2023)
+
+hist(trip_day_0_2021$trip_weight)
+hist(trip_day_0_2023$trip_weight)
+```
+
+### zero person weight
+
+- total trip count
+```{r}
+# all trips made in test_day with valid trip weights
+vars_list <- c("trip_id","household_id","person_id","day_iscomplete","svy_complete",
+               "survey_year","trip_weight")
+trip_person_0 <- trip_data %>% 
+  filter(person_id %in% person_0$person_id & trip_weight!=0) %>%
+  select(all_of(vars_list)) %>%
+  # add day weights
+  left_join(person_0 %>% select(person_id,person_weight), by="person_id")
+
+table(trip_person_0$survey_year)
+```
+
+```{r}
+hist(trip_person_0$trip_weight)
+```
+:::
+
+## persons: zero household weights
+
+### zero person weight
+
+- total person count
+```{r}
+# all trips made in test_day with valid trip weights
+vars_list <- c("household_id","person_id","hh_is_complete",
+               "survey_year","person_weight")
+person_hh_0 <- person_data %>% 
+  filter(household_id %in% hh_0$household_id & person_weight!=0) %>%
+  select(all_of(vars_list)) %>%
+  # add day weights
+  left_join(hh_0 %>% select(household_id,hh_weight), by="household_id")
+
+table(person_hh_0$survey_year)
+```
+
+```{r}
+hist(person_hh_0$person_weight)
+```
+

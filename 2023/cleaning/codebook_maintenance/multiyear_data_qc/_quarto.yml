@@ -1,0 +1,29 @@
+project:
+  type: book
+  output-dir: "hts_qc_notebook"
+  
+book:
+  title: "check HTS variables"
+  search: false
+
+  chapters:
+    - index.qmd
+    - weight_check.qmd
+    - rgc_check.qmd
+    - county_check.qmd
+    - calculated_variables_check.qmd
+    - residential_check.qmd
+
+format:
+  html:
+    mainfont: Poppins
+    fontsize: "7"
+    theme: 
+      light: [cosmo, custom.scss]
+      dark: [darkly, custom.scss]
+    echo: false
+    code-tools: true
+    df-print: kable
+
+toc: true
+warning: false

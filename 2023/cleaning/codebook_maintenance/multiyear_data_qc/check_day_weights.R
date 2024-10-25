@@ -4,6 +4,7 @@ library(psrcelmer)
 # read data
 day_data <- get_query(sql= "select * from HHSurvey.v_days_labels")
 trip_data <- get_query(sql= "select * from HHSurvey.v_trips_labels")
+person_data <- get_query(sql= "select * from HHSurvey.v_persons_labels")
 
 # person-days with 0 day weight
 test_day <- day_data %>% filter(day_weight==0 | is.na(day_weight))
@@ -17,3 +18,13 @@ test_trip <- trip_data %>%
   select(all_of(vars_list)) %>%
   # add day weights
   left_join(day_data %>% select(day_id,day_weight), by="day_id")
+
+test_person <- person_data %>% filter(person_weight==0 | is.na(person_weight))
+# all trips made in test_day with valid trip weights
+vars_list <- c("trip_id","household_id","person_id","day_iscomplete","svy_complete",
+               "survey_year","trip_weight")
+test_p_trip <- trip_data %>% 
+  filter(person_id %in% test_person$person_id & trip_weight!=0) %>%
+  select(all_of(vars_list)) %>%
+  # add day weights
+  left_join(person_data %>% select(person_id,person_weight), by="person_id")
