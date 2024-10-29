@@ -36,6 +36,7 @@ library(psrc.travelsurvey)
 
 library(sf) #for regional geographies
 sf_use_s2(FALSE)
+library(corrplot) #for correlation analysis
 
 source('../survey-23-preprocess.R')
 # source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
@@ -249,7 +250,7 @@ hts_data$hh <- hts_data$hh %>%
 # There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
 
 hts_data$hh <- hts_data$hh %>%
-  filter(movers != "Did not move")
+  filter(movers == "Did move")
 
 # to check
 table(hts_data$hh$movers, hts_data$hh$displaced)
@@ -1429,13 +1430,11 @@ static_column_chart(filter(wtd_sum, #survey_year == focus_year,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
-
 ```
 
 ## Regional Geographies
-
+### All
 Regional Growth Strategies 6 categories: Metro cities, HCTs, Rural, etc.
-
 ```{r}
 # regional geography layer
 region_geo.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/Regional_Geographies/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson"
@@ -1488,5 +1487,75 @@ static_column_chart(filter(wtd_sum, #survey_year == focus_year,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
-
 ```
+
+### Simplified: 2 categories
+```{r}
+# unique(hts_data$hh$class_desc) #original variables
+# table(hts_data$hh$survey_year, hts_data$hh$class_desc)
+
+# aggregate categories
+hts_data$hh <- mutate(hts_data$hh,
+                      class_desc_bin2= case_when(class_desc=="HCT"  |
+                                                   class_desc=="Metro" ~ "Metro/HCT",
+                                                 TRUE~"Other"))
+
+# add new variable
+variable_list<-add_variable(variable_list, 'class_desc_bin2','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+hta_data_all <- list(hh=hts_data$hh)
+
+# Calculate a categorical summary, i.e. count/share
+summary = summarize_weighted(hts_data= hta_data_all,
+                             summarize_var = 'displaced',
+                             summarize_by = c('class_desc_bin2'),
+                             id_cols='hh_id',
+                             wt_cols='hh_weight',
+                             wtname='hh_weight'
+)
+
+wtd_sum<-summary$summary$wtd %>%
+  mutate(prop_moe=z_score*prop_se)
+
+
+# create chart
+static_column_chart(filter(wtd_sum, #survey_year == focus_year, 
+                           displaced=="Displaced"),
+                    x = "displaced", y = "prop", fill = "class_desc_bin2",
+                    ylabel = "% of respondents", #xlabel = "Home County", 
+                    title = "Displacement by Regional Geography (2019, 2021, 2023)",
+                    moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+```
+
+
+### Correlation background
+#### Sample sizes per year/displacement reason
+```{r}
+# sample size for each reason for displacement, and by income
+hts_data$hh
+
+df_table <- hts_data$hh %>% 
+  filter(displaced=="Displaced") %>%
+  mutate(community_num=case_when(prev_res_factors_community_change=="Selected" ~as.numeric(1),
+                                 prev_res_factors_community_change=="Not Selected" ~as.numeric(0)),
+         cost_num= case_when(prev_res_factors_housing_cost=="Selected" ~as.numeric(1),
+                             prev_res_factors_housing_cost=="Not Selected" ~as.numeric(0)),
+         forced_num= case_when(prev_res_factors_forced=="Selected" ~as.numeric(1),
+                               prev_res_factors_forced=="Not Selected" ~as.numeric(0)),
+         income_num= case_when(prev_res_factors_income_change=="Selected" ~as.numeric(1),
+                               prev_res_factors_income_change=="Not Selected" ~as.numeric(0))) %>% 
+  dplyr::group_by(survey_year) %>% 
+  summarise(community=sum(community_num),
+            cost=sum(cost_num),
+            forced=sum(forced_num),
+            income=sum(income_num)) %>% 
+  print()
+```
+There are 1,714 households total. There are 473 displaced households. 

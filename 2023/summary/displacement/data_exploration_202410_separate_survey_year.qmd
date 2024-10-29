@@ -36,6 +36,7 @@ library(psrc.travelsurvey)
 
 library(sf) #for regional geographies
 sf_use_s2(FALSE)
+library(corrplot) #for correlation analysis
 
 source('../survey-23-preprocess.R')
 # source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
@@ -218,7 +219,7 @@ table(hts_data$hh$movers, hts_data$hh$displaced)
 # There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
 
 hts_data$hh <- hts_data$hh %>%
-  filter(movers != "Did not move")
+  filter(movers == "Did move")
 
 # to check
 table(hts_data$hh$movers, hts_data$hh$displaced)
@@ -1788,6 +1789,7 @@ static_line_chart(filter(disp_county,
 ```
 
 ## Regional Geographies
+### All
 ```{r}
 # regional geography layer
 region_geo.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/Regional_Geographies/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson"
@@ -1809,14 +1811,14 @@ hts_data$hh <- hts_data$hh %>%
 table(hts_data$hh$survey_year, hts_data$hh$class_desc)
 
 # Calculate a categorical summary, i.e. count/share - not working
-reggeo_county <- psrc_hts_stat(hts_data,
+disp_reggeo <- psrc_hts_stat(hts_data,
                                analysis_unit="hh",
                                group_vars=c("class_desc", "displaced"))
 
 focus_year <- 2023
 
 # create chart
-static_column_chart(filter(reggeo_county, 
+static_column_chart(filter(disp_reggeo, 
                            survey_year == focus_year,
                            displaced=="Displaced"),
                     x = "displaced", y = "prop", fill = "class_desc",
@@ -1831,9 +1833,57 @@ static_column_chart(filter(reggeo_county,
                     )
 
 # All years
-static_line_chart(filter(reggeo_county,
+static_line_chart(filter(disp_reggeo,
+                         displaced=="Displaced"),
+                  x = "survey_year", y = "prop", fill = "class_desc",
+                  ylabel = "% of respondents", 
+                  title = paste0("Displacement by Regional Geogrpahy")) + theme(
+                    axis.text.x = element_text(size = 14),
+                    axis.text.y = element_text(size = 14),
+                    axis.title.y = element_text(size = 20),
+                    axis.title.x = element_text(size = 20),
+                    plot.title = element_text(size = 24)
+                  )
+```
+
+### Simplified: 2 categories
+```{r}
+# unique(hts_data$hh$class_desc) #original variables
+# table(hts_data$hh$survey_year, hts_data$hh$class_desc)
+
+# aggregate categories
+hts_data$hh <- mutate(hts_data$hh,
+                      class_desc_bin2= case_when(class_desc=="HCT"  |
+                                                   class_desc=="Metro" ~ "Metro/HCT",
+                                                 TRUE~"Other"))
+
+
+# Calculate a categorical summary, i.e. count/share - not working
+disp_reggeo2bin <- psrc_hts_stat(hts_data,
+                                 analysis_unit="hh",
+                                 group_vars=c("class_desc_bin2", "displaced"))
+
+focus_year <- 2023
+
+# create chart
+static_column_chart(filter(disp_reggeo2bin, 
+                           survey_year == focus_year,
                            displaced=="Displaced"),
-                    x = "survey_year", y = "prop", fill = "class_desc",
+                    x = "displaced", y = "prop", fill = "class_desc_bin2",
+                    ylabel = "% of respondents",
+                    title = paste0("Displacement by Regional Geography (", focus_year, ")"),
+                    moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      plot.title = element_text(size = 24)
+                    )
+
+# All years
+static_line_chart(filter(disp_reggeo2bin,
+                           displaced=="Displaced"),
+                    x = "survey_year", y = "prop", fill = "class_desc_bin2",
                     ylabel = "% of respondents", 
                     title = paste0("Displacement by Regional Geogrpahy")) + theme(
                       axis.text.x = element_text(size = 14),
@@ -1842,4 +1892,5 @@ static_line_chart(filter(reggeo_county,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+
 ```
