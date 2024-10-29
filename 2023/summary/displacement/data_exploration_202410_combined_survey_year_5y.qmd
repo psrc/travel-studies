@@ -80,6 +80,8 @@ vars <- c(
   'prev_res_factors_specify', 'prev_res_factors_telework', 
   'hh_race_category',
   "home_jurisdiction","home_lat","home_lng",
+  "prev_home_lat", "prev_home_lng", 
+  "home_tract20", "prev_home_tract20",
   
   #person-level variables
   'race_category', 'race_afam', 'race_aiak', 'race_asian', 'race_hapi', 
@@ -1786,7 +1788,8 @@ model.matrix(~0+., data=person_level_num_filtered) %>%
 ```
 
 
-#### COVID - movers before, during, and after the evication moratoriums
+#### COVID 
+Movers before, during, and after the evication moratoriums
 Policies and interest rates- before and after COVID - using the survey year and subtracting the range of years
 ```{r}
 # we are loosely defining the time period of the moratorium as 2020-2021
@@ -1975,7 +1978,7 @@ static_column_chart(filter(wtd_sum, #survey_year == focus_year,
 
 ```{r}
 # add hh level covid data to person-level data
-hh_covid <- trial %>% 
+hh_covid <- time %>% 
   select(hh_id, covid_moving)
 person_level_covid <- person_level_ordered %>%
   select(hh_id, age, education, employment_simp, displaced) %>%
@@ -1999,7 +2002,7 @@ plot(Disp_GKmatrix_p_before)
 ```
 ###### Household
 ```{r}
-hh_level_covid_before <- trial %>%
+hh_level_covid_before <- time %>%
   filter(covid_moving=="before")
 
 hh_correlation_before <- subset(hh_level_covid_before, select = corr_variables)
@@ -2019,7 +2022,7 @@ plot(Disp_GKmatrix_p_after)
 ```
 ###### Household
 ```{r}
-hh_level_covid_after <- trial %>%
+hh_level_covid_after <- time %>%
   filter(covid_moving=="after")
 
 hh_correlation_after <- subset(hh_level_covid_after, select = corr_variables)
@@ -2061,4 +2064,65 @@ static_column_chart(filter(wtd_sum, #survey_year == focus_year,
                       axis.title.x = element_text(size = 20),
                       plot.title = element_text(size = 24)
                     )
+```
+
+
+#### Displacement Risk
+```{r}
+# home locations - previous and current
+home_count <- hts_data$hh %>%
+  group_by(survey_year) %>%
+  summarise(n_distinct(home_tract20))
+
+prev_home_count <- hts_data$hh %>%
+  group_by(survey_year) %>%
+  summarise(n_distinct(prev_home_tract20))
+
+# there is one household with a previous home tract, but it appears to be NA
+# test <- hts_data$hh %>% 
+#   filter(survey_year=="2023") %>% 
+#   group_by(prev_home_tract20) %>% 
+#   summarise(first(hh_id))
+
+# displacement risk dataset -----
+arc_service <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services"
+
+disp10.url <- file.path(arc_service, "Displacement_Risk_Data/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson")
+disp10.lyr <- st_read(disp10.url)
+
+
+# join displacement risk data to HTS data: home tract based on lat/long -----
+home_loc <- hts_data$hh %>%
+  st_as_sf(coords = c("home_lng", "home_lat"), 
+           crs = 4326) %>% 
+  select(hh_id, geometry) #3343 features
+
+hh <- st_intersection(home_loc, disp10.lyr)
+
+# add geography data to hts_data$hh
+hts_data$hh <- hts_data$hh %>% 
+  left_join(hh, by="hh_id")
+
+# join displacement risk data to HTS data: previous home tract based on lat/long -----
+# create displacement dataset for previous home locations
+prev_disp10.lyr <- disp10.lyr %>% 
+  rename_with(.cols = ElmerGeo_DBO_displacement_risk_:vote_level, function(x){paste0("prev_", x)})
+  # rename_with(.fn = ~ paste0("prev_", .x))
+
+# need to remove 2023 data because locations not available
+hh_no2023 <- hts_data$hh  %>%
+  filter(survey_year!="2023")
+table(hh_no2023$survey_year)
+
+prev_home_loc <- hh_no2023 %>%
+  st_as_sf(coords = c("prev_home_lat", "prev_home_lng"), 
+           crs = 4326) %>% 
+  select(hh_id, geometry) #2067 features
+
+hh_prev <- st_intersection(prev_home_loc, prev_disp10.lyr)
+
+# add geography data to hts_data$hh
+hts_data$hh <- hts_data$hh %>% 
+  left_join(hh_prev, by="hh_id")
+
 ```
