@@ -22,7 +22,7 @@ looking at residential displacement trend
 ```{r}
 demo_summary_vars<-c('age', 'disability_person', 'education', 'employment','gender', 'industry',
                'hhincome_broad', 'home_county','home_lat', 'home_lng','hh_race_category','home_rgcname',
-               'numadults', 'numchildren', 'numworkers','res_type', 'rent_own','sexuality',
+               'numadults', 'numchildren', 'numworkers','res_type', 'rent_own','sexuality', 'hh_race_category_2',
                'student', 'vehicle_count')
 prev_res_factors<-c('res_dur', 'prev_res_factors_housing_cost', 'prev_res_factors_income_change', 'prev_res_factors_forced','prev_res_factors_community_change', 'prev_home_wa' )
 
@@ -118,8 +118,25 @@ housing_cost<-psrc_hts_stat(hts_data, "hh", c('survey_year','prev_res_factors_ho
 ```{r}
 hts_data$hh<-hts_data$hh%>%mutate(displaced=if_else((prev_res_factors_community_change=='Selected'|prev_res_factors_housing_cost=='Selected'|prev_res_factors_income_change=='Selected'|prev_res_factors_forced=='Selected'), 'displaced', 'not displaced'))
 ```
+
+```{r}
+hts_data$hh <- mutate(hts_data$hh,
+                      hh_race_category_2= case_when(hh_race_category=="AANHPI non-Hispanic"|
+                                                      hh_race_category=="Black or African American non-Hispanic"|
+                                                      hh_race_category=="Hispanic"|
+                                                      hh_race_category=="Some Other Races non-Hispanic" ~ "POC",
+                                                    TRUE~hh_race_category))
+```
+
 ```{r}
 displacement_summary<-psrc_hts_stat(hts_data, "hh", c('survey_year','displaced'), incl_na=TRUE)
 ```
 
+```{r}
+forced_summary_race<-psrc_hts_stat(hts_data, "hh", c('survey_year','hh_race_category_2', 'res_dur', 'prev_res_factors_forced'), incl_na=TRUE)
+```
 
+
+```{r}
+forced_summary_race1<-psrc_hts_stat(hts_data, "hh", c('survey_year','hh_race_category', 'res_dur', 'prev_res_factors_forced'), incl_na=TRUE)
+```

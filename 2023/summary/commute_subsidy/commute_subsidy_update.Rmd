@@ -1,0 +1,52 @@
+---
+title: "commute_subsidy_with_new_package"
+author: "suzanne"
+date: "2024-11-1"
+output: html_document
+---
+
+
+```{r}
+library(psrc.travelsurvey)
+library(dplyr)
+library(psrcplot)
+library(travelSurveyTools)
+source('survey-23-preprocess.R')
+
+hts_data <- get_psrc_hts(survey_vars = c('commute_subsidy_1', 'hhincome_detailed', 'workplace'))
+```
+
+
+
+```{r}
+workers<-hts_data$person%>%filter(!workplace %in% c('Missing: Skip logic', "Missing: Skip Logic"))%>%drop_na(workplace)
+hh_23<-hts_data$hh%>%filter(survey_year=='2023')
+person_23<-workers%>%filter(survey_year=='2023')
+worker_list<-list(hh=hh, person=workers)
+
+```
+
+```{r}
+variables_dt<-variable_list%>%mutate(is_checkbox=0, shared_name=variable)
+workers_respond<-workers%>%filter(commute_subsidy_1 %in% c('Selected', 'Not selected'))%>%filter(!is.na(commute_subsidy_1))
+hh<-hh%>%mutate(hhincome_detailed=factor(hhincome_detailed, levels= c( 'Under $10,000' ,'$10,000-$24,999','$25,000-$34,999','$35,000-$49,999','$50,000-$74,999','$75,000-$99,999', '$100,000-$149,999','$150,000-$199,999', '$200,000-$249,999', '$250,000 or more' )))
+worker_list<-list(hh=hh, person=workers_respond)
+```
+
+```{r}
+variables_list<-variables_dt
+old_code_approach<- summarize_weighted(hts_data= worker_list,
+                               summarize_var = 'commute_subsidy_1',
+                               summarize_by = 'hhincome_broad',
+                               id_cols=c('hh_id', 'person_id'),
+                               wt_cols=c('hh_weight', 'person_weight'),
+                               wtname= 'person_weight')
+```
+
+
+```{r}
+new_approach<- psrc_hts_stat(worker_list, "person", c('commute_subsidy_1','hhincome_detailed'), incl_na=TRUE)
+```
+
+
+
