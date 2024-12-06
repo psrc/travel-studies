@@ -4,12 +4,12 @@ library(psrcelmer)
 
 # ---- variable lists to check ----
 # csv files
-full_list_path <- "variable_lists/PSRC_HTS_variables_full_2023.csv"
+full_list_path <- "variable_lists/PSRC_HTS_variables_full_2023_logic.csv"
 variable_full_list <- read_csv(full_list_path)
 
 # 2024/10/17: add information variables back to codebook
-new_full_list_path <- "manual_changes/create_description/HTS_variable_description.xlsx"
-new_variable_full_list <- readxl::read_xlsx(new_full_list_path, sheet = 'variable_list')
+# new_full_list_path <- "manual_changes/create_description/HTS_variable_description.xlsx"
+# new_variable_full_list <- readxl::read_xlsx(new_full_list_path, sheet = 'variable_list')
 
 # codebook
 cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"

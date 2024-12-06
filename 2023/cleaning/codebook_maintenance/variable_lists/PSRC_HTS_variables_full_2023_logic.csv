@@ -1,4 +1,5 @@
 variable,is_checkbox,hh,person,day,trip,vehicle,location,data_type,description,logic,shared_name
+adult_student,0,0,1,0,0,0,0,integer/categorical,Student status (only inlcudes students age 18+),if age 18+,student
 age,0,0,1,0,0,0,0,integer/categorical,Age,,age
 analyst_merged,0,0,0,0,1,0,0,integer/categorical,Analyst merged two or more trips,if hhgroup = rMove,analyst_merged
 analyst_split,0,0,0,0,1,0,0,integer/categorical,Analyst split trip,if hhgroup = rMove,analyst_split
@@ -6,7 +7,6 @@ analyst_split_loop,0,0,0,0,1,0,0,integer/categorical,Analyst split loop trip int
 arrival_time_hour,0,0,0,0,1,0,0,numeric,Arrival time hour,,arrival_time_hour
 arrival_time_minute,0,0,0,0,1,0,0,numeric,Arrival time minute,,arrival_time_minute
 arrival_time_second,0,0,0,0,1,0,0,numeric,Arrival time second,,arrival_time_second
-arrival_time_timestamp,0,0,0,0,1,0,0,date-time,Arrival time timestamp,,arrival_time_timestamp
 arrive_date,0,0,0,0,1,0,0,date,Date of arrival,,arrive_date
 arrive_dow,0,0,0,0,1,0,0,integer/categorical,Arrival day of week,,arrive_dow
 attend_school_1,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to school",if child attends in-person school or daycare at least some of the time and school was not selected as a purpose on travel day for child's roster,attend_school
@@ -20,12 +20,12 @@ benefits_3,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Free/
 benefits_4,0,0,1,0,0,0,0,integer/categorical,"Employer commuter benefits -- Other subsidized commute (vanpool, bike, etc.)",if full/part-time employed,benefits_4
 bike_freq,0,0,1,0,0,0,0,integer/categorical,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,if age 18+ and bikes (share_2 = 1),bike_freq
 bike_freq_pre_2023,0,0,1,0,0,0,0,integer/categorical,Times ridden a bike in past 30 days,,bike_freq_pre_2023
+bike_frequency,0,0,1,0,0,0,0,integer/categorical,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,,bike_freq
 broadband,0,1,0,0,0,0,0,integer/categorical,Broadband internet service at current residence,,broadband
 carshare_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days",if age 18+ and uses carshare (share_5 = 1),carshare_freq
 change_vehicles,0,0,0,0,1,0,0,integer/categorical,Changed vehicles at carpool start location,"If mode = Vanpool, household vehicle, or other vehicle and travel party has >= 2 non-household travelers",change_vehicles
 commute_dur,0,0,1,0,0,0,0,integer/categorical,How long has been commuting to current location/office,"if workplace = fixed or telecommutes some days (2017-2021); if commute_freq is not ""never"" (2023)",commute_dur
 commute_freq,0,0,1,0,0,0,0,integer/categorical,How often commuted to workplace last week,"if workplace = fixed, varied, telecommutes some days (2017-2021); if employment = full/part/self/volunteer and job_type IS NOT ""work only from home"" or “drive/bike/travel for work” (2023)",commute_freq
-commute_mode,0,0,1,0,0,0,0,integer/categorical,Method of commuting to work location/office last week,if commute_freq > none,commute_mode
 commute_subsidy_1,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,If employed full/part/furloughed/volunteer,commute_subsidy
 commute_subsidy_2,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,If employed full/part/furloughed/volunteer,commute_subsidy
 commute_subsidy_3,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) parking at work,If employed full/part/furloughed/volunteer,commute_subsidy
@@ -35,6 +35,7 @@ commute_subsidy_6,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by
 commute_subsidy_7,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Ability to work from home,If employed full/part/furloughed/volunteer,commute_subsidy
 commute_subsidy_996,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- None of the above,If employed full/part/furloughed/volunteer,commute_subsidy
 commute_subsidy_998,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Don't know,If employed full/part/furloughed/volunteer,commute_subsidy
+commute_subsidy_transit,0,0,1,0,0,0,0,integer/categorical,Worker offered transit pass through work,,commute_subsidy_transit
 commute_subsidy_use_1,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) transit passes or fares,if employer offers free transit passes,commute_subsidy_use
 commute_subsidy_use_2,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,if employer offers discounted transit passes,commute_subsidy_use
 commute_subsidy_use_3,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) parking at work,if employer offers free parking at work,commute_subsidy_use
@@ -66,7 +67,6 @@ depart_dow,0,0,0,0,1,0,0,integer/categorical,Departure day of week,,depart_dow
 depart_time_hour,0,0,0,0,1,0,0,numeric,Departure time hour,,depart_time_hour
 depart_time_minute,0,0,0,0,1,0,0,numeric,Departure time minute,,depart_time_minute
 depart_time_second,0,0,0,0,1,0,0,numeric,Departure time second,,depart_time_second
-depart_time_timestamp,0,0,0,0,1,0,0,date-time,Departure time timestamp,,depart_time_timestamp
 dest_county,0,0,0,0,1,0,0,integer/categorical,Trip Destination County,,dest_county
 dest_jurisdiction,0,0,0,0,1,0,0,integer/categorical,Trip Destination Jurisdiction,,dest_jurisdiction
 dest_lat,0,0,0,0,1,0,0,numeric,Destination latitude,,dest_lat
@@ -82,6 +82,7 @@ dest_tract20,0,0,0,0,1,0,0,character,Destination Census Tract 2020,,dest_tract20
 dest_x_coord,0,0,0,0,1,0,0,numeric,Destination: X coordinate,,dest_x_coord
 dest_y_coord,0,0,0,0,1,0,0,numeric,Destination: Y coordinate,,dest_y_coord
 disability_person,0,0,1,0,0,0,0,integer/categorical,Person has a disability or illness that affects ability to travel,if age 18+,disability_person
+displaced,0,1,0,0,0,0,0,integer/categorical,Household experienced residential displacement,,displaced
 distance_meters,0,0,0,0,1,0,0,numeric,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,,distance_meters
 distance_miles,0,0,0,0,1,0,0,numeric,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,,distance_miles
 driver,0,0,0,0,1,0,0,integer/categorical,"Driver or passenger on auto trip, non-taxi",if mode = auto (non-taxi) and travel party > 1,driver
@@ -152,13 +153,10 @@ mode_2,0,0,0,0,1,0,0,integer/categorical,Second mode chosen,if hhgroup = rMove,m
 mode_3,0,0,0,0,1,0,0,integer/categorical,Third mode chosen,if hhgroup = rMove,mode_3
 mode_4,0,0,0,0,1,0,0,integer/categorical,Fourth mode chosen,if hhgroup = rMove,mode_4
 mode_acc,0,0,0,0,1,0,0,integer/categorical,Travel mode to transit,"if transit trip (bus, rail, streetcar, ferry)",mode_acc
-mode_characterization,0,0,0,0,1,0,0,integer/categorical,Do Not Use!!! Older version,,mode_characterization
 mode_class,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode (derived from mode_1~mode_4),,mode_class
 mode_class_5,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode (5 categories),,mode_class_5
 mode_egr,0,0,0,0,1,0,0,integer/categorical,Travel mode from transit,"if transit trip (bus, rail, streetcar, ferry)",mode_egr
 mode_other_specify,0,0,0,0,1,0,0,character,Other mode specified in textbox,"if mode = ""Other""",mode_other_specify
-mode_simple,0,0,0,0,1,0,0,integer/categorical,Do Not Use!!! Only considered mode_1,,mode_simple
-mode_type,0,0,0,0,1,0,0,integer/categorical,Synthesized mode (derived),,mode_type
 model,0,0,0,0,0,1,0,character,Vehicle model,,model
 model_other,0,0,0,0,0,1,0,character,Other vehicle model textbox answer,"if model = ""Other""",model_other
 no_school_closed,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- School was closed or adjusted due to weather event,if child didn't travel to school on travel day,no_school
@@ -222,7 +220,7 @@ person_pct_trips_flagged,0,0,1,0,0,0,0,numeric,Percent of person's total trip tr
 person_weight,0,0,1,0,0,0,0,numeric,Person-level weight,,person_weight
 person_weight_2017_2019_combined,0,0,1,0,0,0,0,numeric,Person-level weight for 2017 and 2019 combined,,person_weight_2017_2019_combined
 point_dist_index,0,0,0,0,1,0,0,numeric,Percentage points over expected for largest distance between two points on trip,,point_dist_index
-proxy,0,0,1,0,0,0,0,numeric,Percentage points over expected for largest distance between two points on trip,if ABS or (online panel and pernum = 1),point_dist_index
+proxy,0,0,1,0,0,0,0,numeric,Survey respondent/proxy,if ABS or (online panel and pernum = 1),point_dist_index
 prev_home_county,0,1,0,0,0,0,0,integer/categorical,Previous home address: County,,prev_home_county
 prev_home_jurisdiction,0,1,0,0,0,0,0,integer/categorical,Previous home address: Jurisdiction,,prev_home_jurisdiction
 prev_home_lat,0,1,0,0,0,0,0,numeric,Previous home address latitude,if moved in last 5 years (2023: if moved in last 5 years from outside WA),prev_home_lat
@@ -294,7 +292,6 @@ share_5,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Carshare (e
 share_996,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- None of the above,if age 18+,share
 speed_flag,0,0,0,0,1,0,0,integer/categorical,Unusually high speed given mode,,speed_flag
 speed_mph,0,0,0,0,1,0,0,numeric,Trip speed in miles per hour (derived),,speed_mph
-student,0,0,1,0,0,0,0,integer/categorical,Student status,if age 18+,student
 summary_complete,0,0,0,1,0,0,0,integer/categorical,Daily survey is complete,,summary_complete
 survey_year,0,1,1,1,1,1,0,integer/categorical,Survey data collection year,,survey_year
 surveyable,0,0,1,1,0,0,0,integer/categorical,Survey participant is related to person 1,,surveyable
@@ -319,6 +316,7 @@ tran_pass_7,0,0,1,0,0,0,0,integer/categorical,Available and typically use when r
 tran_pass_8,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: School District Card/Pass,if ridden transit in past 30 days,tran_pass_8
 tran_pass_9,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: City/County Employee Badge,if ridden transit in past 30 days,tran_pass_9
 transit_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days",if age 18+ and uses transit (share_3 = 1),transit_freq
+transit_frequency,0,0,1,0,0,0,0,integer/categorical,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days",,transit_frequency
 transit_pass,0,0,1,0,0,0,0,integer/categorical,Respondent has transit pass,if age 18+,transit_pass
 travel_date,0,0,0,1,1,0,0,date,Travel date,,travel_date
 travel_day,0,0,0,1,1,0,0,integer/categorical,Is travel day,,travel_day
@@ -342,6 +340,7 @@ vehicleused,0,0,1,0,0,0,0,integer/categorical,Vehicle uses most often,if has lic
 vehnum,0,0,0,0,0,1,0,numeric,Vehicle number,,vehnum
 walk_freq,0,0,1,0,0,0,0,integer/categorical,How often the person has walked outside for 15 or more minutes in the past 30 days,if age 18+ and walks (share_1 = 1),walk_freq
 walk_freq_pre_2023,0,0,1,0,0,0,0,integer/categorical,Times gone for a walk in past 30 days,,walk_freq_pre_2023
+walk_frequency,0,0,1,0,0,0,0,integer/categorical,How often the person has walked outside for 15 or more minutes in the past 30 days,,walk_frequency
 work_county,0,0,1,0,0,0,0,integer/categorical,Work address county,if workplace = fixed,work_county
 work_in_region,0,0,1,0,0,0,0,integer/categorical,Work is in PSRC MPO area,,work_in_region
 work_jurisdiction,0,0,1,0,0,0,0,integer/categorical,Work address Jurisdiction,,work_jurisdiction

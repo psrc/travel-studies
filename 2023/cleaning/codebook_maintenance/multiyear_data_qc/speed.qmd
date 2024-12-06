@@ -1,0 +1,53 @@
+---
+title: "speed"
+date: today
+---
+
+- issues:
+  - some weighted trips have very high speed, 0 mph or NAs
+
+## sumary
+
+```{r}
+library(psrc.travelsurvey)
+library(tidyverse)
+library(psrcelmer)
+
+trip_data <- get_query(sql= "select * from HHSurvey.v_trips_labels")
+
+trip_speed_error <- trip_data %>% 
+  filter(speed_mph<=0 | speed_mph>160 | is.na(speed_mph), 
+         mode_characterization != "Airplane",
+         trip_weight>0) %>%
+  select(trip_id:person_id,tripnum,mode_characterization,mode_class,day_iscomplete,svy_complete,
+         distance_miles,duration_minutes,speed_mph,speed_flag,origin_lng,origin_lat,dest_lng,dest_lat,
+         trip_weight,survey_year) %>%
+  mutate(issue = case_when(speed_mph>0~"high speed",
+                           TRUE~"0 mph"))
+```
+
+```{r}
+trip_speed_error %>%
+  group_by(survey_year,issue) %>%
+  summarise(trip_count = n()) %>%
+  pivot_wider(id_cols = "survey_year", names_from = "issue", values_from = "trip_count")
+```
+
+## focusing on 2023
+
+- how can duration_minutes be 0?
+- can we fix this in the weighting script?
+- how did these trip end up in the published data? (to prevent future mistakes)
+- 0 mph:
+
+```{r}
+trip_speed_error %>% filter(survey_year==2023, issue=="0 mph") %>%
+  select(-mode_characterization)
+```
+- high speed:
+
+```{r}
+trip_speed_error %>% filter(survey_year==2023, issue=="high speed") %>%
+  select(-mode_characterization)
+```
+

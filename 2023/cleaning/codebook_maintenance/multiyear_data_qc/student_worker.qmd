@@ -1,0 +1,318 @@
+---
+title: "student and worker status"
+date: today
+---
+
+- issues:
+  - school location lat/lng misplaced in work location lat/lng
+  - incorrect student status for under 18
+    - 2017,2019,2023: all school grade students are not assigned student status
+    - 2021: Under 5 years old and some 5-11 years old were wrongly assigned as student
+  - SOV mode for under 16
+
+```{r}
+library(tidyverse)
+library(psrcelmer)
+
+# list of table names and view names for each data table
+table_names <- c('hh','person','day','trip','vehicle')
+view_names <- c('v_households_labels','v_persons_labels','v_days_labels','v_trips_labels','v_vehicles_labels')
+names(view_names) <- table_names
+
+df_view_name <- data.frame(table = table_names,
+                           Elmer.view.name = view_names,
+                           row.names = NULL)
+
+# import all views
+hh_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['hh']))
+person_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['person']))
+# day_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['day']))
+trip_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['trip']))
+# vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['vehicle']))
+
+# remove weight==0
+hh_data_valid <- hh_data %>% filter(hh_weight>0)
+person_data_valid <- person_data %>% filter(person_weight>0)
+```
+
+
+```{r}
+person_vars <- c("person_id","household_id","survey_year","age")
+school_loc <- c("student","schooltype","school_loc_lat","school_loc_lng","school_in_region","school_county",
+                "school_jurisdiction","school_rgcname","school_tract20")
+work_loc <- c("employment","work_lat","work_lng","work_in_region","work_county",
+              "work_jurisdiction","work_rgcname","work_tract20")
+
+non_school <- c("Daycare","Preschool","Cared for at home")
+school_grade_type <- c("Elementary school (public, private, charter)",
+                       "K-12 public school",
+                       "K-12 private school",
+                       "K-12 home school (full-time or part-time)",
+                       "Middle school (public, private, charter)",
+                       "High school (public, private, charter)")
+school_college <- c("College, graduate, or professional school" ,
+                    "Vocational/technical school",
+                    "Graduate or professional school",                                 
+                    "4-year college",
+                    "2-year college")
+school_other <- c("Other",
+                  "Home school")
+
+person_school_work <- person_data_valid %>%
+  select(any_of(c(person_vars,"student","schooltype","employment","school_loc_lat","school_loc_lng","work_lat","work_lng"))) %>%
+  mutate(student_simple = case_when(grepl("Full-time student",student) | grepl("Part-time student",student)~"Student",
+                                    is.na(student)~ "NA",
+                                    TRUE~student),
+         schooltype_simple = case_when(schooltype %in% non_school~"Preschool/Daycare/Cared for at home",
+                                       schooltype %in% school_grade_type~"Grade school",
+                                       schooltype %in% school_college~"University/College/Graduate school/Vocational school",
+                                       TRUE~schooltype)) %>%
+  mutate(age_simple = case_when(age %in% c("Under 5 years old")~"Under 5 years old",
+                                age %in% c("5-11 years")~"5-11",
+                                age %in% c("12-15 years")~"12-15",
+                                age %in% c("16-17 years")~"16-17",
+                              TRUE~"18+"),
+         employment_simple = case_when(grepl("^(Self-)?[eE]mployed", as.character(employment))~"Employed",
+                                       # is.na(employment)~ "NA",
+                                       TRUE~"No")
+         ) %>% 
+  mutate(work_lat_lng = case_when(!is.na(work_lat)~"have_work_loc",
+                                  TRUE~"no_work_loc"),
+         school_loc_lat_lng = case_when(!is.na(school_loc_lat)~"have_school_loc",
+                                        TRUE~"no_school_loc"))
+```
+
+
+```{r}
+person_under5 <- person_school_work %>% filter(age_simple=="Under 5 years old")
+person_5_11 <- person_school_work %>% filter(age_simple=="5-11")
+person_12_15 <- person_school_work %>% filter(age_simple=="12-15")
+
+person_5_15 <- person_school_work %>% filter(age_simple %in% c("5-11","12-15"))
+
+person_16_17 <- person_school_work %>% filter(age_simple=="16-17")
+person_18plus <- person_school_work %>% filter(age_simple=="18+")
+```
+
+
+
+    
+## issue 1: (only in 2019) school location misplaced as work location
+
+- 5-15 years old: all work locations should be school locations
+
+```{r}
+person_5_15 %>% filter(is.na(school_loc_lat) & !is.na(work_lat)) %>%
+  group_by(survey_year,age) %>%
+  summarise(person_count = n()) %>%
+  arrange(desc(age))
+```
+
+- 16-17 years old: all work locations should be school locations
+  - no `employment_simple == "Employed"` records
+
+```{r}
+person_16_17 %>% 
+  filter(is.na(school_loc_lat) & !is.na(work_lat), employment_simple!="Employed") %>%
+  group_by(survey_year,age,employment_simple, work_lat_lng) %>%
+  summarise(person_count = n()) %>%
+  pivot_wider(id_cols = c("age","survey_year","employment_simple"), names_from = "work_lat_lng", values_from = "person_count")
+```
+
+## issue 2: student status recode for children (divide by age groups)
+
+:::{.panel-tabset}
+### Under 5 years old: not student
+
+- double check: do we want babies to be coded as students?
+- current data
+  - 2021: Under 5 years old are assigned as students
+  - only 2023: some Under 5 years old have school locations
+    
+```{r}
+person_under5 %>% 
+  filter(survey_year==2023) %>%
+  mutate(school_loc_lat_lng = case_when(!is.na(school_loc_lat)~"have_school_loc",
+                                        TRUE~"no_school_loc")) %>%
+  group_by(age_simple,survey_year,school_loc_lat_lng) %>%
+  summarise(person_count = n()) %>%
+  arrange(desc(school_loc_lat_lng))
+```
+
+### 5-11 years old: assign student status in grade schools
+
+- additional step because 5 and 6 years old are not students
+- not student if their school type is `"Daycare"`,`"Preschool"`,`"Cared for at home"` or missing
+- student if school type is `"Elementary school (public, private, charter)"`,
+                            `"K-12 public school"`,
+                            `"K-12 private school"`,
+                            `"K-12 home school (full-time or part-time)"`,
+                            `"Middle school (public, private, charter)"`,
+                            `"High school (public, private, charter)"`
+- current data
+    
+```{r}
+person_5_11 %>% 
+  group_by(age,survey_year,schooltype_simple) %>%
+  summarise(person_count = n()) %>%
+  pivot_wider(id_cols = c("age","survey_year"), names_from = "schooltype_simple", values_from = "person_count")
+```
+
+### 12-17 years old: all children should be students
+    - current data
+```{r}
+person_12_15 %>%
+  add_row(person_16_17) %>%
+  group_by(survey_year, student) %>%
+  reframe(person_count = n()) %>%
+  pivot_wider(id_cols = "survey_year", names_from = "student", values_from = "person_count")
+```
+
+### 18 and above: keep as it is
+
+:::
+
+### temporary recode results
+
+```{r}
+# fix 2019 school location
+fix_school_location <- function(.data){
+  .data %>%
+  mutate(school_loc_lat_recode = case_when(employment_simple!="Employed" & is.na(school_loc_lat) & !is.na(work_lat)~work_lat,
+                                    TRUE~school_loc_lat),
+         school_loc_lng_recode = case_when(employment_simple!="Employed" & is.na(school_loc_lng) & !is.na(work_lng)~work_lng,
+                                    TRUE~school_loc_lng))
+}
+
+# recode student by age group
+student_under5 <- person_under5 %>%
+  mutate(school_loc_lat_recode = school_loc_lat,
+         school_loc_lng_recode = school_loc_lng,
+         student_recode = "No, not a student")
+student_5_11 <- person_5_11 %>%
+  fix_school_location() %>%
+  # mutate(student_recode = case_when(!is.na(school_loc_lat_recode)~"Student",
+  #                                   TRUE~"No, not a student"))
+  mutate(student_recode = case_when(schooltype_simple=="Grade school"~"Student",
+                                    TRUE~"No, not a student"))
+student_12_15 <- person_12_15 %>%
+  fix_school_location() %>%
+  mutate(student_recode = "Student")
+student_16_17 <- person_16_17 %>%
+  fix_school_location() %>%
+  mutate(student_recode = "Student")
+student_18plus <- person_18plus %>%
+  mutate(school_loc_lat_recode = school_loc_lat,
+         school_loc_lng_recode = school_loc_lng,
+         student_recode = case_when(student_simple=="Student"~"Student",
+                                    TRUE~"No, not a student"))
+# combine all age groups
+student_recoded <- student_under5 %>%
+  add_row(student_5_11) %>%
+  add_row(student_12_15) %>%
+  add_row(student_16_17) %>%
+  add_row(student_18plus)
+
+# for counting errors
+# count_error <- student_recoded %>%
+#   mutate(error = case_when(student_simple=="Student" & student_recode=="Student"~0,
+#                            student_simple=="Student" & student_recode!="Student"~1,
+#                            student_recode=="Student"~1,
+#                            TRUE~0)) %>%
+#   filter(error==1)
+```
+
+
+- student count: original and recode
+  - 2021 count dropped: Under 5 years old and some 5-11 years old were wrongly assigned as student
+  - distribution across years:
+  
+```{r}
+student_recoded %>%
+  filter(student_simple=="Student") %>%
+  group_by(survey_year) %>%
+  summarise(student_count=n()) %>%
+  left_join(student_recoded %>%
+    filter(student_recode=="Student") %>%
+    group_by(survey_year) %>%
+    summarise(recode_count=n()),
+    by="survey_year") %>%
+  mutate(error_count = recode_count-student_count)
+
+
+```
+
+  
+```{r, fig.width=8, fig.height=3}
+df_plot <- student_recoded %>% 
+  group_by(survey_year,student_simple) %>%
+  reframe(count=n()) %>%
+  group_by(survey_year) %>%
+  mutate(percent=count/sum(count)) %>%
+  ungroup() %>%
+  rename(student = student_simple) %>%
+  mutate(type = "original")
+df_plot2 <- student_recoded %>% 
+  group_by(survey_year,student_recode) %>%
+  reframe(count=n()) %>%
+  group_by(survey_year) %>%
+  mutate(percent=count/sum(count)) %>%
+  ungroup() %>%
+  rename(student = student_recode) %>%
+  mutate(type = "recode")
+
+df_plot3 <- rbind(df_plot,df_plot2) %>%
+  filter(student!="No, not a student") %>%
+  mutate(student = factor(student, levels=c("Student","NA","Missing: Skip Logic","Missing Response")))
+ggplot(df_plot3, aes(x=factor(survey_year),fill=type)) +
+  geom_col(aes(y=count), position="dodge")+ 
+  facet_wrap(~student, ncol=4) +
+  labs(title="number of students") +
+  theme_bw()
+```
+
+- student share: original and recode
+```{r, fig.width=5, fig.height=3}
+ggplot(df_plot3 %>% filter(student=="Student"), aes(x=factor(survey_year),fill=type)) +
+  geom_col(aes(y=percent), position="dodge")+ 
+  scale_y_continuous(labels = scales::percent_format())+
+  labs(title="share of students") +
+  theme_bw()
+```
+
+## issue 3: SOV for children (only children under 16 and `trip_weight>0`)
+
+- number of children trips with Drive SOV mode
+
+```{r, fig.height=4, fig.width=8}
+children_student_recoded <- person_data %>%
+  filter(age %in% c("Under 5 years old","5-11 years","12-15 years")) %>%
+  left_join(student_recoded %>% select(person_id,student_recode), by="person_id")
+
+trip_children <- trip_data %>%
+  filter(trip_weight>0,
+         person_id %in% children_student_recoded$person_id) %>%
+  left_join(student_recoded %>% select(person_id,age,student_recode), by="person_id")
+
+trip_children_SOV <- trip_children %>% filter(mode_class=="Drive SOV") %>%
+  select(all_of(c("trip_id","household_id","person_id","survey_year",
+"distance_miles","duration_minutes","speed_mph","speed_flag",
+"origin_purpose_cat","dest_purpose_cat",
+"mode_class","mode_class_5","mode_other_specify",
+"travelers_total","travelers_hh","travelers_nonhh","driver","trip_weight",
+"age","student_recode")))
+
+trip_children_SOV %>%
+  group_by(survey_year) %>%
+  summarise(person_count = n())
+  
+```
+
+- possible error source 1: `travelers_total`
+
+```{r}
+trip_children_SOV %>%
+  group_by(survey_year,travelers_total) %>%
+  summarise(person_count = n())
+```
+

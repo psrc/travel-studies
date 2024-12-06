@@ -4,14 +4,15 @@ library(gt)
 library(gtsummary)
 
 # save to files for manual update
-generate_spreadsheet <- FALSE
+generate_spreadsheet <- TRUE
 
 # location of full list of variables
 variable_list_path <- "variable_lists/PSRC_HTS_variables_full_2023_logic.csv"
 cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
 
 # codebook pages
-variable_list <- read_csv(variable_list_path)
+# variable_list <- read_csv(variable_list_path)
+variable_list <- readxl::read_xlsx(cb_path, sheet = 'variable_list')
 value_labels <- readxl::read_xlsx(cb_path, sheet = 'value_labels')
 
 # list of table names and view names for each data table
@@ -31,12 +32,11 @@ trip_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['trip']
 vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['vehicle']))
 
 # find all variables to be included in value labels
-geography_variables <- variable_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable))
+# geography_variables <- variable_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable))
 
 factor_variables <- variable_list %>% 
-  filter(data_type == "integer/categorical" #& 
-         # information ==0 &
-         # !variable %in% c("year", "survey_year", "sample_segment", 'hhgroup') & # no years
+  filter(data_type == "integer/categorical",
+         !grepl("hhmember",variable)
          # !variable %in% geography_variables$variable # no geography names
          )
 
@@ -93,7 +93,7 @@ if(generate_spreadsheet){
           "day edit" = compare_values_day, 
           "trip edit" = compare_values_trip, 
           "vehicle edit" = compare_values_vehicle)
-  openxlsx::write.xlsx(l, file = "manual_changes/values_summary6.xlsx")
+  openxlsx::write.xlsx(l, file = "manual_changes/values_summary.xlsx")
 }
 
 
