@@ -1,0 +1,34 @@
+---
+title: "telework-ability"
+author: "suzanne"
+date: "2024-11-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(psrc.travelsurvey)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+library(ggplot2)
+```
+
+
+```{r }
+vars<- c('commute_subsidy_7', 'telecommute_freq', 'workplace',  'industry')
+```
+
+
+
+```{r pressure}
+hts_data <- get_psrc_hts(survey_vars = vars)%>%
+  hts_bin_telecommute_trichotomy()
+
+```
+
+```{r}
+commute_subsidy_telework<-psrc_hts_stat(hts_data, 'person', c( 'telecommute_trichotomy', 'commute_subsidy_7', 'industry'), incl_na=FALSE)
+
+```
+
+

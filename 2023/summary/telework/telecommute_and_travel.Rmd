@@ -96,7 +96,7 @@ variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
 
 ```{r}
 output <- summarize_weighted(hts_data= hh_data_23,
-                               summarize_var = 'dest_purpose_simpler',
+                               summarize_var = 'dest_purpose',
                                summarize_by = c('telecommute_status'),
                                id_cols=ids,
                                wt_cols=wts,
@@ -127,11 +127,11 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r}
 
-output_trips<-output$summary$wtd%>%filter(dest_purpose_simpler!='Go Home')
-output_trips_wrker<- left_join(output_trips, output_wrkr_sum, by='telecommute_status')%>%filter(dest_purpose_simpler!='Go Home')
-output_trips_wrker<-output_trips_wrker%>%mutate(trips_per_worker=est.x/est.y)%>%mutate(trips_per_worker_per_week= trips_per_worker*5)%>%mutate(dest_purpose_simpler=fct_reorder(dest_purpose_simpler, trips_per_worker))%>%mutate(telecommute_status=factor(telecommute_status, levels=c('Fully In Person', 'Hybrid', 'Fully At Home')))%>%filter(dest_purpose_simpler!='Go Home')
+output_trips<-output$summary$wtd
+output_trips_wrker<- left_join(output_trips, output_wrkr_sum, by='telecommute_status')
+output_trips_wrker<-output_trips_wrker%>%mutate(trips_per_worker=est.x/est.y)%>%mutate(trips_per_worker_per_week= trips_per_worker*5)%>%mutate(dest_purpose=fct_reorder(dest_purpose, trips_per_worker))
                                                                                                    
-static<-static_bar_chart(output_trips_wrker, x='trips_per_worker_per_week', y='telecommute_status', fill='dest_purpose_simpler', pos='stack', dec=1, color='pgnobgy_10') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+static<-static_bar_chart(output_trips_wrker, x='trips_per_worker_per_week', y='telecommute_status', fill='dest_purpose', pos='stack', dec=1, color='pgnobgy_10') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 
 static
 
@@ -157,7 +157,7 @@ telecommute_mode<- summarize_weighted(hts_data= hh_data_23,
 
 output_trips<-telecommute_mode$summary$wtd
 output_trips_wrker<- left_join(output_trips, output_wrkr_sum, by='telecommute_status')
-output_trips_wrker<-output_trips_wrker%>%mutate(mode_characterization=fct_reorder(mode_characterization, prop.x))%>%mutate(telecommute_status=factor(telecommute_status, levels=c('Fully In Person', 'Hybrid', 'Fully At Home')))
+output_trips_wrker<-output_trips_wrker%>%mutate(mode_characterization=fct_reorder(mode_characterization, prop.x))
 
 output_trips<-output_trips_wrker%>%mutate(mode_short=if_else(startsWith(as.character(mode_characterization),'Drive'), 'Drive', mode_characterization))
 
@@ -185,7 +185,7 @@ telecommute_mode_county<- summarize_weighted(hts_data= hh_data_23,
 
 output_trips<-telecommute_mode_county$summary$wtd
 output_trips_wrker<- left_join(output_trips, output_wrkr_sum, by='telecommute_status')
-output_trips_wrker<-output_trips_wrker%>%mutate(mode_characterization=fct_reorder(mode_characterization, prop.x))%>%mutate(telecommute_status=factor(telecommute_status, levels=c('Fully In Person', 'Hybrid', 'Fully At Home')))
+output_trips_wrker<-output_trips_wrker%>%mutate(mode_characterization=fct_reorder(mode_characterization, prop.x))
 
 output_trips<-output_trips_wrker%>%mutate(mode_short=if_else(startsWith(as.character(mode_characterization),'Drive'), 'Drive', mode_characterization))
 
@@ -230,7 +230,7 @@ output_wrkr_sum<-output_wrkers$summary$wtd
 
 output_trips_wrker<- left_join(driving_23, output_wrkr_sum, by='telecommute_status')
 
-wrkr_vmt<-output_trips_wrker%>%filter(!is.na(total_vmt))%>%mutate(weekly_vmt_per_worker=5*total_vmt/est)%>%mutate(telecommute_status=factor(telecommute_status, levels=c('Fully In Person', 'Hybrid', 'Fully At Home')))
+wrkr_vmt<-output_trips_wrker%>%filter(!is.na(total_vmt))%>%mutate(weekly_vmt_per_worker=5*total_vmt/est)
 
 static<-static_bar_chart(wrkr_vmt, x='weekly_vmt_per_worker', y='telecommute_status', fill='telecommute_status', pos='stack', dec=0, color='pgnobgy_10') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
 static
