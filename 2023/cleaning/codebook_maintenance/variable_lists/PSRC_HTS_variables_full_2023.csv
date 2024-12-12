@@ -1,346 +1,355 @@
-variable,is_checkbox,hh,person,day,trip,vehicle,location,data_type,description,logic,shared_name,in_elmer_view,in_variable_list,information
-age,0,0,1,0,0,0,0,integer/categorical,Age,Age,age,1,1,0
-analyst_merged,0,0,0,0,1,0,0,integer/categorical,Analyst merged two or more trips,Analyst merged two or more trips,analyst_merged,1,0,1
-analyst_split,0,0,0,0,1,0,0,integer/categorical,Analyst split trip,Analyst split trip,analyst_split,1,0,1
-analyst_split_loop,0,0,0,0,1,0,0,integer/categorical,Analyst split loop trip into two trips,Analyst split loop trip into two trips,analyst_split_loop,1,0,1
-arrival_time_hour,0,0,0,0,1,0,0,numeric,Arrival time hour,Arrival time hour,arrival_time_hour,1,1,0
-arrival_time_minute,0,0,0,0,1,0,0,numeric,Arrival time minute,Arrival time minute,arrival_time_minute,1,1,0
-arrival_time_second,0,0,0,0,1,0,0,numeric,Arrival time second,Arrival time second,arrival_time_second,1,1,0
-arrival_time_timestamp,0,0,0,0,1,0,0,date-time,Arrival time timestamp,Arrival time timestamp,arrival_time_timestamp,0,1,0
-arrive_date,0,0,0,0,1,0,0,date,Date of arrival,Date of arrival,arrive_date,1,1,0
-arrive_dow,0,0,0,0,1,0,0,integer/categorical,Arrival day of week,Arrival day of week,arrive_dow,1,1,0
-attend_school_1,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to school","Did child travel to school -- Yes, traveled to school",attend_school,1,1,0
-attend_school_2,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to another location for school","Did child travel to school -- Yes, traveled to another location for school",attend_school,1,1,0
-attend_school_3,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- No, did not travel for school","Did child travel to school -- No, did not travel for school",attend_school,1,1,0
-attend_school_998,1,0,0,1,0,0,0,integer/categorical,Did child travel to school -- Don't know,Did child travel to school -- Don't know,attend_school,1,1,0
-attend_school_999,1,0,0,1,0,0,0,integer/categorical,Did child travel to school -- Prefer not to answer,Did child travel to school -- Prefer not to answer,attend_school,1,1,0
-benefits_1,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Flextime,Employer commuter benefits -- Flextime,benefits_1,1,1,0
-benefits_2,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Compressed Week,Employer commuter benefits -- Compressed Week,benefits_2,1,1,0
-benefits_3,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Free/partially subsidized passes/fares,Employer commuter benefits -- Free/partially subsidized passes/fares,benefits_3,1,1,0
-benefits_4,0,0,1,0,0,0,0,integer/categorical,"Employer commuter benefits -- Other subsidized commute (vanpool, bike, etc.)","Employer commuter benefits -- Other subsidized commute (vanpool, bike, etc.)",benefits_4,1,1,0
-bike_freq,0,0,1,0,0,0,0,integer/categorical,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,bike_freq,1,1,0
-bike_freq_pre_2023,0,0,1,0,0,0,0,integer/categorical,Times ridden a bike in past 30 days,Times ridden a bike in past 30 days,bike_freq_pre_2023,1,1,0
-broadband,0,1,0,0,0,0,0,integer/categorical,Broadband internet service at current residence,Broadband internet service at current residence,broadband,1,1,0
-carshare_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days","How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days",carshare_freq,1,1,0
-change_vehicles,0,0,0,0,1,0,0,integer/categorical,Changed vehicles at carpool start location,Changed vehicles at carpool start location,change_vehicles,1,1,0
-commute_dur,0,0,1,0,0,0,0,integer/categorical,How long has been commuting to current location/office,How long has been commuting to current location/office,commute_dur,1,1,0
-commute_freq,0,0,1,0,0,0,0,integer/categorical,How often commuted to workplace last week,How often commuted to workplace last week,commute_freq,1,1,0
-commute_mode,0,0,1,0,0,0,0,integer/categorical,Method of commuting to work location/office last week,Method of commuting to work location/office last week,commute_mode,1,1,0
-commute_subsidy_1,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,commute_subsidy,1,1,0
-commute_subsidy_2,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,commute_subsidy,1,1,0
-commute_subsidy_3,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) parking at work,Commute benefits provided by employer -- Free (fully subsidized) parking at work,commute_subsidy,1,1,0
-commute_subsidy_4,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) parking at work,Commute benefits provided by employer -- Discounted (partially subsidized) parking at work,commute_subsidy,1,1,0
-commute_subsidy_5,1,0,1,0,0,0,0,integer/categorical,"Commute benefits provided by employer -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)","Commute benefits provided by employer -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",commute_subsidy,1,1,0
-commute_subsidy_6,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Flextime (can adjust schedule as long as work the right number of total hours),Commute benefits provided by employer -- Flextime (can adjust schedule as long as work the right number of total hours),commute_subsidy,1,1,0
-commute_subsidy_7,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Ability to work from home,Commute benefits provided by employer -- Ability to work from home,commute_subsidy,1,1,0
-commute_subsidy_996,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- None of the above,Commute benefits provided by employer -- None of the above,commute_subsidy,1,1,0
-commute_subsidy_998,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Don't know,Commute benefits provided by employer -- Don't know,commute_subsidy,1,1,0
-commute_subsidy_use_1,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) transit passes or fares,Commute benefit used -- Free (fully subsidized) transit passes or fares,commute_subsidy_use,1,1,0
-commute_subsidy_use_2,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,commute_subsidy_use,1,1,0
-commute_subsidy_use_3,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) parking at work,Commute benefit used -- Free (fully subsidized) parking at work,commute_subsidy_use,1,1,0
-commute_subsidy_use_4,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) parking at work,Commute benefit used -- Discounted (partially subsidized) parking at work,commute_subsidy_use,1,1,0
-commute_subsidy_use_5,1,0,1,0,0,0,0,integer/categorical,"Commute benefit used -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)","Commute benefit used -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",commute_subsidy_use,1,1,0
-commute_subsidy_use_6,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Flextime (can adjust schedule as long as work the right number of total hours),Commute benefit used -- Flextime (can adjust schedule as long as work the right number of total hours),commute_subsidy_use,1,1,0
-commute_subsidy_use_7,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Ability to work from home,Commute benefit used -- Ability to work from home,commute_subsidy_use,1,1,0
-commute_subsidy_use_996,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- None of the above,Commute benefit used -- None of the above,commute_subsidy_use,1,1,0
-copied_trip,0,0,0,0,1,0,0,integer/categorical,Trip was copied from another HH member,Trip was copied from another HH member,copied_trip,1,0,1
-d_in_region,0,0,0,0,1,0,0,integer/categorical,Trip destination is in PSRC MPO area,Trip destination is in PSRC MPO area,d_in_region,1,1,0
-day_id,0,0,0,1,1,0,0,numeric,Unique identifier for each person day,Unique identifier for each person day,day_id,1,1,0
-day_iscomplete,0,0,0,1,1,0,0,integer/categorical,All surveys are completed for travel date,All surveys are completed for travel date,day_iscomplete,1,1,0
-day_pct_trips_flagged,0,0,0,1,0,0,0,numeric,Percent of person's trip traces flagged on day,Percent of person's trip traces flagged on day,day_pct_trips_flagged,1,0,1
-day_weight,0,0,0,1,0,0,0,numeric,Person Day weight for 2023,Person Day weight for 2023,day_weight,1,1,0
-day_weight_2023,0,0,0,1,0,0,0,NA,NA,NA,NA,1,0,1
-daynum,0,0,0,1,1,0,0,numeric,Diary day sequence,Diary day sequence,daynum,1,1,0
-days_first_trip,0,0,0,0,1,0,0,integer/categorical,First trip of the day (Flag).,First trip of the day (Flag).,days_first_trip,1,1,0
-days_last_trip,0,0,0,0,1,0,0,integer/categorical,Last trip of the day (Flag).,Last trip of the day (Flag).,days_last_trip,1,1,0
-deliver_elsewhere,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Packages delivered elsewhere,Deliveries and home services -- Packages delivered elsewhere,deliver,1,1,0
-deliver_food,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Food/meal prep delivered,Deliveries and home services -- Food/meal prep delivered,deliver,1,1,0
-deliver_grocery,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Groceries delivered,Deliveries and home services -- Groceries delivered,deliver,1,1,0
-deliver_none,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- None,Deliveries and home services -- None,deliver,1,1,0
-deliver_office,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Packages delivered at work,Deliveries and home services -- Packages delivered at work,deliver,1,1,0
-deliver_other,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Other deliveries,Deliveries and home services -- Other deliveries,deliver,1,1,0
-deliver_package,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Packages delivered at home,Deliveries and home services -- Packages delivered at home,deliver,1,1,0
-deliver_work,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Services delivered,Deliveries and home services -- Services delivered,deliver,1,1,0
-delivery_food_freq,0,0,1,0,0,0,0,integer/categorical,Number of deliveries -- Food/meal prep,Number of deliveries -- Food/meal prep,delivery_food,0,1,0
-delivery_grocery_freq,0,0,1,0,0,0,0,integer/categorical,Number of deliveries -- Grocery deliveries,Number of deliveries -- Grocery deliveries,delivery_grocery,0,1,0
-delivery_other_freq,0,0,1,0,0,0,0,integer/categorical,Number of deliveries -- Other,Number of deliveries -- Other,delivery_other,0,1,0
-delivery_pkgs_freq,0,0,1,0,0,0,0,integer/categorical,Number of deliveries -- Packages,Number of deliveries -- Packages,delivery_pkgs,0,1,0
-delivery_work_freq,0,0,1,0,0,0,0,integer/categorical,Number of deliveries -- Services,Number of deliveries -- Services,delivery_work,0,1,0
-depart_date,0,0,0,0,1,0,0,date,Date of departure,Date of departure,depart_date,1,1,0
-depart_dow,0,0,0,0,1,0,0,integer/categorical,Departure day of week,Departure day of week,depart_dow,1,1,0
-depart_time_hour,0,0,0,0,1,0,0,numeric,Departure time hour,Departure time hour,depart_time_hour,1,1,0
-depart_time_minute,0,0,0,0,1,0,0,numeric,Departure time minute,Departure time minute,depart_time_minute,1,1,0
-depart_time_second,0,0,0,0,1,0,0,numeric,Departure time second,Departure time second,depart_time_second,1,1,0
-depart_time_timestamp,0,0,0,0,1,0,0,date-time,Departure time timestamp,Departure time timestamp,depart_time_timestamp,0,1,0
-dest_county,0,0,0,0,1,0,0,integer/categorical,Trip Destination County,Trip Destination County,dest_county,1,1,0
-dest_jurisdiction,0,0,0,0,1,0,0,integer/categorical,Trip Destination Jurisdiction,Trip Destination Jurisdiction,dest_jurisdiction,1,1,0
-dest_lat,0,0,0,0,1,0,0,numeric,Destination latitude,Destination latitude,dest_lat,1,1,0
-dest_lng,0,0,0,0,1,0,0,numeric,Destination longitude,Destination longitude,dest_lng,1,1,0
-dest_name,0,0,0,0,1,0,0,character,Destination name,Destination name,dest_name,1,1,0
-dest_purpose,0,0,0,0,1,0,0,integer/categorical,Destination purpose,Destination purpose,dest_purpose,1,1,0
-dest_purpose_cat,0,0,0,0,1,0,0,integer/categorical,Destination purpose category (derived),Destination purpose category (derived),dest_purpose_cat,1,1,0
-dest_purpose_other,0,0,0,0,1,0,0,character,Other trip destination textbox answer,Other trip destination textbox answer,dest_purpose_other,1,1,0
-dest_rgcname,0,0,0,0,1,0,0,integer/categorical,Destination location: Regional Growth Center,Destination location: Regional Growth Center,dest_rgcname,1,1,0
-dest_tract10,0,0,0,0,1,0,0,character,Destination Census Tract 2010,Destination Census Tract 2010,dest_tract10,1,0,1
-dest_tract20,0,0,0,0,1,0,0,character,Destination Census Tract,Destination Census Tract,dest_tract20,1,1,0
-dest_x_coord,0,0,0,0,1,0,0,numeric,Destination: X coordinate,Destination: X coordinate,dest_x_coord,1,1,0
-dest_y_coord,0,0,0,0,1,0,0,numeric,Destination: Y coordinate,Destination: Y coordinate,dest_y_coord,1,1,0
-disability_person,0,0,1,0,0,0,0,integer/categorical,Person has a disability or illness that affects ability to travel,Person has a disability or illness that affects ability to travel,disability_person,1,1,0
-distance_meters,0,0,0,0,1,0,0,numeric,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,distance_meters,1,1,0
-distance_miles,0,0,0,0,1,0,0,numeric,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,distance_miles,1,1,0
-driver,0,0,0,0,1,0,0,integer/categorical,"Driver or passenger on auto trip, non-taxi","Driver or passenger on auto trip, non-taxi",driver,1,1,0
-duration_minutes,0,0,0,0,1,0,0,numeric,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,duration_minutes,1,1,0
-duration_seconds,0,0,0,0,1,0,0,numeric,Duration (in seconds). Calculated as the difference between start and stop time of the trip.,Duration (in seconds). Calculated as the difference between start and stop time of the trip.,duration_seconds,1,1,0
-dwell_mins,0,0,0,0,1,0,0,numeric,"Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.","Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.",dwell_mins,1,1,0
-education,0,0,1,0,0,0,0,integer/categorical,Educational attainment,Educational attainment,education,1,1,0
-employment,0,0,1,0,0,0,0,integer/categorical,Employment status,Employment status,employment,1,1,0
-ethnicity_1,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Not of Hispanic, Latino, or Spanish origin","Ethnicity -- Not of Hispanic, Latino, or Spanish origin",ethnicity,1,1,0
-ethnicity_2,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Mexican, Mexican American, Chicano","Ethnicity -- Mexican, Mexican American, Chicano",ethnicity,1,1,0
-ethnicity_3,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Puerto Rican,Ethnicity -- Puerto Rican,ethnicity,1,1,0
-ethnicity_4,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Cuban,Ethnicity -- Cuban,ethnicity,1,1,0
-ethnicity_997,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Another Hispanic, Latino, or Spanish origin","Ethnicity -- Another Hispanic, Latino, or Spanish origin",ethnicity,1,1,0
-ethnicity_999,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Prefer not to answer,Ethnicity -- Prefer not to answer,ethnicity,1,1,0
-ethnicity_other,0,0,1,0,0,0,0,character,Other ethnicity textbox answer,Other ethnicity textbox answer,ethnicity_other,1,1,0
-ev_typical_charge_1,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At home,Typical charge location for EV -- At home,ev_typical_charge,1,1,0
-ev_typical_charge_2,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At work,Typical charge location for EV -- At work,ev_typical_charge,1,1,0
-ev_typical_charge_3,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)","Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)",ev_typical_charge,1,1,0
-ev_typical_charge_4,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)","Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)",ev_typical_charge,1,1,0
-ev_typical_charge_5,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a public location (e.g., hospital, library, government building)","Typical charge location for EV -- At a public location (e.g., hospital, library, government building)",ev_typical_charge,1,1,0
-ev_typical_charge_6,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At a hotel/inn,Typical charge location for EV -- At a hotel/inn,ev_typical_charge,1,1,0
-ev_typical_charge_997,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- Other,Typical charge location for EV -- Other,ev_typical_charge,1,1,0
-flag_teleport,0,0,0,0,1,0,0,integer/categorical,>=250m gap occurs after trip,>=250m gap occurs after trip,flag_teleport,1,0,1
-fuel,0,0,0,0,0,1,0,integer/categorical,Fuel type,Fuel type,fuel,1,1,0
-gender,0,0,1,0,0,0,0,integer/categorical,Gender,Gender,gender,1,1,0
-hh_day_iscomplete,0,0,0,1,1,0,0,integer/categorical,All surveys are completed for travel date for all household members (Monday - Thursday),All surveys are completed for travel date for all household members (Monday - Thursday),hh_day_iscomplete,1,1,0
-hh_is_complete,0,1,1,0,0,0,0,integer/categorical,Household provided complete travel information for one travel day,Household provided complete travel information for one travel day,hh_is_complete,1,0,1
-hh_race_category,0,1,0,0,0,0,0,integer/categorical,"Household Race Category, including Asian, most detail","Household Race Category, including Asian, most detail",hh_race_category,1,1,0
-hh_weight,0,1,0,0,0,0,0,numeric,Household 2023 stand-alone weight,Household 2023 stand-alone weight,hh_weight,1,1,0
-hh_weight_2017_2019_combined,0,1,0,0,0,0,0,NA,NA,NA,NA,1,0,1
-hhgroup,0,1,0,0,0,0,0,integer/categorical,Travel Diary (Part 2) participation group,Travel Diary (Part 2) participation group,hhgroup,1,1,0
-hhincome_broad,0,1,0,0,0,0,0,integer/categorical,"Household income 2020 broad categories, all respondents","Household income 2020 broad categories, all respondents",hhincome_broad,1,1,0
-hhincome_detailed,0,1,0,0,0,0,0,integer/categorical,Household income 2020 detailed categories,Household income 2020 detailed categories,hhincome_detailed,1,1,0
-hhincome_followup,0,1,0,0,0,0,0,integer/categorical,Household income 2020 broad follow-up categories,Household income 2020 broad follow-up categories,hhincome_followup,1,1,0
-hhmember1,0,0,0,0,1,0,0,character,Household member 1 was on trip,Household member 1 was on trip,hhmember1,1,1,0
-hhmember10,0,0,0,0,1,0,0,character,Household member 10 was on trip,Household member 10 was on trip,hhmember10,1,1,0
-hhmember11,0,0,0,0,1,0,0,character,Household member 11 was on trip,Household member 11 was on trip,hhmember11,1,1,0
-hhmember12,0,0,0,0,1,0,0,character,Household member 12 was on trip,Household member 12 was on trip,hhmember12,1,1,0
-hhmember2,0,0,0,0,1,0,0,character,Household member 2 was on trip,Household member 2 was on trip,hhmember2,1,1,0
-hhmember3,0,0,0,0,1,0,0,character,Household member 3 was on trip,Household member 3 was on trip,hhmember3,1,1,0
-hhmember4,0,0,0,0,1,0,0,character,Household member 4 was on trip,Household member 4 was on trip,hhmember4,1,1,0
-hhmember5,0,0,0,0,1,0,0,character,Household member 5 was on trip,Household member 5 was on trip,hhmember5,1,1,0
-hhmember6,0,0,0,0,1,0,0,character,Household member 6 was on trip,Household member 6 was on trip,hhmember6,1,1,0
-hhmember7,0,0,0,0,1,0,0,character,Household member 7 was on trip,Household member 7 was on trip,hhmember7,1,1,0
-hhmember8,0,0,0,0,1,0,0,character,Household member 8 was on trip,Household member 8 was on trip,hhmember8,1,1,0
-hhmember9,0,0,0,0,1,0,0,character,Household member 9 was on trip,Household member 9 was on trip,hhmember9,1,1,0
-hhsize,0,1,0,0,0,0,0,integer/categorical,Household size,Household size,hhsize,1,1,0
-home_county,0,1,0,0,0,0,0,integer/categorical,Final home address: County,Final home address: County,home_county,1,1,0
-home_jurisdiction,0,1,0,0,0,0,0,integer/categorical,Home Location Jurisdiction,Home Location Jurisdiction,home_jurisdiction,1,1,0
-home_lat,0,1,0,0,0,0,0,numeric,Final home address latitude,Final home address latitude,home_lat,1,1,0
-home_lng,0,1,0,0,0,0,0,numeric,Final home address longitude,Final home address longitude,home_lng,1,1,0
-home_rgcname,0,1,0,0,0,0,0,integer/categorical,Final home address: Regional growth center,Final home address: Regional growth center,home_rgcname,1,1,0
-home_tract20,0,1,0,0,0,0,0,character,Final home address: Census Tract,Final home address: Census Tract,home_tract20,1,1,0
-hours_work,0,0,1,0,0,0,0,integer/categorical,Number of hours typically worked last week,Number of hours typically worked last week,hours_work,1,1,0
-household_id,0,1,1,1,1,1,0,character,Unique identifier for each household,Unique identifier for each household,household_id,1,1,0
-industry,0,0,1,0,0,0,0,integer/categorical,Current employment industry,Current employment industry,industry,1,1,0
-industry_other,0,0,1,0,0,0,0,character,Current employment industry: user specified in text box,Current employment industry: user specified in text box,industry_other,1,1,0
-is_participant,0,0,1,1,0,0,0,integer/categorical,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)","Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",is_participant,1,1,1
-jobs_count,0,0,1,0,0,0,0,integer/categorical,Number of jobs,Number of jobs,jobs_count,1,1,0
-license,0,0,1,0,0,0,0,integer/categorical,"Answers yes to ""Do you/household person drive?""","Answers yes to ""Do you/household person drive?""",license,1,1,0
-lifecycle,0,1,0,0,0,0,0,integer/categorical,Household lifecycle stage,Household lifecycle stage,lifecycle,0,1,0
-loc_end,0,0,0,1,0,0,0,integer/categorical,Location at end of travel day,Location at end of travel day,loc_end,1,1,0
-loc_start,0,0,0,1,0,0,0,integer/categorical,Location at start of travel day,Location at start of travel day,loc_start,1,1,0
-make,0,0,0,0,0,1,0,character,Vehicle make,Vehicle make,make,1,1,0
-mobility_aides,0,0,1,0,0,0,0,integer/categorical,"Person uses mobility aides (wheelchairs, walkers, crutches, canes, braces, etc.)","Person uses mobility aides (wheelchairs, walkers, crutches, canes, braces, etc.)",mobility_aides,1,1,0
-mode_1,0,0,0,0,1,0,0,integer/categorical,Primary mode,Primary mode,mode_1,1,1,0
-mode_2,0,0,0,0,1,0,0,integer/categorical,Second mode chosen,Second mode chosen,mode_2,1,1,0
-mode_3,0,0,0,0,1,0,0,integer/categorical,Third mode chosen,Third mode chosen,mode_3,1,1,0
-mode_4,0,0,0,0,1,0,0,integer/categorical,Fourth mode chosen,Fourth mode chosen,mode_4,1,1,0
-mode_acc,0,0,0,0,1,0,0,integer/categorical,Travel mode to transit,Travel mode to transit,mode_acc,1,1,0
-mode_characterization,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode,Primary Trip Mode,mode_characterization,1,1,0
-mode_egr,0,0,0,0,1,0,0,integer/categorical,Travel mode from transit,Travel mode from transit,mode_egr,1,1,0
-mode_other_specify,0,0,0,0,1,0,0,character,Other mode specified in textbox,Other mode specified in textbox,mode_other_specify,1,1,0
-mode_simple,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode simplified,Primary Trip Mode simplified,mode_simple,1,1,0
-mode_type,0,0,0,0,1,0,0,integer/categorical,Synthesized mode (derived),Synthesized mode (derived),mode_type,1,1,0
-model,0,0,0,0,0,1,0,character,Vehicle model,Vehicle model,model,1,1,0
-model_other,0,0,0,0,0,1,0,character,Other vehicle model textbox answer,Other vehicle model textbox answer,model_other,1,1,0
-no_school_closed,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- School was closed or adjusted due to weather event,Didn't travel to school -- School was closed or adjusted due to weather event,no_school,1,1,0
-no_school_dont_know,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Don't know,Didn't travel to school -- Don't know,no_school_dont,1,1,0
-no_school_no_answer,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Prefer not to answer,Didn't travel to school -- Prefer not to answer,no_school_no,1,1,0
-no_school_online_home,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Attended class online from home,Didn't travel to school -- Attended class online from home,no_school_online,1,1,0
-no_school_online_other,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Attended class online from another location,Didn't travel to school -- Attended class online from another location,no_school_online,1,1,0
-no_school_other,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Other reason,Didn't travel to school -- Other reason,no_school,1,1,0
-no_school_sick,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Sick or quarantining,Didn't travel to school -- Sick or quarantining,no_school,1,1,0
-no_school_vacation,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- School was scheduled to be closed,Didn't travel to school -- School was scheduled to be closed,no_school,1,1,0
-notravel_delivery,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Was waiting for a delivery or visitor,Didn't travel -- Was waiting for a delivery or visitor,notravel,1,1,0
-notravel_housework,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Worked around home (not for pay),Didn't travel -- Worked around home (not for pay),notravel,1,1,0
-notravel_kidsbreak,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Kids were on school vacation / break,Didn't travel -- Kids were on school vacation / break,notravel,1,1,0
-notravel_kidshomeschool,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Kids were home schooled,Didn't travel -- Kids were home schooled,notravel,1,1,0
-notravel_madetrips,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Made trips that day (erroneously recorded no trips),Didn't travel -- Made trips that day (erroneously recorded no trips),notravel,1,1,0
-notravel_not_sure,1,0,0,1,0,0,0,integer/categorical,"Didn't travel -- Person may have traveled, but not sure when or where","Didn't travel -- Person may have traveled, but not sure when or where",notravel_not,1,1,0
-notravel_notransport,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Had no available transportation,Didn't travel -- Had no available transportation,notravel,1,1,0
-notravel_other,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Other reason,Didn't travel -- Other reason,notravel,1,1,0
-notravel_sick,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Was sick or caring for another person at home,Didn't travel -- Was sick or caring for another person at home,notravel,1,1,0
-notravel_telecommute,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Worked from home for pay,Didn't travel -- Worked from home for pay,notravel,1,1,0
-notravel_vacation,1,0,0,1,0,0,0,integer/categorical,"Didn't travel -- Not scheduled to work, vacation/personal day","Didn't travel -- Not scheduled to work, vacation/personal day",notravel,1,1,0
-notravel_weather,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Weather conditions,Didn't travel -- Weather conditions,notravel,1,1,0
-num_complete_fri,0,1,0,0,0,0,0,numeric,Number of Fridays on which the household was complete,Number of Fridays on which the household was complete,num_complete_fri,1,0,1
-num_complete_mon,0,1,0,0,0,0,0,numeric,Number of Mondays on which the household was complete,Number of Mondays on which the household was complete,num_complete_mon,1,0,1
-num_complete_sat,0,1,0,0,0,0,0,numeric,Number of Saturdays on which the household was complete,Number of Saturdays on which the household was complete,num_complete_sat,1,0,1
-num_complete_sun,0,1,0,0,0,0,0,numeric,Number of Sundays on which the household was complete,Number of Sundays on which the household was complete,num_complete_sun,1,0,1
-num_complete_thu,0,1,0,0,0,0,0,numeric,Number of Thursdays on which the household was complete,Number of Thursdays on which the household was complete,num_complete_thu,1,0,1
-num_complete_trip_surveys,0,0,0,1,0,0,0,numeric,Number of complete trip surveys on travel day,Number of complete trip surveys on travel day,num_complete_trip_surveys,1,1,0
-num_complete_tue,0,1,0,0,0,0,0,numeric,Number of Tuesdays on which the household was complete,Number of Tuesdays on which the household was complete,num_complete_tue,1,0,1
-num_complete_wed,0,1,0,0,0,0,0,numeric,Number of Wednesdays on which the household was complete,Number of Wednesdays on which the household was complete,num_complete_wed,1,0,1
-num_days_complete_weekday,0,1,0,0,0,0,0,numeric,Number of weekdays (Monday through Friday) on which the household was complete,Number of weekdays (Monday through Friday) on which the household was complete,num_days_complete_weekday,1,0,1
-num_days_complete_weekend,0,1,0,0,0,0,0,numeric,Number of weekend days (Saturdays and Sundays) on which the household was complete,Number of weekend days (Saturdays and Sundays) on which the household was complete,num_days_complete_weekend,1,0,1
-num_no_flag_days,0,0,1,0,0,0,0,numeric,Number of person days with no trip trace flags,Number of person days with no trip trace flags,num_no_flag_days,1,0,1
-num_participants,0,1,0,0,0,0,0,numeric,"Number of survey participants in household (for rMove: over 17 and has a smartphone, not proxied, and is related to person 1; for online survey: ppersons over 17 and related to person 1)","Number of survey participants in household (for rMove: over 17 and has a smartphone, not proxied, and is related to person 1; for online survey: ppersons over 17 and related to person 1)",num_participants,1,0,1
-num_students,0,1,0,0,0,0,0,integer/categorical,Number of students in household,Number of students in household,num_students,1,1,0
-num_surveyable,0,1,0,0,0,0,0,integer/categorical,Number of surveyable (related to person 1) household members,Number of surveyable (related to person 1) household members,num_surveyable,1,0,1
-num_trips,0,1,1,1,0,0,0,numeric,"Household, person, or person-day number of trips","Household, person, or person-day number of trips",num_trips,1,1,0
-numadults,0,1,0,0,0,0,0,integer/categorical,Number of adults in household,Number of adults in household,numadults,1,1,0
-numchildren,0,1,0,0,0,0,0,integer/categorical,Number of children in household,Number of children in household,numchildren,1,1,0
-numdayscomplete,0,1,1,0,0,0,0,numeric,Household or person number of days complete,Household or person number of days complete,numdayscomplete,1,1,0
-numworkers,0,1,0,0,0,0,0,integer/categorical,Number of workers in household,Number of workers in household,numworkers,1,1,0
-o_in_region,0,0,0,0,1,0,0,integer/categorical,Trip origin is in PSRC MPO area,Trip origin is in PSRC MPO area,o_in_region,1,1,0
-office_available,0,0,1,0,0,0,0,integer/categorical,Availability of private work space outside the home,Availability of private work space outside the home,office_available,1,1,0
-origin_county,0,0,0,0,1,0,0,integer/categorical,Origin county,Origin county,origin_county,1,1,0
-origin_jurisdiction,0,0,0,0,1,0,0,integer/categorical,Trip Origin Jurisdiction,Trip Origin Jurisdiction,origin_jurisdiction,1,1,0
-origin_lat,0,0,0,0,1,0,0,numeric,Origin latitude,Origin latitude,origin_lat,1,1,0
-origin_lng,0,0,0,0,1,0,0,numeric,Origin longitude,Origin longitude,origin_lng,1,1,0
-origin_name,0,0,0,0,1,0,0,character,Origin name,Origin name,origin_name,1,1,0
-origin_purpose,0,0,0,0,1,0,0,integer/categorical,Origin purpose,Origin purpose,origin_purpose,1,1,0
-origin_purpose_cat,0,0,0,0,1,0,0,integer/categorical,Origin purpose category (derived),Origin purpose category (derived),origin_purpose_cat,1,1,0
-origin_rgcname,0,0,0,0,1,0,0,integer/categorical,Origin location: Regional Growth Center,Origin location: Regional Growth Center,origin_rgcname,1,1,0
-origin_tract10,0,0,0,0,1,0,0,character,Origin Census Tract 2010,Origin Census Tract 2010,origin_tract10,1,0,1
-origin_tract20,0,0,0,0,1,0,0,character,Origin Census Tract,Origin Census Tract,origin_tract20,1,1,0
-origin_x_coord,0,0,0,0,1,0,0,numeric,Origin: X coordinate,Origin: X coordinate,origin_x_coord,1,1,0
-origin_y_coord,0,0,0,0,1,0,0,numeric,Origin: Y coordinate,Origin: Y coordinate,origin_y_coord,1,1,0
-participate,0,0,1,0,0,0,0,integer/categorical,Respondent is willing to be recontacted for future transportation research,Respondent is willing to be recontacted for future transportation research,participate,1,0,1
-pernum,0,0,1,1,1,0,0,numeric,Person number in household,Person number in household,pernum,1,1,0
-person_id,0,0,1,1,1,0,0,character,Person unique identifier,Person unique identifier,person_id,1,1,0
-person_pct_trips_flagged,0,0,1,0,0,0,0,numeric,Percent of person's total trip traces flagged,Percent of person's total trip traces flagged,person_pct_trips_flagged,1,0,1
-person_weight,0,0,1,0,0,0,0,numeric,Person-level weight,Person-level weight,person_weight,1,1,0
-person_weight_2017_2019_combined,0,0,1,0,0,0,0,NA,NA,NA,NA,1,0,1
-point_dist_index,0,0,0,0,1,0,0,numeric,Percentage points over expected for largest distance between two points on trip,Percentage points over expected for largest distance between two points on trip,point_dist_index,1,0,1
-prev_home_county,0,1,0,0,0,0,0,integer/categorical,Previous home address: County,Previous home address: County,prev_home_county,1,1,0
-prev_home_jurisdiction,0,1,0,0,0,0,0,integer/categorical,Previous home address: Jurisdiction,Previous home address: Jurisdiction,prev_home_jurisdiction,1,1,0
-prev_home_lat,0,1,0,0,0,0,0,numeric,Previous home address latitude,Previous home address latitude,prev_home_lat,1,1,0
-prev_home_lng,0,1,0,0,0,0,0,numeric,Previous home address longitude,Previous home address longitude,prev_home_lng,1,1,0
-prev_home_notwa_city,0,1,0,0,0,0,0,character,Previous home address city,Previous home address city,prev_home_notwa_city,1,1,0
-prev_home_notwa_state,0,1,0,0,0,0,0,integer/categorical,Previous home address state,Previous home address state,prev_home_notwa_state,1,1,0
-prev_home_notwa_zip,0,1,0,0,0,0,0,character,Previous home address zip,Previous home address zip,prev_home_notwa_zip,1,1,0
-prev_home_rgcname,0,1,0,0,0,0,0,integer/categorical,Previous home address Regional Growth Center name,Previous home address Regional Growth Center name,prev_home_rgcname,1,1,0
-prev_home_tract20,0,1,0,0,0,0,0,character,Previous home address: Census tract,Previous home address: Census tract,prev_home_tract20,1,1,0
-prev_home_wa,0,1,0,0,0,0,0,integer/categorical,Previous home in State of Washington (WA),Previous home in State of Washington (WA),prev_home_wa,1,1,0
-prev_rent_own,0,1,0,0,0,0,0,integer/categorical,Previous home tenure status,Previous home tenure status,prev_rent_own,1,1,0
-prev_res_factors_amenities,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities","Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities",prev_res_factors,1,1,0
-prev_res_factors_community_change,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area","Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area",prev_res_factors_community_change,1,1,0
-prev_res_factors_crime,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Concerns about safety or crime,Important factor in decision to move away from prior residence -- Concerns about safety or crime,prev_res_factors,1,1,0
-prev_res_factors_employment,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)","Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)",prev_res_factors,1,1,0
-prev_res_factors_forced,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)","Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)",prev_res_factors_forced,1,1,0
-prev_res_factors_hh_size,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Changes in household size, establish own household","Important factor in decision to move away from prior residence -- Changes in household size, establish own household",prev_res_factors_hh,1,1,0
-prev_res_factors_housing_cost,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,prev_res_factors_housing_cost,1,1,0
-prev_res_factors_income_change,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,prev_res_factors_income_change,1,1,0
-prev_res_factors_less_space,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed less space,Important factor in decision to move away from prior residence -- Needed less space,prev_res_factors_less,1,1,0
-prev_res_factors_more_space,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed more space,Important factor in decision to move away from prior residence -- Needed more space,prev_res_factors_more,1,1,0
-prev_res_factors_no_answer,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Prefer not to answer,Important factor in decision to move away from prior residence -- Prefer not to answer,prev_res_factors_no,1,1,0
-prev_res_factors_other,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Other,Important factor in decision to move away from prior residence -- Other,prev_res_factors,1,1,0
-prev_res_factors_quality,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,prev_res_factors,1,1,0
-prev_res_factors_school,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Access to a different K-12 school,Important factor in decision to move away from prior residence -- Access to a different K-12 school,prev_res_factors,1,1,0
-prev_res_factors_specify,0,1,0,0,0,0,0,character,"Other factor in decision to move away from prior residence, write-in text","Other factor in decision to move away from prior residence, write-in text",prev_res_factors_specify,1,1,0
-prev_res_factors_telework,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,prev_res_factors,1,1,0
-prev_res_type,0,1,0,0,0,0,0,integer/categorical,Previous home residence type,Previous home residence type,prev_res_type,1,1,0
-proxy,0,0,1,0,0,0,0,numeric,Percentage points over expected for largest distance between two points on trip,Percentage points over expected for largest distance between two points on trip,point_dist_index,1,0,1
-proxy_complete,0,0,0,1,0,0,0,integer/categorical,Proxy completion status,Proxy completion status,proxy_complete,1,0,1
-proxy_parent,0,0,1,0,0,0,0,integer/categorical,Person is proxy reporter for children in household,Person is proxy reporter for children in household,proxy_parent,1,0,1
-pt_density,0,0,0,0,1,0,0,numeric,Location points per minute (time adjusted for probable trip splitting),Location points per minute (time adjusted for probable trip splitting),pt_density,1,0,1
-race_afam,1,0,1,0,0,0,0,integer/categorical,Race -- African American or Black,Race -- African American or Black,race,1,1,0
-race_aiak,1,0,1,0,0,0,0,integer/categorical,Race -- American Indian or Alaska Native,Race -- American Indian or Alaska Native,race,1,1,0
-race_asian,1,0,1,0,0,0,0,integer/categorical,Race -- Asian,Race -- Asian,race,1,1,0
-race_category,0,0,1,0,0,0,0,integer/categorical,Race Group,Race Group,race_category,1,1,0
-race_category_2023,0,0,1,0,0,0,0,integer/categorical,Race Category Consistent with Demographic Profile,Race Group,race_category_2023,1,1,0
-race_category_2023_b,0,0,1,0,0,0,0,integer/categorical,Race Category as Previous,Race Group,race_category_2023_b,1,1,0
-race_hapi,1,0,1,0,0,0,0,integer/categorical,Race -- Native Hawaiian or Pacific Islander,Race -- Native Hawaiian or Pacific Islander,race,1,1,0
-race_hisp,0,0,1,0,0,0,0,integer/categorical,Race -- Hispanic,Race -- Hispanic,race,1,1,0
-race_noanswer,1,0,1,0,0,0,0,integer/categorical,Race -- Prefer not to answer,Race -- Prefer not to answer,race,1,1,0
-race_other,1,0,1,0,0,0,0,integer/categorical,Race -- Other,Race -- Other,race,1,1,0
-race_other_specify,0,0,1,0,0,0,0,character,Other race textbox answer,Other race textbox answer,race_other_specify,1,1,0
-race_white,1,0,1,0,0,0,0,integer/categorical,Race -- White,Race -- White,race,1,1,0
-relationship,0,0,1,0,0,0,0,integer/categorical,Relationship to primary respondent,Relationship to primary respondent,relationship,1,1,0
-remote_class_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person attends classes online from a location that is not school (e.g., home, library, coffee shop)","How often the person attends classes online from a location that is not school (e.g., home, library, coffee shop)",remote_class_freq,1,1,0
-rent_own,0,1,0,0,0,0,0,integer/categorical,Residence tenure status,Residence tenure status,rent_own,1,1,0
-res_dur,0,1,0,0,0,0,0,integer/categorical,How long lived in current residence,How long lived in current residence,res_dur,1,1,0
-res_months,0,1,0,0,0,0,0,integer/categorical,Months per year live in residence where survey invitation received,Months per year live in residence where survey invitation received,res_months,1,1,0
-res_type,0,1,0,0,0,0,0,integer/categorical,Type of residence,Type of residence,res_type,1,1,0
-sample_segment,0,1,0,0,0,0,0,integer/categorical,Sample segment,Sample segment,sample_segment,1,1,0
-school_county,0,0,1,0,0,0,0,integer/categorical,School address: County,School address: County,school_county,1,1,0
-school_freq,0,0,1,0,0,0,0,integer/categorical,How often travels to school,How often travels to school,school_freq,1,1,0
-school_in_region,0,0,1,0,0,0,0,integer/categorical,School is in PSRC MPO area,School is in PSRC MPO area,school_in_region,1,1,0
-school_jurisdiction,0,0,1,0,0,0,0,integer/categorical,School address Jurisdiction,School address Jurisdiction,school_jurisdiction,1,1,0
-school_loc_lat,0,0,1,0,0,0,0,numeric,School address latitude,School address latitude,school_loc_lat,1,1,0
-school_loc_lng,0,0,1,0,0,0,0,numeric,School address longitude,School address longitude,school_loc_lng,1,1,0
-school_mode_typical,0,0,1,0,0,0,0,integer/categorical,How does child/adult student typically travel to/from school or daycare,How does child/adult student typically travel to/from school or daycare,school_mode_typical,1,1,0
-school_rgcname,0,0,1,0,0,0,0,integer/categorical,School address Regional Growth Center name,School address Regional Growth Center name,school_rgcname,1,1,0
-school_tract20,0,0,1,0,0,0,0,character,School address: Census Tract,School address: Census Tract,school_tract20,1,1,0
-schooltype,0,0,1,0,0,0,0,integer/categorical,Type of school attended,Type of school attended,schooltype,1,1,0
-second_home,0,0,1,0,0,0,0,integer/categorical,"Person regularly spends the night at a second home (e.g., another parent or grandparent's house, partner or spouses' home, vacation home)","Person regularly spends the night at a second home (e.g., another parent or grandparent's house, partner or spouses' home, vacation home)",second_home,1,1,0
-second_home_in_region,0,0,1,0,0,0,0,integer/categorical,Second home is in PSRC MPO area,Second home is in PSRC MPO area,second_home_in_region,1,1,0
-second_home_lat,0,0,1,0,0,0,0,numeric,Second home latitude,Second home latitude,second_home_lat,1,1,0
-second_home_lon,0,0,1,0,0,0,0,numeric,Second home longitude,Second home longitude,second_home_lon,1,1,0
-sexuality,0,0,1,0,0,0,0,integer/categorical,Sexuality,Sexuality,sexuality,1,1,0
-share_1,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Walk (outside for 15-minutes or more),Typical travel methods -- Walk (outside for 15-minutes or more),share,1,1,0
-share_2,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Bike (outside for 15-minutes or more),Typical travel methods -- Bike (outside for 15-minutes or more),share,1,1,0
-share_3,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Transit (e.g., bus, rail, ferry)","Typical travel methods -- Transit (e.g., bus, rail, ferry)",share,1,1,0
-share_4,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)","Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)",share,1,1,0
-share_5,1,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)","Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",share,1,1,0
-share_996,1,0,1,0,0,0,0,integer/categorical,Typical travel methods -- None of the above,Typical travel methods -- None of the above,share,1,1,0
-speed_flag,0,0,0,0,1,0,0,integer/categorical,Unusually high speed given mode,Unusually high speed given mode,speed_flag,1,0,1
-speed_mph,0,0,0,0,1,0,0,numeric,Trip speed in miles per hour (derived),Trip speed in miles per hour (derived),speed_mph,1,1,0
-student,0,0,1,0,0,0,0,integer/categorical,Student status,Student status,student,1,1,0
-summary_complete,0,0,0,1,0,0,0,integer/categorical,Daily survey is complete,Daily survey is complete,summary_complete,1,0,1
-survey_year,0,1,1,1,1,1,0,integer/categorical,Survey data collection year,Survey data collection year,survey_year,1,1,0
-surveyable,0,0,1,1,0,0,0,integer/categorical,Survey participant is related to person 1,Survey participant is related to person 1,surveyable,1,1,0
-svy_complete,0,0,0,0,1,0,0,integer/categorical,Trip survey is complete,Trip survey is complete,svy_complete,1,1,0
-taxi_cost_int,0,0,0,0,1,0,0,numeric,Amount paid for taxi,Amount paid for taxi,taxi_cost_int,1,1,0
-taxi_cost_known,0,0,0,0,1,0,0,integer/categorical,Knows amount paid for taxi,Knows amount paid for taxi,taxi_cost_known,1,1,0
-telecommute_freq,0,0,1,0,0,0,0,integer/categorical,How many days typically working from home,How many days typically working from home,telecommute_freq,1,1,0
-telework_time,0,0,0,1,0,0,0,integer/categorical,Telework time on travel day,Telework time on travel day,telework_time,1,1,0
-tnc_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person has used Uber, Lyft, or other smartphone-app car services in the past 30 days","How often the person has used Uber, Lyft, or other smartphone-app car services in the past 30 days",tnc_freq,1,1,0
-toll_transponder,0,0,0,0,0,1,0,integer/categorical,Vehicle has toll transponder,Vehicle has toll transponder,toll_transponder,1,1,0
-trace_quality_flag,0,0,0,0,1,0,0,integer/categorical,Flag. Trip trace data of poor quality,Flag. Trip trace data of poor quality,trace_quality_flag,1,0,1
-transit_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days","How often the person used transit (e.g., bus, rail, ferry) in the past 30 days",transit_freq,1,1,0
-transit_pass,0,0,1,0,0,0,0,integer/categorical,Respondent has transit pass,Respondent has transit pass,transit_pass,1,1,0
-travel_date,0,0,0,1,1,0,0,date,Travel date,Travel date,travel_date,1,1,0
-travel_day,0,0,0,1,1,0,0,integer/categorical,Is travel day,Is travel day,travel_day,1,1,0
-travel_dow,0,0,0,1,1,0,0,integer/categorical,Travel day of week,Travel day of week,travel_dow,1,1,0
-traveldate_end,0,1,1,0,0,0,0,date,Last travel date,Last travel date,traveldate_end,1,1,0
-traveldate_start,0,1,1,0,0,0,0,date,First travel date,First travel date,traveldate_start,1,1,0
-travelers_hh,0,0,0,0,1,0,0,numeric,Number of household members on trip (including self),Number of household members on trip (including self),travelers_hh,1,1,0
-travelers_nonhh,0,0,0,0,1,0,0,integer/categorical,Number of non-household members on trip,Number of non-household members on trip,travelers_nonhh,1,1,0
-travelers_total,0,0,0,0,1,0,0,integer/categorical,Number of total travelers on trip (including self),Number of total travelers on trip (including self),travelers_total,1,1,0
-trip_id,0,0,0,0,1,0,1,character,Trip ID (unique),Trip ID (unique),trip_id,1,0,1
-trip_weight,0,0,0,0,1,0,0,numeric,Trip weight,Trip weight,trip_weight,1,1,0
-trip_weight_2017_2019_combined,0,0,0,0,1,0,1,NA,NA,NA,NA,1,0,1
-tripnum,0,0,0,0,1,0,0,numeric,Trip sequence number,Trip sequence number,tripnum,1,1,0
-trips_yesno,0,0,0,1,0,0,0,integer/categorical,Made trips on travel day (derived for children under 18 in 2021),Made trips on travel day (derived for children under 18 in 2021),trips_yesno,1,0,1
-user_added,0,0,0,0,1,0,0,integer/categorical,User added trip,User added trip,user_added,1,0,1
-user_merged,0,0,0,0,1,0,0,integer/categorical,User merged 2 or more trips,User merged 2 or more trips,user_merged,1,0,1
-user_split,0,0,0,0,1,0,0,integer/categorical,User split trip,User split trip,user_split,1,0,1
-vehicle_count,0,1,0,0,0,0,0,integer/categorical,Number of vehicles,Number of vehicles,vehicle_count,1,1,0
-vehicle_id,0,0,0,0,0,1,0,character,Vehicle ID,Vehicle ID,vehid,1,1,0
-vehicleused,0,0,1,0,0,0,0,integer/categorical,Vehicle uses most often,Vehicle uses most often,vehicleused,1,1,0
-vehnum,0,0,0,0,0,1,0,numeric,Vehicle number,Vehicle number,vehnum,1,1,0
-walk_freq,0,0,1,0,0,0,0,integer/categorical,How often the person has walked outside for 15 or more minutes in the past 30 days,How often the person has walked outside for 15 or more minutes in the past 30 days,walk_freq,1,1,0
-walk_freq_pre_2023,0,0,1,0,0,0,0,integer/categorical,Times gone for a walk in past 30 days,Times gone for a walk in past 30 days,walk_freq_pre_2023,1,1,0
-work_county,0,0,1,0,0,0,0,integer/categorical,Work address county,Work address county,work_county,1,1,0
-work_in_region,0,0,1,0,0,0,0,integer/categorical,Work is in PSRC MPO area,Work is in PSRC MPO area,work_in_region,1,1,0
-work_jurisdiction,0,0,1,0,0,0,0,integer/categorical,Work address Jurisdiction,Work address Jurisdiction,work_jurisdiction,1,1,0
-work_lat,0,0,1,0,0,0,0,numeric,Work address latitude,Work address latitude,work_lat,1,1,0
-work_lng,0,0,1,0,0,0,0,numeric,Work address longitude,Work address longitude,work_lng,1,1,0
-work_mode,0,0,1,0,0,0,0,integer/categorical,Typical means of travel to work,Typical means of travel to work,work_mode,1,1,0
-work_rgcname,0,0,1,0,0,0,0,integer/categorical,Work address Regional Growth Center name,Work address Regional Growth Center name,work_rgcname,1,1,0
-work_tract20,0,0,1,0,0,0,0,character,Work address: Census Tract,Work address: Census Tract,work_tract20,1,1,0
-workpass,0,0,1,0,0,0,0,integer/categorical,Usual way of paying for parking at work,Usual way of paying for parking at work,workpass,1,1,0
-workplace,0,0,1,0,0,0,0,integer/categorical,Current work location,Current work location,workplace,1,1,0
-year,0,0,0,0,0,1,0,integer/categorical,Vehicle model year,Vehicle model year,year,1,1,0
+variable,is_checkbox,hh,person,day,trip,vehicle,location,data_type,description,logic,shared_name
+age,0,0,1,0,0,0,0,integer/categorical,Age,Age,age
+analyst_merged,0,0,0,0,1,0,0,integer/categorical,Analyst merged two or more trips,Analyst merged two or more trips,analyst_merged
+analyst_split,0,0,0,0,1,0,0,integer/categorical,Analyst split trip,Analyst split trip,analyst_split
+analyst_split_loop,0,0,0,0,1,0,0,integer/categorical,Analyst split loop trip into two trips,Analyst split loop trip into two trips,analyst_split_loop
+arrival_time_hour,0,0,0,0,1,0,0,numeric,Arrival time hour,Arrival time hour,arrival_time_hour
+arrival_time_minute,0,0,0,0,1,0,0,numeric,Arrival time minute,Arrival time minute,arrival_time_minute
+arrival_time_second,0,0,0,0,1,0,0,numeric,Arrival time second,Arrival time second,arrival_time_second
+arrival_time_timestamp,0,0,0,0,1,0,0,date-time,Arrival time timestamp,Arrival time timestamp,arrival_time_timestamp
+arrive_date,0,0,0,0,1,0,0,date,Date of arrival,Date of arrival,arrive_date
+arrive_dow,0,0,0,0,1,0,0,integer/categorical,Arrival day of week,Arrival day of week,arrive_dow
+attend_school_1,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to school","Did child travel to school -- Yes, traveled to school",attend_school
+attend_school_2,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to another location for school","Did child travel to school -- Yes, traveled to another location for school",attend_school
+attend_school_3,1,0,0,1,0,0,0,integer/categorical,"Did child travel to school -- No, did not travel for school","Did child travel to school -- No, did not travel for school",attend_school
+attend_school_998,1,0,0,1,0,0,0,integer/categorical,Did child travel to school -- Don't know,Did child travel to school -- Don't know,attend_school
+attend_school_999,1,0,0,1,0,0,0,integer/categorical,Did child travel to school -- Prefer not to answer,Did child travel to school -- Prefer not to answer,attend_school
+benefits_1,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Flextime,Employer commuter benefits -- Flextime,benefits_1
+benefits_2,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Compressed Week,Employer commuter benefits -- Compressed Week,benefits_2
+benefits_3,0,0,1,0,0,0,0,integer/categorical,Employer commuter benefits -- Free/partially subsidized passes/fares,Employer commuter benefits -- Free/partially subsidized passes/fares,benefits_3
+benefits_4,0,0,1,0,0,0,0,integer/categorical,"Employer commuter benefits -- Other subsidized commute (vanpool, bike, etc.)","Employer commuter benefits -- Other subsidized commute (vanpool, bike, etc.)",benefits_4
+bike_freq,0,0,1,0,0,0,0,integer/categorical,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,bike_freq
+bike_freq_pre_2023,0,0,1,0,0,0,0,integer/categorical,Times ridden a bike in past 30 days,Times ridden a bike in past 30 days,bike_freq_pre_2023
+broadband,0,1,0,0,0,0,0,integer/categorical,Broadband internet service at current residence,Broadband internet service at current residence,broadband
+carshare_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days","How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days",carshare_freq
+change_vehicles,0,0,0,0,1,0,0,integer/categorical,Changed vehicles at carpool start location,Changed vehicles at carpool start location,change_vehicles
+commute_dur,0,0,1,0,0,0,0,integer/categorical,How long has been commuting to current location/office,How long has been commuting to current location/office,commute_dur
+commute_freq,0,0,1,0,0,0,0,integer/categorical,How often commuted to workplace last week,How often commuted to workplace last week,commute_freq
+commute_mode,0,0,1,0,0,0,0,integer/categorical,Method of commuting to work location/office last week,Method of commuting to work location/office last week,commute_mode
+commute_subsidy_1,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,commute_subsidy
+commute_subsidy_2,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,commute_subsidy
+commute_subsidy_3,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) parking at work,Commute benefits provided by employer -- Free (fully subsidized) parking at work,commute_subsidy
+commute_subsidy_4,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) parking at work,Commute benefits provided by employer -- Discounted (partially subsidized) parking at work,commute_subsidy
+commute_subsidy_5,1,0,1,0,0,0,0,integer/categorical,"Commute benefits provided by employer -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)","Commute benefits provided by employer -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",commute_subsidy
+commute_subsidy_6,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Flextime (can adjust schedule as long as work the right number of total hours),Commute benefits provided by employer -- Flextime (can adjust schedule as long as work the right number of total hours),commute_subsidy
+commute_subsidy_7,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Ability to work from home,Commute benefits provided by employer -- Ability to work from home,commute_subsidy
+commute_subsidy_996,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- None of the above,Commute benefits provided by employer -- None of the above,commute_subsidy
+commute_subsidy_998,1,0,1,0,0,0,0,integer/categorical,Commute benefits provided by employer -- Don't know,Commute benefits provided by employer -- Don't know,commute_subsidy
+commute_subsidy_use_1,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) transit passes or fares,Commute benefit used -- Free (fully subsidized) transit passes or fares,commute_subsidy_use
+commute_subsidy_use_2,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,commute_subsidy_use
+commute_subsidy_use_3,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) parking at work,Commute benefit used -- Free (fully subsidized) parking at work,commute_subsidy_use
+commute_subsidy_use_4,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) parking at work,Commute benefit used -- Discounted (partially subsidized) parking at work,commute_subsidy_use
+commute_subsidy_use_5,1,0,1,0,0,0,0,integer/categorical,"Commute benefit used -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)","Commute benefit used -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",commute_subsidy_use
+commute_subsidy_use_6,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Flextime (can adjust schedule as long as work the right number of total hours),Commute benefit used -- Flextime (can adjust schedule as long as work the right number of total hours),commute_subsidy_use
+commute_subsidy_use_7,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- Ability to work from home,Commute benefit used -- Ability to work from home,commute_subsidy_use
+commute_subsidy_use_996,1,0,1,0,0,0,0,integer/categorical,Commute benefit used -- None of the above,Commute benefit used -- None of the above,commute_subsidy_use
+copied_trip,0,0,0,0,1,0,0,integer/categorical,Trip was copied from another HH member,Trip was copied from another HH member,copied_trip
+d_in_region,0,0,0,0,1,0,0,integer/categorical,Trip destination is in PSRC MPO area,Trip destination is in PSRC MPO area,d_in_region
+day_id,0,0,0,1,1,0,0,numeric,Unique identifier for each person day,Unique identifier for each person day,day_id
+day_iscomplete,0,0,0,1,1,0,0,integer/categorical,All surveys are completed for travel date,All surveys are completed for travel date,day_iscomplete
+day_pct_trips_flagged,0,0,0,1,0,0,0,numeric,Percent of person's trip traces flagged on day,Percent of person's trip traces flagged on day,day_pct_trips_flagged
+day_weight,0,0,0,1,0,0,0,numeric,Person-day-level weight,Person-day-level weight,day_weight
+day_weight_2023,0,0,0,1,0,0,0,numeric,Person-day-level weight 2023,Person-day-level weight 2023,day_weight_2023
+daynum,0,0,0,1,1,0,0,numeric,Diary day sequence,Diary day sequence,daynum
+days_first_trip,0,0,0,0,1,0,0,integer/categorical,First trip of the day (Flag).,First trip of the day (Flag).,days_first_trip
+days_last_trip,0,0,0,0,1,0,0,integer/categorical,Last trip of the day (Flag).,Last trip of the day (Flag).,days_last_trip
+deliver_elsewhere,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Packages delivered elsewhere,Deliveries and home services -- Packages delivered elsewhere,deliver
+deliver_food,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Food/meal prep delivered,Deliveries and home services -- Food/meal prep delivered,deliver
+deliver_grocery,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Groceries delivered,Deliveries and home services -- Groceries delivered,deliver
+deliver_none,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- None,Deliveries and home services -- None,deliver
+deliver_office,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Packages delivered at work,Deliveries and home services -- Packages delivered at work,deliver
+deliver_other,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Other deliveries,Deliveries and home services -- Other deliveries,deliver
+deliver_package,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Packages delivered at home,Deliveries and home services -- Packages delivered at home,deliver
+deliver_work,1,0,0,1,0,0,0,integer/categorical,Deliveries and home services -- Services delivered,Deliveries and home services -- Services delivered,deliver
+depart_date,0,0,0,0,1,0,0,date,Date of departure,Date of departure,depart_date
+depart_dow,0,0,0,0,1,0,0,integer/categorical,Departure day of week,Departure day of week,depart_dow
+depart_time_hour,0,0,0,0,1,0,0,numeric,Departure time hour,Departure time hour,depart_time_hour
+depart_time_minute,0,0,0,0,1,0,0,numeric,Departure time minute,Departure time minute,depart_time_minute
+depart_time_second,0,0,0,0,1,0,0,numeric,Departure time second,Departure time second,depart_time_second
+depart_time_timestamp,0,0,0,0,1,0,0,date-time,Departure time timestamp,Departure time timestamp,depart_time_timestamp
+dest_county,0,0,0,0,1,0,0,integer/categorical,Trip Destination County,Trip Destination County,dest_county
+dest_jurisdiction,0,0,0,0,1,0,0,integer/categorical,Trip Destination Jurisdiction,Trip Destination Jurisdiction,dest_jurisdiction
+dest_lat,0,0,0,0,1,0,0,numeric,Destination latitude,Destination latitude,dest_lat
+dest_lng,0,0,0,0,1,0,0,numeric,Destination longitude,Destination longitude,dest_lng
+dest_name,0,0,0,0,1,0,0,character,Destination name,Destination name,dest_name
+dest_purpose,0,0,0,0,1,0,0,integer/categorical,Destination purpose,Destination purpose,dest_purpose
+dest_purpose_cat,0,0,0,0,1,0,0,integer/categorical,Destination purpose category,Destination purpose category (derived),dest_purpose_cat
+dest_purpose_cat_5,0,0,0,0,1,0,0,integer/categorical,Destination purpose category (5 categories),Destination purpose category (5 categories),dest_purpose_cat_5
+dest_purpose_other,0,0,0,0,1,0,0,character,Other trip destination textbox answer,Other trip destination textbox answer,dest_purpose_other
+dest_rgcname,0,0,0,0,1,0,0,integer/categorical,Destination location: Regional Growth Center,Destination location: Regional Growth Center,dest_rgcname
+dest_tract10,0,0,0,0,1,0,0,character,Destination Census Tract 2010,Destination Census Tract 2010,dest_tract10
+dest_tract20,0,0,0,0,1,0,0,character,Destination Census Tract 2020,Destination Census Tract 2020,dest_tract20
+dest_x_coord,0,0,0,0,1,0,0,numeric,Destination: X coordinate,Destination: X coordinate,dest_x_coord
+dest_y_coord,0,0,0,0,1,0,0,numeric,Destination: Y coordinate,Destination: Y coordinate,dest_y_coord
+disability_person,0,0,1,0,0,0,0,integer/categorical,Person has a disability or illness that affects ability to travel,Person has a disability or illness that affects ability to travel,disability_person
+distance_meters,0,0,0,0,1,0,0,numeric,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,distance_meters
+distance_miles,0,0,0,0,1,0,0,numeric,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,distance_miles
+driver,0,0,0,0,1,0,0,integer/categorical,"Driver or passenger on auto trip, non-taxi","Driver or passenger on auto trip, non-taxi",driver
+duration_minutes,0,0,0,0,1,0,0,numeric,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,duration_minutes
+duration_seconds,0,0,0,0,1,0,0,numeric,Duration (in seconds). Calculated as the difference between start and stop time of the trip.,Duration (in seconds). Calculated as the difference between start and stop time of the trip.,duration_seconds
+dwell_mins,0,0,0,0,1,0,0,numeric,"Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.","Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.",dwell_mins
+education,0,0,1,0,0,0,0,integer/categorical,Educational attainment,Educational attainment,education
+employment,0,0,1,0,0,0,0,integer/categorical,Employment status,Employment status,employment
+ethnicity_1,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Not of Hispanic, Latino, or Spanish origin","Ethnicity -- Not of Hispanic, Latino, or Spanish origin",ethnicity
+ethnicity_2,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Mexican, Mexican American, Chicano","Ethnicity -- Mexican, Mexican American, Chicano",ethnicity
+ethnicity_3,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Puerto Rican,Ethnicity -- Puerto Rican,ethnicity
+ethnicity_4,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Cuban,Ethnicity -- Cuban,ethnicity
+ethnicity_997,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Another Hispanic, Latino, or Spanish origin","Ethnicity -- Another Hispanic, Latino, or Spanish origin",ethnicity
+ethnicity_999,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Prefer not to answer,Ethnicity -- Prefer not to answer,ethnicity
+ethnicity_other,0,0,1,0,0,0,0,character,Other ethnicity textbox answer,Other ethnicity textbox answer,ethnicity_other
+ev_typical_charge_1,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At home,Typical charge location for EV -- At home,ev_typical_charge
+ev_typical_charge_2,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At work,Typical charge location for EV -- At work,ev_typical_charge
+ev_typical_charge_3,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)","Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)",ev_typical_charge
+ev_typical_charge_4,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)","Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)",ev_typical_charge
+ev_typical_charge_5,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a public location (e.g., hospital, library, government building)","Typical charge location for EV -- At a public location (e.g., hospital, library, government building)",ev_typical_charge
+ev_typical_charge_6,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At a hotel/inn,Typical charge location for EV -- At a hotel/inn,ev_typical_charge
+ev_typical_charge_997,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- Other,Typical charge location for EV -- Other,ev_typical_charge
+flag_teleport,0,0,0,0,1,0,0,integer/categorical,>=250m gap occurs after trip,>=250m gap occurs after trip,flag_teleport
+fuel,0,0,0,0,0,1,0,integer/categorical,Fuel type,Fuel type,fuel
+gender,0,0,1,0,0,0,0,integer/categorical,Gender,Gender,gender
+hh_day_iscomplete,0,0,0,1,0,0,0,integer/categorical,All surveys are completed for travel date for all household members (Monday - Thursday),All surveys are completed for travel date for all household members (Monday - Thursday),hh_day_iscomplete
+hh_is_complete,0,1,1,0,0,0,0,integer/categorical,Household provided complete travel information for one travel day,Household provided complete travel information for one travel day,hh_is_complete
+hh_race_category,0,1,0,0,0,0,0,integer/categorical,"Household Race Category, including Asian, most detail","Household Race Category, including Asian, most detail",hh_race_category
+hh_weight,0,1,0,0,0,0,0,numeric,Household-level weight,Household-level weight,hh_weight
+hh_weight_2017_2019_combined,0,1,0,0,0,0,0,numeric,Household-level weight for 2017 and 2019 combined,Household-level weight for 2017 and 2019 combined,hh_weight_2017_2019_combined
+hhgroup,0,1,0,0,0,0,0,integer/categorical,Travel Diary (Part 2) participation group,Travel Diary (Part 2) participation group,hhgroup
+hhincome_broad,0,1,0,0,0,0,0,integer/categorical,"Household income 2020 broad categories, all respondents","Household income 2020 broad categories, all respondents",hhincome_broad
+hhincome_detailed,0,1,0,0,0,0,0,integer/categorical,Household income 2020 detailed categories,Household income 2020 detailed categories,hhincome_detailed
+hhincome_followup,0,1,0,0,0,0,0,integer/categorical,Household income 2020 broad follow-up categories,Household income 2020 broad follow-up categories,hhincome_followup
+hhmember1,0,0,0,0,1,0,0,integer/categorical,Household member 1 was on trip,Household member 1 was on trip,hhmember1
+hhmember10,0,0,0,0,1,0,0,integer/categorical,Household member 10 was on trip,Household member 10 was on trip,hhmember10
+hhmember11,0,0,0,0,1,0,0,integer/categorical,Household member 11 was on trip,Household member 11 was on trip,hhmember11
+hhmember12,0,0,0,0,1,0,0,integer/categorical,Household member 12 was on trip,Household member 12 was on trip,hhmember12
+hhmember2,0,0,0,0,1,0,0,integer/categorical,Household member 2 was on trip,Household member 2 was on trip,hhmember2
+hhmember3,0,0,0,0,1,0,0,integer/categorical,Household member 3 was on trip,Household member 3 was on trip,hhmember3
+hhmember4,0,0,0,0,1,0,0,integer/categorical,Household member 4 was on trip,Household member 4 was on trip,hhmember4
+hhmember5,0,0,0,0,1,0,0,integer/categorical,Household member 5 was on trip,Household member 5 was on trip,hhmember5
+hhmember6,0,0,0,0,1,0,0,integer/categorical,Household member 6 was on trip,Household member 6 was on trip,hhmember6
+hhmember7,0,0,0,0,1,0,0,integer/categorical,Household member 7 was on trip,Household member 7 was on trip,hhmember7
+hhmember8,0,0,0,0,1,0,0,integer/categorical,Household member 8 was on trip,Household member 8 was on trip,hhmember8
+hhmember9,0,0,0,0,1,0,0,integer/categorical,Household member 9 was on trip,Household member 9 was on trip,hhmember9
+hhsize,0,1,0,0,0,0,0,integer/categorical,Household size,Household size,hhsize
+home_county,0,1,0,0,0,0,0,integer/categorical,Final home address: County ,Final home address: County ,home_county
+home_jurisdiction,0,1,0,0,0,0,0,integer/categorical,Home Location Jurisdiction,Home Location Jurisdiction,home_jurisdiction
+home_lat,0,1,0,0,0,0,0,numeric,Final home address latitude,Final home address latitude,home_lat
+home_lng,0,1,0,0,0,0,0,numeric,Final home address longitude,Final home address longitude,home_lng
+home_rgcname,0,1,0,0,0,0,0,integer/categorical,Final home address: Regional growth center,Final home address: Regional growth center,home_rgcname
+home_tract20,0,1,0,0,0,0,0,character,Final home address: Census Tract,Final home address: Census Tract,home_tract20
+hours_work,0,0,1,0,0,0,0,integer/categorical,Number of hours typically worked last week,Number of hours typically worked last week,hours_work
+household_id,0,1,1,1,1,1,0,character,Unique identifier for each household,Unique identifier for each household,household_id
+industry,0,0,1,0,0,0,0,integer/categorical,Current employment industry,Current employment industry,industry
+industry_other,0,0,1,0,0,0,0,character,Current employment industry: user specified in text box,Current employment industry: user specified in text box,industry_other
+is_participant,0,0,1,1,0,0,0,integer/categorical,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)","Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",is_participant
+jobs_count,0,0,1,0,0,0,0,integer/categorical,Number of jobs,Number of jobs,jobs_count
+license,0,0,1,0,0,0,0,integer/categorical,"Answers yes to ""Do you/household person drive?""","Answers yes to ""Do you/household person drive?""",license
+lifecycle,0,1,0,0,0,0,0,integer/categorical,Household lifecycle stage,Household lifecycle stage,lifecycle
+loc_end,0,0,0,1,0,0,0,integer/categorical,Location at end of travel day,Location at end of travel day,loc_end
+loc_start,0,0,0,1,0,0,0,integer/categorical,Location at start of travel day,Location at start of travel day,loc_start
+make,0,0,0,0,0,1,0,character,Vehicle make,Vehicle make,make
+mobility_aides,0,0,1,0,0,0,0,integer/categorical,"Person uses mobility aides (wheelchairs, walkers, crutches, canes, braces, etc.)","Person uses mobility aides (wheelchairs, walkers, crutches, canes, braces, etc.)",mobility_aides
+mode_1,0,0,0,0,1,0,0,integer/categorical,Primary mode,Primary mode,mode_1
+mode_2,0,0,0,0,1,0,0,integer/categorical,Second mode chosen,Second mode chosen,mode_2
+mode_3,0,0,0,0,1,0,0,integer/categorical,Third mode chosen,Third mode chosen,mode_3
+mode_4,0,0,0,0,1,0,0,integer/categorical,Fourth mode chosen,Fourth mode chosen,mode_4
+mode_acc,0,0,0,0,1,0,0,integer/categorical,Travel mode to transit,Travel mode to transit,mode_acc
+mode_characterization,0,0,0,0,1,0,0,integer/categorical,Do Not Use!!! Older version,Do Not Use!!! Older version,mode_characterization
+mode_class,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode (derived from mode_1~mode_4),Primary Trip Mode (derived from mode_1~mode_4),mode_class
+mode_class_5,0,0,0,0,1,0,0,integer/categorical,Primary Trip Mode (5 categories),Primary Trip Mode (5 categories),mode_class_5
+mode_egr,0,0,0,0,1,0,0,integer/categorical,Travel mode from transit,Travel mode from transit,mode_egr
+mode_other_specify,0,0,0,0,1,0,0,character,Other mode specified in textbox,Other mode specified in textbox,mode_other_specify
+mode_simple,0,0,0,0,1,0,0,integer/categorical,Do Not Use!!! Only considered mode_1,Do Not Use!!! Only considered mode_1,mode_simple
+mode_type,0,0,0,0,1,0,0,integer/categorical,Synthesized mode (derived),Synthesized mode (derived),mode_type
+model,0,0,0,0,0,1,0,character,Vehicle model,Vehicle model,model
+model_other,0,0,0,0,0,1,0,character,Other vehicle model textbox answer,Other vehicle model textbox answer,model_other
+no_school_closed,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- School was closed or adjusted due to weather event,Didn't travel to school -- School was closed or adjusted due to weather event,no_school
+no_school_dont_know,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Don't know,Didn't travel to school -- Don't know,no_school
+no_school_no_answer,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Prefer not to answer,Didn't travel to school -- Prefer not to answer,no_school
+no_school_online_home,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Attended class online from home,Didn't travel to school -- Attended class online from home,no_school
+no_school_online_other,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Attended class online from another location,Didn't travel to school -- Attended class online from another location,no_school
+no_school_other,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Other reason,Didn't travel to school -- Other reason,no_school
+no_school_sick,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- Sick or quarantining,Didn't travel to school -- Sick or quarantining,no_school
+no_school_vacation,1,0,0,1,0,0,0,integer/categorical,Didn't travel to school -- School was scheduled to be closed,Didn't travel to school -- School was scheduled to be closed,no_school
+notravel_delivery,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Was waiting for a delivery or visitor,Didn't travel -- Was waiting for a delivery or visitor,notravel
+notravel_housework,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Worked around home (not for pay),Didn't travel -- Worked around home (not for pay),notravel
+notravel_kidsbreak,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Kids were on school vacation / break,Didn't travel -- Kids were on school vacation / break,notravel
+notravel_kidshomeschool,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Kids were home schooled,Didn't travel -- Kids were home schooled,notravel
+notravel_madetrips,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Made trips that day (erroneously recorded no trips),Didn't travel -- Made trips that day (erroneously recorded no trips),notravel
+notravel_not_sure,1,0,0,1,0,0,0,integer/categorical,"Didn't travel -- Person may have traveled, but not sure when or where","Didn't travel -- Person may have traveled, but not sure when or where",notravel
+notravel_notransport,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Had no available transportation,Didn't travel -- Had no available transportation,notravel
+notravel_other,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Other reason,Didn't travel -- Other reason,notravel
+notravel_sick,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Was sick or caring for another person at home,Didn't travel -- Was sick or caring for another person at home,notravel
+notravel_telecommute,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Worked from home for pay,Didn't travel -- Worked from home for pay,notravel
+notravel_vacation,1,0,0,1,0,0,0,integer/categorical,"Didn't travel -- Not scheduled to work, vacation/personal day","Didn't travel -- Not scheduled to work, vacation/personal day",notravel
+notravel_weather,1,0,0,1,0,0,0,integer/categorical,Didn't travel -- Weather conditions,Didn't travel -- Weather conditions,notravel
+num_complete_fri,0,1,0,0,0,0,0,numeric,Number of Fridays on which the household was complete,Number of Fridays on which the household was complete,num_complete_fri
+num_complete_mon,0,1,0,0,0,0,0,numeric,Number of Mondays on which the household was complete,Number of Mondays on which the household was complete,num_complete_mon
+num_complete_sat,0,1,0,0,0,0,0,numeric,Number of Saturdays on which the household was complete,Number of Saturdays on which the household was complete,num_complete_sat
+num_complete_sun,0,1,0,0,0,0,0,numeric,Number of Sundays on which the household was complete,Number of Sundays on which the household was complete,num_complete_sun
+num_complete_thu,0,1,0,0,0,0,0,numeric,Number of Thursdays on which the household was complete,Number of Thursdays on which the household was complete,num_complete_thu
+num_complete_trip_surveys,0,0,0,1,0,0,0,numeric,Number of complete trip surveys on travel day,Number of complete trip surveys on travel day,num_complete_trip_surveys
+num_complete_tue,0,1,0,0,0,0,0,numeric,Number of Tuesdays on which the household was complete,Number of Tuesdays on which the household was complete,num_complete_tue
+num_complete_wed,0,1,0,0,0,0,0,numeric,Number of Wednesdays on which the household was complete,Number of Wednesdays on which the household was complete,num_complete_wed
+num_days_complete_weekday,0,1,0,0,0,0,0,numeric,Number of weekdays (Monday through Friday) on which the household was complete,Number of weekdays (Monday through Friday) on which the household was complete,num_days_complete_weekday
+num_days_complete_weekend,0,1,0,0,0,0,0,numeric,Number of weekend days (Saturdays and Sundays) on which the household was complete,Number of weekend days (Saturdays and Sundays) on which the household was complete,num_days_complete_weekend
+num_no_flag_days,0,0,1,0,0,0,0,numeric,Number of person days with no trip trace flags,Number of person days with no trip trace flags,num_no_flag_days
+num_participants,0,1,0,0,0,0,0,numeric,"Number of survey participants in household (for rMove: over 17 and has a smartphone, not proxied, and is related to person 1; for online survey: ppersons over 17 and related to person 1)","Number of survey participants in household (for rMove: over 17 and has a smartphone, not proxied, and is related to person 1; for online survey: ppersons over 17 and related to person 1)",num_participants
+num_students,0,1,0,0,0,0,0,integer/categorical,Number of students in household,Number of students in household,num_students
+num_surveyable,0,1,0,0,0,0,0,integer/categorical,Number of surveyable (related to person 1) household members,Number of surveyable (related to person 1) household members,num_surveyable
+num_trips,0,1,1,1,0,0,0,numeric,"Household, person, or person-day number of trips","Household, person, or person-day number of trips",num_trips
+numadults,0,1,0,0,0,0,0,integer/categorical,Number of adults in household,Number of adults in household,numadults
+numchildren,0,1,0,0,0,0,0,integer/categorical,Number of children in household,Number of children in household,numchildren
+numdayscomplete,0,1,1,0,0,0,0,numeric,Household or person number of days complete,Household or person number of days complete,numdayscomplete
+numworkers,0,1,0,0,0,0,0,integer/categorical,Number of workers in household,Number of workers in household,numworkers
+o_in_region,0,0,0,0,1,0,0,integer/categorical,Trip origin is in PSRC MPO area,Trip origin is in PSRC MPO area,o_in_region
+office_available,0,0,1,0,0,0,0,integer/categorical,Availability of private work space outside the home,Availability of private work space outside the home,office_available
+origin_county,0,0,0,0,1,0,0,integer/categorical,Origin county,Origin county,origin_county
+origin_jurisdiction,0,0,0,0,1,0,0,integer/categorical,Trip Origin Jurisdiction,Trip Origin Jurisdiction,origin_jurisdiction
+origin_lat,0,0,0,0,1,0,0,numeric,Origin latitude,Origin latitude,origin_lat
+origin_lng,0,0,0,0,1,0,0,numeric,Origin longitude,Origin longitude,origin_lng
+origin_name,0,0,0,0,1,0,0,character,Origin name,Origin name,origin_name
+origin_purpose,0,0,0,0,1,0,0,integer/categorical,Origin purpose,Origin purpose,origin_purpose
+origin_purpose_cat,0,0,0,0,1,0,0,integer/categorical,Origin purpose category (derived),Origin purpose category (derived),origin_purpose_cat
+origin_purpose_cat_5,0,0,0,0,1,0,0,integer/categorical,Origin purpose category (5 categories),Origin purpose category (5 categories),origin_purpose_cat_5
+origin_rgcname,0,0,0,0,1,0,0,integer/categorical,Origin location: Regional Growth Center,Origin location: Regional Growth Center,origin_rgcname
+origin_tract10,0,0,0,0,1,0,0,character,Origin Census Tract 2010,Origin Census Tract 2010,origin_tract10
+origin_tract20,0,0,0,0,1,0,0,character,Origin Census Tract 2020,Origin Census Tract 2020,origin_tract20
+origin_x_coord,0,0,0,0,1,0,0,numeric,Origin: X coordinate,Origin: X coordinate,origin_x_coord
+origin_y_coord,0,0,0,0,1,0,0,numeric,Origin: Y coordinate,Origin: Y coordinate,origin_y_coord
+participate,0,0,1,0,0,0,0,integer/categorical,Respondent is willing to be recontacted for future transportation research,Respondent is willing to be recontacted for future transportation research,participate
+pernum,0,0,1,1,1,0,0,numeric,Person number in household,Person number in household,pernum
+person_id,0,0,1,1,1,0,0,character,Person unique identifier,Person unique identifier,person_id
+person_pct_trips_flagged,0,0,1,0,0,0,0,numeric,Percent of person's total trip traces flagged,Percent of person's total trip traces flagged,person_pct_trips_flagged
+person_weight,0,0,1,0,0,0,0,numeric,Person-level weight,Person-level weight,person_weight
+person_weight_2017_2019_combined,0,0,1,0,0,0,0,numeric,Person-level weight for 2017 and 2019 combined,Person-level weight for 2017 and 2019 combined,person_weight_2017_2019_combined
+point_dist_index,0,0,0,0,1,0,0,numeric,Percentage points over expected for largest distance between two points on trip,Percentage points over expected for largest distance between two points on trip,point_dist_index
+prev_home_county,0,1,0,0,0,0,0,integer/categorical,Previous home address: County ,Previous home address: County ,prev_home_county
+prev_home_jurisdiction,0,1,0,0,0,0,0,integer/categorical,Previous home address: Jurisdiction,Previous home address: Jurisdiction,prev_home_jurisdiction
+prev_home_lat,0,1,0,0,0,0,0,numeric,Previous home address latitude,Previous home address latitude,prev_home_lat
+prev_home_lng,0,1,0,0,0,0,0,numeric,Previous home address longitude,Previous home address longitude,prev_home_lng
+prev_home_notwa_city,0,1,0,0,0,0,0,character,Previous home address city,Previous home address city,prev_home_notwa_city
+prev_home_notwa_state,0,1,0,0,0,0,0,integer/categorical,Previous home address state,Previous home address state,prev_home_notwa_state
+prev_home_notwa_zip,0,1,0,0,0,0,0,character,Previous home address zip,Previous home address zip,prev_home_notwa_zip
+prev_home_rgcname,0,1,0,0,0,0,0,integer/categorical,Previous home address Regional Growth Center name,Previous home address Regional Growth Center name,prev_home_rgcname
+prev_home_tract20,0,1,0,0,0,0,0,character,Previous home address: Census tract,Previous home address: Census tract,prev_home_tract20
+prev_home_wa,0,1,0,0,0,0,0,integer/categorical,Previous home in State of Washington (WA),Previous home in State of Washington (WA),prev_home_wa
+prev_rent_own,0,1,0,0,0,0,0,integer/categorical,Previous home tenure status,Previous home tenure status,prev_rent_own
+prev_res_factors_amenities,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities","Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities",prev_res_factors
+prev_res_factors_community_change,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area","Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area",prev_res_factors_community_change
+prev_res_factors_crime,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Concerns about safety or crime,Important factor in decision to move away from prior residence -- Concerns about safety or crime,prev_res_factors
+prev_res_factors_employment,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)","Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)",prev_res_factors
+prev_res_factors_forced,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)","Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)",prev_res_factors_forced
+prev_res_factors_hh_size,0,1,0,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Changes in household size, establish own household","Important factor in decision to move away from prior residence -- Changes in household size, establish own household",prev_res_factors_hh
+prev_res_factors_housing_cost,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,prev_res_factors_housing_cost
+prev_res_factors_income_change,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,prev_res_factors_income_change
+prev_res_factors_less_space,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed less space,Important factor in decision to move away from prior residence -- Needed less space,prev_res_factors_less
+prev_res_factors_more_space,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed more space,Important factor in decision to move away from prior residence -- Needed more space,prev_res_factors_more
+prev_res_factors_no_answer,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Prefer not to answer,Important factor in decision to move away from prior residence -- Prefer not to answer,prev_res_factors_no
+prev_res_factors_other,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Other,Important factor in decision to move away from prior residence -- Other,prev_res_factors
+prev_res_factors_quality,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,prev_res_factors
+prev_res_factors_school,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Access to a different K-12 school,Important factor in decision to move away from prior residence -- Access to a different K-12 school,prev_res_factors
+prev_res_factors_specify,0,1,0,0,0,0,0,character,"Other factor in decision to move away from prior residence, write-in text","Other factor in decision to move away from prior residence, write-in text",prev_res_factors_specify
+prev_res_factors_telework,0,1,0,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,prev_res_factors
+prev_res_type,0,1,0,0,0,0,0,integer/categorical,Previous home residence type,Previous home residence type,prev_res_type
+proxy,0,0,1,0,0,0,0,numeric,Survey respondent/proxy,Survey respondent/proxy,point_dist_index
+proxy_complete,0,0,0,1,0,0,0,integer/categorical,Proxy completion status,Proxy completion status,proxy_complete
+proxy_parent,0,0,1,0,0,0,0,integer/categorical,Person is proxy reporter for children in household,Person is proxy reporter for children in household,proxy_parent
+pt_density,0,0,0,0,1,0,0,numeric,Location points per minute (time adjusted for probable trip splitting),Location points per minute (time adjusted for probable trip splitting),pt_density
+race_afam,1,0,1,0,0,0,0,integer/categorical,Race -- African American or Black,Race -- African American or Black,race
+race_aiak,1,0,1,0,0,0,0,integer/categorical,Race -- American Indian or Alaska Native,Race -- American Indian or Alaska Native,race
+race_asian,1,0,1,0,0,0,0,integer/categorical,Race -- Asian,Race -- Asian,race
+race_category,0,0,1,0,0,0,0,integer/categorical,Race Group,Race Group,race_category
+race_hapi,1,0,1,0,0,0,0,integer/categorical,Race -- Native Hawaiian or Pacific Islander,Race -- Native Hawaiian or Pacific Islander,race
+race_hisp,0,0,1,0,0,0,0,integer/categorical,Race -- Hispanic,Race -- Hispanic,race
+race_noanswer,1,0,1,0,0,0,0,integer/categorical,Race -- Prefer not to answer,Race -- Prefer not to answer,race
+race_other,1,0,1,0,0,0,0,integer/categorical,Race -- Other,Race -- Other,race
+race_other_specify,0,0,1,0,0,0,0,character,Other race textbox answer,Other race textbox answer,race_other_specify
+race_white,1,0,1,0,0,0,0,integer/categorical,Race -- White,Race -- White,race
+relationship,0,0,1,0,0,0,0,integer/categorical,Relationship to primary respondent,Relationship to primary respondent,relationship
+remote_class_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person attends classes online from a location that is not school (e.g., home, library, coffee shop)","How often the person attends classes online from a location that is not school (e.g., home, library, coffee shop)",remote_class_freq
+rent_own,0,1,0,0,0,0,0,integer/categorical,Residence tenure status,Residence tenure status,rent_own
+res_dur,0,1,0,0,0,0,0,integer/categorical,How long lived in current residence,How long lived in current residence,res_dur
+res_months,0,1,0,0,0,0,0,integer/categorical,Months per year live in residence where survey invitation received,Months per year live in residence where survey invitation received,res_months
+res_type,0,1,0,0,0,0,0,integer/categorical,Type of residence,Type of residence,res_type
+sample_segment,0,1,0,0,0,0,0,integer/categorical,Sample segment,Sample segment,sample_segment
+school_county,0,0,1,0,0,0,0,integer/categorical,School address: County,School address: County,school_county
+school_freq,0,0,1,0,0,0,0,integer/categorical,How often travels to school,How often travels to school,school_freq
+school_in_region,0,0,1,0,0,0,0,integer/categorical,School is in PSRC MPO area,School is in PSRC MPO area,school_in_region
+school_jurisdiction,0,0,1,0,0,0,0,integer/categorical,School address Jurisdiction,School address Jurisdiction,school_jurisdiction
+school_loc_lat,0,0,1,0,0,0,0,numeric,School address latitude,School address latitude,school_loc_lat
+school_loc_lng,0,0,1,0,0,0,0,numeric,School address longitude,School address longitude,school_loc_lng
+school_mode_typical,0,0,1,0,0,0,0,integer/categorical,How does child/adult student typically travel to/from school or daycare,How does child/adult student typically travel to/from school or daycare,school_mode_typical
+school_rgcname,0,0,1,0,0,0,0,integer/categorical,School address Regional Growth Center name,School address Regional Growth Center name,school_rgcname
+school_tract20,0,0,1,0,0,0,0,character,School address: Census Tract,School address: Census Tract,school_tract20
+schooltype,0,0,1,0,0,0,0,integer/categorical,Type of school attended,Type of school attended,schooltype
+second_home,0,0,1,0,0,0,0,integer/categorical,"Person regularly spends the night at a second home (e.g., another parent or grandparent's house, partner or spouses' home, vacation home)","Person regularly spends the night at a second home (e.g., another parent or grandparent's house, partner or spouses' home, vacation home)",second_home
+second_home_in_region,0,0,1,0,0,0,0,integer/categorical,Second home is in PSRC MPO area,Second home is in PSRC MPO area,second_home_in_region
+second_home_lat,0,0,1,0,0,0,0,numeric,Second home latitude,Second home latitude,second_home_lat
+second_home_lon,0,0,1,0,0,0,0,numeric,Second home longitude,Second home longitude,second_home_lon
+sexuality,0,0,1,0,0,0,0,integer/categorical,Sexuality,Sexuality,sexuality
+share_1,0,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Walk (outside for 15-minutes or more),Typical travel methods -- Walk (outside for 15-minutes or more),share_1
+share_2,0,0,1,0,0,0,0,integer/categorical,Typical travel methods -- Bike (outside for 15-minutes or more),Typical travel methods -- Bike (outside for 15-minutes or more),share_2
+share_3,0,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Transit (e.g., bus, rail, ferry)","Typical travel methods -- Transit (e.g., bus, rail, ferry)",share_3
+share_4,0,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)","Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)",share_4
+share_5,0,0,1,0,0,0,0,integer/categorical,"Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)","Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",share_5
+share_996,0,0,1,0,0,0,0,integer/categorical,Typical travel methods -- None of the above,Typical travel methods -- None of the above,share_996
+speed_flag,0,0,0,0,1,0,0,integer/categorical,Unusually high speed given mode,Unusually high speed given mode,speed_flag
+speed_mph,0,0,0,0,1,0,0,numeric,Trip speed in miles per hour (derived),Trip speed in miles per hour (derived),speed_mph
+student,0,0,1,0,0,0,0,integer/categorical,Student status,Student status,student
+summary_complete,0,0,0,1,0,0,0,integer/categorical,Daily survey is complete,Daily survey is complete,summary_complete
+survey_year,0,1,1,1,1,1,0,integer/categorical,Survey data collection year,Survey data collection year,survey_year
+surveyable,0,0,1,1,0,0,0,integer/categorical,Survey participant is related to person 1,Survey participant is related to person 1,surveyable
+svy_complete,0,0,0,0,1,0,0,integer/categorical,Trip survey is complete,Trip survey is complete,svy_complete
+taxi_cost_int,0,0,0,0,1,0,0,numeric,Amount paid for taxi,Amount paid for taxi,taxi_cost_int
+taxi_cost_known,0,0,0,0,1,0,0,integer/categorical,Knows amount paid for taxi,Knows amount paid for taxi,taxi_cost_known
+telecommute_freq,0,0,1,0,0,0,0,integer/categorical,How many days typically working from home,How many days typically working from home,telecommute_freq
+telework_time,0,0,0,1,0,0,0,integer/categorical,Telework time on travel day,Telework time on travel day,telework_time
+tnc_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person has used Uber, Lyft, or other smartphone-app car services in the past 30 days","How often the person has used Uber, Lyft, or other smartphone-app car services in the past 30 days",tnc_freq
+toll_transponder,0,0,0,0,0,1,0,integer/categorical,Vehicle has toll transponder,Vehicle has toll transponder,toll_transponder
+trace_quality_flag,0,0,0,0,1,0,0,integer/categorical,Flag. Trip trace data of poor quality,Flag. Trip trace data of poor quality,trace_quality_flag
+tran_pass_1,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Cash,if ridden transit in past 30 days,tran_pass_1
+tran_pass_10,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Ride free,if ridden transit in past 30 days,tran_pass_10
+tran_pass_11,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Other,if ridden transit in past 30 days,tran_pass_11
+tran_pass_12,0,0,1,0,0,0,0,integer/categorical,School pays for part of all of pass value,"if age = 12+, travels to school, and uses transit pass",tran_pass_12
+tran_pass_2,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Tickets,if ridden transit in past 30 days,tran_pass_2
+tran_pass_3,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: ORCA card,if ridden transit in past 30 days,tran_pass_3
+tran_pass_4,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: UPass or Husky Card,if ridden transit in past 30 days,tran_pass_4
+tran_pass_5,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Regional Reduced-Fare Permit,if ridden transit in past 30 days,tran_pass_5
+tran_pass_6,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Flexpass/Passport,if ridden transit in past 30 days,tran_pass_6
+tran_pass_7,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: Access Pass,if ridden transit in past 30 days,tran_pass_7
+tran_pass_8,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: School District Card/Pass,if ridden transit in past 30 days,tran_pass_8
+tran_pass_9,0,0,1,0,0,0,0,integer/categorical,Available and typically use when riding transit: City/County Employee Badge,if ridden transit in past 30 days,tran_pass_9
+transit_freq,0,0,1,0,0,0,0,integer/categorical,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days","How often the person used transit (e.g., bus, rail, ferry) in the past 30 days",transit_freq
+transit_pass,0,0,1,0,0,0,0,integer/categorical,Respondent has transit pass,Respondent has transit pass,transit_pass
+travel_date,0,0,0,1,1,0,0,date,Travel date,Travel date,travel_date
+travel_day,0,0,0,1,1,0,0,integer/categorical,Is travel day,Is travel day,travel_day
+travel_dow,0,0,0,1,1,0,0,integer/categorical,Travel day of week,Travel day of week,travel_dow
+traveldate_end,0,1,1,0,0,0,0,date,Last travel date,Last travel date,traveldate_end
+traveldate_start,0,1,1,0,0,0,0,date,First travel date,First travel date,traveldate_start
+travelers_hh,0,0,0,0,1,0,0,numeric,Number of household members on trip (including self),Number of household members on trip (including self),travelers_hh
+travelers_nonhh,0,0,0,0,1,0,0,integer/categorical,Number of non-household members on trip,Number of non-household members on trip,travelers_nonhh
+travelers_total,0,0,0,0,1,0,0,integer/categorical,Number of total travelers on trip (including self),Number of total travelers on trip (including self),travelers_total
+trip_id,0,0,0,0,1,0,1,character,Trip ID (unique),Trip ID (unique),trip_id
+trip_weight,0,0,0,0,1,0,0,numeric,Trip-level weight,Trip-level weight,trip_weight
+trip_weight_2017_2019_combined,0,0,0,0,1,0,0,numeric,Trip-level weight for 2017 and 2019 combined,Trip-level weight for 2017 and 2019 combined,trip_weight_2017_2019_combined
+tripnum,0,0,0,0,1,0,0,numeric,Trip sequence number,Trip sequence number,tripnum
+trips_yesno,0,0,0,1,0,0,0,integer/categorical,Made trips on travel day (derived for children under 18 in 2021),Made trips on travel day (derived for children under 18 in 2021),trips_yesno
+user_added,0,0,0,0,1,0,0,integer/categorical,User added trip,User added trip,user_added
+user_merged,0,0,0,0,1,0,0,integer/categorical,User merged 2 or more trips,User merged 2 or more trips,user_merged
+user_split,0,0,0,0,1,0,0,integer/categorical,User split trip,User split trip,user_split
+vehicle_count,0,1,0,0,0,0,0,integer/categorical,Number of vehicles,Number of vehicles,vehicle_count
+vehicle_id,0,0,0,0,0,1,0,numeric,Vehicle ID,Vehicle ID,vehicle_id
+vehicleused,0,0,1,0,0,0,0,integer/categorical,Vehicle uses most often,Vehicle uses most often,vehicleused
+vehnum,0,0,0,0,0,1,0,numeric,Vehicle number,Vehicle number,vehnum
+walk_freq,0,0,1,0,0,0,0,integer/categorical,How often the person has walked outside for 15 or more minutes in the past 30 days,How often the person has walked outside for 15 or more minutes in the past 30 days,walk_freq
+walk_freq_pre_2023,0,0,1,0,0,0,0,integer/categorical,Times gone for a walk in past 30 days,Times gone for a walk in past 30 days,walk_freq_pre_2023
+work_county,0,0,1,0,0,0,0,integer/categorical,Work address county,Work address county,work_county
+work_in_region,0,0,1,0,0,0,0,integer/categorical,Work is in PSRC MPO area,Work is in PSRC MPO area,work_in_region
+work_jurisdiction,0,0,1,0,0,0,0,integer/categorical,Work address Jurisdiction,Work address Jurisdiction,work_jurisdiction
+work_lat,0,0,1,0,0,0,0,numeric,Work address latitude,Work address latitude,work_lat
+work_lng,0,0,1,0,0,0,0,numeric,Work address longitude,Work address longitude,work_lng
+work_mode,0,0,1,0,0,0,0,integer/categorical,Typical means of travel to work,Typical means of travel to work,work_mode
+work_rgcname,0,0,1,0,0,0,0,integer/categorical,Work address Regional Growth Center name,Work address Regional Growth Center name,work_rgcname
+work_tract20,0,0,1,0,0,0,0,character,Work address: Census Tract,Work address: Census Tract,work_tract20
+workpass,0,0,1,0,0,0,0,integer/categorical,Usual way of paying for parking at work,Usual way of paying for parking at work,workpass
+workplace,0,0,1,0,0,0,0,integer/categorical,Current work location,Current work location,workplace
+year,0,0,0,0,0,1,0,integer/categorical,Vehicle model year,Vehicle model year,year

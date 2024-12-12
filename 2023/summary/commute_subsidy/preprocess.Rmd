@@ -24,7 +24,7 @@ hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdic
                 from HHSurvey.v_households_labels")
 
 
-person<- get_query(sql= "select household_id as hh_id,race_category_2023_c,
+person<- get_query(sql= "select household_id as hh_id,
 person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname,commute_subsidy_1, commute_subsidy_2,commute_subsidy_3, work_jurisdiction, work_county
                 from HHSurvey.v_persons_labels")
                 

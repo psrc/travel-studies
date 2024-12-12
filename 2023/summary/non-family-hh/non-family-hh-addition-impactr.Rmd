@@ -1,0 +1,38 @@
+---
+stitle: "non-family-hhs-and-reweight"
+author: "suzanne"
+date: "2024-12-09"
+output: html_document
+---
+
+```{r }
+library(dplyr)
+library(psrcplot)
+library(tidyr)
+```
+
+```{r}
+before_new_hh<-readRDS('J:/Projects/Surveys/HHTravel/Survey2023/Data/nonfamily_households/before-after/hts_tbl_4_shiny_old.rds')
+after_new_hh<-readRDS('J:/Projects/Surveys/HHTravel/Survey2023/Data/nonfamily_households/before-after/hts_tbl_4_shiny_new.rds')
+
+```
+
+```{r}
+compare<- merge(before_new_hh, after_new_hh, by= c('survey_year', 'demographic_category', 'demographic_attribute', 'travel_category', 'travel_attribute'), suffixes=c('old','new_wnonfam') )
+```
+
+somehow the data items that were summarized reduced the list size- it seems like we were trying other things, between the two time points
+
+```{r}
+compare_region<-compare%>%filter(demographic_category=='Regionwide')
+
+```
+
+```{r}
+compare_region_long<- compare_region%>%select('travel_category', 'travel_attribute', 'propold', 'propnew_wnonfam')%>% pivot_longer( cols=starts_with('prop'), names_to='before-after-yr' , values_to='prop')
+```
+
+```{r}
+static_facet_column_chart(t=compare_region_long, x= 'travel_attribute', y='prop', facet='travel_category', fill='before-after')
+```
+

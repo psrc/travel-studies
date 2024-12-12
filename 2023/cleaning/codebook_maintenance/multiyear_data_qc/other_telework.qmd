@@ -1,0 +1,95 @@
+---
+title: "telework stats"
+date: today
+---
+
+```{r}
+library(psrc.travelsurvey)
+library(tidyverse)
+library(psrcelmer)
+library(data.table)
+library(magrittr)
+
+telework_vars <- c("telecommute_freq","workplace","industry","commute_freq")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_years = 2023, survey_vars = telework_vars)
+```
+
+```{r}
+goods_producing <- c("Natural resources (e.g., forestry, fishery, energy)",
+  "Manufacturing (e.g., aerospace & defense, electrical, machinery)",
+  "Construction")
+transportation <- c("Transportation and utilities")
+
+full_hts_data <- hts_data
+full_hts_data$person <- full_hts_data$person %>%
+  mutate(telecommute_freq_mine = case_when(telecommute_freq %in% c("5 days a week","6-7 days a week")~"5+ days a week",
+                                           telecommute_freq %in% c("A few times per month","Less than monthly",
+                                                                   "Never")~"Never or Less than 1 day a week",  
+                                           TRUE~telecommute_freq),
+         commute_freq_mine = case_when(commute_freq %in% c("5 days a week","6-7 days a week")~"5+ days a week",
+                                           commute_freq %in% c("A few times per month","Less than monthly",
+                                                               "1-3 days a month","Never")~"Never or Less than 1 day a week",  
+                                           TRUE~commute_freq),
+         industry_sector = case_when(industry %in% goods_producing~"Goods Producing industry",
+                                     industry %in% transportation~"Trade, Transportation, and Utilities industry sectors",
+                                     industry=="Missing: Skip Logic"~"Missing: Skip Logic",
+                                     is.na(industry)~NA,
+                                     TRUE~"All Other Services industry sectors"))
+
+
+hybrid_hts_data <- full_hts_data
+hybrid_hts_data$person <- hybrid_hts_data$person %>% 
+  mutate(workplace= case_when(workplace!="Telework some days and travel to a work location some days"~"not hybrid",
+                              TRUE~"Telework some days"),
+         telecommute_freq= case_when(workplace!="Telework some days"~"not hybrid",
+                              TRUE~telecommute_freq),
+         commute_freq= case_when(workplace!="Telework some days"~"not hybrid",
+                              TRUE~commute_freq))
+```
+
+## basic summary for telework-related variables
+
+- `workplace`
+```{r}
+psrc_hts_stat(full_hts_data, "person", c("workplace"),incl_na = FALSE) %>%
+  mutate_at(c("prop","prop_moe"), ~scales::percent(., accuracy=0.01))
+```
+
+- `commute_freq`
+
+_if employment = full/part/self/volunteer and job_type IS NOT "work only from home" or “drive/bike/travel for work”_
+
+```{r}
+psrc_hts_stat(full_hts_data, "person", c("commute_freq_mine"),incl_na = FALSE) %>%
+  mutate_at(c("prop","prop_moe"), ~scales::percent(., accuracy=0.01))
+```
+## Hybrid worker only
+
+- keep only workers with workplace as `"Telework some days and travel to a work location some days"`
+- how many days a week are hybrid workers commuting?
+
+```{r}
+psrc_hts_stat(hybrid_hts_data, "person", c("commute_freq_mine"),incl_na = FALSE) %>%
+  mutate_at(c("prop","prop_moe"), ~scales::percent(., accuracy=0.01)) %>%
+  filter(commute_freq_mine!="not hybrid")
+```
+- hybrid worker commute frequency by industry
+
+```{r}
+psrc_hts_stat(hybrid_hts_data, "person", c("industry_sector","commute_freq_mine"),incl_na = FALSE) %>%
+  mutate_at(c("prop","prop_moe"), ~scales::percent(., accuracy=0.01)) %>%
+  filter(commute_freq_mine!="not hybrid") %>%
+  pivot_wider(id_cols = c("commute_freq_mine"), names_from = "industry_sector", values_from = "prop")
+```
+
+- industry list in HTS data
+
+```{r}
+full_hts_data$person %>% 
+  select(industry_sector,industry) %>% 
+  unique() %>%
+  arrange(industry_sector,industry)
+```
+

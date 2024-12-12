@@ -1,0 +1,57 @@
+---
+title: "weights_no_roommate_adj"
+author: "suzanne"
+date: "2024-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcelmer)
+library(travelSurveyTools)
+library(data.table)
+library(psrcplot)
+install_psrc_fonts()
+
+# source("analysis/analysis_funcs.R")
+source("survey-23-preprocess.R")
+hh<- get_query(sql= "select  household_id as hh_id, hhsize, hhincome_broad,home_jurisdiction, home_county, hh_weight,vehicle_count, home_rgcname, home_lat, home_lng, survey_year, hh_race_category
+                from HHSurvey.v_households_labels")
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+new_weights<-read.csv( 'J:/Projects/Surveys/HHTravel/Survey2023/Data/weighting/no_roommate_adj_test/hh_weights.csv')
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+hh_new_weights<-left_join(hh, new_weights, by='hh_id', suffix=c('old', 'new'))%>%filter(survey_year==
+                                                                                         '2023')
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+hh_new_weights_summary<-hh_new_weights%>%replace(is.na(.),0)%>%                                              group_by(hhsize,vehicle_count)%>%summarize(old_weights=sum(hh_weightold),
+                                                                      new_weights=sum(hh_weightnew))
+```
+```{r}
+hh_new_weights_summary
+```
+generated the plot.
+```{r}
+hh_new_weights_summary_veh<-hh_new_weights%>%replace(is.na(.),0)%>%                                              group_by(hhsize,vehicle_count)%>%summarize(old_weights=sum(hh_weightold),
+                                                                      new_weights=sum(hh_weightnew))
+```
+```{r}
+hh_new_weights_summary_veh
+```

@@ -1,0 +1,180 @@
+---
+title: "test-new-package"
+author: "suzanne"
+date: "2024-09-27"
+output: html_document
+---
+reading in libraries I usually need
+```{r , include=FALSE}
+library(psrc.travelsurvey)
+library(travelSurveyTools)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+library(stringr)
+library(sf)
+library(psrcelmer)
+library(forcats)
+```
+
+
+I'm going to analyze sexuality and travel behavior data as a test case-won't be able to do a multi-year comparision though. So after that I'll do a summary of transit access modes.
+
+```{r}
+demo_summary_vars<-c('age', 'disability_person', 'education', 'employment','gender', 'industry',
+               'hhincome_broad', 'home_county','home_lat', 'home_lng','hh_race_category','home_rgcname',
+               'numadults', 'numchildren', 'numworkers','res_type', 'rent_own','sexuality',
+               'student', 'vehicle_count')
+travel_summary_vars<-c('bike_freq', 'benefits_3', 'dest_purpose', 'commute_freq', 'commute_mode',
+                       'mode_characterization', 'mode_acc', 'transit_freq', 'tnc_freq','telecommute_freq','walk_freq','workplace')
+
+all_vars<-c(demo_summary_vars, travel_summary_vars)
+               
+
+```
+
+```{r}
+hts_data <- get_psrc_hts(survey_vars = all_vars)
+
+```
+
+```{r}
+hh<-hts_data$hh
+hh_geo<-hh%>%
+  st_as_sf(coords=c('home_lng','home_lat'), crs=4326)
+```
+
+#redo analysis with regional geographies
+```{r}
+regional.geogs<-st_read_elmergeo('REGIONAL_GEOGRAPHIES_evw')
+```
+
+
+
+```{r}
+sf_use_s2(FALSE)
+hh_reg_geog<-st_join(regional.geogs, hh_geo, join=st_intersects)%>%filter(!is.na(hh_id))
+
+hh<-left_join(hh, hh_reg_geog, by='hh_id', suffix=c('','_geog'))%>%
+  mutate(class_desc=if_else(is.na(class_desc), "Outside Urban Growth Area", class_desc))%>%
+  mutate(home_loc= case_when(class_desc=='CitiesTowns' ~ 'Cities and Towns',
+                             class_desc=='HCT' ~ 'High Capacity Transit',
+                             class_desc=='UU' ~ 'Urban Unincorporated',
+                             TRUE ~ class_desc
+    
+  ))%>%mutate(home_loc=factor(home_loc))
+  
+```
+
+```{r}
+hts_data$hh<-hh
+```
+
+```{r}
+hts_data<-hts_data%>%hts_bin_sexuality()%>%hts_bin_age()
+```
+
+I realized I need a different categorization, recode the prefer not to answer to NA, so that we don't summarize them
+```{r}
+hts_data$person<-hts_data$person%>%
+  mutate(sexuality_bin4=factor(case_when(sexuality=='Prefer not to answer' ~ NA,
+                                  str_detect(sexuality_bin3, 'gay') ~'Gay/Don\'t Know/Other',
+                                 .default=sexuality_bin3)))
+
+```
+
+```{r}
+sexuality_age<-psrc_hts_stat(hts_data, "person", c('age_bin5','sexuality_bin4'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')%>% # only started asking in 2023%>%
+filter(age_bin5!='Under 18 Years')
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_age, y='prop', x='age_bin5', fill='sexuality_bin4')
+static
+```
+
+```{r}
+sexuality_mode<-psrc_hts_stat(hts_data, "trip", c('sexuality_bin4','mode_characterization'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')%>%# only started asking in 2023%>%
+mutate(mode_characterization=fct_reorder(mode_characterization, -prop))
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_mode, y='prop', x='mode_characterization', fill='sexuality_bin4', moe='prop_moe')
+static
+```
+
+
+```{r}
+sexuality_county<-psrc_hts_stat(hts_data, "person", c('home_county','sexuality_bin4'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')# only started asking in 2023%>%
+
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_county, y='prop', fill='home_county', x='sexuality_bin4')
+static
+```
+```{r}
+sexuality_income<-psrc_hts_stat(hts_data, "person", c('hhincome_broad','sexuality_bin4'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')# only started asking in 2023%>%
+
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_income, y='prop', fill='hhincome_broad', x='sexuality_bin4')
+static
+```
+```{r}
+sexuality_child<-psrc_hts_stat(hts_data, "person", c('sexuality_bin4','numchildren'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')# only started asking in 2023%>%
+
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_child, y='prop', fill='numchildren', x='sexuality_bin4')
+static
+```
+
+```{r}
+sexuality_education<-psrc_hts_stat(hts_data, "person", c('sexuality_bin4','education'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')# only started asking in 2023%>%
+
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_education, y='prop', fill='education', x='sexuality_bin4')
+static
+```
+```{r}
+sexuality_home_loc<-psrc_hts_stat(hts_data, "person", c('sexuality_bin4','home_loc'), incl_na=FALSE)%>%
+  filter(survey_year=='2023')# only started asking in 2023
+
+
+    
+   
+```
+
+```{r}
+static<-static_column_chart(sexuality_home_loc, y='prop', x='home_loc', fill='sexuality_bin4', moe='prop_moe')
+static
+```

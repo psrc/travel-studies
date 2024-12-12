@@ -25,7 +25,7 @@ hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdic
 
 
 person<- get_query(sql= "select household_id as hh_id,race_category,
-person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname, work_jurisdiction, work_county
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, employment, sexuality, industry,office_available, commute_freq, education, work_lat, work_lng , work_rgcname, work_jurisdiction, work_county
                 from HHSurvey.v_persons_labels")
                 
 day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
@@ -209,8 +209,8 @@ person<-person%>%mutate(telecommute_freq_cond=case_when(
 
 ```{r}
 
-value<- c(0,1,2,3)
-label=c('Not Worker', 'Fully at Home', 'Hybrid', 'Fully in Person')
+value<- c(0,1,2,3,4,5)
+label=c('Not Worker', 'Fully at Home-Self employed', 'Fully at Home-Outside Employer', 'Hybrid', 'Outside Home- Self employed', 'Fully in Person')
 tele_val_labels<-data.frame(value, label)
 tele_val_labels<-tele_val_labels%>%mutate(variable='telecommute_status')%>%
     mutate(group_1_title = NA, group_1_value = NA,
@@ -265,37 +265,11 @@ value_labels<-new_value_labels
 ```
 
 
-More detailed variable definitions
-```{r}
-person<-person%>%mutate(telecommute_status=
-        case_when(workplace %in%c('Missing: Skip logic', "Missing: Skip Logic") 
-                  ~ 'Not Worker',
-                  (is.na(workplace)) ~ 'Not Worker',
-                  (workplace=='At home (telecommute or self-employed with home office)' )
-                  ~ 'Fully At Home',
-                  (telecommute_freq_cond == '1+ days per week')
-                  ~'Hybrid',
-                  .default = 'Fully In Person'
-        )
-)
-
-```
 
 
 
 
-```{r}
-person<-person%>%mutate(telecommute_status_broad=
-        case_when(
-                  (telecommute_freq_broad == '1-2 days')
-                  ~'Mostly In Person',
-                  (telecommute_freq_broad == '3+ days')
-                  ~'Mostly At Home',
-                  .default = telecommute_status
-        )
-)
 
-```
 
 How much are people commuting?
 Combine At home with other workers
@@ -334,13 +308,15 @@ person<- person%>%mutate(commute_freq_all=case_when(
 ```
 
 
+More detailed variable definitions
 ```{r}
 person<-person%>%mutate(telecommute_status=
         case_when(workplace %in%c('Missing: Skip logic', "Missing: Skip Logic") 
                   ~ 'Not Worker',
                   (is.na(workplace)) ~ 'Not Worker',
-                  (workplace=='At home (telecommute or self-employed with home office)' )
-                  ~ 'Fully At Home',
+                  (workplace=='At home (telecommute or self-employed with home office)' & employment=='Self-employed' ) ~ 'Fully at Home-Self employed',
+                  (workplace=='At home (telecommute or self-employed with home office)' & employment!='Self-employed' ~ 'Fully at Home-Outside Employer'),
+                  employment=='Self-employed' ~ 'Outside home-Self employed',
                   (telecommute_freq_cond == '1+ days per week')
                   ~'Hybrid',
                   .default = 'Fully In Person'
@@ -350,20 +326,20 @@ person<-person%>%mutate(telecommute_status=
 ```
 
 
-
-
 ```{r}
 person<-person%>%mutate(telecommute_status_broad=
         case_when(
                   (telecommute_freq_broad == '1-2 days')
-                  ~'1-2 days',
+                  ~'Mostly In Person',
                   (telecommute_freq_broad == '3+ days')
-                  ~'3-4 days',
+                  ~'Mostly At Home',
                   .default = telecommute_status
         )
 )
 
 ```
+
+
 
 
 
