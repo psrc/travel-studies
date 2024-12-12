@@ -66,7 +66,7 @@ rs_hts$pop_age <- psrc_hts_stat(hts_data, "person", group_vars="age_bin5", incl_
 # Census ACS ----------------
 
 pums_hh_vars <- c("NP","BINCOME","HHT","HHT2","VEH","NWRK","TYPEHUGQ","PRACE","OWN_RENT")
-pums_pp_vars <- c("SEX","ED_ATTAIN","ESR","TYPEHUGQ","PRACE", "BIN_AGE","OWN_RENT")
+pums_pp_vars <- c("SEX","ED_ATTAIN","ESR","TYPEHUGQ","PRACE", "BIN_AGE","OWN_RENT","RELSHIPP")
 
 pums_hh_data <- get_psrc_pums(1, 2022, "h", pums_hh_vars) %>% filter(TYPEHUGQ=="Housing unit")
 pums_pp_data <- get_psrc_pums(1, 2022, "p", pums_pp_vars) %>% filter(TYPEHUGQ=="Housing unit")
@@ -82,7 +82,9 @@ pums_pp_data %<>% mutate(
                       grepl(" (25|35) ", BIN_AGE)      ~"25-44 Years",
                       grepl(" (45|55) ", BIN_AGE)      ~"45-64 Years",
                       grepl("(65|75|85)", BIN_AGE)     ~"65 years or older",
-                      !is.na(BIN_AGE)                  ~BIN_AGE))
+                      !is.na(BIN_AGE)                  ~BIN_AGE),
+   non_relshp=case_when(grepl("(Roommate|nonrelative)", RELSHIPP) ~"Nonrelated",
+                        !is.na(RELSHIPP) ~"Related"))
 pums_hh_data %<>% mutate(
    non_family=case_when(grepl("^Nonfamily", HHT) ~"Non-family",
                         !is.na(HHT) ~"Family"),
@@ -138,6 +140,7 @@ rs_pums$pop_edu <- psrc_pums_count(pums_pp_data, "person", group_vars="ED_ATTAIN
 rs_pums$pop_gender <- psrc_pums_count(pums_pp_data, "person", group_vars="SEX")
 rs_pums$pop_race <- psrc_pums_count(pums_pp_data, "person", group_vars="race_bin3")
 rs_pums$pop_age <- psrc_pums_count(pums_pp_data, "person", group_vars="age_bin5")
+rs_pums$pop_nonrelshp <- psrc_pums_count(pums_pp_data,  group_vars=c("non_relshp"))
 
 
 
