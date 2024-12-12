@@ -88,18 +88,18 @@ hts_data$hh %<>% mutate(
     case_when(hh_race_category=="AANHPI non-Hispanic" ~"Asian American, Native Hawaiian or Pacific Islander",
               hh_race_category=="Black or African American non-Hispanic" ~"Black or African American",
               hh_race_category=="White non-Hispanic" ~"White",
-              hh_race_category=="Some Other Races non-Hispanic" ~ "Some Other Races",
+              hh_race_category=="Some Other Races non-Hispanic" ~ NA_character_,
               !is.na(hh_race_category) ~as.character(hh_race_category)),
     levels= c("Black or African American", "Asian American, Native Hawaiian or Pacific Islander",
-              "Hispanic", "White", "Some Other Races")))
+              "Hispanic", "White")))
 
 hts_data$person %<>% mutate(
   adult=case_when(substr(age_bin3, 1L, 2L) %in% c("18","65") ~"Adult", TRUE ~ NA),             # Restricting stats to adult trips
   age_bin3=forcats::fct_rev(age_bin3),
-  disability_person=factor(disability_person))
+  disability_person=factor(disability_person, levels=c("Yes","No","Prefer not to answer")))
 hts_data$trip %<>% mutate(
   mode_basic = case_when(mode_class %in% c("Drive HOV2","Drive HOV3+") ~"Drive HOV",
-                         mode_class %in% c("Drive SOV,","Transit") ~ mode_class,
+                         mode_class %in% c("Drive SOV","Transit") ~ mode_class,
                          !is.na(mode_class) ~ "Walk/Bike/Other"),
   dest_purpose_bin4 = case_when(dest_purpose_bin4=="Home" ~NA, TRUE ~dest_purpose_bin4),       # Using purposes besides return home
   purpose_medical = case_when(str_detect(dest_purpose,"[mM]edical") ~ "Medical",
@@ -138,17 +138,12 @@ rs_race$emprate <- psrc_hts_stat(hts_data, "person", c("adult", "hh_race_categor
 rs_race$popcount <- psrc_hts_stat(hts_data, "person", c("adult", "hh_race_category"), incl_na=FALSE)
 rs_race %<>% lapply(add_hts_cv)
 
-inc_veh_mode_share <- list()
-inc_veh_mode_share$Yes <- sn_stat(c("adult", "veh_yn", "hhincome_bin5","mode_basic")) %>% add_hts_cv()
-inc_veh_mode_share$No <- copy(inc_veh_mode_share$Yes) %>% filter(veh_yn=="No vehicle")
-inc_veh_mode_share$Yes %<>% filter(veh_yn=="1+ vehicle")
-
 sn_stat2 <- purrr::partial(psrc_hts_stat, hts_data=hts_data, analysis_unit="person",
                           ... = , incl_na=FALSE) %>% add_hts_cv()
 
+dis <- sn_stat2(c("adult", "disability_person"))
 dis_veh <- sn_stat2(c("adult", "disability_person", "veh_yn"))
 dis_inc <- sn_stat2(c("adult", "disability_person", "hhincome_bin5"))
-dis_veh <- sn_stat2(c("adult", "disability_person"))
 dis_age <- sn_stat2(c("adult", "disability_person", "age_bin3"))
 veh_inc <- sn_stat2(c("adult", "veh_yn", "hhincome_bin3"))
 
