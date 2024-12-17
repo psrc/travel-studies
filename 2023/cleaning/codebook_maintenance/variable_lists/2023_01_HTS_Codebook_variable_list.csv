@@ -1,5 +1,5 @@
 variable,is_checkbox,hh,person,day,trip,vehicle,location,data_type,description,logic,shared_name
-adult_student,0,0,1,0,0,0,0,integer/categorical,Student status (only inlcudes students age 18+),if age 18+,student
+adult_student,0,0,1,0,0,0,0,integer/categorical,Student status (only inlcudes students age 18+),if age 18+,adult_student
 age,0,0,1,0,0,0,0,integer/categorical,Age,,age
 analyst_merged,0,0,0,0,1,0,0,integer/categorical,Analyst merged two or more trips,if hhgroup = rMove,analyst_merged
 analyst_split,0,0,0,0,1,0,0,integer/categorical,Analyst split trip,if hhgroup = rMove,analyst_split
@@ -98,13 +98,13 @@ ethnicity_4,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Cuban,if age 18+,ethn
 ethnicity_997,1,0,1,0,0,0,0,integer/categorical,"Ethnicity -- Another Hispanic, Latino, or Spanish origin",if age 18+,ethnicity
 ethnicity_999,1,0,1,0,0,0,0,integer/categorical,Ethnicity -- Prefer not to answer,if age 18+,ethnicity
 ethnicity_other,0,0,1,0,0,0,0,character,Other ethnicity textbox answer,if ethnicity = other,ethnicity_other
-ev_typical_charge_1,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At home,if fuel type of primary vehicle driven is electric ,ev_typical_charge
-ev_typical_charge_2,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At work,if fuel type of primary vehicle driven is electric ,ev_typical_charge
-ev_typical_charge_3,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)",if fuel type of primary vehicle driven is electric ,ev_typical_charge
-ev_typical_charge_4,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)",if fuel type of primary vehicle driven is electric ,ev_typical_charge
-ev_typical_charge_5,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a public location (e.g., hospital, library, government building)",if fuel type of primary vehicle driven is electric ,ev_typical_charge
-ev_typical_charge_6,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At a hotel/inn,if fuel type of primary vehicle driven is electric ,ev_typical_charge
-ev_typical_charge_997,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- Other,if fuel type of primary vehicle driven is electric ,ev_typical_charge
+ev_typical_charge_1,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At home,if fuel type of primary vehicle driven is electric,ev_typical_charge
+ev_typical_charge_2,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At work,if fuel type of primary vehicle driven is electric,ev_typical_charge
+ev_typical_charge_3,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)",if fuel type of primary vehicle driven is electric,ev_typical_charge
+ev_typical_charge_4,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)",if fuel type of primary vehicle driven is electric,ev_typical_charge
+ev_typical_charge_5,1,0,1,0,0,0,0,integer/categorical,"Typical charge location for EV -- At a public location (e.g., hospital, library, government building)",if fuel type of primary vehicle driven is electric,ev_typical_charge
+ev_typical_charge_6,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- At a hotel/inn,if fuel type of primary vehicle driven is electric,ev_typical_charge
+ev_typical_charge_997,1,0,1,0,0,0,0,integer/categorical,Typical charge location for EV -- Other,if fuel type of primary vehicle driven is electric,ev_typical_charge
 flag_teleport,0,0,0,0,1,0,0,integer/categorical,>=250m gap occurs after trip,if hhgroup = rMove,flag_teleport
 fuel,0,0,0,0,0,1,0,integer/categorical,Fuel type,,fuel
 gender,0,0,1,0,0,0,0,integer/categorical,Gender,,gender
