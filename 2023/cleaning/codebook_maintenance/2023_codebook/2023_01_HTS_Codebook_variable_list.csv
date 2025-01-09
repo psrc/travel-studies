@@ -144,7 +144,7 @@ is_participant,0,0,1,1,0,0,0,integer/categorical,"Person is participant (rMove: 
 jobs_count,0,0,1,0,0,0,0,integer/categorical,Number of jobs,if household has 1 or more participating members employed full/part/self/volunteer,jobs_count
 license,0,0,1,0,0,0,0,integer/categorical,"Answers yes to ""Do you/household person drive?""",If age 16 or older,license
 lifecycle,0,1,0,0,0,0,0,integer/categorical,Household lifecycle stage,,lifecycle
-lifecycle_class,0,1,0,0,0,0,0,integer/categorical,Presence of persons of various age groups within the household,,lifecycle_class
+lifecycle_class,0,1,0,0,0,0,0,integer/categorical,Presence of persons of various age groups within the household,Order of precedence: Children > older adults > adults 18-34 > adults 35-64,lifecycle_class
 loc_end,0,0,0,1,0,0,0,integer/categorical,Location at end of travel day,if last trip was not copied,loc_end
 loc_start,0,0,0,1,0,0,0,integer/categorical,Location at start of travel day,if first trip was not copied & diary_platform = 'rmove' & age 18+,loc_start
 make,0,0,0,0,0,1,0,character,Vehicle make,,make
