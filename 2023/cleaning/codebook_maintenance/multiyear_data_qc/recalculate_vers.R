@@ -330,4 +330,23 @@ deliver_package <- deliver %>%
   select(survey_year,deliver_package,delivery_pkgs_freq) %>%
   unique()
 
+# 2024/12/18
+# compare mode_class and mode_characterization
+test <- trip_data %>%
+  filter(survey_year==2023) %>%
+  group_by(mode_characterization,mode_class) %>%
+  summarise(n())
+bike <- trip_data %>%
+  filter(survey_year==2023, mode_characterization=="Bike/Micromobility") %>%
+  group_by(mode_characterization,mode_class,mode_1,mode_2,mode_3,mode_4, travelers_total) %>%
+  summarise(n())
+missing <- trip_data %>%
+  filter(survey_year==2023, mode_characterization=="Missing Response") %>%
+  group_by(mode_characterization,mode_class,mode_1,mode_2,mode_3,mode_4, travelers_total) %>%
+  summarise(n())
 
+purpose <- trip_data %>%
+  group_by(dest_purpose_cat,dest_purpose_cat_5) %>%
+  summarise(n())
+
+test <- readRDS("C:/Users/JLin/Downloads/shinyapp_var_def.rds")

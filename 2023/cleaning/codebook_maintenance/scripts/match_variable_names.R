@@ -4,7 +4,7 @@ library(psrcelmer)
 
 # ---- variable lists to check ----
 # csv files
-full_list_path <- "variable_lists/PSRC_HTS_variables_full_2023_logic.csv"
+full_list_path <- "2023_codebook/2023_01_HTS_Codebook_variable_list.csv"
 variable_full_list <- read_csv(full_list_path)
 
 # 2024/10/17: add information variables back to codebook
@@ -14,6 +14,9 @@ variable_full_list <- read_csv(full_list_path)
 # codebook
 cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
 var_codebook <- readxl::read_xlsx(cb_path, sheet = 'variable_list')
+
+rsg_cb_path <- "manual_changes/codebook_check_2025.xlsx"
+rsg_var_codebook <- readxl::read_xlsx(rsg_cb_path, sheet = 'variable_list_2023')
 
 # ---- list of table names and corresponding view names for each data table ----
 table_names <- c('hh','person','day','trip','vehicle')
@@ -65,6 +68,8 @@ var_match <- data.frame(vars = var_codebook$variable,
                         codebook = "codebook") %>% 
   full_join(data.frame(vars = variable_full_list$variable,
                        csv = "csv"), by = "vars") %>%
+  full_join(data.frame(vars = rsg_var_codebook$variable,
+                       rsg_codebook = "rsg_codebook"), by = "vars") %>%
   full_join(var_view, by = "vars") %>%
   arrange(view,csv,codebook,vars)
 
