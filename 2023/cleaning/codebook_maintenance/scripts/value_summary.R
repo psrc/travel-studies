@@ -6,14 +6,12 @@ library(gtsummary)
 # save to files for manual update
 generate_spreadsheet <- TRUE
 
-# location of full list of variables
-variable_list_path <- "variable_lists/PSRC_HTS_variables_full_2023_logic.csv"
-cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
+# location of full list of variable
+# cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
 
 # codebook pages
-# variable_list <- read_csv(variable_list_path)
-variable_list <- readxl::read_xlsx(cb_path, sheet = 'variable_list')
-value_labels <- readxl::read_xlsx(cb_path, sheet = 'value_labels')
+variable_list <- read_csv("2023_codebook/2023_01_HTS_Codebook_variable_list.csv")
+value_labels <- read_csv("2023_codebook/2023_02_HTS_Codebook_value_labels.csv")
 
 # list of table names and view names for each data table
 table_names <- c('hh','person','day','trip','vehicle')
@@ -93,7 +91,7 @@ if(generate_spreadsheet){
           "day edit" = compare_values_day, 
           "trip edit" = compare_values_trip, 
           "vehicle edit" = compare_values_vehicle)
-  openxlsx::write.xlsx(l, file = "manual_changes/values_summary.xlsx")
+  openxlsx::write.xlsx(l, file = "manual_changes/values_summary_20250114.xlsx")
 }
 
 

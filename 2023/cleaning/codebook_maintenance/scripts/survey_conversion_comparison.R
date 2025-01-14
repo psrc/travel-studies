@@ -3,7 +3,8 @@ library(psrcelmer)
 
 # ---- read data results from survey conversion ----
 output_dir <- "R:/e2projects_two/2023_base_year/2023_survey/daysim_format/updated_weights_12_30_24/cleaned/skims_attached"
-hh_convert <-readr::read_tsv(file.path(output_dir,"_household.tsv"))
+hh_convert <-readr::read_tsv(file.path(output_dir,"_household.tsv"))%>% 
+  mutate(hhid_elmer = as.character(hhid_elmer))
 person_convert <-readr::read_tsv(file.path(output_dir,"_person.tsv"))
 day_convert <-readr::read_tsv(file.path(output_dir,"_person_day.tsv"))
 trip_convert <-readr::read_tsv(file.path(output_dir,"_trip.tsv"))
@@ -42,18 +43,34 @@ day_data <- get_query(sql= paste0("select day_id, household_id, day_weight from 
   full_join(day_convert_tag, by="day_id")
 trip_data <- get_query(sql= paste0("select trip_id, day_id, household_id, trip_weight from HHSurvey.", view_names['trip'], read_2023)) %>%
   mutate(trip_id = as.character(trip_id),
+         day_id = as.character(day_id),
          household_id = as.character(household_id)) %>%
   full_join(trip_convert_tag, by="trip_id")
 
 test <- trip_data %>% 
   filter(convert>0) %>%
-  filter(!day_id %in% day_convert_tag$day_id)
-hhsize_test <- person_data %>% 
+  filter(!(day_id %in% day_convert_tag$day_id)) %>%
+  distinct(day_id)
+7109
+
+
+hhsize_test <- person_data %>%  
   filter(convert>0) %>%
-  group_by(household_id) %>%
-  summarise(hhsize_daysim = n()) %>%
-  left_join(hh_data %>% select(household_id,hhsize), by="household_id")
-  
+  group_by(household_id,convert) %>%
+  summarise(hhsize_daysim_n_person = n()) %>%
+  left_join(hh_data %>% select(household_id,hhsize), by="household_id") %>%
+  left_join(hh_convert %>% select(hhid_elmer,hhsize) %>% rename(hhsize_daysim = hhsize), by=c("household_id"="hhid_elmer"))
+hhsize_test2 <- person_convert %>%
+  group_by(hhno) %>%
+  summarise(hhsize_daysim_n_person = n()) %>%
+  ungroup() %>%
+  left_join(hh_convert %>% select(hhid_elmer,hhno,hhsize) %>% rename(hhsize_daysim = hhsize), by="hhno") %>%
+  left_join(hh_data %>% select(household_id,hhsize), by=c("hhid_elmer"="household_id")) %>%
+  mutate(diff = hhsize_daysim_n_person-hhsize_daysim)
+table(hhsize_test2$diff)
+# -8   -7   -6   -5   -4   -3   -2   -1    0 
+#  3    1    1    8   17   69  159  586 4970
+# (5814 - 4970) / 5814 = 14.5% of all households have fewer persons than their hhsize
 
 # ---- summary of datasets ----
 count_records <- function(table, weight_name, table_name){
