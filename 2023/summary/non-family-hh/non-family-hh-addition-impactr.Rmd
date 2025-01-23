@@ -24,15 +24,40 @@ compare<- merge(before_new_hh, after_new_hh, by= c('survey_year', 'demographic_c
 somehow the data items that were summarized reduced the list size- it seems like we were trying other things, between the two time points
 
 ```{r}
-compare_region<-compare%>%filter(demographic_category=='Regionwide')
+compare_region<-compare%>%filter(demographic_category=='Regionwide' & travel_category!='Trip Mode')
 
 ```
 
 ```{r}
-compare_region_long<- compare_region%>%select('travel_category', 'travel_attribute', 'propold', 'propnew_wnonfam')%>% pivot_longer( cols=starts_with('prop'), names_to='before-after-yr' , values_to='prop')
+compare_region_long<- compare_region%>%unite(cat_attribute, c('travel_category', 'travel_attribute'))%>%select('cat_attribute', 'propold', 'propnew_wnonfam', 'survey_year')%>% pivot_longer( cols=starts_with('prop'), names_to='before-after' , values_to='prop')
 ```
 
 ```{r}
-static_facet_column_chart(t=compare_region_long, x= 'travel_attribute', y='prop', facet='travel_category', fill='before-after')
+static_facet_column_chart(t=compare_region_long, x= 'survey_year', y='prop', facet='cat_attribute', fill='before-after')
 ```
 
+
+```{r}
+compare_region<-compare%>%filter(demographic_attribute=='18-24 Years')
+
+```
+
+```{r}
+compare_region_long<- compare_region%>%unite(cat_attribute, c('travel_category', 'travel_attribute'))%>%select('cat_attribute', 'propold', 'propnew_wnonfam', 'survey_year')%>% pivot_longer( cols=starts_with('prop'), names_to='before-after' , values_to='prop')
+```
+
+```{r}
+static_facet_column_chart(t=compare_region_long, x= 'survey_year', y='prop', facet='cat_attribute', fill='before-after')
+```
+```{r}
+compare_region<-compare%>%filter(travel_category=='Telecommute Status' & survey_year=='2023')
+
+```
+
+```{r}
+compare_region_long<- compare_region%>%unite(cat_attribute, c('travel_category', 'travel_attribute'))%>%select('demographic_attribute', 'cat_attribute', 'propold', 'propnew_wnonfam', 'survey_year')%>% pivot_longer( cols=starts_with('prop'), names_to='before-after' , values_to='prop')
+```
+
+```{r}
+static_facet_column_chart(t=compare_region_long, x= 'demographic_attribute', y='prop', facet='cat_attribute', fill='before-after')
+```

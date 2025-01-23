@@ -1,0 +1,226 @@
+---
+title: "telework-resummarize-with-new-weights"
+author: "suzanne"
+date: "2024-12-17"
+output: html_document
+---
+```{r}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(forcats)
+library(psrc.travelsurvey)
+```
+
+
+```{r}
+
+library(magrittr)
+library(psrc.travelsurvey)
+library(data.table)
+
+query_vars <- c("age",
+                "bike_frequency",
+                "employment",
+                "commute_subsidy_transit",
+                "dest_purpose",
+                "disability_person",
+                "displaced",
+                "gender",
+                "hhincome_broad",
+                "hh_race_category",
+                "hhsize",
+                "home_county", 
+                "home_jurisdiction",
+                "mode_acc",
+                "mode_class_5",
+                "rent_own",
+                "race_category",
+                "sexuality",
+                "telecommute_freq",
+                "transit_frequency",
+                "transit_mode_acc",
+                "vehicle_count",
+                "walk_frequency",
+                "workplace"
+)
+
+trip_topics <- data.frame(  
+  report_var = c("mode_class_5",
+                 "dest_purpose_bin4",
+                 "commute_subsidy_transit"),
+  label =      c("Trip Mode",
+                 "Trip Purpose",
+                 "Work Offers Transit Pass")
+) %>% setDT()
+
+person_topics <- data.frame(  
+  report_var = c("telecommute_trichotomy",
+                 "transit_frequency_bin4",
+                 "walk_frequency_bin4",
+                 "bike_frequency_bin4"),
+  label =      c("Telecommute Status",
+                 "Frequency of transit use",
+                 "Frequency of walking",
+                 "Frequency of biking")
+) %>% setDT()
+
+household_topics <- data.frame(  
+  report_var = c("displaced"),
+  label =      c("Residential Displacement")
+) %>% setDT()
+
+geography <- data.frame(
+  report_var = c("regionwide",
+                 "home_county", 
+                 "home_in_seattle"),
+  label =      c("Regionwide",
+                 "Home County",
+                 "Home in Seattle")
+) %>% setDT()
+
+demography      <- data.frame(
+  report_var = c("hhincome_bin3",
+                 "race_category",
+                 "hhsize_bin4",
+                 "age_bin5",
+                 "worker",
+                 "disability_person",
+                 "veh_yn",
+                 "gender_bin3",
+                 "sexuality_bin3",
+                 "rent_own_bin2"),
+  label  =     c("Household Income",
+                 "Person Race",
+                 "Household Size",
+                 "Age Group",
+                 "Worker Status",
+                 "Disability Status",
+                 "Presence of vehicle",
+                 "Gender Identity",
+                 "Sexuality",
+                 "Home Rent or Own")
+) %>% setDT()
+
+# Helper functions --------------------
+
+explorer_stats <- function(grpvars, analysis_unit=day, stat_var=NULL){
+  pfx <- c("demographic_", "travel_")
+  sfx <- c("category", "attribute")
+  dvar <- combined_lookup[report_var==(grpvars[[1]])]$label
+  tvar <- if(!rlang::is_empty(stat_var)){
+    if(stat_var=="num_trips_wtd"){
+      "Average daily trips per person"
+    }else if(stat_var=="vmt_wtd"){
+      "Average daily VMT per person"
+    }
+  }else{
+    combined_lookup[report_var==(grpvars[[2]])]$label
+  }
+  
+  hts_data2 <- copy(hts_data)
+  if(any("disability_person" %in% grpvars)){  # -- disability is new in 2023
+    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year==2023))                 
+  }
+  rs <- psrc_hts_stat(hts_data2, 
+                      analysis_unit=analysis_unit, 
+                      group_vars=grpvars, 
+                      stat_var=stat_var,
+                      incl_na=FALSE) %>% setDT()
+  rs %<>% setnames(grpvars, paste0(pfx, sfx[[2]])) %>%
+    .[, `:=`(demographic_category = ..dvar, travel_category = ..tvar)] %>%
+    setcolorder(c("survey_year", paste0(pfx[[1]], sfx), paste0(pfx[[2]], sfx)))
+}
+
+# Retrieve HTS data & add variables ---
+
+hts_data <- get_psrc_hts(survey_vars=query_vars)
+hts_data %<>% 
+  hts_bin_dest_purpose() %>% 
+  hts_bin_income() %>% 
+  hts_bin_hhsize() %>% 
+  hts_bin_vehicle_count() %>% 
+  hts_bin_age() %>% 
+  hts_bin_worker() %>% 
+  hts_bin_gender() %>% 
+  hts_bin_sexuality() %>%
+  hts_bin_rent_own() %>%
+  hts_bin_transit_mode_acc() %>%
+  hts_bin_telecommute_trichotomy() %>%
+  hts_bin_transit_frequency() %>%
+  hts_bin_walk_frequency() %>%
+  hts_bin_bike_frequency()
+
+hts_data$hh %<>% setDT() %>% .[, `:=`(
+  regionwide="Regionwide",
+  home_in_seattle=factor(
+    fcase(home_jurisdiction=="Seattle", "Seattle",
+          !is.na(home_jurisdiction), NA_character_),
+    levels=c("Seattle")),
+  hh_race_category=factor(
+    fcase(grepl("^Some [oO]ther", as.character(hh_race_category)), NA_character_,
+          !is.na(hh_race_category), as.character(hh_race_category))))]
+
+hts_data$hh %<>% merge(hts_data$person[, 
+                                       .(hh_workers=sum(fcase(as.character(worker)=="Worker", 1, !is.na(worker), 0)), 
+                                         hh_children=sum(fcase(as.character(age_bin3)=="Under 18 Years", 1, !is.na(age_bin3), 0))), 
+                                       by=hh_id], by="hh_id") %>% 
+  .[,`:=`(hh_workers=factor(fcase(hh_workers>1, "2+", !is.na(hh_workers), as.character(hh_workers))),
+          hh_children=factor(fcase(hh_children>1, "4+", !is.na(hh_children), as.character(hh_children))))]
+
+hts_data$person %<>% setDT() %>% .[,
+                                   race_category:=factor(
+                                     fcase(grepl("^Some [oO]ther", as.character(race_category)), NA_character_,
+                                           !is.na(race_category), as.character(race_category)))]
+
+# Create combinations -----------------
+
+trip_combos <- c(geography$report_var, demography$report_var, person_topics$report_var) %>% 
+  expand.grid(trip_topics$report_var) %>%
+  rbind(expand.grid(c("dest_purpose_bin4","commute_subsidy_transit"), c("mode_class_5"))) %>% #,"transit_mode_acc"
+  rbind(expand.grid(person_topics$report_var, trip_topics$report_var)) %>%
+  #  rbind(data.frame(Var1="dest_purpose_bin4",Var2="mode_class_5")) %>% 
+  transpose() %>% lapply(c)
+
+person_combos <- expand.grid(c(geography$report_var, demography$report_var), person_topics$report_var) %>%
+  transpose() %>% lapply(c)
+
+household_combos <- demography$report_var %>%
+  .[demography$report_var %in% colnames(hts_data$hh)] %>%
+  c("hh_race_category", "hh_workers", "hh_children") %>%
+  c(geography$report_var) %>%  expand.grid(household_topics$report_var) %>%
+  transpose() %>% lapply(c)
+
+combined_lookup <- rbind(trip_topics, person_topics, household_topics, geography, demography, 
+                         data.frame(report_var="transit_mode_acc", label="Transit Access Mode"),
+                         data.frame(report_var="hh_race_category", label="Household Race"),
+                         data.frame(report_var="hh_workers",       label="Worker Count"),
+                         data.frame(report_var="hh_children",      label="Child Count"))
+
+# Generate summaries ------------------
+rs           <- list()
+rs$trip      <- lapply(trip_combos, explorer_stats, analysis_unit="trip")
+rs$person    <- lapply(person_combos, explorer_stats, analysis_unit="person")
+rs$household <- lapply(household_combos, explorer_stats, analysis_unit="hh")
+#rs$trip_rate <- lapply(trip_topics$report_var, explorer_stats, stat_var="num_trips_wtd")
+#rs$vmt_rate  <- lapply(trip_topics$report_var, explorer_stats, stat_var="vmt_wtd")
+summary_labeled <- suppressWarnings(lapply(rs, rbindlist) %>% rbindlist())
+
+summary_filtered <- summary_labeled %>% 
+  # .[!travel_category %in% c("Residential Displacement", 
+  #                           "Frequency of transit use",
+  #                           "Frequency of walking",
+  #                           "Frequency of biking",
+  #                           "Transit Access Mode")] %>%
+  .[!(demographic_category=='Person Race' & 
+        demographic_attribute %in% c('Child', 
+                                     'Two or More Races non-Hispanic',
+                                     'Missing/No response'))]
+
+saveRDS(summary_filtered, 'data/hts_tbl_4_shiny.rds')
+```
+
