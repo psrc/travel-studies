@@ -1,0 +1,47 @@
+---
+title: "changes-checks"
+author: "suzanne"
+date: "2025-01-23"
+output: html_document
+---
+```{r}
+library(psrc.travelsurvey)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+
+# Specify which variables to retrieve
+vars <- c("hhsize", "hhincome_broad", "employment", "mode_acc", "origin_purpose", "dest_purpose", "mode_class", "workplace", "telecommute_freq", "mode_characterization")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars)
+```
+
+
+# mode choice, mode choice income, transit access mode
+```{r}
+hts_data <- hts_data %>% 
+  hts_bin_hhsize()%>%
+  hts_bin_income()%>%
+  hts_bin_worker()%>%
+  hts_bin_mode()%>%
+  hts_bin_telecommute_trichotomy()%>%
+  hts_bin_transit_mode_acc()
+  
+
+```
+        
+```{r}
+transit_trips<-hts_data$trip%>%filter(mode_class=='Transit')%>%mutate(survey_year=as.integer(survey_year))
+hts_data$trip<-transit_trips
+mode_access<- psrc_hts_stat(hts_data, "trip", c("mode_acc"))
+  
+
+```
+        
+                          
+```{r}
+static<-static_column_chart(mode_access, y='prop', x='transit_mode_acc', fill='survey_year') + theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))+
+   scale_y_continuous(labels = scales::percent_format(scale = 100), limits=c(0,.75))
+```
+
