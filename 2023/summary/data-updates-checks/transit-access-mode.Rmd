@@ -45,4 +45,10 @@ mode_access<- psrc_hts_stat(hts_data, "trip", c("mode_acc"))%>%mutate(survey_yea
 static<-static_column_chart(mode_access, y='prop', x='survey_year', fill='mode_acc', pos='stack' )
 static
 ```
+```{r}
+transit_trips<-hts_data$trip%>%filter(mode_class=='Transit')%>%mutate(survey_year=as.integer(survey_year))
+hts_data$trip<-transit_trips%>%filter(!is.na(mode_acc))
+mode_access<- psrc_hts_stat(hts_data, "trip", c("transit_mode_acc"))%>%mutate(survey_year=as.integer(survey_year))
+  
 
+```
