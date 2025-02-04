@@ -1,12 +1,12 @@
 ---
-title: "2024 HTS delivery analysis"
+title: "HTS delivery analysis: new weights"
 format: 
   html:
     fig-width: 4
     fig-height: 3
     df-print: kable
   
-
+toc: true
 echo: FALSE
 warning: FALSE
 ---
@@ -21,6 +21,10 @@ library(data.table)
 library(psrcplot)
 library(sf)
 install_psrc_fonts()
+
+# show moe or numbers
+show_moe <- NULL
+# show_moe <- "prop_moe"
 
 source("survey-23-preprocess_JLin.R")
 cb_path <- "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx"
@@ -87,10 +91,7 @@ my_variable_list <- new_add_variable(
          data_type = ifelse(variable == "hh_day_weight", "numeric", data_type))
 ```
 
-### basic summaries for home delivery by delivery type
-
-:::{.panel-tabset}
-#### columns charts
+## delivery trends
 
 ```{r}
 delivery_summ <- function(delivery_varname){
@@ -116,47 +117,62 @@ chart_style <- list(
         axis.title.x=element_text(size=14))
   )
 
+plot_column <- function(summary_data, fill, moe=NULL){
+  static_column_chart(summary_data, 
+                      x='Year', fill=fill, y='prop', 
+                      dec=0, color='pgnobgy_10', moe=moe) +
+  chart_style
+}
+
 ```
 
-
-```{r, fig.width=6, fig.height=4}
+- package
+```{r}
 
 df_deliver_pkg<-delivery_summ('deliver_package')
 
-static<-static_column_chart(df_deliver_pkg, x='Year', fill='deliver_package', y='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_column(df_deliver_pkg, fill='deliver_package', moe=show_moe)
+
 # write.csv(df_deliver_pkg, 'deliver_pkg_trend.csv')
 ```
+
+- other deliveries
+
+:::{.panel-tabset}
+
+### service work
+
 ```{r}
 
 df_deliver_work<-delivery_summ('deliver_work')
 
-static<-static_column_chart(df_deliver_work, x='Year', fill='deliver_work', y='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_column(df_deliver_work, fill='deliver_work', moe=show_moe)
+
 # write.csv(df_deliver_work, 'deliver_work_trend.csv')
 ```
+
+### food delivery
 
 ```{r}
 
 df_deliver_food<-delivery_summ('deliver_food')
 
-static<-static_column_chart(df_deliver_food, x='Year', fill='deliver_food', y='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_column(df_deliver_food, fill='deliver_food', moe=show_moe)
 # write.csv(df_deliver_food, 'deliver_food_trend.csv')
 ```
+
+### grocery delivery
 
 ```{r}
 
 df_deliver_grocery<-delivery_summ('deliver_grocery')
 
-static<-static_column_chart(df_deliver_grocery, x='Year', fill='deliver_grocery', y='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_column(df_deliver_grocery, fill='deliver_grocery', moe=show_moe)
+
 # write.csv(df_deliver_grocery, 'deliver_grocery_trend.csv')
 ```
+
+### delivery outside home
 
 ```{r}
 
@@ -168,16 +184,10 @@ df_deliver_else
 df_deliver_office<-delivery_summ('deliver_office')
 df_deliver_office
 ```
+:::
 
-## demographic characteristic
 
-:::{.panel-tabset}
-
-### column charts
-
-- any delivery to home (including food, grocery and package)
-
-:::{.panel-tabset}
+## 2023 delivery by demographic characteristics
 
 ```{r}
 delivery_summ_demo <- function(delivery_varname,demoname){
@@ -194,134 +204,150 @@ delivery_summ_demo <- function(delivery_varname,demoname){
   
   df_delivery
 }
+
+plot_bar <- function(summary_data, y_fill, moe=NULL){
+  static_bar_chart(summary_data, y=y_fill, fill=y_fill, x='prop', 
+                   dec=0, color='pgnobgy_10', moe=moe) +
+  chart_style
+}
 ```
 
-#### package: household income
+### household income
+
+- package
+
 ```{r}
+#| layout-ncol: 2
 
 summary<-delivery_summ_demo('deliver_package', 'hhincome_broad' )%>%
   filter(hhincome_broad!="Prefer not to answer")
 
-
-static<-static_bar_chart(summary, y='hhincome_broad', fill='hhincome_broad', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_bar(summary, y_fill='hhincome_broad', moe=show_moe)
 # write.csv(summary, 'deliver_package_income_trend.csv')
 
 
 summary<-delivery_summ_demo('deliver_package', 'hhincome' )%>%
   filter(hhincome!="Prefer not to answer")
-static<-static_bar_chart(summary, y='hhincome', fill='hhincome', x='prop', dec=0, color='pgnobgy_10')+
-  theme(axis.text.x=element_text(size=16), axis.text.y=element_text(size=16),legend.text = element_text(size=16), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
-static
+
+plot_bar(summary, y_fill='hhincome', moe=show_moe)
 # write.csv(summary, 'deliver_package_income_ls.csv')
 ```
 
-#### grocery: household income
+- other delivery
+
+:::{.panel-tabset}
+
+#### grocery
+
 ```{r}
+#| layout-ncol: 2
 
 summary<-delivery_summ_demo('deliver_grocery', 'hhincome_broad' )%>%
   filter(hhincome_broad!="Prefer not to answer")
 
-static<-static_bar_chart(summary, y='hhincome_broad', fill='hhincome_broad', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_bar(summary, y_fill='hhincome_broad', moe=show_moe)
 # write.csv(summary, 'deliver_grocery_income_trend.csv')
 
 summary<-delivery_summ_demo('deliver_grocery', 'hhincome' )%>%
   filter(hhincome!="Prefer not to answer")
 
-static<-static_bar_chart(summary, y='hhincome', fill='hhincome', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_bar(summary, y_fill='hhincome', moe=show_moe)
 ```
 
-#### food: household income
+#### food
+
 ```{r}
+#| layout-ncol: 2
 
 summary<-delivery_summ_demo('deliver_food', 'hhincome_broad' )%>%
   filter(hhincome_broad!="Prefer not to answer")
 
-static<-static_bar_chart(summary, y='hhincome_broad', fill='hhincome_broad', x='prop', dec=0, color='pgnobgy_10', moe="prop_moe") +
-  chart_style
-static
+plot_bar(summary, y_fill='hhincome_broad', moe=show_moe)
 
 
 summary<-delivery_summ_demo('deliver_food', 'hhincome' ) %>%
   filter(hhincome!="Prefer not to answer")
 
-static<-static_bar_chart(summary, y='hhincome', fill='hhincome', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_bar(summary, y_fill='hhincome', moe=show_moe)
 ```
-#### package: home county
+
+:::
+
+### home county
+
+- package
 
 ```{r}
 
 summary<-delivery_summ_demo('deliver_package', 'home_county' )%>%
-filter(!is.na(home_county))
+  filter(!is.na(home_county))
 
+plot_bar(summary, y_fill='home_county', moe=show_moe)
 
-static<-static_bar_chart(summary, y='home_county', fill='home_county', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
-# write.csv(summary, 'deliver_package_county_trend.csv')
 ```
-```{r}
 
+- other delivery
+
+:::{.panel-tabset}
+
+#### grocery
+
+```{r}
 summary<-delivery_summ_demo('deliver_grocery', 'home_county' )
 
-static<-static_bar_chart(summary, y='home_county', fill='home_county', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
-write.csv(summary, 'deliver_grocery_income_trend.csv')
+plot_bar(summary, y_fill='home_county', moe=show_moe)
 ```
+
+#### food
 
 ```{r}
 
 summary<-delivery_summ_demo('deliver_food', 'home_county' )
 
-static<-static_bar_chart(summary, y='home_county', fill='home_county', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_bar(summary, y_fill='home_county', moe=show_moe)
 # write.csv(summary, 'deliver_food_income_trend.csv')
 ```
 
+:::
+
+### number of workers
+
+- package
 
 ```{r}
 
 summary<-delivery_summ_demo('deliver_package', 'wkr_grp' )
 
-
-static<-static_bar_chart(summary, y='wkr_grp', fill='wkr_grp', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
-# write.csv(summary, 'deliver_package_wkr_grp.csv')
+plot_bar(summary, y_fill='wkr_grp', moe=show_moe)
 ```
 
+- other delivery
 
-```{r}
+:::{.panel-tabset}
 
-summary<-delivery_summ_demo('deliver_food', 'wkr_grp' )
-
-
-static<-static_bar_chart(summary, y='wkr_grp', fill='wkr_grp', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
-# write.csv(summary, 'deliver_food_wkr_grp.csv')
-```
-
+#### grocery
 
 ```{r}
 
 summary<-delivery_summ_demo('deliver_grocery', 'wkr_grp' )
 
-
-static<-static_bar_chart(summary, y='wkr_grp', fill='wkr_grp', x='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
+plot_bar(summary, y_fill='wkr_grp', moe=show_moe)
 # write.csv(summary, 'deliver_grocery_wkr_grp.csv')
 ```
+
+#### food
+
+```{r}
+
+summary<-delivery_summ_demo('deliver_food', 'wkr_grp' )
+
+plot_bar(summary, y_fill='wkr_grp', moe=show_moe)
+# write.csv(summary, 'deliver_food_wkr_grp.csv')
+```
+
+:::
+
+## explore income trend
 
 ```{r}
 delivery_summ_demo_year <- function(delivery_varname,demoname){
@@ -338,19 +364,74 @@ delivery_summ_demo_year <- function(delivery_varname,demoname){
   
   df_delivery
 }
+
+plot_income_trend <- function(summary_data, fill, moe=NULL){
+  static_column_chart(summary_data, x='survey_year', fill=fill, y='prop', 
+                      dec=0, color='pgnobgy_10', moe=moe) +
+    chart_style
+}
+
 ```
 
-##any
+- package
 
 ```{r}
 summary<-delivery_summ_demo_year('deliver_package', 'hhincome' ) %>%
   filter(hhincome!="Prefer not to answer")
-
-static<-static_column_chart(summary, x='survey_year', fill='hhincome', y='prop', dec=0, color='pgnobgy_10') +
-  chart_style
-static
-# write.csv(summary, 'deliver_package_income_pkg_year.csv')
+plot_income_trend(summary, fill='hhincome', moe=show_moe)
 
 ```
+
+- other delivery
+
+:::{.panel-tabset}
+
+### grocery
+
+```{r}
+summary<-delivery_summ_demo_year('deliver_grocery', 'hhincome' ) %>%
+  filter(hhincome!="Prefer not to answer")
+plot_income_trend(summary, fill='hhincome', moe=show_moe)
+
+```
+
+### food
+
+```{r}
+summary<-delivery_summ_demo_year('deliver_food', 'hhincome' ) %>%
+  filter(hhincome!="Prefer not to answer")
+plot_income_trend(summary, fill='hhincome', moe=show_moe)
+
+```
+
+:::
+
+## person trip rate
+
+```{r}
+# number of shopping trips
+shopping_trip <- hts_data_hhday$trip %>%
+  filter(dest_purpose_cat=="Shopping") %>%
+  group_by(dest_purpose_cat,survey_year) %>%
+  summarise(trip_est = sum(trip_weight))
+
+person_count <- hts_data_hhday$person %>%
+  group_by(survey_year) %>%
+  summarise(person_est = sum(person_weight))
+
+test <- shopping_trip %>%
+  left_join(person_count, by="survey_year") %>%
+  mutate(trip_rate = trip_est/person_est,
+         survey_year = factor(survey_year))
+```
+
+
+```{r}
+static_column_chart(test, 
+                    x='survey_year', fill="dest_purpose_cat", y='trip_rate', 
+                    dec=0, color='pgnobgy_10') +
+  chart_style
+```
+
 
 
