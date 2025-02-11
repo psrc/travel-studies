@@ -15,7 +15,7 @@ library(psrcplot)
 
 delivery_vars <- c("deliver_food", "deliver_grocery", "deliver_package", "deliver_work", "deliver_other",
                    "deliver_none", "deliver_elsewhere", "deliver_office")
-vars <- c(delivery_vars, "daynum","travel_dow","travel_date",
+vars <- c(delivery_vars, "daynum","travel_dow","travel_date","mode_class","dest_purpose_cat",
           "hhincome_broad", "home_county", "vehicle_count",
           "age","transit_freq","race_category")
 all_ids <- c("hh_id","person_id","day_id","trip_id","vehicle_id")
