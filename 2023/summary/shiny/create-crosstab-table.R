@@ -1,6 +1,6 @@
 # matrix of every single variable combo...
 n <- 2
-vars <- c("age", "broadband", "transit_pass", "mode_1", "rent_own")
+vars <- c("age", "broadband", "transit_pass", "mode_1", "rent_own", "transit_freq")
 pairings <- lapply(numeric(n), function(x) vars)
 combos <- as.data.table(expand.grid(pairings))
 combos <- combos[Var1 != Var2, ]

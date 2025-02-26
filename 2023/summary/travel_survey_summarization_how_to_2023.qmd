@@ -175,7 +175,7 @@ value_labels<-new_value_labels
 
 ```
 
-# add mode_w_sov to the trip table
+# add mode_w\_sov to the trip table
 
 ```{r}
 trip<- trip%>%mutate(travelers_total_fix= ifelse(travelers_total!='1 traveler', 'More than 1', '1 traveler'))

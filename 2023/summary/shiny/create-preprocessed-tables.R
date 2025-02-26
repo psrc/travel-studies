@@ -60,5 +60,5 @@ wts <- c('hh_weight', 'person_weight', 'day_weight', 'trip_weight')
 
 # tab 2 ----
 source(here::here('2023/summary/shiny/create-crosstab-table.R'))
-write.csv(crosstab_df, "T:\\2024May\\christy\\crosstab_df.csv", row.names = FALSE)
+write.csv(crosstab_df, "T:\\2024June\\christy\\crosstab_df.csv", row.names = FALSE)
 write.csv(crosstab_df, "C:\\Users\\CLam\\github\\household-travel-survey-trends\\data\\crosstab_df.csv", row.names = FALSE)
