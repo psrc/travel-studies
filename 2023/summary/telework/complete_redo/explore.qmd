@@ -1,0 +1,346 @@
+---
+title: "telework revision"
+date: today
+format: 
+  html:
+    fig-width: 4
+    fig-height: 3
+    df-print: kable
+  
+toc: true
+echo: FALSE
+warning: FALSE
+---
+
+```{r}
+library(tidyverse)
+source("preprocess.R")
+
+```
+# teleworker definition
+
+teleworkers are the workers who telework more than one day per week or work fully at home
+```{r}
+#| eval: false
+#| echo: true
+
+df_person <- my_hts_data$person %>%
+  mutate(
+    telecommute_freq_org = case_when(
+      # only workers: workers teleworking more than one day per week or work fully at home
+      worker == "Worker" & 
+        (telecommute_freq %in% telework_days | 
+           workplace=="At home (telecommute or self-employed with home office)") ~ '1+ days per week',
+      # remove any non-workers
+      worker != "Worker" | is.na(worker) ~ NA,
+      TRUE~ "Don't telework"),
+    # telecommute status version 1
+    telecommute_status3 = case_when(
+      # remove any non-workers
+      worker != "Worker" | is.na(worker) ~ NA,
+      workplace == 'At home (telecommute or self-employed with home office)' ~ "Fully at home",
+      telecommute_freq_org == "Don't telework" ~ "Fully in person",
+      telecommute_freq_org == '1+ days per week' ~ "Hybrid",
+      TRUE ~ "Other")
+    )
+```
+
+
+# Working at Home by Industry
+
+The share of workers teleworking at least one day per week in each industry sector
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("industry_sector", "telecommute_freq_org"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(telecommute_freq_org == "1+ days per week")
+                    
+
+df_plot %>% select(industry_sector, prop, prop_moe) %>%
+  arrange(desc(prop)) %>%
+  mutate(prop = scales::percent(prop),
+         prop_moe = scales::percent(prop_moe))
+```
+
+# Working at Home by Household Income
+
+The share of workers teleworking at least one day per week in each industry sector
+
+:::{.panel-tabset}
+
+## Suzanne's income bins
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("hhincome3", "telecommute_freq_org"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(telecommute_freq_org == "1+ days per week")
+                    
+
+df_plot %>% select(hhincome3, prop, prop_moe) %>%
+  arrange(desc(prop)) %>%
+  mutate(prop = scales::percent(prop),
+         prop_moe = scales::percent(prop_moe))
+```
+
+## detailed income bins
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("hhincome_broad", "telecommute_freq_org"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(telecommute_freq_org == "1+ days per week")
+                    
+
+df_plot %>% select(hhincome_broad, prop, prop_moe) %>%
+  arrange(desc(prop)) %>%
+  mutate(prop = scales::percent(prop),
+         prop_moe = scales::percent(prop_moe))
+```
+
+:::
+
+# Workers by Work Location Away from Home
+
+
+:::{.panel-tabset}
+
+## Suzanne's `telecommute_status` (excluding always work at home)
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("work_geog", "telecommute_status2"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  rename(Hybrid = prop) %>%
+  mutate(`Fully in person` = 1-Hybrid)
+                    
+
+df_plot %>% 
+  filter(work_geog!="Outside Region", telecommute_status2=="Hybrid") %>%
+  select(work_geog, `Fully in person`, Hybrid) %>%
+  arrange(desc(`Fully in person`)) %>%
+  mutate(Hybrid = scales::percent(Hybrid),
+         `Fully in person` = scales::percent(`Fully in person`))
+```
+
+## Suzanne's `telecommute_status`
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("work_geog", "telecommute_status3"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  pivot_wider(id_cols = "work_geog", names_from = "telecommute_status3", values_from = "prop", values_fill = 0)
+                    
+
+df_plot %>% 
+  filter(work_geog!="Outside Region") %>%
+  select(work_geog, `Fully in person`, Hybrid, `Fully at home`) %>%
+  arrange(desc(`Fully in person`)) %>%
+  mutate(Hybrid = scales::percent(Hybrid),
+         `Fully in person` = scales::percent(`Fully in person`),
+         `Fully at home` = scales::percent(`Fully at home`))
+```
+
+## `telecommute_freq`
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("work_geog", "telecommute_freq_org"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(telecommute_freq_org == "1+ days per week") %>%
+  rename(`1+ days per week` = prop) %>%
+  mutate(`Don't telework` = 1-`1+ days per week`)
+                    
+
+df_plot %>% 
+  filter(work_geog!="Outside Region") %>%
+  select(work_geog, `1+ days per week`, `Don't telework`) %>%
+  arrange(desc(`1+ days per week`)) %>%
+  mutate(`1+ days per week` = scales::percent(`1+ days per week`),
+         `Don't telework` = scales::percent(`Don't telework`))
+```
+:::
+
+# Workers by Home Location
+
+:::{.panel-tabset}
+
+## Suzanne's `telecommute_status`
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("home_geog", "telecommute_status3"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  pivot_wider(id_cols = "home_geog", names_from = "telecommute_status3", values_from = "prop", values_fill = 0)
+                    
+
+df_plot %>% 
+  filter(home_geog!="Outside Region") %>%
+  select(home_geog, `Fully in person`, Hybrid, `Fully at home`) %>%
+  arrange(desc(`Fully in person`)) %>%
+  mutate(Hybrid = scales::percent(Hybrid),
+         `Fully in person` = scales::percent(`Fully in person`),
+         `Fully at home` = scales::percent(`Fully at home`))
+```
+
+## `telecommute_freq`
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("home_geog", "telecommute_freq_org"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(telecommute_freq_org == "1+ days per week") %>%
+  rename(`1+ days per week` = prop) %>%
+  mutate(`Don't telework` = 1-`1+ days per week`)
+                    
+
+df_plot %>% 
+  filter(home_geog!="Outside Region") %>%
+  select(home_geog, `1+ days per week`, `Don't telework`) %>%
+  arrange(desc(`1+ days per week`)) %>%
+  mutate(`1+ days per week` = scales::percent(`1+ days per week`),
+         `Don't telework` = scales::percent(`Don't telework`))
+```
+
+:::
+
+# Workweek Trips by Work at Home Group (Monday-Friday)
+
+:::{.panel-tabset}
+
+## Suzanne's purpose categories
+```{r}
+# number of people by telecommute status
+df_telecommute_status3 <- psrc_hts_stat(my_hts_data, "person", 
+                         c("telecommute_status3"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE)  %>%
+  rename(n_person = est) %>%
+  select(telecommute_status3, n_person)
+
+df_plot <- psrc_hts_stat(my_hts_data, "trip", 
+                         c("telecommute_status3", "dest_purpose_S"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  rename(n_trip = est) %>%
+  select(telecommute_status3, dest_purpose_S, n_trip) %>%
+  left_join(df_telecommute_status3, by = "telecommute_status3") %>%
+  mutate(trip_rate = (n_trip * 5) /n_person) %>%
+  arrange(dest_purpose_S)
+
+df_plot %>%
+  mutate(trip_rate = scales::number(trip_rate, accuracy=0.01)) %>%
+  pivot_wider(id_cols="telecommute_status3", names_from="dest_purpose_S", values_from="trip_rate")
+```
+
+
+## `dest_purpose_cat_5`
+```{r}
+
+df_plot <- psrc_hts_stat(my_hts_data, "trip", 
+                         c("telecommute_status3", "dest_purpose_cat_5"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  rename(n_trip = est) %>%
+  select(telecommute_status3, dest_purpose_cat_5, n_trip) %>%
+  left_join(df_telecommute_status3, by = "telecommute_status3") %>%
+  mutate(trip_rate = (n_trip * 5) /n_person) %>%
+  arrange(dest_purpose_cat_5)
+
+df_plot %>%
+  mutate(trip_rate = scales::number(trip_rate, accuracy=0.01)) %>%
+  pivot_wider(id_cols="telecommute_status3", names_from="dest_purpose_cat_5", values_from="trip_rate") %>%
+  select(-c("Home"))
+```
+:::
+
+# All Trip Mode Share by Work at Home Group
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "trip", 
+                         c("telecommute_status3", "mode_class_5"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  mutate(prop = scales::percent(prop, accuracy=0.01),
+         mode_class_5 = factor(mode_class_5, levels=c("Drive", "Walk", "Transit", "Bike/Micromobility", "Other"))) %>%
+  arrange(mode_class_5) %>%
+  pivot_wider(id_cols = "telecommute_status3", names_from = "mode_class_5", values_from = "prop")
+
+df_plot
+```
+
+# Vehicle Miles Traveled per Workweek per Worker by Work at Home Status (Monday-Friday)
+
+:::{.panel-tabset}
+
+## region
+```{r}
+total_vmt <- my_hts_data$trip %>%
+  left_join(my_hts_data$person %>% select(person_id,telecommute_status3), by="person_id") %>%
+  group_by(telecommute_status3) %>%
+  summarize(total_vmt = sum(weighted_vmt), 
+            total_vmt_7 = sum(weighted_vmt_7)) %>%
+  ungroup() %>%
+  filter(!is.na(telecommute_status3)) %>%
+  left_join(df_telecommute_status3, by = "telecommute_status3") %>%
+  mutate(vmt = (total_vmt_7 * 5) /n_person)
+
+total_vmt %>% select(telecommute_status3,vmt) %>% mutate(vmt = scales::number(vmt, accuracy=0.01))
+```
+
+## county
+
+```{r}
+# number of people by telecommute status and county
+df_telecommute_status3_county <- psrc_hts_stat(my_hts_data, "person", 
+                         c("home_county","telecommute_status3"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE)  %>%
+  rename(n_person = est) %>%
+  select(home_county,telecommute_status3, n_person)
+
+
+total_vmt <- my_hts_data$trip %>%
+  left_join(my_hts_data$person %>% select(person_id,telecommute_status3), by="person_id") %>%
+  left_join(my_hts_data$hh %>% select(hh_id,home_county), by="hh_id") %>%
+  group_by(home_county,telecommute_status3) %>%
+  summarize(total_vmt = sum(weighted_vmt), 
+            total_vmt_7 = sum(weighted_vmt_7)) %>%
+  ungroup() %>%
+  filter(!is.na(telecommute_status3)) %>%
+  left_join(df_telecommute_status3_county, by = c("home_county","telecommute_status3")) %>%
+  mutate(vmt = (total_vmt_7 * 5) /n_person)
+
+total_vmt %>% 
+  mutate(vmt = scales::number(vmt, accuracy=0.01)) %>% 
+  pivot_wider(id_cols = telecommute_status3, names_from = home_county, values_from = vmt) 
+
+```
+
+:::
+
+# Worker Share with Subsidized Parking by Household Income
+
+```{r}
+df_plot <- psrc_hts_stat(my_hts_data, "person", 
+                         c("hhincome_broad", "parking_subsidy"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(parking_subsidy == "Selected")
+                    
+
+df_plot %>% select(hhincome_broad, prop, prop_moe) %>%
+  # arrange(desc(prop)) %>%
+  mutate(prop = scales::percent(prop),
+         prop_moe = scales::percent(prop_moe)) %>%
+  filter(hhincome_broad!='Prefer not to answer')
+```
+
+
+
