@@ -1,0 +1,360 @@
+variable,table,description,data_type,logic
+home_state,hh,Home location-- State,character,NA
+home_county,hh,Home location-- County,character,NA
+home_bg_2010,hh,Home location-- 2010 Block group,character,NA
+home_bg_2020,hh,Home location-- 2020 Block group,character,NA
+home_puma_2012,hh,Home location-- 2012 Public Use Microdata Area,character,NA
+home_puma_2022,hh,Home location-- 2022 Public Use Microdata Area,character,NA
+sample_home_bg,hh,Sample home location-- Block group,character,NA
+prev_home_lat,hh,Previous home address latitude,numeric,"if prev_home_wa = ""no, previous home was in another state"""
+prev_home_lng,hh,Previous home address longitude,numeric,"if prev_home_wa = ""no, previous home was in another state"""
+survey_year,hh,Survey data collection year,numeric,NA
+hhid,hh,Unique identifier for each household,character,NA
+hhgroup,hh,Travel Diary (Part 2) participation group,integer/categorical,NA
+sample_segment,hh,Sample segment,integer/categorical,NA
+signup_platform,hh,Platform used by participant for part one (signup survey),character,NA
+diary_platform,hh,Platform used by participant for part two (travel diary/preference survey),character,NA
+hh_is_complete,hh,Household provided complete travel information for one travel day,integer/categorical,NA
+num_days_complete_weekday,hh,Number of weekdays (Monday through Friday) on which the household was complete,numeric,NA
+num_complete_tue,hh,Number of Tuesdays on which the household was complete,numeric,NA
+num_complete_thu,hh,Number of Thursdays on which the household was complete,numeric,NA
+num_days_complete_weekend,hh,Number of weekend days (Saturdays and Sundays) on which the household was complete,numeric,NA
+hhsize,hh,Household size,integer/categorical,NA
+num_surveyable,hh,Number of surveyable household members,integer/categorical,NA
+num_trips,hh,"Household, person, or person-day number of trips",numeric,NA
+num_participants,hh,"Number of survey participants in household (for rMove: over 17 and has a smartphone, not proxied, and is related to person 1; for online survey: ppersons over 17 and related to person 1)",numeric,NA
+numadults,hh,Number of adults in household,integer/categorical,NA
+numchildren,hh,Number of children in household,integer/categorical,NA
+numworkers,hh,Number of workers in household,integer/categorical,NA
+num_students,hh,Number of students in household,integer/categorical,NA
+vehicle_count,hh,Number of vehicles,integer/categorical,NA
+hhincome_detailed,hh,Last year's household income detailed categories,integer/categorical,NA
+hhincome_followup,hh,Last year's household income broad follow-up categories,integer/categorical,if hhincome_detailed = prefer not to answer
+hhincome_broad,hh,"Last year's household income broad categories, all respondents",integer/categorical,NA
+rent_own,hh,Residence tenure status,integer/categorical,if age 18+ and rMove or (rMove for web and person 1)
+home_in_region,hh,Home is in PSRC MPO area,integer/categorical,NA
+reported_lng,hh,Reported home longitude,numeric,NA
+reported_lat,hh,Reported home latitude,numeric,NA
+sample_lng,hh,Sample home longitude,numeric,NA
+sample_lat,hh,Sample home latitude,numeric,NA
+res_type,hh,Type of residence,integer/categorical,if age 18+ and rMove or (rMove for web and person 1)
+prev_home_notwa_state,hh,Previous home address state,integer/categorical,"if prev_home_wa = ""no, previous home was in another state"""
+prev_home_notwa_zip,hh,Previous home address zip,character,"if prev_home_wa = ""no, previous home was in another state"""
+prev_home_wa,hh,Previous home in State of Washington (WA),integer/categorical,if rMove or rMove for web and person 1 and residence_duration ≤ 5 years
+numdayscomplete,hh,Household or person number of days complete,numeric,NA
+prev_rent_own,hh,Previous home tenure status,integer/categorical,if rMove or rMove for web and person 1 and residence_duration ≥ 5 years
+prev_res_factors_housing_cost,hh,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_income_change,hh,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_community_change,hh,"Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area",integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_hh_size,hh,"Important factor in decision to move away from prior residence -- Changes in household size, establish own household",integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_more_space,hh,Important factor in decision to move away from prior residence -- Needed more space,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_less_space,hh,Important factor in decision to move away from prior residence -- Needed less space,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_employment,hh,"Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)",integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_amenities,hh,"Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities",integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_telework,hh,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_school,hh,Important factor in decision to move away from prior residence -- Access to a different K-12 school,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_crime,hh,Important factor in decision to move away from prior residence -- Concerns about safety or crime,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_quality,hh,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_forced,hh,"Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)",integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_other,hh,Important factor in decision to move away from prior residence -- Other,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_no_answer,hh,Important factor in decision to move away from prior residence -- Prefer not to answer,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+prev_res_factors_specify,hh,"Other factor in decision to move away from prior residence, write-in text",character,"if prev_res_factors_other = ""selected"" (selected ""other"" factor in decision to move)"
+prev_res_type,hh,Previous home residence type,integer/categorical,"if prev_home_wa = ""yes, previous home was in Washington"""
+res_dur,hh,How long lived in current residence,integer/categorical,if age 18+ and rMove or (rMove for web and person 1)
+traveldate_start,hh,First travel date,date,NA
+traveldate_end,hh,Last travel date,date,NA
+survey_year,person,Survey data collection year,numeric,NA
+hhid,person,Unique identifier for each household,character,NA
+relationship,person,Relationship to primary respondent,integer/categorical,if num_people > 1
+gender,person,Gender,integer/categorical,NA
+race_afam,person,Race -- African American or Black,integer/categorical,if age 18+
+race_aiak,person,Race -- American Indian or Alaska Native,integer/categorical,if age 18+
+race_asian,person,Race -- Asian,integer/categorical,if age 18+
+race_hapi,person,Race -- Native Hawaiian or Pacific Islander,integer/categorical,if age 18+
+race_white,person,Race -- White,integer/categorical,if age 18+
+race_other,person,Race -- Other,integer/categorical,if age 18+
+race_noanswer,person,Race -- Prefer not to answer,integer/categorical,if age 18+
+race_other_specify,person,Other race textbox answer,character,"if race_other = ""selected"" (selected ""other"" race)"
+ethnicity_1,person,"Ethnicity -- Not of Hispanic, Latino, or Spanish origin",integer/categorical,if age ≥18
+ethnicity_2,person,"Ethnicity -- Mexican, Mexican American, Chicano",integer/categorical,if age ≥18
+ethnicity_3,person,Ethnicity -- Puerto Rican,integer/categorical,if age ≥18
+ethnicity_4,person,Ethnicity -- Cuban,integer/categorical,if age ≥18
+ethnicity_997,person,"Ethnicity -- Another Hispanic, Latino, or Spanish origin",integer/categorical,if age ≥18
+ethnicity_999,person,Ethnicity -- Prefer not to answer,integer/categorical,if age ≥18
+ethnicity_other,person,Other ethnicity textbox answer,character,if ethnicity = other
+employment,person,Employment status,integer/categorical,"if age > 16 paid_work=""yes"" or ""on leave"""
+work_mode,person,Typical means of travel to work,integer/categorical,"if commute_freq NOT = ""never"""
+telecommute_freq,person,How many days typically working from home,integer/categorical,"if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental)"
+industry,person,Current employment industry,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"""
+industry_other,person,Other job industry textbox answer,character,if industry = 'Other'
+workplace,person,Current work location,integer/categorical,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
+commute_freq,person,How often commuted to workplace last week,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and work_from_home is not ""all of the time"" OR drive_for_work = ""yes"""
+commute_subsidy_1,person,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_2,person,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_3,person,Commute benefits provided by employer -- Free (fully subsidized) parking at work,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_4,person,Commute benefits provided by employer -- Discounted (partially subsidized) parking at work,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_5,person,"Commute benefits provided by employer -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_6,person,Commute benefits provided by employer -- Flextime (can adjust schedule as long as work the right number of total hours),integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_7,person,Commute benefits provided by employer -- Ability to work from home,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_996,person,Commute benefits provided by employer -- None of the above,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_998,person,Commute benefits provided by employer -- Don't know,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time"
+commute_subsidy_use_1,person,Commute benefit used -- Free (fully subsidized) transit passes or fares,integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""free (fully subsidized) transit passes or fares"" (commute_subsidy_1 = ""selected"")"
+commute_subsidy_use_2,person,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""discounted (partially subsidized) transit passes or fares"" (commute_subsidy_2 = ""selected"")"
+commute_subsidy_use_3,person,Commute benefit used -- Free (fully subsidized) parking at work,integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""free (fully subsidized) parking at work"" (commute_subsidy_3 = ""selected"")"
+commute_subsidy_use_4,person,Commute benefit used -- Discounted (partially subsidized) parking at work,integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""dicounted (partially subsidized) parking at work"" (commute_subsidy_4 = ""selected"")"
+commute_subsidy_use_5,person,"Commute benefit used -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""compressed work week (e.g., four 10-hour days, 9 days/80 hours)"" (commute_subsidy_5 = ""selected"")"
+commute_subsidy_use_6,person,Commute benefit used -- Flextime (can adjust schedule as long as work the right number of total hours),integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""flextime (can adjust schedule as long as work the right number of total hours)"" (commute_subsidy_6 = ""selected"")"
+commute_subsidy_use_7,person,Commute benefit used -- Ability to work from home,integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""ability to work from home"" (commute_subsidy_7 = ""selected)"
+commute_subsidy_use_996,person,Commute benefit used -- None of the above,integer/categorical,"if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"")"
+work_lng,person,Work address longitude,numeric,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
+work_lat,person,Work address latitude,numeric,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
+work_in_region,person,Work is in PSRC MPO area,integer/categorical,NA
+work_bg,person,Work address census block group,character,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
+work_puma10,person,Work address PUMA (Public Use Microdata Area) 2010,character,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
+education,person,Educational attainment,integer/categorical,if age ≥18
+student,person,Student status,integer/categorical,if age ≥ 18
+school_mode_typical,person,How does child/adult student typically travel to/from school or daycare,integer/categorical,"if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"""
+schooltype,person,Type of school attended,integer/categorical,"if hh has 1+ age ≥ 18 and adult_student NOT = ""not a student"" or 1+ age < 18"
+school_freq,person,How often travels to school,integer/categorical,"if age < 18 and school_type NOT = ""cared for at home"" or ""home school"""
+remote_class_freq,person,"How often the person attends classes online from a location that is not school (e.g., home, parent's work, library, coffee shop)",integer/categorical,"if age < 18 and school_type NOT = ""cared for at home"" or ""preschool or dayccare outside home"""
+school_in_region,person,School is in PSRC MPO area,integer/categorical,NA
+school_puma10,person,School address PUMA (Public Use Microdata Area) 2010,character,"if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"""
+school_bg,person,School address census block group,character,if travels to school
+school_loc_lng,person,School address longitude,numeric,"if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"""
+school_loc_lat,person,School address latitude,numeric,"if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"""
+second_home,person,"Person regularly spends the night at a second home (e.g., another parent or grandparent's house, partner or spouses' home, vacation home)",integer/categorical,NA
+can_drive,person,"Answers yes to ""Do you/household person drive?""",integer/categorical,If age ≥ 15
+transit_freq,person,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days",integer/categorical,"if age ≥ 18 and share = ""Transit (e.g., bus, rail, ferry)"" (share_3 = ""selected"")"
+tnc_freq,person,"How often the person has used Uber, Lyft, or other smartphone-app car services in the past 30 days",integer/categorical,"if age ≥ 18 and share = ""Rideshare (Uber, Lyft, other smartphone-app car service)"" (share_4 = ""selected"")"
+bike_freq,person,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,integer/categorical,if age ≥ 18 and bikes (share_2 = 1)
+walk_freq,person,How often the person has walked outside for 15 or more minutes in the past 30 days,integer/categorical,"if if age ≥ 18 and share = ""walk (outside for 15-minutes or more) (share_1 = ""selected"")"
+share_1,person,Typical travel methods -- Walk (outside for 15-minutes or more),integer/categorical,if age ≥ 18
+share_2,person,Typical travel methods -- Bike (outside for 15-minutes or more),integer/categorical,if age ≥ 18
+share_3,person,"Typical travel methods -- Transit (e.g., bus, rail, ferry)",integer/categorical,if age ≥ 18
+share_4,person,"Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)",integer/categorical,if age ≥ 18
+share_5,person,"Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",integer/categorical,if age ≥ 18
+share_996,person,Typical travel methods -- None of the above,integer/categorical,if age ≥ 18
+disability_person,person,Person has a disability or illness that affects ability to travel,integer/categorical,if age ≥ 18
+participate,person,Respondent is willing to be recontacted for future transportation research,integer/categorical,if ABS respondent and pernum = 1
+age_detailed,person,Age of person,integer/categorical,NA
+carshare_freq,person,"How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days",integer/categorical,if age ≥ 18 and uses carshare (share_5 = 1)
+drive_for_work,person,Person has to commute somewhere each workday to pick up a variable.,integer/categorical,"If age ≥ 16 and job_type = ""drive/bike/travel for work (e.g., delivery driver, rideshare driver"""
+employment_followup,person,Person's employment status if not employed for pay,integer/categorical,"If age ≥ 16 and paid_work = ""no"""
+hours_work,person,Number of hours typically worked last week,integer/categorical,"if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"""
+mobility_aides,person,"Person uses mobility aides (wheelchairs, walkers, crutches, canes, braces, etc.)",integer/categorical,If disability = yes
+office_available,person,Availability of private work space outside the home,integer/categorical,"if empif paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and work_from_home = ""yes, all of the time (100% of the time)"" (2025"
+paid_work,person,Person worked for pay or profit last week,integer/categorical,If age ≥ 16 or older
+return_from_leave,person,Person expects to travel to a workplace outside of home after returning from leave,integer/categorical,"if paid_work = ""on leave (e.g., medical, paretnal)"""
+sexuality,person,Sexuality,integer/categorical,if age ≥ 18
+person_is_complete,person,Person has completed all daily and trip surveys,integer/categorical,NA
+transportation_statement_car,person,"Transportation attitudes -- Agreement with the statement ""I want to own a car.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+transportation_statement_environ,person,"Transportation attitudes -- Agreement with the statement ""Environmental issues are emphasized too much in this country.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+transportation_statement_retail,person,"Transportation attitudes -- Agreement with the statement ""I like the idea of having stores, restaurants, and offices mixed among the homes in my neighborhood.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+transportation_statement_telework,person,"Transportation attitudes -- Agreement with the statement ""It is important that my job allows me to telework.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+transportation_statement_transit,person,"Transportation attitudes -- Agreement with the statement  ""I like the idea of public transit as a means of travel for me personally.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+transportation_statement_travel,person,"Transportation attitudes -- Agreement with the statement ""I generally enjoy the act of traveling itself.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+transportation_statement_walk,person,"Transportation attitudes -- Agreement with the statement ""I try to make as many of my trips as possible by walking or bicycling.""",integer/categorical,If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
+work_from_home,person,Person works from home,integer/categorical,"if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental)"
+ev_typical_charge_1,person,Typical charge location for EV -- At home,integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+ev_typical_charge_2,person,Typical charge location for EV -- At work,integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+ev_typical_charge_3,person,"Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)",integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+ev_typical_charge_4,person,"Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)",integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+ev_typical_charge_5,person,"Typical charge location for EV -- At a public location (e.g., hospital, library, government building)",integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+ev_typical_charge_6,person,Typical charge location for EV -- At a hotel/inn,integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+ev_typical_charge_997,person,Typical charge location for EV -- Other,integer/categorical,"if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"""
+num_trips,person,"Household, person, or person-day number of trips",numeric,NA
+numdayscomplete,person,Household or person number of days complete,numeric,NA
+person_id,person,Person unique identifier,character,NA
+pernum,person,Person number in household,numeric,NA
+surveyable,person,"Person eligible for survey (related and non-related adults, proxy children)",integer/categorical,NA
+is_participant,person,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",integer/categorical,NA
+second_home_in_region,person,Second home is in PSRC MPO area,integer/categorical,NA
+second_home_lon,person,Second home longitude,numeric,"if second_home = ""regularly spends night at second home"""
+second_home_lat,person,Second home latitude,numeric,"if second_home = ""regularly spends night at second home"""
+proxy_parent,person,Person is proxy reporter for children in household,integer/categorical,if hhgroup = rMove
+proxy,person,Survey respondent/proxy,integer/categorical,if ABS or (online panel and pernum = 1)
+smartphone_type,person,Smartphone type,integer/categorical,if rMove for Web or (recruiting in rMove and hh has 2+ person age ≥ 18)
+survey_year,vehicle,Survey data collection year,numeric,NA
+hhid,vehicle,Unique identifier for each household,character,NA
+vehid,vehicle,Vehicle ID,numeric,NA
+vehnum,vehicle,Vehicle number,numeric,NA
+make,vehicle,Vehicle make,character,if num_vehicles > 0
+model,vehicle,Vehicle model,character,if num_vehicles > 0
+model_other,vehicle,Other vehicle model textbox answer,character,"if num_vehicles > 0 and model = ""Other"""
+year,vehicle,Vehicle model year,integer/categorical,NA
+fuel,vehicle,Fuel type,integer/categorical,if num_vehicles > 0
+survey_year,day,Survey data collection year,numeric,NA
+hhid,day,Unique identifier for each household,character,NA
+day_id,day,Unique identifier for each person day,numeric,NA
+travel_date,day,Travel date,date,NA
+daynum,day,Diary day sequence,numeric,NA
+travel_dow,day,Travel day of week,integer/categorical,NA
+hh_day_iscomplete,day,All surveys are completed for travel date for all household members (Monday - Thursday),integer/categorical,NA
+travel_day,day,Is travel day,integer/categorical,NA
+num_complete_trip_surveys,day,Number of complete trip surveys on travel day,numeric,NA
+summary_complete,day,Daily survey is complete,integer/categorical,NA
+proxy_complete,day,Proxy completion status,integer/categorical,NA
+loc_start,day,Location at start of travel day,integer/categorical,if first trip was not copied & diary_platform = 'rmove' and age ≥ 18
+loc_end,day,Location at end of travel day,integer/categorical,if last trip was not copied & diary_platform = 'rmove' and age ≥ 18
+attend_school_1,day,"Did child travel to school -- Yes, traveled to school",integer/categorical,"if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day"
+attend_school_2,day,"Did child travel to school -- Yes, traveled to another location for school",integer/categorical,"if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day"
+attend_school_3,day,"Did child travel to school -- No, did not travel for school",integer/categorical,"if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day"
+attend_school_998,day,Did child travel to school -- Don't know,integer/categorical,"if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day"
+attend_school_999,day,Did child travel to school -- Prefer not to answer,integer/categorical,"if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day"
+telework_time,day,Telework time on travel day,integer/categorical,"if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental)"
+deliver_food,day,Deliveries and home services -- Food/meal prep delivered,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_work,day,Deliveries and home services -- Services delivered,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_grocery,day,Deliveries and home services -- Groceries delivered,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_package,day,Deliveries and home services --Packages delivered at home,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_office,day,Deliveries and home services -- Packages delivered at work,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_elsewhere,day,Deliveries and home services -- Packages delivered elsewhere,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_other,day,Deliveries and home services -- Other deliveries,integer/categorical,if rMove or (rMove for Web and person 1)
+deliver_none,day,Deliveries and home services -- None,integer/categorical,if rMove or (rMove for Web and person 1)
+no_travel,day,Person traveled on travel date,integer/categorical,If made zero trips and used rMove
+day_iscomplete,day,All surveys are completed for travel date,integer/categorical,NA
+num_trips,day,"Household, person, or person-day number of trips",numeric,NA
+person_id,day,Person unique identifier,character,NA
+pernum,day,Person number in household,numeric,NA
+surveyable,day,"Person eligible for survey (related and non-related adults, proxy children)",integer/categorical,NA
+is_participant,day,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",integer/categorical,NA
+survey_year,trip_unlinked,Survey data collection year,numeric,NA
+imputed_joint_trip,trip_unlinked,Is joint trip imputed,integer/categorical,NA
+imputed_record_type,trip_unlinked,Method used to impute the trip,integer/categorical,NA
+hhid,trip_unlinked,Unique identifier for each household,character,NA
+day_id,trip_unlinked,Unique identifier for each person day,numeric,NA
+travel_date,trip_unlinked,Travel date,date,NA
+daynum,trip_unlinked,Diary day sequence,numeric,NA
+travel_dow,trip_unlinked,Travel day of week,integer/categorical,NA
+hh_day_iscomplete,trip_unlinked,All surveys are completed for travel date for all household members (Monday - Thursday),integer/categorical,NA
+tripid,trip_unlinked,Trip ID (unique),numeric,NA
+tripnum,trip_unlinked,Trip sequence number,numeric,NA
+day_iscomplete,trip_unlinked,All surveys are completed for travel date,integer/categorical,NA
+svy_complete,trip_unlinked,Trip survey is complete,integer/categorical,NA
+depart_date,trip_unlinked,Date of departure,date,NA
+depart_dow,trip_unlinked,Departure day of week,numeric,NA
+depart_time_hour,trip_unlinked,Departure time hour,numeric,NA
+depart_time_minute,trip_unlinked,Departure time minute,numeric,NA
+depart_time_second,trip_unlinked,Departure time second,numeric,NA
+arrive_date,trip_unlinked,Date of arrival,date,NA
+arrive_dow,trip_unlinked,Arrival day of week,integer/categorical,NA
+arrival_time_hour,trip_unlinked,Arrival time hour,numeric,NA
+arrival_time_minute,trip_unlinked,Arrival time minute,numeric,NA
+arrival_time_second,trip_unlinked,Arrival time second,numeric,NA
+distance_meters,trip_unlinked,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,numeric,NA
+distance_miles,trip_unlinked,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,numeric,NA
+duration_seconds,trip_unlinked,Duration (in seconds). Calculated as the difference between start and stop time of the trip.,numeric,NA
+duration_minutes,trip_unlinked,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,numeric,NA
+dwell_mins,trip_unlinked,"Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.",numeric,NA
+speed_mph,trip_unlinked,Trip speed in miles per hour (derived),numeric,NA
+speed_flag,trip_unlinked,Unusually high speed given mode,integer/categorical,NA
+o_in_region,trip_unlinked,Trip origin is in PSRC MPO area,integer/categorical,NA
+o_puma10,trip_unlinked,Trip origin PUMA (Public Use Microdata Area) 2010 (derived by PSRC),character,NA
+o_bg,trip_unlinked,Trip origin census block group (derived by PSRC),character,NA
+origin_lng,trip_unlinked,Origin longitude,numeric,NA
+origin_lat,trip_unlinked,Origin latitude,numeric,NA
+d_in_region,trip_unlinked,Trip destination is in PSRC MPO area,integer/categorical,NA
+d_puma10,trip_unlinked,Trip destination PUMA (Public Use Microdata Area) 2010 (derived by PSRC),character,NA
+d_bg,trip_unlinked,Trip destination census block group (derived by PSRC),character,NA
+dest_lng,trip_unlinked,Destination longitude,numeric,NA
+dest_lat,trip_unlinked,Destination latitude,numeric,NA
+mode_type,trip_unlinked,Synthesized mode (derived),integer/categorical,NA
+mode_1,trip_unlinked,Primary mode,integer/categorical,NA
+mode_2,trip_unlinked,Second mode chosen,integer/categorical,NA
+mode_3,trip_unlinked,Third mode chosen,integer/categorical,NA
+mode_4,trip_unlinked,Fourth mode chosen,integer/categorical,NA
+mode_other_specify,trip_unlinked,Other mode specified in textbox,character,"if mode = ""Other"""
+mode_egr,trip_unlinked,Travel mode from transit,integer/categorical,"if mode_1, mode_2, mode_3, or mode_4 = ""Regular bus (public transit)"", ""other bus, shuttle, or vanpool (private services or shuttles for older adults and people with disabilities)"", ""rail (e.g., train, light rail, streetcar)"", and/or ""ferry or water taxi"""
+mode_acc,trip_unlinked,Travel mode to transit,integer/categorical,"if mode_1, mode_2, mode_3, or mode_4 = ""Regular bus (public transit)"", ""other bus, shuttle, or vanpool (private services or shuttles for older adults and people with disabilities)"", ""rail (e.g., train, light rail, streetcar)"", and/or ""ferry or water taxi"""
+travelers_total,trip_unlinked,Number of total travelers on trip (including self),integer/categorical,NA
+travelers_hh,trip_unlinked,Number of household members on trip (including self),numeric,NA
+travelers_nonhh,trip_unlinked,Number of non-household members on trip,integer/categorical,NA
+hhmember1,trip_unlinked,Household member 1 was on trip,integer/categorical,NA
+hhmember2,trip_unlinked,Household member 2 was on trip,integer/categorical,NA
+hhmember3,trip_unlinked,Household member 3 was on trip,integer/categorical,NA
+hhmember4,trip_unlinked,Household member 4 was on trip,integer/categorical,NA
+hhmember5,trip_unlinked,Household member 5 was on trip,integer/categorical,NA
+hhmember6,trip_unlinked,Household member 6 was on trip,integer/categorical,NA
+hhmember7,trip_unlinked,Household member 7 was on trip,integer/categorical,NA
+hhmember8,trip_unlinked,Household member 8 was on trip,integer/categorical,NA
+hhmember9,trip_unlinked,Household member 9 was on trip,integer/categorical,NA
+hhmember10,trip_unlinked,Household member 10 was on trip,integer/categorical,NA
+hhmember11,trip_unlinked,Household member 11 was on trip,integer/categorical,NA
+hhmember12,trip_unlinked,Household member 12 was on trip,integer/categorical,NA
+hhmember13,trip_unlinked,Household member 13 was on trip,integer/categorical,NA
+driver,trip_unlinked,"Driver or passenger on auto trip, non-taxi",integer/categorical,"if mode = auto (non-taxi), hhlicenses = ""yes"", and travel party has more than 1 passenger older than 15"
+origin_purpose_cat,trip_unlinked,Origin purpose category (derived),integer/categorical,NA
+origin_purpose,trip_unlinked,Origin purpose,integer/categorical,NA
+dest_purpose_cat,trip_unlinked,Destination purpose category (derived),integer/categorical,NA
+dest_purpose,trip_unlinked,Destination purpose,integer/categorical,NA
+dest_purpose_other,trip_unlinked,Other trip destination textbox answer,character,"if d_purpose_other = ""selected"""
+user_merged,trip_unlinked,User merged 2 or more trips,integer/categorical,if hhgroup = rMove
+user_split,trip_unlinked,User split trip,integer/categorical,if hhgroup = rMove
+user_added,trip_unlinked,User added trip,integer/categorical,NA
+copied_trip,trip_unlinked,Trip was copied from another HH member,integer/categorical,NA
+flag_teleport,trip_unlinked,>=250m gap occurs after trip,integer/categorical,if hhgroup = rMove
+analyst_split,trip_unlinked,Analyst split trip,integer/categorical,if hhgroup = rMove
+analyst_merged,trip_unlinked,Analyst merged two or more trips,integer/categorical,if hhgroup = rMove
+analyst_split_loop,trip_unlinked,Analyst split loop trip into two trips,integer/categorical,if hhgroup = rMove
+linked_trip_id,trip_unlinked,Linked trip ID,numeric,NA
+linked_trip_num,trip_unlinked,Sequential number of the linked trip,numeric,NA
+n_legs,trip_unlinked,Number of legs on the linked trip,numeric,NA
+is_transit,trip_unlinked,Trip is transit leg of linked trip.,integer/categorical,if linked trip
+is_access,trip_unlinked,Trip is access leg of linked trip,integer/categorical,if linked trip
+is_egress,trip_unlinked,Trip is egress leg of linked trip,integer/categorical,if linked trip
+has_access,trip_unlinked,Has access,integer/categorical,NA
+has_egress,trip_unlinked,Has egress,integer/categorical,NA
+transit_quality_flag,trip_unlinked,Transit quality flag,character,NA
+has_synthetic_access,trip_unlinked,Has synthetic access,integer/categorical,NA
+has_synthetic_egress,trip_unlinked,Has synthetic egress,integer/categorical,NA
+person_id,trip_unlinked,Person unique identifier,character,NA
+traveldate_start,trip_unlinked,First travel date,date,NA
+pernum,trip_unlinked,Person number in household,numeric,NA
+traveldate_end,trip_unlinked,Last travel date,date,NA
+tripid,location,Trip ID (unique),numeric,NA
+accuracy,location,Accuracy of location point in meters,numeric,NA
+bearing,location,Bearing (direction) of location point (0-360 degrees),numeric,NA
+speed,location,"Speed at time of location collection, mph",numeric,NA
+collect_time,location,Timestamp of location point collected UTC time,datetime,NA
+lat,location,Latitude of location point,numeric,NA
+lon,location,Longitude of location point,numeric,NA
+survey_year,trip_linked,Survey data collection year,numeric,NA
+hhid,trip_linked,Unique identifier for each household,character,NA
+day_id,trip_linked,Unique identifier for each person day,numeric,NA
+daynum,trip_linked,Diary day sequence,numeric,NA
+depart_date,trip_linked,Date of departure,date,NA
+depart_time_hour,trip_linked,Departure time hour,numeric,NA
+depart_time_minute,trip_linked,Departure time minute,numeric,NA
+depart_time_second,trip_linked,Departure time second,numeric,NA
+arrive_date,trip_linked,Date of arrival,date,NA
+arrival_time_hour,trip_linked,Arrival time hour,numeric,NA
+arrival_time_minute,trip_linked,Arrival time minute,numeric,NA
+arrival_time_second,trip_linked,Arrival time second,numeric,NA
+duration_minutes,trip_linked,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,numeric,NA
+dwell_mins,trip_linked,"Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.",numeric,NA
+origin_lng,trip_linked,Origin longitude,numeric,NA
+origin_lat,trip_linked,Origin latitude,numeric,NA
+dest_lng,trip_linked,Destination longitude,numeric,NA
+dest_lat,trip_linked,Destination latitude,numeric,NA
+hhmember1,trip_linked,Household member 1 was on trip,integer/categorical,NA
+hhmember2,trip_linked,Household member 2 was on trip,integer/categorical,NA
+hhmember3,trip_linked,Household member 3 was on trip,integer/categorical,NA
+hhmember4,trip_linked,Household member 4 was on trip,integer/categorical,NA
+hhmember5,trip_linked,Household member 5 was on trip,integer/categorical,NA
+hhmember6,trip_linked,Household member 6 was on trip,integer/categorical,NA
+hhmember7,trip_linked,Household member 7 was on trip,integer/categorical,NA
+hhmember8,trip_linked,Household member 8 was on trip,integer/categorical,NA
+hhmember9,trip_linked,Household member 9 was on trip,integer/categorical,NA
+hhmember10,trip_linked,Household member 10 was on trip,integer/categorical,NA
+hhmember11,trip_linked,Household member 11 was on trip,integer/categorical,NA
+hhmember12,trip_linked,Household member 12 was on trip,integer/categorical,NA
+hhmember13,trip_linked,Household member 13 was on trip,integer/categorical,NA
+origin_purpose_cat,trip_linked,Origin purpose category (derived),integer/categorical,NA
+origin_purpose,trip_linked,Origin purpose,integer/categorical,NA
+dest_purpose_cat,trip_linked,Destination purpose category (derived),integer/categorical,NA
+dest_purpose,trip_linked,Destination purpose,integer/categorical,NA
+linked_trip_mode,trip_linked,Linked trip primary mode,integer/categorical,NA
+linked_trip_weight,trip_linked,Linked trip weight,numeric,NA
+linked_trip_id,trip_linked,Linked trip ID,numeric,NA
+linked_trip_num,trip_linked,Sequential number of the linked trip,numeric,NA
+person_id,trip_linked,Person unique identifier,character,NA
+pernum,trip_linked,Person number in household,numeric,NA

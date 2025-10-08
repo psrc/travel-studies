@@ -1,0 +1,36 @@
+---
+title: "Day"
+date: today
+---
+
+```{r}
+#| include: false
+
+source("functions.R")
+tables <- readRDS("analysis_table.RDS")
+```
+
+## Day Info
+```{r}
+get_vars_summary("day", c("travel_dow","no_travel","travel_day","summary_complete","hh_day_iscomplete"))
+```
+
+## Telework Time
+```{r}
+get_vars_summary("day", c("telework_time"))
+```
+
+## School Attendance
+```{r}
+get_vars_summary("day", c("attend_school_1","attend_school_2","attend_school_3","attend_school_998","attend_school_999"))
+```
+
+
+## Delivery
+
+- logic: if rMove or (rMove for Web and person 1)
+
+```{r}
+get_vars_summary("day", c("deliver_package","deliver_food","deliver_grocery","deliver_work",
+                          "deliver_office","deliver_elsewhere","deliver_other","deliver_none"))
+```
