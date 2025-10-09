@@ -11,13 +11,20 @@ book:
 
   chapters:
     - index.qmd
-    - household.qmd
-    - person.qmd
-    - day.qmd
-    - trip.qmd
-    - vehicle.qmd
-    - all_location.qmd
-
+    - part: "RSG Delivered Data"
+      chapters:
+        - household.qmd
+        - person.qmd
+        - day.qmd
+        - trip.qmd
+        - vehicle.qmd
+        - all_location.qmd
+    - part: "Other Analysis"
+      chapters:
+        - bike_acc_egr.qmd
+    
+execute:
+  freeze: auto
 format:
   html:
     mainfont: Poppins
