@@ -1,4 +1,105 @@
 table,variable,value,label
+person,age_detailed,0,Under 1 year
+person,age_detailed,1,1 year old
+person,age_detailed,2,2 years old
+person,age_detailed,3,3 years old
+person,age_detailed,4,4 years old
+person,age_detailed,5,5 years old
+person,age_detailed,6,6 years old
+person,age_detailed,7,7 years old
+person,age_detailed,8,8 years old
+person,age_detailed,9,9 years old
+person,age_detailed,10,10 years old
+person,age_detailed,11,11 years old
+person,age_detailed,12,12 years old
+person,age_detailed,13,13 years old
+person,age_detailed,14,14 years old
+person,age_detailed,15,15 years old
+person,age_detailed,16,16 years old
+person,age_detailed,17,17 years old
+person,age_detailed,18,18 years old
+person,age_detailed,19,19 years old
+person,age_detailed,20,20 years old
+person,age_detailed,21,21 years old
+person,age_detailed,22,22 years old
+person,age_detailed,23,23 years old
+person,age_detailed,24,24 years old
+person,age_detailed,25,25 years old
+person,age_detailed,26,26 years old
+person,age_detailed,27,27 years old
+person,age_detailed,28,28 years old
+person,age_detailed,29,29 years old
+person,age_detailed,30,30 years old
+person,age_detailed,31,31 years old
+person,age_detailed,32,32 years old
+person,age_detailed,33,33 years old
+person,age_detailed,34,34 years old
+person,age_detailed,35,35 years old
+person,age_detailed,36,36 years old
+person,age_detailed,37,37 years old
+person,age_detailed,38,38 years old
+person,age_detailed,39,39 years old
+person,age_detailed,40,40 years old
+person,age_detailed,41,41 years old
+person,age_detailed,42,42 years old
+person,age_detailed,43,43 years old
+person,age_detailed,44,44 years old
+person,age_detailed,45,45 years old
+person,age_detailed,46,46 years old
+person,age_detailed,47,47 years old
+person,age_detailed,48,48 years old
+person,age_detailed,49,49 years old
+person,age_detailed,50,50 years old
+person,age_detailed,51,51 years old
+person,age_detailed,52,52 years old
+person,age_detailed,53,53 years old
+person,age_detailed,54,54 years old
+person,age_detailed,55,55 years old
+person,age_detailed,56,56 years old
+person,age_detailed,57,57 years old
+person,age_detailed,58,58 years old
+person,age_detailed,59,59 years old
+person,age_detailed,60,60 years old
+person,age_detailed,61,61 years old
+person,age_detailed,62,62 years old
+person,age_detailed,63,63 years old
+person,age_detailed,64,64 years old
+person,age_detailed,65,65 years old
+person,age_detailed,66,66 years old
+person,age_detailed,67,67 years old
+person,age_detailed,68,68 years old
+person,age_detailed,69,69 years old
+person,age_detailed,70,70 years old
+person,age_detailed,71,71 years old
+person,age_detailed,72,72 years old
+person,age_detailed,73,73 years old
+person,age_detailed,74,74 years old
+person,age_detailed,75,75 years old
+person,age_detailed,76,76 years old
+person,age_detailed,77,77 years old
+person,age_detailed,78,78 years old
+person,age_detailed,79,79 years old
+person,age_detailed,80,80 years old
+person,age_detailed,81,81 years old
+person,age_detailed,82,82 years old
+person,age_detailed,83,83 years old
+person,age_detailed,84,84 years old
+person,age_detailed,85,85 years old
+person,age_detailed,86,86 years old
+person,age_detailed,87,87 years old
+person,age_detailed,88,88 years old
+person,age_detailed,89,89 years old
+person,age_detailed,90,90 years old
+person,age_detailed,91,91 years old
+person,age_detailed,92,92 years old
+person,age_detailed,93,93 years old
+person,age_detailed,94,94 years old
+person,age_detailed,95,95 years old
+person,age_detailed,96,96 years old
+person,age_detailed,97,97 years old
+person,age_detailed,98,98 years old
+person,age_detailed,99,99 or older
+person,age_detailed,995,Missing response
 trip_unlinked,analyst_merged,0,No
 trip_unlinked,analyst_merged,1,Yes
 trip_unlinked,analyst_split,0,No
@@ -108,6 +209,9 @@ person,commute_subsidy_use_996,1,Selected
 person,commute_subsidy_use_996,995,Missing Response
 trip_unlinked,copied_trip,0,No
 trip_unlinked,copied_trip,1,Yes
+trip_unlinked,d_in_region,0,No
+trip_unlinked,d_in_region,1,Yes
+trip_unlinked,d_in_region,995,Missing Response
 day,day_iscomplete,0,No
 day,day_iscomplete,1,Yes
 day,deliver_elsewhere,0,Not selected
@@ -187,10 +291,14 @@ trip_unlinked,dest_purpose_cat,10,Change mode
 trip_unlinked,dest_purpose_cat,12,Overnight
 trip_unlinked,dest_purpose_cat,13,Other
 trip_unlinked,dest_purpose_cat,14,School-related
+trip_unlinked,dest_purpose_cat,995,Missing
 person,disability_person,0,No
 person,disability_person,1,Yes
 person,disability_person,995,Missing Response
 person,disability_person,999,Prefer not to answer
+person,drive_for_work,1,Yes
+person,drive_for_work,0,No
+person,drive_for_work,995,Missing Response
 trip_unlinked,driver,1,Driver
 trip_unlinked,driver,2,Passenger
 trip_unlinked,driver,3,Both (switched drivers during trip)
@@ -213,6 +321,9 @@ person,employment,6,"Not employed and not looking for work (e.g., retired, stay-
 person,employment,7,Unemployed and looking for work
 person,employment,8,"Self-employed (fewer than 35 hours/week, paid)"
 person,employment,995,Missing: Skip Logic
+person,employment_followup,5,"Not employed for pay (e.g., unpaid furlough, looking for work, retired, stay-at-home parent, student)"
+person,employment_followup,7,Unpaid volunteer or intern
+person,employment_followup,995,Missing Response
 person,ethnicity_1,0,Not selected
 person,ethnicity_1,1,Selected
 person,ethnicity_1,995,Missing Response
@@ -331,6 +442,9 @@ trip_unlinked,hhmember11,995,Missing: Skip Logic
 trip_unlinked,hhmember12,0,Not Selected
 trip_unlinked,hhmember12,1,Selected
 trip_unlinked,hhmember12,995,Missing: Skip Logic
+trip_unlinked,hhmember13,1,Household member 13 was on trip
+trip_unlinked,hhmember13,0,Not selected
+trip_unlinked,hhmember13,995,Missing
 trip_unlinked,hhmember2,0,Not Selected
 trip_unlinked,hhmember2,1,Selected
 trip_unlinked,hhmember2,995,Missing: Skip Logic
@@ -368,6 +482,14 @@ hh,hhsize,10,10 people
 hh,hhsize,11,11 people
 hh,hhsize,12,12 people
 hh,hhsize,13,13 or more people
+hh,home_county,53033,King County
+hh,home_county,53035,Kitsap County
+hh,home_county,53053,Pierce County
+hh,home_county,53061,Snohomish County
+hh,home_in_region,0,No
+hh,home_in_region,1,Yes
+hh,home_in_region,995,Missing Response
+hh,home_state,53,Washington
 person,hours_work,1,More than 50 hours
 person,hours_work,2,41–50 hours
 person,hours_work,3,31-40 hours
@@ -377,6 +499,11 @@ person,hours_work,6,10 hours or fewer
 person,hours_work,7,35-40 hours
 person,hours_work,8,31-34 hours
 person,hours_work,995,Missing: Skip Logic
+trip_unlinked,imputed_joint_trip,0,Not imputed
+trip_unlinked,imputed_joint_trip,1,Imputed
+trip_unlinked,imputed_record_type,0,Not imputed
+trip_unlinked,imputed_record_type,1,Imputed as a non-proxy trip
+trip_unlinked,imputed_record_type,2,Imputed school trip
 person,industry,1,Financial services
 person,industry,2,Real estate
 person,industry,3,"Professional and business services (e.g., consulting, legal, marketing)"
@@ -412,6 +539,24 @@ person,is_participant,1,Yes
 trip_unlinked,is_transit,0,No
 trip_unlinked,is_transit,1,Yes
 trip_unlinked,is_transit,995,Missing Response
+trip_linked,linked_trip_mode,1,School bus
+trip_linked,linked_trip_mode,2,Drive to ferry
+trip_linked,linked_trip_mode,3,Drive to rail
+trip_linked,linked_trip_mode,4,Drive to bus
+trip_linked,linked_trip_mode,5,Walk to ferry
+trip_linked,linked_trip_mode,6,Walk to rail
+trip_linked,linked_trip_mode,7,Walk to bus
+trip_linked,linked_trip_mode,8,Vehicle with 3 or more occupants
+trip_linked,linked_trip_mode,9,Vehicle with 2 occupants
+trip_linked,linked_trip_mode,10,Single-occupancy vehicle
+trip_linked,linked_trip_mode,11,Bike
+trip_linked,linked_trip_mode,12,Other micromobility
+trip_linked,linked_trip_mode,13,Taxi
+trip_linked,linked_trip_mode,14,"Other hired service (Uber, Lyft, or other smartphone-app car service)"
+trip_linked,linked_trip_mode,15,Walk
+trip_linked,linked_trip_mode,16,Long-distance travel
+trip_linked,linked_trip_mode,17,Other
+trip_linked,linked_trip_mode,-1,Missing
 day,loc_end,1,Home
 day,loc_end,2,Work
 day,loc_end,3,Other
@@ -490,28 +635,19 @@ trip_unlinked,mode_4,107,"Scooter, moped, skateboard"
 trip_unlinked,mode_4,108,Ferry or water taxi
 trip_unlinked,mode_acc,1,Walked or jogged
 trip_unlinked,mode_acc,2,Bicycle or e-bicycle
-trip_unlinked,mode_acc,8,"Transferred from another bus, shuttle, or vanpool"
-trip_unlinked,mode_acc,9,"Scooter, moped, skateboard"
-trip_unlinked,mode_acc,10,Transferred from other rail
-trip_unlinked,mode_acc,11,"Transferred from other transit (e.g., ferry, air)"
+trip_unlinked,mode_acc,5,Got dropped off
+trip_unlinked,mode_acc,8,Transferred from another mode
 trip_unlinked,mode_acc,12,"Uber/Lyft, taxi, or car service"
-trip_unlinked,mode_acc,13,Drove and parked my own household's vehicle (or motorcycle)
-trip_unlinked,mode_acc,14,Drove and parked another vehicle (or motorcycle)
-trip_unlinked,mode_acc,15,Got dropped off in my own household's vehicle (or motorcycle)
-trip_unlinked,mode_acc,16,Got dropped off in another vehicle (or motorcycle)
+trip_unlinked,mode_acc,17,Drove onto ferry
+trip_unlinked,mode_acc,18,Drove and parked
 trip_unlinked,mode_acc,97,Other
 trip_unlinked,mode_acc,995,Missing: Skip Logic
 trip_unlinked,mode_egr,1,Walked or jogged
 trip_unlinked,mode_egr,2,Bicycle or e-bicycle
-trip_unlinked,mode_egr,8,"Transferred to another bus, shuttle, or vanpool"
-trip_unlinked,mode_egr,9,"Scooter, moped, skateboard"
-trip_unlinked,mode_egr,10,Transferred to other rail
-trip_unlinked,mode_egr,11,"Transferred to other transit (e.g., ferry, air)"
+trip_unlinked,mode_egr,8,Transferred from another mode
 trip_unlinked,mode_egr,12,"Uber/Lyft, taxi, or car service"
-trip_unlinked,mode_egr,13,Drove my own household's vehicle (or motorcycle)
-trip_unlinked,mode_egr,14,Drove another vehicle (or motorcycle)
-trip_unlinked,mode_egr,15,Got picked up in my own household's vehicle (or motorcycle)
-trip_unlinked,mode_egr,16,Got picked up in another vehicle (or motorcycle)
+trip_unlinked,mode_egr,17,Got picked up
+trip_unlinked,mode_egr,18,Drove my parked car
 trip_unlinked,mode_egr,97,Other
 trip_unlinked,mode_egr,995,Missing: Skip Logic
 trip_unlinked,mode_type,1,Walk
@@ -529,6 +665,9 @@ trip_unlinked,mode_type,12,"Scooter or e-scooter (e.g., Lime, Bird, Razor)"
 trip_unlinked,mode_type,13,"Long distance (e.g., airplane)"
 trip_unlinked,mode_type,14,Ferry
 trip_unlinked,mode_type,995,Missing Response
+day,no_travel,0,Yes
+day,no_travel,1,No
+day,no_travel,995,Missing Response
 hh,num_students,0,0 students
 hh,num_students,1,1 student
 hh,num_students,2,2 students
@@ -569,6 +708,7 @@ hh,numadults,10,10 adults
 hh,numadults,11,11 adults
 hh,numadults,12,12 adults
 hh,numadults,13,13 or more adults
+hh,numadults,NA,NA
 hh,numchildren,0,0 children
 hh,numchildren,1,1 child
 hh,numchildren,2,2 children
@@ -596,9 +736,13 @@ hh,numworkers,10,10 workers
 hh,numworkers,11,11 workers
 hh,numworkers,12,12 workers
 hh,numworkers,13,13 or more workers
+trip_unlinked,o_in_region,0,No
+trip_unlinked,o_in_region,1,Yes
+trip_unlinked,o_in_region,995,Missing Response
 person,office_available,1,"Yes, I have a dedicated and private space available outside the home that I do not use."
 person,office_available,2,"No, I do not have a dedicated and private space available outside the home"
 person,office_available,995,Missing Response
+person,office_available,NA,NA
 trip_unlinked,origin_purpose,-1,Not imputable
 trip_unlinked,origin_purpose,1,Went home
 trip_unlinked,origin_purpose,10,Went to primary workplace
@@ -647,6 +791,10 @@ trip_unlinked,origin_purpose_cat,11,School-related
 trip_unlinked,origin_purpose_cat,12,Overnight
 trip_unlinked,origin_purpose_cat,13,Other
 trip_unlinked,origin_purpose_cat,995,Missing Response
+person,paid_work,0,No
+person,paid_work,1,Yes
+person,paid_work,2,"On leave (e.g., medical, parental)"
+person,paid_work,995,Missing Response
 person,participate,1,Yes
 person,participate,2,No
 person,participate,995,Missing: Skip Logic
@@ -839,6 +987,11 @@ hh,res_type,5,Mobile home/trailer
 hh,res_type,6,Dorm or institutional housing
 hh,res_type,7,"Other (including boat, RV, van, etc.)"
 hh,res_type,995,Missing Response
+person,return_from_leave,0,No
+person,return_from_leave,1,"Yes, some of the time (less than 50% of the time)"
+person,return_from_leave,2,"Yes, most of the time (at least than 50% but less than 100% of the time)"
+person,return_from_leave,3,"Yes, all of the time (100% of the time)"
+person,return_from_leave,995,Missing Response
 hh,sample_segment,101,King County General
 hh,sample_segment,102,King County Hard-to-survey
 hh,sample_segment,103,King County Walk/Bike/Transit
@@ -861,16 +1014,19 @@ hh,sample_segment,119,Snohomish General
 hh,sample_segment,120,Snohomish Hard-to-Survey
 hh,sample_segment,121,Snohomish Rural
 hh,sample_segment,122,Snohomish Walk/Bike/Transit
-person,school_freq,1,6–7 days per week
+person,school_freq,1,6-7 days per week
 person,school_freq,2,5 days per week
 person,school_freq,3,4 days per week
 person,school_freq,4,3 days per week
 person,school_freq,5,2 days per week
 person,school_freq,6,1 day per week
-person,school_freq,7,Less than 1 day per week
-person,school_freq,8,"Never, only take online classes"
+person,school_freq,7,1 to 3 days per week
+person,school_freq,8,Less than monthly
 person,school_freq,995,Missing Response
 person,school_freq,996,Never
+person,school_in_region,0,No
+person,school_in_region,1,Yes
+person,school_in_region,995,Missing Response
 person,school_mode_typical,1,Walk (or jog/wheelchair)
 person,school_mode_typical,24,School bus
 person,school_mode_typical,100,Household vehicle (or motorcycle)
@@ -897,6 +1053,9 @@ person,schooltype,995,Missing: Skip Logic
 person,second_home,0,Does not regularly spend night at second home
 person,second_home,1,Regularly spends night at second home
 person,second_home,995,Missing Response
+person,second_home_in_region,0,No
+person,second_home_in_region,1,Yes
+person,second_home_in_region,995,Missing Response
 person,sexuality,1,"Bisexual, gay, lesbian, or queer"
 person,sexuality,2,Heterosexual (straight)
 person,sexuality,3,Something else fits better
@@ -1014,6 +1173,48 @@ person,transit_freq,7,1-3 days in the past month
 person,transit_freq,995,Missing Response
 person,transit_freq,996,Never in the past 30 days
 person,transit_freq,998,Don't know
+person,transportation_statement_car,1,1-Strongly disagree
+person,transportation_statement_car,2,2-Disagree
+person,transportation_statement_car,3,3-Neither agree nor disagree
+person,transportation_statement_car,4,4-Agree
+person,transportation_statement_car,5,5-Strongly Agree
+person,transportation_statement_car,995,Missing Response
+person,transportation_statement_environ,1,1-Strongly disagree
+person,transportation_statement_environ,2,2-Disagree
+person,transportation_statement_environ,3,3-Neither agree nor disagree
+person,transportation_statement_environ,4,4-Agree
+person,transportation_statement_environ,5,5-Strongly Agree
+person,transportation_statement_environ,995,Missing Response
+person,transportation_statement_retail,1,1-Strongly disagree
+person,transportation_statement_retail,2,2-Disagree
+person,transportation_statement_retail,3,3-Neither agree nor disagree
+person,transportation_statement_retail,4,4-Agree
+person,transportation_statement_retail,5,5-Strongly Agree
+person,transportation_statement_retail,995,Missing Response
+person,transportation_statement_telework,1,1-Strongly disagree
+person,transportation_statement_telework,2,2-Disagree
+person,transportation_statement_telework,3,3-Neither agree nor disagree
+person,transportation_statement_telework,4,4-Agree
+person,transportation_statement_telework,5,5-Strongly Agree
+person,transportation_statement_telework,995,Missing Response
+person,transportation_statement_transit,1,1-Strongly disagree
+person,transportation_statement_transit,2,2-Disagree
+person,transportation_statement_transit,3,3-Neither agree nor disagree
+person,transportation_statement_transit,4,4-Agree
+person,transportation_statement_transit,5,5-Strongly Agree
+person,transportation_statement_transit,995,Missing Response
+person,transportation_statement_travel,1,1-Strongly disagree
+person,transportation_statement_travel,2,2-Disagree
+person,transportation_statement_travel,3,3-Neither agree nor disagree
+person,transportation_statement_travel,4,4-Agree
+person,transportation_statement_travel,5,5-Strongly Agree
+person,transportation_statement_travel,995,Missing Response
+person,transportation_statement_walk,1,1-Strongly disagree
+person,transportation_statement_walk,2,2-Disagree
+person,transportation_statement_walk,3,3-Neither agree nor disagree
+person,transportation_statement_walk,4,4-Agree
+person,transportation_statement_walk,5,5-Strongly Agree
+person,transportation_statement_walk,995,Missing Response
 day,travel_day,0,No
 day,travel_day,1,Yes
 day,travel_dow,1,Monday
@@ -1076,6 +1277,14 @@ person,walk_freq,6,1 day a week
 person,walk_freq,7,1-3 days in the past month
 person,walk_freq,995,Missing Response
 person,walk_freq,996,Never in the past 30 days
+person,work_from_home,0,No
+person,work_from_home,1,"Yes, some of the time (less than 50% of the time)"
+person,work_from_home,2,"Yes, most of the time (at least than 50% but less than 100% of the time)"
+person,work_from_home,3,"Yes, all of the time (100% of the time)"
+person,work_from_home,995,Missing Response
+person,work_in_region,0,No
+person,work_in_region,1,Yes
+person,work_in_region,995,Missing Response
 person,work_mode,1,Walk (or jog/wheelchair)
 person,work_mode,100,Household vehicle (or motorcycle)
 person,work_mode,101,"Other vehicle (e.g., friend's car, rental, carshare, work car)"
@@ -1087,6 +1296,7 @@ person,work_mode,106,"Uber/Lyft, taxi, or car service"
 person,work_mode,107,"Scooter, moped, skateboard"
 person,work_mode,108,Ferry or water taxi
 person,work_mode,995,Missing Response
+person,work_mode,79,Drive onto ferry
 person,workplace,1,On Leave - will return to regular work location after leave
 person,workplace,2,On leave  - will not return to regular work location after leave
 person,workplace,3,Only one work location outside of home (do not telework)
@@ -1144,222 +1354,3 @@ vehicle,year,2023,2023
 vehicle,year,2024,2024
 vehicle,year,2025,2025
 vehicle,year,2026,2026
-hh,home_in_region,0,No
-hh,home_in_region,1,Yes
-hh,home_in_region,995,Missing Response
-person,work_in_region,0,No
-person,work_in_region,1,Yes
-person,work_in_region,995,Missing Response
-person,school_in_region,0,No
-person,school_in_region,1,Yes
-person,school_in_region,995,Missing Response
-person,second_home_in_region,0,No
-person,second_home_in_region,1,Yes
-person,second_home_in_region,995,Missing Response
-trip_unlinked,o_in_region,0,No
-trip_unlinked,o_in_region,1,Yes
-trip_unlinked,o_in_region,995,Missing Response
-trip_unlinked,d_in_region,0,No
-trip_unlinked,d_in_region,1,Yes
-trip_unlinked,d_in_region,995,Missing Response
-hh,numadults,NA,NA
-person,office_available,NA,NA
-person,drive_for_work,1,Yes
-person,drive_for_work,0,No
-person,drive_for_work,995,Missing Response
-person,employment_followup,5,"Not employed for pay (e.g., unpaid furlough, looking for work, retired, stay-at-home parent, student)"
-person,employment_followup,7,Unpaid volunteer or intern
-person,employment_followup,995,Missing Response
-person,paid_work,0,No
-person,paid_work,1,Yes
-person,paid_work,2,"On leave (e.g., medical, parental)"
-person,paid_work,995,Missing Response
-person,return_from_leave,0,No
-person,return_from_leave,1,"Yes, some of the time (less than 50% of the time)"
-person,return_from_leave,2,"Yes, most of the time (at least than 50% but less than 100% of the time)"
-person,return_from_leave,3,"Yes, all of the time (100% of the time)"
-person,return_from_leave,995,Missing Response
-person,transportation_statement_car,1,1-Strongly disagree
-person,transportation_statement_car,2,2-Disagree
-person,transportation_statement_car,3,3-Neither agree nor disagree
-person,transportation_statement_car,4,4-Agree
-person,transportation_statement_car,5,5-Strongly Agree
-person,transportation_statement_car,995,Missing Response
-person,transportation_statement_environ,1,1-Strongly disagree
-person,transportation_statement_environ,2,2-Disagree
-person,transportation_statement_environ,3,3-Neither agree nor disagree
-person,transportation_statement_environ,4,4-Agree
-person,transportation_statement_environ,5,5-Strongly Agree
-person,transportation_statement_environ,995,Missing Response
-person,transportation_statement_retail,1,1-Strongly disagree
-person,transportation_statement_retail,2,2-Disagree
-person,transportation_statement_retail,3,3-Neither agree nor disagree
-person,transportation_statement_retail,4,4-Agree
-person,transportation_statement_retail,5,5-Strongly Agree
-person,transportation_statement_retail,995,Missing Response
-person,transportation_statement_telework,1,1-Strongly disagree
-person,transportation_statement_telework,2,2-Disagree
-person,transportation_statement_telework,3,3-Neither agree nor disagree
-person,transportation_statement_telework,4,4-Agree
-person,transportation_statement_telework,5,5-Strongly Agree
-person,transportation_statement_telework,995,Missing Response
-person,transportation_statement_transit,1,1-Strongly disagree
-person,transportation_statement_transit,2,2-Disagree
-person,transportation_statement_transit,3,3-Neither agree nor disagree
-person,transportation_statement_transit,4,4-Agree
-person,transportation_statement_transit,5,5-Strongly Agree
-person,transportation_statement_transit,995,Missing Response
-person,transportation_statement_travel,1,1-Strongly disagree
-person,transportation_statement_travel,2,2-Disagree
-person,transportation_statement_travel,3,3-Neither agree nor disagree
-person,transportation_statement_travel,4,4-Agree
-person,transportation_statement_travel,5,5-Strongly Agree
-person,transportation_statement_travel,995,Missing Response
-person,transportation_statement_walk,1,1-Strongly disagree
-person,transportation_statement_walk,2,2-Disagree
-person,transportation_statement_walk,3,3-Neither agree nor disagree
-person,transportation_statement_walk,4,4-Agree
-person,transportation_statement_walk,5,5-Strongly Agree
-person,transportation_statement_walk,995,Missing Response
-person,work_from_home,0,No
-person,work_from_home,1,"Yes, some of the time (less than 50% of the time)"
-person,work_from_home,2,"Yes, most of the time (at least than 50% but less than 100% of the time)"
-person,work_from_home,3,"Yes, all of the time (100% of the time)"
-person,work_from_home,995,Missing Response
-trip_unlinked,hhmember13,1,Household member 13 was on trip
-trip_unlinked,hhmember13,0,Not selected
-trip_unlinked,hhmember13,995,Missing
-trip_unlinked,imputed_joint_trip,0,Not imputed
-trip_unlinked,imputed_joint_trip,1,Imputed
-trip_unlinked,imputed_record_type,0,Not imputed
-trip_unlinked,imputed_record_type,1,Imputed as a non-proxy trip
-trip_unlinked,imputed_record_type,2,Imputed school trip
-trip_linked,linked_trip_mode,1,School bus
-trip_linked,linked_trip_mode,2,Drive to ferry
-trip_linked,linked_trip_mode,3,Drive to rail
-trip_linked,linked_trip_mode,4,Drive to bus
-trip_linked,linked_trip_mode,5,Walk to ferry
-trip_linked,linked_trip_mode,6,Walk to rail
-trip_linked,linked_trip_mode,7,Walk to bus
-trip_linked,linked_trip_mode,8,Vehicle with 3 or more occupants
-trip_linked,linked_trip_mode,9,Vehicle with 2 occupants
-trip_linked,linked_trip_mode,10,Single-occupancy vehicle
-trip_linked,linked_trip_mode,11,Bike
-trip_linked,linked_trip_mode,12,Other micromobility
-trip_linked,linked_trip_mode,13,Taxi
-trip_linked,linked_trip_mode,14,"Other hired service (Uber, Lyft, or other smartphone-app car service)"
-trip_linked,linked_trip_mode,15,Walk
-trip_linked,linked_trip_mode,16,Long-distance travel
-trip_linked,linked_trip_mode,17,Other
-trip_linked,linked_trip_mode,-1,Missing
-day,no_travel,0,Yes
-day,no_travel,1,No
-day,no_travel,995,Missing Response
-person,age_detailed,0,Under 1 year
-person,age_detailed,1,1 year old
-person,age_detailed,2,2 years old
-person,age_detailed,3,3 years old
-person,age_detailed,4,4 years old
-person,age_detailed,5,5 years old
-person,age_detailed,6,6 years old
-person,age_detailed,7,7 years old
-person,age_detailed,8,8 years old
-person,age_detailed,9,9 years old
-person,age_detailed,10,10 years old
-person,age_detailed,11,11 years old
-person,age_detailed,12,12 years old
-person,age_detailed,13,13 years old
-person,age_detailed,14,14 years old
-person,age_detailed,15,15 years old
-person,age_detailed,16,16 years old
-person,age_detailed,17,17 years old
-person,age_detailed,18,18 years old
-person,age_detailed,19,19 years old
-person,age_detailed,20,20 years old
-person,age_detailed,21,21 years old
-person,age_detailed,22,22 years old
-person,age_detailed,23,23 years old
-person,age_detailed,24,24 years old
-person,age_detailed,25,25 years old
-person,age_detailed,26,26 years old
-person,age_detailed,27,27 years old
-person,age_detailed,28,28 years old
-person,age_detailed,29,29 years old
-person,age_detailed,30,30 years old
-person,age_detailed,31,31 years old
-person,age_detailed,32,32 years old
-person,age_detailed,33,33 years old
-person,age_detailed,34,34 years old
-person,age_detailed,35,35 years old
-person,age_detailed,36,36 years old
-person,age_detailed,37,37 years old
-person,age_detailed,38,38 years old
-person,age_detailed,39,39 years old
-person,age_detailed,40,40 years old
-person,age_detailed,41,41 years old
-person,age_detailed,42,42 years old
-person,age_detailed,43,43 years old
-person,age_detailed,44,44 years old
-person,age_detailed,45,45 years old
-person,age_detailed,46,46 years old
-person,age_detailed,47,47 years old
-person,age_detailed,48,48 years old
-person,age_detailed,49,49 years old
-person,age_detailed,50,50 years old
-person,age_detailed,51,51 years old
-person,age_detailed,52,52 years old
-person,age_detailed,53,53 years old
-person,age_detailed,54,54 years old
-person,age_detailed,55,55 years old
-person,age_detailed,56,56 years old
-person,age_detailed,57,57 years old
-person,age_detailed,58,58 years old
-person,age_detailed,59,59 years old
-person,age_detailed,60,60 years old
-person,age_detailed,61,61 years old
-person,age_detailed,62,62 years old
-person,age_detailed,63,63 years old
-person,age_detailed,64,64 years old
-person,age_detailed,65,65 years old
-person,age_detailed,66,66 years old
-person,age_detailed,67,67 years old
-person,age_detailed,68,68 years old
-person,age_detailed,69,69 years old
-person,age_detailed,70,70 years old
-person,age_detailed,71,71 years old
-person,age_detailed,72,72 years old
-person,age_detailed,73,73 years old
-person,age_detailed,74,74 years old
-person,age_detailed,75,75 years old
-person,age_detailed,76,76 years old
-person,age_detailed,77,77 years old
-person,age_detailed,78,78 years old
-person,age_detailed,79,79 years old
-person,age_detailed,80,80 years old
-person,age_detailed,81,81 years old
-person,age_detailed,82,82 years old
-person,age_detailed,83,83 years old
-person,age_detailed,84,84 years old
-person,age_detailed,85,85 years old
-person,age_detailed,86,86 years old
-person,age_detailed,87,87 years old
-person,age_detailed,88,88 years old
-person,age_detailed,89,89 years old
-person,age_detailed,90,90 years old
-person,age_detailed,91,91 years old
-person,age_detailed,92,92 years old
-person,age_detailed,93,93 years old
-person,age_detailed,94,94 years old
-person,age_detailed,95,95 years old
-person,age_detailed,96,96 years old
-person,age_detailed,97,97 years old
-person,age_detailed,98,98 years old
-person,age_detailed,99,99 or older
-person,age_detailed,995,Missing response
-person,work_mode,79,Drive onto ferry
-hh,home_state,53,Washington
-hh,home_county,53033,King County
-hh,home_county,53035,Kitsap County
-hh,home_county,53053,Pierce County
-hh,home_county,53061,Snohomish County
-trip_unlinked,dest_purpose_cat,995,Missing

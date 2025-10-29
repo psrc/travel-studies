@@ -155,3 +155,11 @@ get_vars_summary("trip_unlinked", c("origin_purpose","dest_purpose"))
 
 
 :::
+
+## Trip Duration and Distance
+
+```{r}
+summary(tables[['trip_unlinked']] %>%
+          select(all_of(c("duration_minutes","distance_meters","distance_beeline_meters"))))
+```
+

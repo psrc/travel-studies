@@ -7,7 +7,12 @@ date: today
 #| include: false
 
 source("functions.R")
-tables <- readRDS("analysis_table.RDS")
+# before 10/20/2025 when mode_acc and mode_egr code is wrong and new delivered fixes are incorporated
+# fixes: (fix table in codebook rsg_value_labels_initial_fix.csv)
+# 1. mode_acc_fix
+# 2. mode_egr_fix
+# 3. school_freq_fix
+tables <- readRDS("analysis_table_before_mode_fix.RDS")
 df_loc <- readRDS("df_loc.RDS")
 df_trip_loc <- df_loc[[1]]
 ```
@@ -21,7 +26,7 @@ survey_type <- tables[["hh"]] %>%
   mutate(hhid = as.character(hhid))
 
 person <- tables[["person"]] %>%
-  select(all_of(c("person_id","relationship","age_detailed","bike_freq"))) %>%
+  select(all_of(c("person_id","relationship","age_detailed","bike_freq","school_freq_fix"))) %>%
   mutate(person_id = as.character(person_id),
          use_bike = ifelse(bike_freq<10, 1,0),
          age_group = case_when(age_detailed<18~ "Under 18",
@@ -183,5 +188,44 @@ CreateTableOne(data = transit_trips,
 ```
 
 :::
+
+## Solution from codebook correction [database not changed yet]
+
+```{r}
+# get all columns in trip table that are related to trip modes
+trip_mode <- tables[["trip_unlinked"]] %>%
+  select(all_of(c("hhid","person_id","day_id","tripid","is_access","is_egress","is_transit",
+                  "mode_1","mode_2","mode_3","mode_4","mode_acc","mode_egr", "mode_type","mode_other_specify",
+                  "has_access","has_egress","has_synthetic_access","has_synthetic_egress",
+                  "o_in_region","d_in_region",
+                  "mode_acc_fix","mode_egr_fix"))) %>%
+  left_join(df_trip_loc, by = "tripid") %>%
+  left_join(survey_type, by = "hhid") %>%
+  left_join(person, by = "person_id")
+
+transit_modes <- c("23","105","108")
+transit_trips <- trip_mode %>%
+  filter_at(vars(mode_1:mode_4), any_vars(. %in% transit_modes))
+```
+
+### New results
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc_fix","mode_egr_fix"), 
+                         factorVars = c("mode_acc_fix","mode_egr_fix"), 
+                         includeNA = TRUE)
+```
+
+```{r}
+  
+df <- transit_trips %>%
+  mutate(across(all_of(c("mode_acc_fix","mode_egr_fix")), ~get_labels(., varname = cur_column(), "fix", order = TRUE)))
+
+CreateTableOne(data = df,
+                   vars = c("mode_acc_fix","mode_egr_fix"),
+                   includeNA = TRUE
+    )
+```
 
 

@@ -1,14 +1,14 @@
 source("functions.R")
 
 # read data
-Trip <- get_query("SELECT * FROM dbo.ex_trip_unlinked", db_name = config$db_raw)
-Trip_linked <- get_query("SELECT * FROM dbo.ex_trip_linked", db_name = config$db_raw)
+Trip <- get_query("SELECT * FROM delivered_20251021.ex_trip_unlinked", db_name = config$db_raw)
+Trip_linked <- get_query("SELECT * FROM delivered_20251021.ex_trip_linked", db_name = config$db_raw)
 
-Household <- get_query("SELECT * FROM dbo.ex_hh", db_name = config$db_raw)
-Person <- get_query("SELECT * FROM dbo.ex_person", db_name = config$db_raw)
-Day <- get_query("SELECT * FROM dbo.ex_day", db_name = config$db_raw)
-Vehicle <- get_query("SELECT * FROM dbo.ex_vehicle", db_name = config$db_raw)
-Location <- get_query("SELECT * FROM dbo.ex_location", db_name = config$db_raw)
+Household <- get_query("SELECT * FROM delivered_20251021.ex_hh", db_name = config$db_raw)
+Person <- get_query("SELECT * FROM delivered_20251021.ex_person", db_name = config$db_raw)
+Day <- get_query("SELECT * FROM delivered_20251021.ex_day", db_name = config$db_raw)
+Vehicle <- get_query("SELECT * FROM delivered_20251021.ex_vehicle", db_name = config$db_raw)
+Location <- get_query("SELECT * FROM delivered_20251021.ex_location", db_name = config$db_raw)
 
 # data processing
 df_trip <- Trip %>%
@@ -17,6 +17,18 @@ df_trip <- Trip %>%
 
 df_person <- Person %>%
   get_county("work_bg","work_county")
+
+# 10/20/2025: fix mode_acc/mode_egr value labels
+# mode_fix <- c("1" =	8, "2" =	1, "8" =	2, "9" =	18, "10" =	17, "11" =	5, "12" =	12, "97" =	97, "995" =	995)
+# df_trip <- df_trip %>%
+#   mutate(mode_acc_fix = recode(mode_acc, !!!mode_fix, .default = 9999),
+#          mode_egr_fix = recode(mode_egr, !!!mode_fix, .default = 9999))
+# df_person <- df_person %>%
+#   mutate(school_freq_fix = school_freq)
+# end fix
+
+
+
 
 # analysis data
 tables <- list("trip_unlinked"=df_trip,
