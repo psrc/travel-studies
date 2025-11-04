@@ -1,0 +1,321 @@
+data type,variable,description,logic
+system,time_start,Time Started,NA
+system,date_complete,Date Submitted,NA
+system,complete,Completed all survey questions,NA
+system,ip_lon,Longitude of IP address,NA
+system,ip_lat,Latitude of IP address,NA
+person character,enjoy_travel,I generally enjoy the act of travelling itself.,NA
+travel choice,cost_consideration,Cost considerations affect the choices I make about my daily travel.,NA
+person character,worry,I worry a lot.,NA
+person character,dest_proximity,"I like the idea of having stores, restaurants, and offices mixed among the homes in my neighborhood.",NA
+person character,satisfied,I am generally satisfied with my life.,NA
+person character,safety_ratings,I don't pay much attention to vehicle safety ratings.,NA
+person character,environment_emphasis,Environmental issues are emphasized too much in this country.,NA
+person character,own_car,I want to own a car.,NA
+person character,risk_taking,I enjoy taking risks for the sake of excitement.,NA
+person character,travel_satisfaction,"Overall, I am satisfied with my daily travel.",NA
+person character,safe_option,"I generally choose the safe option in life, even if it is boring or dull.",NA
+person character,travel_stressful,My daily travel is often stressful.,NA
+travel choice,telework_importance,It is important for my job to allow me to telework.,NA
+travel choice,transit_travel,I like the idea of public transit as a means of travel for me personally.,NA
+travel behavior,drive,"Can drive a motor vehicle, including a car, personal truck, SUV, van, or motorcycle",NA
+travel behavior,travel_methods_drove,Travel methods in past 30 days -- Drove (with others or alone) or rode in a car with person(s) that you know,NA
+travel behavior,travel_methods_rideshare,"Travel methods in past 30 days -- Rideshare (e.g., Uber, Lyft, other smartphone-app ride service, or taxi)",NA
+travel behavior,travel_methods_carshare,"Travel methods in past 30 days -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",NA
+travel behavior,travel_methods_motorcycle,Travel methods in past 30 days -- Motorcycle,NA
+travel behavior,travel_methods_transit,"Travel methods in past 30 days -- Transit (e.g., bus, rail, passenger ferry)",NA
+travel behavior,travel_methods_bicycle,Travel methods in past 30 days -- Bicycle (outside for 15 minutes or more),NA
+travel behavior,travel_methods_e_scooter,"Travel methods in past 30 days -- E-scooter (e.g., Bird, Lime)",NA
+travel behavior,travel_methods_walk,Travel methods in past 30 days -- Walk or wheelchair/roll (outside for 15 minutes or more),NA
+travel behavior,travel_methods_none,Travel methods in past 30 days -- None,NA
+person character,drive_relax,Driving is relaxing for me.,If drive = Yes
+travel choice,small_car,I prefer driving a small car that can easily fit into parking spaces.,If drive = Yes
+travel choice,walk_trips,I try to make as many of my trips as possible by walking/rolling or bicycling.,NA
+person character,physical_close,Being physically close to people I don't know makes me uncomfortable.,NA
+test,comfortable_test,Respond very comfortable to this question if you are paying attention.,NA
+travel choice,active_transport_practical,Walking/rolling or bicycling is not a practical way for me to travel.,NA
+travel choice,safe_car_size,"To feel safe when driving, I need a car that is bigger than average",If drive = Yes
+person character,learn_bike,Did you ever learn how to ride a bicycle?,NA
+person character,want_learn_bike,Would you ever be interested in learning how to ride a bicycle?,If learn_bike = No
+travel behavior,can_bike,Are you physically able to ride a bicycle now?,If learn_bike = Yes
+travel experience,bike_confidence,"Generally, how confident are you at riding a bicycle?",If can_bike = Yes
+travel experience,res_no_lanes,Comfortable bicycling on residential streets without bike lanes,If can_bike = Yes
+travel experience,res_with_lanes,Comfortable bicycling on residential streets with bike lanes,If can_bike = Yes
+travel experience,bike_trails,Comfortable bicycling on bike trail separate from the street,If can_bike = Yes
+travel choice,want_bike,I would like to travel more by bicycle than I do now.,If can_bike = Yes or learn_bike = Yes
+person info,employ,"Last week, did you do any work for pay or profit?",NA
+person info,employment,"Last week, what was your employment status?",If employ is not No
+person info,work_days,"Currently, how many days do you typically work for pay or profit each week?",If employ is not No
+person info,telework,"Do you ever work from home or telework (i.e., work remotely from anywhere)?",If employ is not No
+person info,telework_freq,"Currently, how often do you typically work from home or telework for part or all of your day's work?","If employ is not No and telework is not No or Yes, all of the time."
+person info,commute_freq,"Currently, how often do you typically commute to a work location away from home?","If employ is not No and telework is not Yes, all of the time."
+person info,office_type,"Currently, which of the following best describes where you work away from home?","If employ is not No and telework is not Yes, all of the time."
+person info,work_loc_1,Work address line 1 (or intersection street 1),"If employ is not No and telework is not Yes, all of the time."
+person info,work_loc_2,Work address line 2 (or intersection street 2),"If employ is not No and telework is not Yes, all of the time."
+person info,work_loc_3,Work city,"If employ is not No and telework is not Yes, all of the time."
+person info,work_loc_4,Work state or province,"If employ is not No and telework is not Yes, all of the time."
+person info,work_loc_5,Work zip code,"If employ is not No and telework is not Yes, all of the time."
+travel behavior,commute_mode,"Currently, how do you typically travel to your primary workplace?",If employ is not No and commute_freq is not Never
+travel behavior,commute_mode_other,Other commute mode,If commute_mode = other
+travel behavior,transit_freq,"In the past 30 days, how often have you used transit (e.g., bus, rail, passenger ferry)?",If travel_method is Transit
+travel behavior,bike_freq,"In the past 30 days, how often have you ridden a bicycle outside for 15 or more minutes?",If travel_method is bike
+travel behavior,walk_freq,"In the past 30 days, how often have you walked outside for 15 or more minutes?",If travel_method is walk
+travel behavior,tnc_freq,"In the past 30 days, how often have you used Uber, Lyft, or other smartphone-app ride services (i.e., rideshare), or a taxi?",If travel_method is TNC
+travel behavior,motorcycle_freq,"In the past 30 days, how often have you ridden a motorcycle?",if travel_method is Motorcycle
+travel behavior,car_freq,"In the past 30 days, how often have you driven in a car (alone or with others) or ridden in a car with person(s) that you know?",If travel_method is drive with others or ride in a car
+travel behavior,caregiver,"Are you a caregiver for someone who has difficulty doing errands alone (such as visiting a doctor's office or shopping) because of a physical, mental, or emotional condition?",NA
+travel experience,walk_comfort,"I could comfortably walk/roll to some activity locations (e.g., stores, parks, libraries, schools) near my home",NA
+travel experience,walk_comfort_traffic,"Discomfort walking/rolling -- Traffic safety concerns (e.g., high traffic speeds, erratic driving)",If walk_comfort is not agree
+travel experience,walk_comfort_infra,"Discomfort walking/rolling -- Disconnected, missing, or poor-quality infrastructure (e.g., no sidewalks, incomplete sidewalks, missing curb ramps)",If walk_comfort is not agree
+travel experience,walk_comfort_comfort,"Discomfort walking/rolling -- Uncomfortable travel (e.g., the route is too hilly or steep, too noisy from cars)",If walk_comfort is not agree
+travel experience,walk_comfort_security,"Discomfort walking/rolling -- Personal security concerns (e.g., fear of crime, others acting unsafe ways like yelling or using drugs)",If walk_comfort is not agree
+travel experience,walk_comfort_maintenance,"Discomfort walking/rolling -- Poor maintenance (e.g., broken sidewalks, debris on sidewalks or in crosswalks)",If walk_comfort is not agree
+travel experience,walk_comfort_perception,Discomfort walking/rolling -- People would look down on me for walking/rolling,If walk_comfort is not agree
+travel experience,walk_comfort_far,Discomfort walking/rolling -- It is physically or mentally challenging for me to walk/roll very far,If walk_comfort is not agree
+travel experience,walk_comfort_dist,Discomfort walking/rolling -- Places I want to visit are too far away for me to walk/roll,If walk_comfort is not agree
+travel experience,walk_comfort_dislike,Discomfort walking/rolling -- I don't like to walk/roll,If walk_comfort is not agree
+travel experience,walk_comfort_other,Discomfort walking/rolling -- Some other reason,If walk_comfort is not agree
+travel experience,walk_comfort_other_specify,Other reason for discomfort walking/rolling to activity locations near home,if selected walk_comfort_other
+travel experience,bike_comfort,"I could comfortably bicycle to some activity locations (e.g., stores, parks, libraries, schools) within a few miles of my home.",NA
+travel experience,bike_comfort_traffic,"Discomfort biking -- Traffic safety concerns (e.g., high traffic speeds, erratic driving)",if bike_comfort is not agree
+travel experience,bike_comfort_infra,"Discomfort biking -- Disconnected, missing, or poor-quality infrastructure (e.g., no bike lanes, bike lanes are incomplete and/or frequently blocked)",if bike_comfort is not agree
+travel experience,bike_comfort_comfort,"Discomfort biking -- Uncomfortable travel (e.g., the route is too hilly or steep, too noisy from cars)",if bike_comfort is not agree
+travel experience,bike_comfort_security,"Discomfort biking -- Personal security concerns (e.g., fear of crime, others acting unsafe ways like yelling or using drugs)",if bike_comfort is not agree
+travel experience,bike_comfort_maintenance,"Discomfort biking -- Poor roadway maintenance (e.g., debris in bike lanes, potholes)",if bike_comfort is not agree
+travel experience,bike_comfort_perception,Discomfort biking -- People would look down on me for bicycling,if bike_comfort is not agree
+travel experience,bike_comfort_far,Discomfort biking -- It is physically or mentally challenging for me to bicycle very far,if bike_comfort is not agree
+travel experience,bike_comfort_distance,Discomfort biking -- Places I want to visit are too far away for me to bicycle,if bike_comfort is not agree
+travel experience,bike_comfort_own,Discomfort biking -- I don't own a bicycle,if bike_comfort is not agree
+travel experience,bike_comfort_dislike,Discomfort biking -- I don't like to bicycle/can't bicycle,if bike_comfort is not agree
+travel experience,bike_comfort_other,Discomfort biking -- Some other reason,if bike_comfort is not agree
+travel experience,bike_comfort_other_specify,Other reason for discomfort biking to activity locations near home,if selected bike_comfort_other
+travel experience,transit_comfort,"I could comfortably take transit to some activity locations (e.g., stores, parks, libraries, schools) within a few miles of my home.",NA
+travel experience,transit_comfort_traffic,"Discomfort taking transit -- Traffic safety concerns (e.g., high traffic speeds at or near bus stops or train stations)",if transit_comfort is not agree
+travel experience,transit_comfort_infra,"Discomfort taking transit -- Disconnected, missing, or poor-quality infrastructure (e.g., no bike lanes connecting me to bus stops or train stations, lack of sidewalks/crosswalks connecting me to bus stops or train stations)",if transit_comfort is not agree
+travel experience,transit_comfort_schedule,"Discomfort taking transit -- Scheduling/frequency (e.g., service is too infrequent, or does not fit with my schedule)",if transit_comfort is not agree
+travel experience,transit_comfort_comfort,"Discomfort taking transit -- Uncomfortable traveling to transit (e.g., the route is too hilly or steep while walking/rolling to transit, no place to wait on the bus)",if transit_comfort is not agree
+travel experience,transit_comfort_comfort_bus,"Discomfort taking transit -- Uncomfortable while riding transit (e.g., too close to others while riding a bus, unclean stations or buses)",if transit_comfort is not agree
+travel experience,transit_comfort_security,"Discomfort taking transit -- Personal security concerns (e.g., fear of crime, others acting unsafe ways like yelling or using drugs)",if transit_comfort is not agree
+travel experience,transit_comfort_perception,Discomfort taking transit -- People would look down on me for riding transit,if transit_comfort is not agree
+travel experience,transit_comfort_mismatch,Discomfort taking transit -- Transit does not go to places I want to visit,if transit_comfort is not agree
+travel experience,transit_comfort_available,Discomfort taking transit -- Transit is not available near my home,if transit_comfort is not agree
+travel experience,transit_comfort_challenge,Discomfort taking transit -- It is physically or mentally challenging for me to ride transit or get to transit stops/stations,if transit_comfort is not agree
+travel experience,transit_comfort_dislike,Discomfort taking transit -- I don't like transit,if transit_comfort is not agree
+travel experience,transit_comfort_other,Discomfort taking transit -- Some other reason,if transit_comfort is not agree
+travel experience,transit_comfort_other_specify,Some other reason,if selected transit_comfort_other
+travel choice,neighborhood_trips,Most of my daily trips are within my own neighborhood or nearby neighborhoods.,NA
+travel choice,walk_recreation,"How often do you walk, roll, or run for recreation or exercise?",NA
+travel experience,walk_recreation_comfort,"It is comfortable for me to walk, roll, or run in my neighborhood for recreation or exercise.",If walk_recreation is not Never
+travel choice,bike_recreation,How often do you ride a bicycle for recreation or exercise?,NA
+travel experience,bike_recreation_comfort,It is comfortable for me to ride a bicycle in my neighborhood for recreation or exercise.,if bike_recreation is not Never
+travel experience,traffic_worry,"In general, I worry about being in a traffic crash when I'm traveling.",NA
+travel experience,harrassment,I generally feel safe from harassment when I travel.,NA
+travel experience,urgent_worry,"Given my current travel options, I worry about my ability to make urgent trips (e.g., to the hospital) if I needed to.",NA
+travel experience,walk_recreation_relax,"Walking/rolling for travel, exercise, or to take a break is relaxing to me.",NA
+travel experience,travel_anxiety,Even just planning my travel can make me anxious about my safety.,NA
+travel experience,overall_safety,"Overall, I feel safe when traveling day-to-day.",NA
+travel experience,travel_worry,"When I think about traveling, I worry about the safety of those traveling with me.",NA
+travel experience,drive_safely,"In general, I think people drive safely in my neighborhood.",NA
+travel experience,bike_comfort_cars,I am/would be comfortable bicycling even when there are a lot of cars around me.,NA
+travel experience,alert_traveler,I am generally on the alert against someone bothering me when I travel alone.,NA
+travel experience,drive_worry,"When driving, I worry about my own safety.",If travel_method is drive with others or ride in a car
+travel experience,signal_confidence,"With a Walk signal in my favor, I am confident crossing the street.",NA
+travel experience,worry_destination,"Before I go somewhere, I worry about making it to my destination safely.",NA
+travel experience,safety_choices,Safety concerns affect the travel choices I make.,NA
+travel experience,safety_choices_costs,Safety-related travel choices have increased my transportation costs.,NA
+travel choice,safety_choices_modes,"I avoid certain modes of transportation (e.g., walking or rolling, bicycling, transit) because of safety concerns.",NA
+travel experience,worry_security,Worries about personal security keep me from going where I need to go.,NA
+travel experience,shortest_path_fear,You fear being involved in a traffic crash on the shortest path?,NA
+travel experience,shortest_path_assault,You fear being assaulted or harassed on the shortest path?,NA
+travel experience,traffic_crash_worry,You worry about being involved in a traffic crash otherwise?,NA
+travel experience,traffic_harrassment,You worry about being assaulted or harassed otherwise?,NA
+travel experience,no_safe_travel,You do not have a way to travel that feels safe from being in a traffic crash?,NA
+travel experience,no_harm_travel,You do not have a way to travel that feels safe from harm from others?,NA
+travel experience,feel_safe,You do not feel safe from traffic crashes otherwise?,NA
+travel experience,fear_assault,You fear being assaulted or harassed otherwise?,NA
+travel experience,feel_safe_crash,You do not feel safe from traffic crashes otherwise?,NA
+travel experience,fear_assault_2,You feared being assaulted or harassed otherwise.,NA
+travel experience,avoid_walk_1,You did not feel safe from traffic crashes otherwise?,NA
+travel experience,avoid_walk_2,You worry about being assaulted or harassed otherwise?,NA
+person character,system_safe,Engineers and planners have designed a transportation system that is generally safe.,NA
+person character,safe_clothes,Wearing dark colors while walking or using a wheelchair at night is a cause of traffic deaths.,NA
+person character,traffic_enforcement,More enforcement of traffic laws would substantially improve traffic safety.,NA
+person character,speed_limits,Vehicle speed limits are set too high in some places.,NA
+test,disagree_test,Select strongly disagree if you are paying attention.,NA
+person character,traffic_deaths,Traffic-related deaths are an unfortunate but inevitable part of traveling.,NA
+person character,traffic_rules,"If I follow the traffic rules, I can expect to be safe on the road.",NA
+incident experience,crash_participant,I have personally been in a traffic crash.,NA
+incident experience,crash_witness,I have witnessed a traffic crash involving another person or other people who were traveling.,NA
+incident experience,crash_near_miss,I have personally had a near-miss experience while traveling..,NA
+incident experience,security_concern,I have experienced a personal security concern while traveling.,NA
+incident experience,no_experience,None of these events or experiences has happened to me.,NA
+incident experience,no_share,I prefer not to share about such events.,NA
+incident experience,experience_followup,Are you comfortable answering a few questions about the crash?,If crash_participant
+incident experience,crash_when,When did the traffic crash occur?,If crash_participant and experience_followup is Yes
+incident experience,crash_mode,How were you traveling when the crash happened?,If crash_participant and experience_followup is Yes
+incident experience,crash_travelling_other,How were you traveling when the crash happened? (Other),if crash_mode = other
+incident experience,crash_time,"To the best of your recollection, at what time of day did the crash occur?",If crash_participant and experience_followup is Yes
+incident experience,crash_time_other,"To the best of your recollection, at what time of day did the crash occur? (Other)",If crash_time = other
+incident experience,crash_conditions_clear,Crash weather conditions -- Clear / No bad conditions,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_cloud,Crash weather conditions -- Cloudy or overcast,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_rain,Crash weather conditions -- Rain,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_snow,Crash weather conditions -- Snow,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_sleet,Crash weather conditions -- Sleet or freezing rain,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_fog,Crash weather conditions -- Fog,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_unknown,Crash weather conditions -- Unknown,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_other,Crash weather conditions -- Other,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_unsure,Crash weather conditions -- I am not sure/don't remember,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_pnta,Crash weather conditions -- Prefer not to say,If crash_participant and experience_followup is Yes
+incident experience,crash_conditions_other_specify,Other weather conditions during crash,If selected crash_conditions_other
+incident experience,crash_involved,Were others involved in the crash?,If crash_participant and experience_followup is Yes and crash_involved is Yes
+incident experience,crash_number_people,"Including yourself, how many parties were involved in the crash?",If crash_participant and experience_followup is Yes
+incident experience,crash_other_mode,"Other party's mode of transport during crash -- Mode of transport during crash -- Driving or riding in a personal, rented, or carshare vehicle",If crash_participant and experience_followup is Yes
+incident experience,crash_other_tnc,"Other party's mode of transport during crash -- Mode of transport during crash -- Using a rideshare service (Uber, Lyft, other smartphone-app ride service, or taxi)",If crash_participant and experience_followup is Yes
+incident experience,crash_other_motorcycle,Other party's mode of transport during crash -- Mode of transport during crash -- Riding a motorcycle,If crash_participant and experience_followup is Yes
+incident experience,crash_other_car,Other party's mode of transport during crash -- Mode of transport during crash -- Driving or riding in a transit vehicle,If crash_participant and experience_followup is Yes
+incident experience,crash_other_bike,Other party's mode of transport during crash -- Mode of transport during crash -- Bicycling,If crash_participant and experience_followup is Yes
+incident experience,crash_other_escooter,Other party's mode of transport during crash -- Mode of transport during crash -- Riding an e-scooter,If crash_participant and experience_followup is Yes
+incident experience,crash_other_walk,Other party's mode of transport during crash -- Mode of transport during crash -- Walking/rolling,If crash_participant and experience_followup is Yes
+incident experience,crash_other_other,Other party's mode of transport during crash -- Mode of transport during crash -- Other,If crash_participant and experience_followup is Yes
+incident experience,crash_other_unsure,Other party's mode of transport during crash -- Mode of transport during crash -- I am not sure/don't remember,If crash_participant and experience_followup is Yes
+incident experience,crash_other_pnta,Other party's mode of transport during crash -- Mode of transport during crash -- Prefer not to say,If crash_participant and experience_followup is Yes
+incident experience,crash_other_specify,Other party's mode of transport during crash,if selected crash_other_other
+incident experience,crash_severity,How would you describe the severity of the crash?,If crash_participant and experience_followup is Yes
+incident experience,crash_worry_self,After the crash -- I worry more about traffic safety for myself.,If crash_participant and experience_followup is Yes
+incident experience,crash_worry_others,After the crash -- I worry more about traffic safety for my friends and family.,If crash_participant and experience_followup is Yes
+incident experience,crash_change_travel,After the crash -- I have changed the means of travel that I use in some cases.,If crash_participant and experience_followup is Yes
+incident experience,crash_change_time,After the crash -- I have changed the time of day of my travel in some cases.,If crash_participant and experience_followup is Yes
+incident experience,crash_travel_less,After the crash -- I travel less often in general.,If crash_participant and experience_followup is Yes
+incident experience,crash_none,After the crash -- None of these apply to me.,If crash_participant and experience_followup is Yes
+incident experience,crash_share_other,What else would you like to share about how the crash has influenced how you travel?,If crash_participant and experience_followup is Yes
+incident experience,crash_share_sentiment,Sentiment - What else would you like to share about how the crash has influenced how you travel?,If crash_participant and experience_followup is Yes
+incident experience,near_miss_followup,Are you comfortable answering a few questions about the near miss?,If near_miss_participant and not crash_participant
+incident experience,near_miss_when,When did the near miss occur?,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_mode,How were you traveling when your near miss happened?,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_mode_other_specify,Other way of traveling when near miss happened,If near_miss_mode = other
+incident experience,near_miss_time,"To the best of your recollection, at what time of day did the near miss occur?",If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_clear,Near miss weather conditions -- Clear / No bad conditions,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_cloudy,Near miss weather conditions -- Cloudy or overcast,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_rain,Near miss weather conditions -- Rain,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_snow,Near miss weather conditions -- Snow,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_sleet,Near miss weather conditions -- Sleet or freezing rain,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_fog,Near miss weather conditions -- Fog,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_unknown,Near miss weather conditions -- Unknown,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_other,Near miss weather conditions -- Other,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_unsure,Near miss weather conditions -- I am not sure/don't remember,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_pnta,Near miss weather conditions -- Prefer not to say,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_other_specify,Other weather conditions when near miss happened,if selected near_miss_other
+incident experience,near_miss_other_party,"Was another party involved in the near miss? Remember, party means either a single person or a group of people traveling together.",If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_num_people,"Including yourself, how many parties were involved in the near miss?",If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_care,"Other party's mode of transport during near miss -- Mode of transport during near miss -- Driving or riding in a personal, rented, or carshare vehicle",If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_tnc,"Other party's mode of transport during near miss -- Mode of transport during near miss -- Using a rideshare service (Uber, Lyft, other smartphone-app ride service, or taxi)",If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_motorcylce,Other party's mode of transport during near miss -- Mode of transport during near miss -- Riding a motorcycle,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_driving,Other party's mode of transport during near miss -- Mode of transport during near miss -- Driving or riding in a transit vehicle,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_bike,Other party's mode of transport during near miss -- Mode of transport during near miss -- Bicycling,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_scooter,Other party's mode of transport during near miss -- Mode of transport during near miss -- Riding an e-scooter,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_walking,Other party's mode of transport during near miss -- Mode of transport during near miss -- Walking/rolling,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_mode_other_party,Other party's mode of transport during near miss -- Mode of transport during near miss -- Other,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_mode_unsure,Other party's mode of transport during near miss -- Mode of transport during near miss -- I am not sure/don't remember,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_mode_pnta,Other party's mode of transport during near miss -- Mode of transport during near miss -- Prefer not to say,If near_miss_participant and not crash_participant and near_miss_followup is Yes and near_miss_other_party is not No
+incident experience,near_miss_mode_other_party_specify,Other party's mode of transport during near miss,if selected near_miss_mode_other_party
+incident experience,near_miss_worry_self,After the near miss -- I worry more about traffic safety for myself.,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_worry_others,After the near miss -- I worry more about traffic safety for my friends and family.,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_change_travel,After the near miss -- I have changed the means of travel that I use in some cases.,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_change_time,After the near miss -- I have changed the time of day of my travel in some cases.,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_travel_less,After the near miss -- I travel less often in general.,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,near_miss_none,After the near miss -- None of these apply to me.,If near_miss_participant and not crash_participant and near_miss_followup is Yes
+incident experience,witness_followup,"Are you comfortable answering a few questions about the crash that you witnessed? If you have witnessed more than one crash, we would like to know about the one that sticks out most clearly in your mind.",If witness_participant and not crash_participant or near_miss_participant
+incident experience,witness_when,When did you witness the crash?,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_num_people,"How many parties were in the crash that you witnessed? Remember, party means either a single person or a group of people traveling together.",If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_driving,"Other party's mode witnessed -- Driving or riding in a personal, rented, or carshare vehicle",If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_tnc,"Other party's mode witnessed -- Using a rideshare service (Uber, Lyft, other smartphone-app ride service, or taxi)",If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_motorcycle,Other party's mode witnessed -- Riding a motorcycle,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_transit,Other party's mode witnessed -- Driving or riding in a transit vehicle,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_bike,Other party's mode witnessed -- Bicycling,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_scooter,Other party's mode witnessed -- Riding an e-scooter,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_walk,Other party's mode witnessed -- Walking/rolling,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_other,Other party's mode witnessed -- Other,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_unsure,Other party's mode witnessed -- I am not sure/don't remember,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_pnta,Other party's mode witnessed -- Prefer not to say,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_mode_other_specify,Other party's mode of transport during witnessed crash,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_time,"To the best of your recollection, at what time of day did the crash that you witnessed occur?",If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_clear,Witnessed crash weather conditions -- Clear / No bad conditions,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_cloud,Witnessed crash weather conditions -- Cloudy or overcast,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_rain,Witnessed crash weather conditions -- Rain,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_snow,Witnessed crash weather conditions -- Snow,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_sleet,Witnessed crash weather conditions -- Sleet or freezing rain,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_fog,Witnessed crash weather conditions -- Fog,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_unsure,Witnessed crash weather conditions -- Unknown,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_other_condition,Witnessed crash weather conditions -- Other,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_other_condition_specify,Other weather conditions when witnessed crash happens,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_severity,How would you describe the severity of the crash you witnessed?,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_severity_other_specify,Other witnessed crash severity,if witness_severity = other
+incident experience,witness_worry_self,After witnessed crash -- I worry more about traffic safety for myself.,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_worry_others,After witnessed crash -- I worry more about traffic safety for my friends and family.,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_change_travel,After witnessed crash -- I have changed the means of travel that I use in some cases.,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_change_time,After witnessed crash -- I have changed the time of day of my travel in some cases.,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_travel_less,After witnessed crash -- I travel less often in general.,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_none,After witnessed crash -- None of these apply to me.,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_other,After witnessed crash -- Other,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
+incident experience,witness_other_specify,Other,If selected witness_other
+travel experience,personal_security_followup,Are you comfortable answering a few questions about the personal security concern you experienced?,if security_concern
+travel experience,security_smoking,Experienced while traveling -- Smoking or vaping tobacco or other drugs too close to me,if security_concern
+travel experience,security_music,Experienced while traveling -- Playing loud music or videos without headphones,if security_concern
+travel experience,security_yelling,"Experienced while traveling -- Yelling, arguing, or acting aggressively toward others",if security_concern
+travel experience,security_touching,Experienced while traveling -- Unwanted touching or standing too close,if security_concern
+travel experience,security_comments,"Experienced while traveling -- Making rude or threatening comments, including catcalling",if security_concern
+travel experience,security_intimidation,Experienced while traveling -- Groups acting in a loud or intimidating way,if security_concern
+travel experience,security_erratic,"Experienced while traveling -- People behaving erratically (e.g., talking loudly to themselves or at others)",if security_concern
+travel experience,security_approaching,Experienced while traveling -- People approaching unexpectedly,if security_concern
+travel experience,security_lewd,Experienced while traveling -- Lewd or explicit behaviors,if security_concern
+travel experience,security_violence,Experienced while traveling -- Physical violence,if security_concern
+travel experience,security_property,Experienced while traveling -- Property damage,if security_concern
+travel experience,security_other,Experienced while traveling -- Other (please specify),if security_concern
+travel experience,security_other_specify,Other experience while traveling,if selected security_other
+person info,age,How old are you?,If postcard particpant (email responses merged from HTS)
+person info,ethnicity_4,Ethnicity -- Cuban,If postcard particpant (email responses merged from HTS)
+person info,ethnicity_2,"Ethnicity -- Mexican, Mexican American, Chicano",If postcard particpant (email responses merged from HTS)
+person info,ethnicity_3,Ethnicity -- Puerto Rican,If postcard particpant (email responses merged from HTS)
+person info,ethnicity_997,"Ethnicity -- Another Hispanic, Latino, or Spanish origin",If postcard particpant (email responses merged from HTS)
+person info,ethnicity_1,"Ethnicity -- Not of Hispanic, Latino, or Spanish origin",If postcard particpant (email responses merged from HTS)
+person info,ethnicity_999,Ethnicity -- Prefer not to say,If postcard particpant (email responses merged from HTS)
+person info,race_1,Race -- African American or Black,If postcard particpant (email responses merged from HTS)
+person info,race_2,Race -- American Indian or Alaska Native,If postcard particpant (email responses merged from HTS)
+person info,race_3,Race -- Asian,If postcard particpant (email responses merged from HTS)
+person info,race_4,Race -- Native Hawaiian or other Pacific Islander,If postcard particpant (email responses merged from HTS)
+person info,race_5,Race -- White,If postcard particpant (email responses merged from HTS)
+person info,race_997,Race -- Other race,If postcard particpant (email responses merged from HTS)
+person info,race_999,Race -- Prefer not to say,If postcard particpant (email responses merged from HTS)
+person info,race_other_specify,Other race,If postcard particpant (email responses merged from HTS)
+person info,gender,Gender,If postcard particpant (email responses merged from HTS)
+person info,hhsize,Household size,If postcard particpant (email responses merged from HTS)
+person info,hh_children,Do you have children (under age 18) living in your household?,If postcard particpant
+person info,numchildren,Number of children in household,If postcard particpant & hh_children is Yes
+person info,vehicle_count,Number of vehicles,If postcard particpant (email responses merged from HTS)
+person info,hhincome_detailed,Last year's household income detailed categories,If postcard particpant (email responses merged from HTS)
+person info,disability_person,Person has a disability or illness that affects ability to travel,If postcard particpant
+person info,mobility_aides,Person uses mobility aides,If postcard particpant and disability is Yes
+system,home_loc_1,Home address line 1 (or intersection street 1),If postcard particpant
+system,home_loc_2,Home address line 2 (or intersection street 2),If postcard particpant
+system,home_loc_3,Home city,If postcard particpant
+system,home_loc_4,Home state or province,If postcard particpant
+system,home_loc_5,Home zip code,If postcard particpant
+system,participate,Respondent is willing to be recontacted for future transportation research,NA
+test,same_answer_prop,Proportion of first 14 survey questions with the same answer.,NA
+system,incentive_complete,Did the participant complete the study and receive an incentive?,NA
+system,test_q_flag,Did the participant answer 'Very Comfortable' to indicate they were paying attention and did they select 'Strongly Disagree' to indicate they were paying attention?,NA
+system,time_to_complete,"How long did the participant take to complete the survey, in seconds?",NA
+system,time_flag,Did the participant take less than 10 minutes to complete the survey?,NA
+system,rsg_rec,RSG recommended as complete,NA
+system,home_lat,Geocoded home address latitude,if postcard participant
+system,home_lon,Geocoded home address longitude,if postcard participant
+system,home_loc_flag,Type of geocoding used to determine home location,if postcard participant
+system,work_lon,Geocoded work address longitude,if postcard participant and employ is not No
+system,work_lat,Geocoded work address latitude,if postcard participant and employ is not No
+system,work_loc_flag,Type of geocoding used to determine work location,if postcard participant and employ is not No
+system,invite_lat,Latitude of invitation address,NA
+system,invite_lon,Longitude of invitation address,NA
+system,hhid,Household ID,NA
+system,person_id,Person ID,NA
+person info,platform,Method of invitation,NA
+test,same_answer_count,Count of answers with the same response in the first 14 questions,NA

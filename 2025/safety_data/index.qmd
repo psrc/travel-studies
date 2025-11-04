@@ -1,0 +1,87 @@
+---
+title: Topsheet summary
+date: today
+runtime: shiny
+
+echo: false
+
+format:
+  html:
+    mainfont: Poppins
+    theme: 
+      light: [cosmo, custom.scss]
+    code-tools: true
+    df-print: kable
+    warnings: false
+---
+
+
+```{r}
+#| include: false
+source("data_processing.R")
+```
+
+## missing variables
+
+```{r}
+#| echo: false
+vars_codebook <- variable_list$variable
+vars_data <- names(safety_responses)
+
+# setdiff(vars_codebook, vars_data) 
+# setdiff(vars_data, vars_codebook) 
+```
+
+- the delivered dataset is missing `res_no_lanes` variable while having additional `non_res_streets` variable
+- values in `non_res_streets`
+```{r}
+#| echo: false
+table(safety_responses$non_res_streets, useNA="always")
+```
+
+## stats by logic
+
+```{r}
+#| echo: false
+all_logics <- variable_list %>%
+  group_by(logic) %>%
+  summarise(n()) %>%
+  ungroup() %>%
+  arrange(desc(`n()`)) %>%
+  mutate(logic_count = paste0(logic," (",`n()`,")"))
+
+all_logics_list <-setNames(as.list(all_logics$logic), nm = all_logics$logic_count)
+```
+
+
+```{r}
+#| echo: false
+# test_logic <- "If can_bike = Yes"
+
+get_stat_output <- function(.data, variable_list, logic_des){
+
+  if(logic_des!="NA"){
+    incl_vars <- variable_list %>% filter(logic == logic_des, variable %in% codebook$variable)
+  } else{
+    incl_vars <- variable_list %>% filter(is.na(logic), variable %in% codebook$variable)
+  }
+  
+  stat <- .data %>%
+    select(any_of(incl_vars$variable)) %>%
+    get_vars_summary(incl_vars$variable)
+  return(stat)
+  
+}
+
+# get_stat_output(safety_responses, variable_list, test_logic)
+```
+
+
+```{r}
+#| echo: false
+shiny::selectInput('select_logic', ' Select Logic:', all_logics_list)
+
+shiny::renderPrint({
+  get_stat_output(safety_responses, variable_list, input$select_logic)
+})
+```
