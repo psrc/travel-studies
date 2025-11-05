@@ -1,0 +1,28 @@
+project:
+  type: book
+  output-dir: "safety-analysis"
+ 
+book:
+  title: " 2025 Safety Data"
+  search: false
+  sidebar:
+    logo: PSRClogo2016path.png
+
+  chapters:
+    - index.qmd
+
+execute:
+  freeze: auto
+  
+format:
+  html:
+    mainfont: Poppins
+    theme: 
+      light: [cosmo, custom.scss]
+    echo: false
+    code-tools: true
+    df-print: kable
+    
+toc: true
+toc-depth: 4
+warnings: false

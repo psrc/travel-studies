@@ -1,7 +1,7 @@
 ---
-title: Topsheet summary
+title: 2025 Safety Data Topsheet Summary
 date: today
-runtime: shiny
+server: shiny
 
 echo: false
 
@@ -24,7 +24,6 @@ source("data_processing.R")
 ## missing variables
 
 ```{r}
-#| echo: false
 vars_codebook <- variable_list$variable
 vars_data <- names(safety_responses)
 
@@ -32,17 +31,75 @@ vars_data <- names(safety_responses)
 # setdiff(vars_data, vars_codebook) 
 ```
 
+::: {.callout-warning}
+### Issues and Questions
+
 - the delivered dataset is missing `res_no_lanes` variable while having additional `non_res_streets` variable
 - values in `non_res_streets`
+
 ```{r}
-#| echo: false
 table(safety_responses$non_res_streets, useNA="always")
 ```
 
-## stats by logic
+:::
+
+## completed participant count
 
 ```{r}
-#| echo: false
+safety_responses %>%
+  group_by(platform) %>%
+  summarise(count = n())
+```
+
+
+## stats by logic
+
+
+::: {.callout-warning}
+### Issues and Questions
+
+- potential demographic variables that can be merged from HTS: `numchildren`, `disability_person`, `mobility_aides`
+- coding error in variables related to reasons not being able to comfortably use travel modes (Click to expand following blocks)
+
+::: {.callout-caution appearance="minimal" collapse="true"}
+
+## `bike_comfort`: "0: Not Selected" and NAs are flipped
+
+```{r}
+get_vars_summary(safety_responses, "bike_comfort")
+get_stat_output(safety_responses, variable_list, "if bike_comfort is not agree")
+```
+
+:::
+
+::: {.callout-caution appearance="minimal" collapse="true"}
+
+## `walk_comfort`: "0: Not Selected" and NAs are flipped
+
+```{r}
+get_vars_summary(safety_responses, "walk_comfort")
+get_stat_output(safety_responses, variable_list, "If walk_comfort is not agree")
+```
+
+:::
+
+::: {.callout-caution appearance="minimal" collapse="true"}
+
+## `transit_comfort`: has no "0: Not Selected" values
+  
+```{r}
+get_vars_summary(safety_responses, "transit_comfort")
+get_stat_output(safety_responses, variable_list, "if transit_comfort is not agree")
+```
+  
+:::
+:::
+
+::: {.callout-note}
+dashboard does not work with local document (working on publishing with Netlify)
+:::
+
+```{r}
 all_logics <- variable_list %>%
   group_by(logic) %>%
   summarise(n()) %>%
@@ -54,34 +111,43 @@ all_logics_list <-setNames(as.list(all_logics$logic), nm = all_logics$logic_coun
 ```
 
 
+
 ```{r}
-#| echo: false
-# test_logic <- "If can_bike = Yes"
-
-get_stat_output <- function(.data, variable_list, logic_des){
-
-  if(logic_des!="NA"){
-    incl_vars <- variable_list %>% filter(logic == logic_des, variable %in% codebook$variable)
-  } else{
-    incl_vars <- variable_list %>% filter(is.na(logic), variable %in% codebook$variable)
-  }
-  
-  stat <- .data %>%
-    select(any_of(incl_vars$variable)) %>%
-    get_vars_summary(incl_vars$variable)
-  return(stat)
-  
-}
-
-# get_stat_output(safety_responses, variable_list, test_logic)
+# dropdown: select logic
+shiny::selectInput('select_logic', ' Select Logic:', all_logics_list)
+# print stat table
+shiny::verbatimTextOutput("statData")
 ```
 
-
 ```{r}
-#| echo: false
-shiny::selectInput('select_logic', ' Select Logic:', all_logics_list)
+#| context: server
 
-shiny::renderPrint({
-  get_stat_output(safety_responses, variable_list, input$select_logic)
+source("data_processing.R")
+
+df <- shiny::reactive(get_stat_output(safety_responses, variable_list, input$select_logic))
+
+output$statData <- shiny::renderPrint({
+  df()
 })
 ```
+
+## single variable charts
+
+```{r}
+# dropdown: select variable
+shiny::selectInput('single_var', 'Select Variable:', unique(codebook$variable))
+# print plot
+plotly::plotlyOutput("single_plot") 
+```
+
+```{r}
+#| context: server
+
+source("data_processing.R")
+
+output$single_plot <- plotly::renderPlotly({
+  plot_single(input$single_var)
+})
+```
+
+

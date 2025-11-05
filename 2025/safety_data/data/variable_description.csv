@@ -167,7 +167,7 @@ incident experience,crash_conditions_other,Crash weather conditions -- Other,If 
 incident experience,crash_conditions_unsure,Crash weather conditions -- I am not sure/don't remember,If crash_participant and experience_followup is Yes
 incident experience,crash_conditions_pnta,Crash weather conditions -- Prefer not to say,If crash_participant and experience_followup is Yes
 incident experience,crash_conditions_other_specify,Other weather conditions during crash,If selected crash_conditions_other
-incident experience,crash_involved,Were others involved in the crash?,If crash_participant and experience_followup is Yes and crash_involved is Yes
+incident experience,crash_involved,Were others involved in the crash?,If crash_participant and experience_followup is Yes
 incident experience,crash_number_people,"Including yourself, how many parties were involved in the crash?",If crash_participant and experience_followup is Yes
 incident experience,crash_other_mode,"Other party's mode of transport during crash -- Mode of transport during crash -- Driving or riding in a personal, rented, or carshare vehicle",If crash_participant and experience_followup is Yes
 incident experience,crash_other_tnc,"Other party's mode of transport during crash -- Mode of transport during crash -- Using a rideshare service (Uber, Lyft, other smartphone-app ride service, or taxi)",If crash_participant and experience_followup is Yes
@@ -259,18 +259,18 @@ incident experience,witness_none,After witnessed crash -- None of these apply to
 incident experience,witness_other,After witnessed crash -- Other,If witness_participant and not crash_participant or near_miss_participant and witness_followup is Yes
 incident experience,witness_other_specify,Other,If selected witness_other
 travel experience,personal_security_followup,Are you comfortable answering a few questions about the personal security concern you experienced?,if security_concern
-travel experience,security_smoking,Experienced while traveling -- Smoking or vaping tobacco or other drugs too close to me,if security_concern
-travel experience,security_music,Experienced while traveling -- Playing loud music or videos without headphones,if security_concern
-travel experience,security_yelling,"Experienced while traveling -- Yelling, arguing, or acting aggressively toward others",if security_concern
-travel experience,security_touching,Experienced while traveling -- Unwanted touching or standing too close,if security_concern
-travel experience,security_comments,"Experienced while traveling -- Making rude or threatening comments, including catcalling",if security_concern
-travel experience,security_intimidation,Experienced while traveling -- Groups acting in a loud or intimidating way,if security_concern
-travel experience,security_erratic,"Experienced while traveling -- People behaving erratically (e.g., talking loudly to themselves or at others)",if security_concern
-travel experience,security_approaching,Experienced while traveling -- People approaching unexpectedly,if security_concern
-travel experience,security_lewd,Experienced while traveling -- Lewd or explicit behaviors,if security_concern
-travel experience,security_violence,Experienced while traveling -- Physical violence,if security_concern
-travel experience,security_property,Experienced while traveling -- Property damage,if security_concern
-travel experience,security_other,Experienced while traveling -- Other (please specify),if security_concern
+travel experience,security_smoking,Experienced while traveling -- Smoking or vaping tobacco or other drugs too close to me,if security_concern and personal_security_followup is Yes
+travel experience,security_music,Experienced while traveling -- Playing loud music or videos without headphones,if security_concern and personal_security_followup is Yes
+travel experience,security_yelling,"Experienced while traveling -- Yelling, arguing, or acting aggressively toward others",if security_concern and personal_security_followup is Yes
+travel experience,security_touching,Experienced while traveling -- Unwanted touching or standing too close,if security_concern and personal_security_followup is Yes
+travel experience,security_comments,"Experienced while traveling -- Making rude or threatening comments, including catcalling",if security_concern and personal_security_followup is Yes
+travel experience,security_intimidation,Experienced while traveling -- Groups acting in a loud or intimidating way,if security_concern and personal_security_followup is Yes
+travel experience,security_erratic,"Experienced while traveling -- People behaving erratically (e.g., talking loudly to themselves or at others)",if security_concern and personal_security_followup is Yes
+travel experience,security_approaching,Experienced while traveling -- People approaching unexpectedly,if security_concern and personal_security_followup is Yes
+travel experience,security_lewd,Experienced while traveling -- Lewd or explicit behaviors,if security_concern and personal_security_followup is Yes
+travel experience,security_violence,Experienced while traveling -- Physical violence,if security_concern and personal_security_followup is Yes
+travel experience,security_property,Experienced while traveling -- Property damage,if security_concern and personal_security_followup is Yes
+travel experience,security_other,Experienced while traveling -- Other (please specify),if security_concern and personal_security_followup is Yes
 travel experience,security_other_specify,Other experience while traveling,if selected security_other
 person info,age,How old are you?,If postcard particpant (email responses merged from HTS)
 person info,ethnicity_4,Ethnicity -- Cuban,If postcard particpant (email responses merged from HTS)
@@ -307,12 +307,12 @@ system,test_q_flag,Did the participant answer 'Very Comfortable' to indicate the
 system,time_to_complete,"How long did the participant take to complete the survey, in seconds?",NA
 system,time_flag,Did the participant take less than 10 minutes to complete the survey?,NA
 system,rsg_rec,RSG recommended as complete,NA
-system,home_lat,Geocoded home address latitude,if postcard participant
-system,home_lon,Geocoded home address longitude,if postcard participant
-system,home_loc_flag,Type of geocoding used to determine home location,if postcard participant
-system,work_lon,Geocoded work address longitude,if postcard participant and employ is not No
-system,work_lat,Geocoded work address latitude,if postcard participant and employ is not No
-system,work_loc_flag,Type of geocoding used to determine work location,if postcard participant and employ is not No
+system,home_lat,Geocoded home address latitude,If postcard particpant
+system,home_lon,Geocoded home address longitude,If postcard particpant
+system,home_loc_flag,Type of geocoding used to determine home location,If postcard particpant
+system,work_lon,Geocoded work address longitude,If postcard participant and employ is not No
+system,work_lat,Geocoded work address latitude,If postcard participant and employ is not No
+system,work_loc_flag,Type of geocoding used to determine work location,If postcard participant and employ is not No
 system,invite_lat,Latitude of invitation address,NA
 system,invite_lon,Longitude of invitation address,NA
 system,hhid,Household ID,NA
