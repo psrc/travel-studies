@@ -6,6 +6,7 @@ library(config)
 library(qdapTools)
 # summary table
 library(tableone)
+library(survey)
 
 
 config <- config::get()
@@ -51,7 +52,23 @@ get_vars_summary <- function(.data, summary_vars, order = TRUE){
   )
 }
 
-get_stat_output <- function(.data, variable_list, logic_des){
+
+# get weighted summary table
+get_vars_summary_w <- function(.data, summary_vars, order = TRUE){
+  
+  df <- .data %>%
+    mutate(across(any_of(summary_vars), ~get_labels(., varname = cur_column(), order = order))) %>%
+    filter(person_weight>0)
+  nhanesSvy <- svydesign(ids = ~person_id, weights = ~person_weight, data = df)
+  
+  return(
+    svyCreateTableOne(data = nhanesSvy,
+                      vars = summary_vars
+    )
+  )
+}
+
+get_stat_output <- function(.data, variable_list, logic_des, weighted=FALSE){
   # get stat table for all variables with specific logic
   
   
@@ -63,9 +80,17 @@ get_stat_output <- function(.data, variable_list, logic_des){
     incl_vars <- variable_list %>% filter(is.na(logic), variable %in% codebook$variable, !variable %in% character_vars)
   }
   
-  stat <- .data %>%
-    select(any_of(incl_vars$variable)) %>%
-    get_vars_summary(incl_vars$variable)
+  if(weighted){
+    stat <- .data %>%
+      select(any_of(c(incl_vars$variable, "person_weight", "person_id"))) %>%
+      get_vars_summary_w(incl_vars$variable)
+  }
+  else{
+    stat <- .data %>%
+      select(any_of(incl_vars$variable)) %>%
+      get_vars_summary(incl_vars$variable)
+  }
+  
   return(stat)
   
 }
@@ -74,24 +99,38 @@ get_stat_output <- function(.data, variable_list, logic_des){
 plot_single <- function(var, color_ramp = psrc_color){
   
   df <- safety_responses %>%
-    select(all_of(var)) %>%
-    filter(!is.na(!!sym(var))) %>%
+    select(all_of(c(var,"person_weight"))) %>%
+    filter(!is.na(!!sym(var)) & !is.na(person_weight)) %>%
     mutate(across(!!sym(var), ~get_labels(., varname = cur_column()))) %>%
-    summarise(count=n(), .by=var) %>%
-    mutate(percent = count/sum(count))
+    arrange(!!sym(var))
   
-  p <- ggplot2::ggplot(df, aes(x=!!sym(var), y=percent, fill=!!sym(var))) + 
-    geom_bar(stat="identity") + 
+  df_sum <- df %>%
+    summarise(count=n(), .by=var) %>%
+    mutate(percent = count/sum(count),
+           summary="count")
+  
+  df_sum_weighted <- df %>%
+    summarise(count=sum(person_weight), .by=var) %>%
+    mutate(percent = count/sum(count),
+           summary="weighted")
+  
+  df_final <- rbind(df_sum,df_sum_weighted)
+  
+  p <- ggplot2::ggplot(df_final, aes(x=!!sym(var), y=percent, fill=summary)) + 
+    geom_bar(stat="identity", position = "dodge") + 
+    geom_text(aes(label=scales::percent(percent,accuracy=2)),
+              position = position_dodge(0.9)) + 
     scale_y_continuous(labels = scales::percent) +
     coord_flip() +
     theme_bw() +
-    scale_fill_manual(values = color_ramp) +
+    scale_fill_manual(values = psrcplot::psrc_colors$obgnpgy_10) +
     theme(axis.title = element_blank(),
-          plot.title = element_blank(),
-          legend.position = "none") +
+          plot.title = element_blank()) +
     labs(title = var)
-  
   
   plotly::ggplotly(p)
   
+  
 }
+
+

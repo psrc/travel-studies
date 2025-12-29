@@ -1,5 +1,5 @@
 ---
-title: 2025 Safety Data Topsheet Summary
+title: 2025 Safety Survey Topsheet Summary
 date: today
 server: shiny
 
@@ -13,37 +13,25 @@ format:
     code-tools: true
     df-print: kable
     warnings: false
+    toc: true
 ---
 
+- 2025/12/08 delivered data
+- data codebook: [https://github.com/psrc/travel-studies/tree/master/2025/safety_data/data](https://github.com/psrc/travel-studies/tree/master/2025/safety_data/data)
 
 ```{r}
 #| include: false
 source("data_processing.R")
-```
 
-## missing variables
-
-```{r}
 vars_codebook <- variable_list$variable
 vars_data <- names(safety_responses)
-
-# setdiff(vars_codebook, vars_data) 
-# setdiff(vars_data, vars_codebook) 
 ```
 
-::: {.callout-warning}
-### Issues and Questions
+## person counts
 
-- the delivered dataset is missing `res_no_lanes` variable while having additional `non_res_streets` variable
-- values in `non_res_streets`
-
-```{r}
-table(safety_responses$non_res_streets, useNA="always")
-```
-
-:::
-
-## completed participant count
+- email recruits from HTS participants can have multiple people in a household answering the survey
+- safety survey only includes adults
+- completed participant counts
 
 ```{r}
 safety_responses %>%
@@ -51,53 +39,57 @@ safety_responses %>%
   summarise(count = n())
 ```
 
-
-## stats by logic
-
-
-::: {.callout-warning}
-### Issues and Questions
-
-- potential demographic variables that can be merged from HTS: `numchildren`, `disability_person`, `mobility_aides`
-- coding error in variables related to reasons not being able to comfortably use travel modes (Click to expand following blocks)
-
-::: {.callout-caution appearance="minimal" collapse="true"}
-
-## `bike_comfort`: "0: Not Selected" and NAs are flipped
+- total population: weighted person counts
 
 ```{r}
-get_vars_summary(safety_responses, "bike_comfort")
-get_stat_output(safety_responses, variable_list, "if bike_comfort is not agree")
+# get adults from 2023 HTS data
+person_2023 <- get_query("SELECT person_id,age,person_weight,survey_year FROM HHSurvey.v_persons_labels WHERE survey_year=2023")
+person_adults <- person_2023 %>% filter(!age %in% c("Under 5 years old", "5-11 years", "12-15 years","16-17 years"))
+
+# sum of weights
+data.frame(data = c("safety survey", "2023 HTS survey"),
+           `weighted sum` = c(sum(safety_responses$person_weight, na.rm=TRUE), sum(person_adults$person_weight, na.rm=TRUE)))
+
 ```
 
-:::
 
-::: {.callout-caution appearance="minimal" collapse="true"}
-
-## `walk_comfort`: "0: Not Selected" and NAs are flipped
+## single variable charts
 
 ```{r}
-get_vars_summary(safety_responses, "walk_comfort")
-get_stat_output(safety_responses, variable_list, "If walk_comfort is not agree")
+# dropdown: select variable
+shiny::selectInput('single_var', 'Select Variable:', unique(codebook$variable))
+# print variable description
+shiny::verbatimTextOutput("var_description")
+# print plot
+plotly::plotlyOutput("single_plot") 
 ```
 
-:::
+- weighted summary:
 
-::: {.callout-caution appearance="minimal" collapse="true"}
-
-## `transit_comfort`: has no "0: Not Selected" values
-  
 ```{r}
-get_vars_summary(safety_responses, "transit_comfort")
-get_stat_output(safety_responses, variable_list, "if transit_comfort is not agree")
+# print weighted stat table
+shiny::verbatimTextOutput("statData_single")
 ```
-  
-:::
-:::
 
-::: {.callout-note}
-dashboard does not work with local document (working on publishing with Netlify)
-:::
+```{r}
+#| context: server
+
+source("data_processing.R")
+
+output$var_description <- shiny::renderPrint({
+  variable_list[variable_list$variable==input$single_var,"description"][[1]]
+})
+output$single_plot <- plotly::renderPlotly({
+  plot_single(input$single_var)
+})
+df_single <- shiny::reactive(summary(get_vars_summary_w(safety_responses, input$single_var)))
+output$statData_single <- shiny::renderPrint({
+  df_single()
+})
+```
+
+
+## unweighted stats by logic
 
 ```{r}
 all_logics <- variable_list %>%
@@ -111,10 +103,10 @@ all_logics_list <-setNames(as.list(all_logics$logic), nm = all_logics$logic_coun
 ```
 
 
-
 ```{r}
 # dropdown: select logic
 shiny::selectInput('select_logic', ' Select Logic:', all_logics_list)
+
 # print stat table
 shiny::verbatimTextOutput("statData")
 ```
@@ -131,23 +123,60 @@ output$statData <- shiny::renderPrint({
 })
 ```
 
-## single variable charts
+
 
 ```{r}
-# dropdown: select variable
-shiny::selectInput('single_var', 'Select Variable:', unique(codebook$variable))
-# print plot
-plotly::plotlyOutput("single_plot") 
+sum(safety_responses$person_weight, na.rm=TRUE)
+# 3360427
 ```
+
+### testing: merge HTS and safety survey
+
+- weighted summary
 
 ```{r}
-#| context: server
+get_labels_simple <- function(.column, varname, order=TRUE){
+  
+  var_lookup <- codebook[codebook$variable == varname,]
+  var_lookup <- data.frame(var_lookup$value,var_lookup$label) %>%
+    mutate(`var_lookup.label` = `var_lookup.label`,
+           `var_lookup.value` = as.numeric(`var_lookup.value`))
+  
+  s_unordered <- lookup(.column, var_lookup)
+  s_ordered <- factor(s_unordered, levels=var_lookup[['var_lookup.label']])
+  
+  return( if(order){s_ordered} else{s_unordered} )
+}
 
-source("data_processing.R")
+vars_merge <- c("numchildren", "disability_person", "mobility_aides")
+df_safety <- safety_responses %>% 
+  select(any_of(c("hhid", "person_id", "person_weight", vars_merge))) %>%
+  mutate(across(any_of(vars_merge), ~get_labels_simple(., varname = cur_column())))
 
-output$single_plot <- plotly::renderPlotly({
-  plot_single(input$single_var)
-})
+# get 2025 HTS household and person data
+hh <- get_query("SELECT household_id as hhid,numchildren as numchildren_hts,survey_year FROM HHSurvey.v_households WHERE survey_year=2025")
+person <- get_query("SELECT person_id,disability_person as disability_person_hts,mobility_aides as mobility_aides_hts,survey_year FROM HHSurvey.v_persons WHERE survey_year=2025") %>%
+  mutate(person_id = as.character(person_id),
+         mobility_aides_hts = case_when(mobility_aides_hts=="Missing Response"~NA,
+                                        TRUE~mobility_aides_hts))
+
 ```
 
+
+```{r}
+# get merged demographic info 
+safety_merge <- df_safety %>% 
+  left_join(hh, by="hhid") %>% 
+  left_join(person, by=c("person_id","survey_year")) %>%
+  mutate(disability_person_merge = case_when(is.na(disability_person)~disability_person_hts,
+                                             TRUE~disability_person),
+         mobility_aides_merge = case_when(is.na(mobility_aides)~mobility_aides_hts,
+                                          TRUE~mobility_aides)) %>%
+  filter(person_weight>0)
+
+nhanesSvy <- svydesign(ids = ~ person_id, weights = ~ person_weight, data = safety_merge)
+svyCreateTableOne(data = nhanesSvy,
+                  vars = c("disability_person_merge", "mobility_aides_merge")
+)
+```
 

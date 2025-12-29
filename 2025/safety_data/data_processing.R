@@ -5,7 +5,8 @@ if (file.exists("safety_responses.RDS")) {
   safety_responses <- readRDS("safety_responses.RDS")
 } else {
   # read data
-  safety_responses <- get_query("SELECT * FROM safety_20251029.safety_responses", db_name = config$db_raw) %>%
+  safety_responses <- get_query("SELECT * FROM safety_20251208.safety_responses", db_name = config$db_raw) %>%
+    rename(hhid = hh_id) %>%
     # only include completed responses
     filter(complete == 2) %>%
     # remove sensitive data
@@ -15,4 +16,5 @@ if (file.exists("safety_responses.RDS")) {
                      "invite_lat", "invite_lon")))
   saveRDS(safety_responses, "safety_responses.RDS")
 }
+
 
