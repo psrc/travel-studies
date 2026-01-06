@@ -1,0 +1,30 @@
+project:
+  type: book
+  output-dir: "delivery-notebook"
+  
+book:
+  title: "2025 HTS Summary - Delivery"
+  repo-url: https://github.com/psrc/travel-studies/tree/master/2025
+  search: false
+  sidebar:
+    logo: PSRClogo2016path.png
+
+  chapters:
+    - index.qmd # this is a required file for Quarto Book
+    - delivery_analysis.qmd
+
+format:
+  html:
+    mainfont: Poppins
+    theme: [cosmo, ../../custom.scss]  # reading custom formatting from parent directory
+    echo: false
+    code-tools: true
+    
+execute:
+  freeze: auto  # re-render only when source changes
+
+
+toc: true
+warnings: false
+comments:  # enable commenting
+  hypothesis: true

@@ -1,0 +1,18 @@
+---
+title: Delivery
+date: today
+---
+
+This is a testing page
+
+```{r}
+source("../util.R")  # load shared libraries and functions
+
+topic_vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
+                "age","license","gender",
+                "hhincome_broad","home_county")
+topic_years <- c(2017, 2019, 2021, 2023)
+
+source("../data_processing.R")  # load standard data processing
+
+```
