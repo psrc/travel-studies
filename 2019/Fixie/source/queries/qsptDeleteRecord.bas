@@ -1,1 +1,0 @@
-EXECUTE delete_record;
