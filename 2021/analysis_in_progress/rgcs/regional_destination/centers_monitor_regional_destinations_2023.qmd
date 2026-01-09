@@ -1,0 +1,528 @@
+---
+title: "Centers monitoring: 2023 regional destinations"
+date: today
+format: 
+  html:
+    mainfont: Poppins
+    theme: [cosmo, custom.scss]
+    toc: true
+    df-print: kable
+    warning: false
+    echo: false
+---
+
+```{r}
+source("region_dest_data.R")
+source("region_dest_data_2023_new.R")
+
+formatting_func <- function(.data){
+  .data %>%
+  mutate(share = scales::percent(share,accuracy=1),
+         count = scales::number(count,accuracy=1000,big.mark = ","),
+         `trip/acre` = scales::number(`trip/acre`,accuracy=0.01,big.mark = ","),
+         `trip/activity unit` = scales::number(`trip/activity unit`,accuracy=0.01))
+}
+
+pal_rgc <- c(psrc_colors$purples_inc[2],psrc_colors$greens_inc[2])
+pal_rgc <- setNames(pal_rgc, c("RGC","Not RGC"))
+
+pal_rgc_mu <- c(psrc_colors$oranges_inc[2],psrc_colors$blues_inc[2],psrc_colors$greens_inc[2])
+pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
+
+```
+
+
+- data source:
+  1. trip data: 2023 household travel survey
+  2. employment data: 2022 Covered Employment Estimates by NAICS2
+  3. population data: 2023 OFM data
+
+
+```{r}
+#| out-width: 650px
+
+kbl(
+  df_rgc_2023 %>% select(d_rgcname,acres,activity_unit) %>%
+    mutate(acres = scales::number(acres,accuracy=1000,big.mark = ","),
+           activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
+    rename(`activity units` = activity_unit)
+  )%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins", full_width = F) %>%
+  row_spec(1, background = psrc_colors$purples_inc[1]) %>%
+  row_spec(2, background = psrc_colors$greens_inc[1])
+```
+
+```{r}
+#| tbl-cap: area and activity units in centers
+#| out-width: 650px
+
+kbl(
+  df_metro_urban_2023 %>% select(category,acres,activity_unit) %>%
+    mutate(category=factor(category, levels=c("Metro","Urban","Not RGC")),
+           acres = scales::number(acres,accuracy=100,big.mark = ","),
+           activity_unit = scales::number(activity_unit,accuracy=1000,big.mark = ",")) %>%
+    arrange(category)%>%
+    rename(`activity units` = activity_unit)
+  )%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins", full_width = F) %>%
+  row_spec(c(1), background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(c(2), background = psrc_colors$blues_inc[1]) %>%
+  row_spec(c(3), background = psrc_colors$greens_inc[1])
+```
+
+## trips in centers
+
+:::{.panel-tabset}
+
+### RGC
+
+```{r}
+prepped_dt <- hts_prep_variable(summarize_var = 'd_rgcname',
+                                summarize_by = c('survey_year', 'trip_type'),
+                                data = hts_data,
+                                id_cols='trip_id',
+                                wt_cols='trip_weight',
+                                weighted=TRUE)
+
+
+summary_dt <- hts_summary(prepped_dt = prepped_dt$cat,
+                         summarize_var = 'd_rgcname',
+                         summarize_by = c('survey_year', 'trip_type'),
+                         summarize_vartype = 'categorical',
+                         id_cols = 'trip_id',
+                         wtname ='trip_weight',
+                         weighted=TRUE,
+                         se=TRUE)
+
+df_plot <- summary_dt$summary$wtd %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>% 
+  left_join(df_rgc, by="d_rgcname") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit) %>%
+  filter(survey_year=="2023")
+df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
+```
+
+
+```{r}
+#| tbl-cap: weekday trip counts in centers
+
+df_tab <- df_plot %>%
+  pivot_wider(id_cols = c(trip_type), names_from = d_rgcname, values_from = share) %>%
+  mutate(RGC = scales::percent(RGC,accuracy=1),
+         `Not RGC` = scales::percent(`Not RGC`,accuracy=1))
+df_tab2 <- df_plot %>%
+  pivot_wider(id_cols = c(trip_type), names_from = d_rgcname, values_from = count) %>%
+  mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  rename(`trip type` = trip_type)
+
+kbl(df_tab2 %>% add_column(df_tab[,-1], .name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 2, "share" = 2)) %>%
+  column_spec(c(4), background = psrc_colors$purples_inc[1]) %>%
+  column_spec(c(5), background = psrc_colors$greens_inc[1])
+```
+
+```{r}
+#| layout-ncol: 2
+#| out-height: 350px
+
+plot_ly(data = df_plot,
+        x = ~trip_type, y = ~`trip/acre`,type = "bar", text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/acre', tickformat=".0f"),
+         title = "trips per acre in centers",
+         font = list(family="Poppins"))
+plot_ly(data = df_plot,
+        x = ~trip_type, y = ~`trip/activity unit`,type = "bar", text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/activity unit', tickformat=".1f"),
+         title = "trips per activity unit in centers",
+         font = list(family="Poppins"))
+```
+
+
+
+### Metro/Urban RGC
+
+```{r}
+#| out-width: 550px
+#| out-height: 300px
+
+prepped_dt <- hts_prep_variable(summarize_var = 'category',
+                                summarize_by = c('survey_year', 'trip_type'),
+                                data = hts_data,
+                                id_cols='trip_id',
+                                wt_cols='trip_weight',
+                                weighted=TRUE)
+
+
+summary_dt <- hts_summary(prepped_dt = prepped_dt$cat,
+                         summarize_var = 'category',
+                         summarize_by = c('survey_year', 'trip_type'),
+                         summarize_vartype = 'categorical',
+                         id_cols = 'trip_id',
+                         wtname ='trip_weight',
+                         weighted=TRUE,
+                         se=TRUE)
+
+df_plot3 <- summary_dt$summary$wtd %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>% 
+  left_join(df_metro_urban, by="category") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit) %>%
+  filter(survey_year=="2023")
+df_plot3$category <- factor(df_plot3$category, levels=c("Metro","Urban","Not RGC"))
+
+```
+
+
+```{r}
+#| tbl-cap: weekday trip counts in centers
+
+df_tab <- df_plot3 %>%
+  pivot_wider(id_cols = c(trip_type), names_from = category, values_from = share) %>%
+  mutate(Metro = scales::percent(Metro,accuracy=1),
+         Urban = scales::percent(Urban,accuracy=1),
+         `Not RGC` = scales::percent(`Not RGC`,accuracy=1))
+df_tab2 <- df_plot3 %>%
+  pivot_wider(id_cols = c(trip_type), names_from = category, values_from = count) %>%
+  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  rename(`trip type` = trip_type)
+
+kbl(df_tab2 %>% add_column(df_tab[,-1], .name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 3, "share" = 3)) %>%
+  column_spec(c(5), background = psrc_colors$oranges_inc[1]) %>%
+  column_spec(c(6), background = psrc_colors$blues_inc[1]) %>%
+  column_spec(c(7), background = psrc_colors$greens_inc[1])
+```
+
+```{r}
+#| layout-ncol: 2
+#| out-height: 350px
+
+plot_ly(data = df_plot3,
+        x = ~trip_type, y = ~`trip/acre`,type = "bar", text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",
+        color = ~category, colors = pal_rgc_mu, width=470) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/acre', tickformat=".0f"),
+         title = "trips per acre in centers",
+         font = list(family="Poppins"))
+plot_ly(data = df_plot3,
+        x = ~trip_type, y = ~`trip/activity unit`,type = "bar", text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",
+        color = ~category, colors = pal_rgc_mu, width=470) %>%
+  layout(xaxis = list(title = 'trip type'), yaxis = list(title = 'trip/activity unit', tickformat=".1f"),
+         title = "trips per activity unit in centers",
+         font = list(family="Poppins"))
+```
+
+:::
+
+## trips in centers by trip purpose
+
+
+:::{.panel-tabset}
+
+### RGC
+
+```{r}
+prepped_dt <- hts_prep_variable(summarize_var = 'dest_purpose_simple',
+                                summarize_by = c('survey_year', 'trip_type', 'd_rgcname'),
+                                data = hts_data,
+                                id_cols='trip_id',
+                                wt_cols='trip_weight',
+                                weighted=TRUE)
+
+
+summary_dt <- hts_summary(prepped_dt = prepped_dt$cat,
+                         summarize_var = 'dest_purpose_simple',
+                         summarize_by = c('survey_year', 'trip_type', 'd_rgcname'),
+                         summarize_vartype = 'categorical',
+                         id_cols = 'trip_id',
+                         wtname ='trip_weight',
+                         weighted=TRUE,
+                         se=TRUE)
+
+df_plot <- summary_dt$summary$wtd %>%
+  filter(trip_type=="Non-work",survey_year=="2023") %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>%
+  left_join(df_rgc, by="d_rgcname") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit)
+df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
+df_plot$dest_purpose_simple <- factor(df_plot$dest_purpose_simple, levels=c("Errand/Other","Escort","Meal","Shop","Social/Recreation"))
+
+```
+
+  
+```{r}
+#| tbl-cap: weekday non-work trip counts by purpose
+df_tab <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_simple), names_from = d_rgcname, values_from = count) %>%
+  mutate(RGC = scales::number(RGC,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  arrange(dest_purpose_simple)
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 2)) %>%
+  column_spec(2, background = psrc_colors$purples_inc[1]) %>%
+  column_spec(3, background = psrc_colors$greens_inc[1])
+```
+
+1. **trips per acre**
+   - the centers serve significantly more non-work trips
+```{r}
+#| out-height: 350px
+
+plot_ly(data = df_plot,
+        x = ~dest_purpose_simple, y = ~`trip/acre`,type = "bar", 
+        text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}", 
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f"), 
+         title = "weekday non-work trip per acre by purpose",
+         font = list(family="Poppins"))
+```
+
+
+2. **trips per activity unit**
+   - activity units in non-centers generate more escort and social/recreation trips than centers
+
+```{r}
+#| out-height: 350px
+
+plot_ly(data = df_plot,
+        x = ~dest_purpose_simple, y = ~`trip/activity unit`,type = "bar", 
+        text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}", 
+        color = ~d_rgcname, colors = pal_rgc) %>%
+  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f"), 
+         title = "weekday non-work trip per activity unit by purpose",
+         font = list(family="Poppins"))
+```
+
+
+
+### Metro/Urban RGC
+
+```{r}
+prepped_dt <- hts_prep_variable(summarize_var = 'dest_purpose_simple',
+                                summarize_by = c('survey_year', 'trip_type', 'category'),
+                                data = hts_data,
+                                id_cols='trip_id',
+                                wt_cols='trip_weight',
+                                weighted=TRUE)
+
+
+summary_dt <- hts_summary(prepped_dt = prepped_dt$cat,
+                         summarize_var = 'dest_purpose_simple',
+                         summarize_by = c('survey_year', 'trip_type', 'category'),
+                         summarize_vartype = 'categorical',
+                         id_cols = 'trip_id',
+                         wtname ='trip_weight',
+                         weighted=TRUE,
+                         se=TRUE)
+
+df_plot <- summary_dt$summary$wtd %>%
+  filter(trip_type=="Non-work",survey_year=="2023") %>%
+  rename(share = prop,
+         sample = count,
+         count = est)  %>% 
+  left_join(df_metro_urban, by="category") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit) %>%
+  filter(survey_year=="2023")
+df_plot$category <- factor(df_plot$category, levels=c("Metro","Urban","Not RGC"))
+df_plot$dest_purpose_simple <- factor(df_plot$dest_purpose_simple, levels=c("Errand/Other","Escort","Meal","Shop","Social/Recreation"))
+
+
+```
+
+```{r}
+#| tbl-cap: weekday non-work trip count by purpose
+
+df_tab <- df_plot %>%
+  pivot_wider(id_cols = c(dest_purpose_simple), names_from = category, values_from = count) %>%
+  mutate(Metro = scales::number(Metro,accuracy=1000,big.mark = ","),
+         Urban = scales::number(Urban,accuracy=1000,big.mark = ","),
+         `Not RGC` = scales::number(`Not RGC`,accuracy=1000,big.mark = ",")) %>%
+  rename(`trip purpose` = dest_purpose_simple)
+
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("striped", "hover"), html_font = "Poppins") %>%
+  add_header_above(c(" " = 1, "trip count" = 3)) %>%
+  column_spec(2, background = psrc_colors$oranges_inc[1]) %>%
+  column_spec(3, background = psrc_colors$blues_inc[1]) %>%
+  column_spec(4, background = psrc_colors$greens_inc[1])
+```
+
+1. **trips per acre**
+   - Metro centers serve the most trips for all non-work purposes, except for shopping purpose.   
+   - Urban centers serves the most shopping trips
+```{r}
+#| out-height: 350px
+
+plot_ly(data = df_plot,
+        x = ~dest_purpose_simple, y = ~`trip/acre`,type = "bar", 
+        text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}", 
+        color = ~category, colors = pal_rgc_mu) %>%
+  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f"), 
+         title = "weekday non-work trip per acre by purpose",
+         font = list(family="Poppins"))
+```
+
+
+
+2. **trips per activity unit**
+   - activity units in Urban centers generates the most trips, except for Escort trips
+
+```{r}
+#| out-height: 350px
+
+plot_ly(data = df_plot,
+        x = ~dest_purpose_simple, y = ~`trip/activity unit`,type = "bar", 
+        text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}", 
+        color = ~category, colors = pal_rgc_mu) %>%
+  layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f"), 
+         title = "weekday non-work trip per activity unit by purpose",
+         font = list(family="Poppins"))
+```
+
+
+
+:::
+
+## hex maps: weighted number of non-work trips
+
+- hexagon size: 4 sq. miles
+- color ramp is adjusted using log scale: log<sub>10</sub>\(number of non-work trips\)
+
+```{r}
+#| include: FALSE
+
+hex.lyr <- st_read("hex_grid/hex_grid_4mile_region.shp")
+hex.lyr <- sf::st_transform(hex.lyr, 4326)
+
+# remove water
+hex.lyr <- st_filter(hex.lyr, bg2020.lyr, .pred = st_intersects)
+
+# show empty hex map
+# leaflet() %>% 
+#   addProviderTiles(providers["CartoDB.Positron"][[1]]) %>%
+#   addPolygons(data = hex.lyr, fillOpacity = 0.5,weight = 0.7,color = "#636363") 
+
+
+# join trips to hex map
+test <- st_join(sf_trip_23 %>% filter(trip_type=="Non-work"), hex.lyr, join = st_intersects)
+st_geometry(test) <- NULL
+test2 <- test %>% 
+  group_by(GRID_ID) %>% 
+  summarise(n_trip = n(), 
+            n_trip_wt = sum(trip_weight, na.rm = TRUE)) %>% 
+  ungroup()
+
+hex_trip.lyr <- hex.lyr %>% 
+  left_join(test2, by="GRID_ID") %>% 
+  filter(n_trip_wt>1) %>%
+  mutate(n_trip_wt_log10 = log10(n_trip_wt))
+```
+
+
+:::{.panel-tabset}
+
+### number of non-work trips in hexagons 
+
+```{r}
+#| out-height: 800px
+#| out-width: 900px
+
+# palettes
+psrc_purple_plus<-c("#FFFFFF", "#FAE6FA","#D8BFD8", "#630460","#4a0048")
+YlOrRd <- "YlOrRd"
+
+build_hex_map_log <- function(layer, cus_pal, cus_bin){
+  
+  min_value_legend <- min(layer$n_trip_wt_log10)
+  max_value_legend <- max(layer$n_trip_wt_log10)
+  psrc_palette <- leaflet::colorNumeric(
+    palette = cus_pal,
+    domain = c(min_value_legend, max_value_legend)
+    )
+  
+  label_n_trip <- paste0("number of trips: ", scales::number(layer$n_trip, accuracy = 1, big.mark = ","),
+                         "<br>number of trips (weighted): ", scales::number(layer$n_trip_wt, accuracy = 1, big.mark = ",")) %>%
+    lapply(htmltools::HTML)
+  
+  leaflet() %>%
+    addProviderTiles(providers["CartoDB.Positron"][[1]]) %>%
+    addPolygons(data = layer, fillOpacity = 0.65,weight = 0.1,color = "#636363",
+                fillColor = ~psrc_palette(layer$n_trip_wt_log10),
+                label=label_n_trip) %>%
+    addPolygons(data = center.lyr, fill = FALSE, weight = 2.5, color = "#636363") %>%
+    # addLegend(pal = psrc_palette, values = layer$n_trip_wt_log10,
+    #           labFormat = labelFormat(transform = function(x) round(10^x, 0)),
+    #           title="number of trips",position = "bottomright")
+    addLegend_decreasing(pal = psrc_palette,
+                       values = c(min_value_legend, max_value_legend),
+                       position = "bottomright",
+                       title="number of non-work trips",
+                       opacity = 0.7,
+                       bins=cus_bin,
+                       decreasing = TRUE,
+                       # labFormat = labelFormat()) %>% #,
+                       labFormat = labelFormat(
+                         transform = function(x) round(10^x, 0)))
+  
+}
+
+build_hex_map_log(hex_trip.lyr,psrc_purple_plus,5)
+```
+
+<br>
+
+```{r}
+
+fig <- plot_ly(x = ~hex_trip.lyr$n_trip_wt, type = "histogram",
+               marker=list(color=psrc_colors$purples_inc[2])) %>%
+  layout(xaxis = list(title = 'number of non-work trips in a hexagon'), yaxis = list(title = 'hexagon counts'), 
+         title = "histogram for number of non-work trips in a hexagon",
+         font = list(family="Poppins"))
+fig
+```
+
+
+
+### number of non-work trips in hexagons (> 1000 trips)
+
+```{r}
+#| out-height: 800px
+#| out-width: 900px
+
+hex_trip_top.lyr <- hex_trip.lyr %>% filter(n_trip_wt>990)
+
+
+build_hex_map_log(hex_trip_top.lyr,psrc_purple_plus,4)
+```
+
+<br>
+
+```{r}
+
+fig <- plot_ly(x = ~hex_trip_top.lyr$n_trip_wt, type = "histogram",
+               marker=list(color=psrc_colors$purples_inc[2])) %>%
+  layout(xaxis = list(title = 'number of non-work trips in a hexagon'), yaxis = list(title = 'hexagon counts'), 
+         title = "histogram for number of non-work trips in a hexagon",
+         font = list(family="Poppins"))
+fig
+```
+
+:::

@@ -1,0 +1,299 @@
+---
+title: "Gender by Telecommute Frequency"
+author: "Christy"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+---
+
+```{r, message=FALSE, warning=FALSE}
+source('gender_telecommute.R')
+```
+
+## About
+
+**gender**:
+
+- persons table
+  
+**telecommute_freq**: 
+
+- persons table
+- if workplace = fixed, varied, telecommutes some days
+
+
+Not quite apples-to-apples comparison because the question for `telecommute_freq` was different across years.
+
+- 2019: How frequently do you telecommute?
+  - includes 'per month' answers
+- 2021: How frequently did you telecommute in the past week?
+
+Values for `Gender` are also different across years. 2021 introduced 'Non-Binary' and combined 'Not listed here / prefer not to answer'.
+
+- 2019: Female, Male, Prefer not to answer, Another
+- 2021: Female, Male, Not listed here / prefer not to answer, Non-Binary
+
+Exclude 'per month' responses from 2019 survey because of the small sample size.
+
+```{r data summaries by gender, eval=TRUE, include=FALSE}
+
+vars_02 <- c('workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')
+
+# 2017/2019: How frequently do you telecommute? ----
+wrkr_1719 <- gender_tcf_get_hhts(survey_a$survey, 'p', vars_02)
+
+# summarise 2017/2019 and add telecommute frequency lookup
+gen_tc_freq_1719 <- hhts_count(wrkr_1719, 
+                               # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               spec_wgt = 'hh_weight_2017_2019_adult',
+                               group_vars = c('gender_group', 'tc_freq_group')) %>%
+  mutate(period = survey_a$label)
+
+gen_tc_freq_1719_simple <- hhts_count(wrkr_1719, 
+                                      # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      spec_wgt = 'hh_weight_2017_2019_adult',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+  mutate(period = survey_a$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+# 2021: How frequently did you telecommute in the past week? ----
+wrkr_2021 <- gender_tcf_get_hhts(survey_b$survey, 'p', vars_02)
+# browser()
+# summarise 2021
+gen_tc_freq_2021 <- hhts_count(wrkr_2021, 
+                               group_vars = c('gender_group', 'telecommute_freq'), 
+                               # spec_wgt = 'person_weight_2021_ABS_Panel_adult'
+                               spec_wgt = 'person_adult_weight_2021'
+                               ) %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(tc_freq_group = telecommute_freq)
+
+gen_tc_freq_2021_simple <- hhts_count(wrkr_2021, 
+                                      # spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      spec_wgt = 'person_adult_weight_2021',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+# 2017 single-year ----
+wrkr_2017 <- gender_tcf_get_hhts(survey_c$survey, 'p', vars_02)
+
+# summarise 2017 and add telecommute frequency lookup
+gen_tc_freq_2017 <- hhts_count(wrkr_2017, 
+                               # spec_wgt = 'hh_weight_2017_v2021',
+                               spec_wgt = 'hh_weight_2017',
+                               group_vars = c('gender_group', 'tc_freq_group')) %>%
+  mutate(period = survey_c$label)
+
+gen_tc_freq_2017_simple <- hhts_count(wrkr_2017, 
+                                      # spec_wgt = 'hh_weight_2017_v2021',
+                                      spec_wgt = 'hh_weight_2017',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+  mutate(period = survey_c$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+# 2019 single-year ----
+wrkr_2019 <- gender_tcf_get_hhts(survey_d$survey, 'p', vars_02)
+
+# summarise 2019 and add telecommute frequency lookup
+gen_tc_freq_2019 <- hhts_count(wrkr_2019, 
+                               # spec_wgt = 'hh_weight_2019_v2021',
+                               spec_wgt = 'hh_weight_2019',
+                               group_vars = c('gender_group', 'tc_freq_group')) %>%
+  mutate(period = survey_d$label)
+
+gen_tc_freq_2019_simple <- hhts_count(wrkr_2019, 
+                                      # spec_wgt = 'hh_weight_2019_v2021',
+                                      spec_wgt = 'hh_weight_2019',
+                                      group_vars = c('gender_group', 'tc_freq_group_simple')) %>%
+  mutate(period = survey_d$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+
+# merge dfs ----
+gen_tc_freq <- bind_rows(gen_tc_freq_1719, gen_tc_freq_2021, gen_tc_freq_2017, gen_tc_freq_2019) %>% 
+  mutate(period = as.factor(period))
+
+gen_tc_freq_simple <- bind_rows(gen_tc_freq_1719_simple, gen_tc_freq_2021_simple, gen_tc_freq_2017_simple, gen_tc_freq_2019_simple) %>% 
+  mutate(period = as.factor(period))
+
+## plot ----
+
+plot.title <- 'Gender and Telecommute Frequency'
+plot.title.01 <- 'Telecommute Frequency'
+plot.subtitle <- 'Times per week'
+plot.caption.01 <- "\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size"
+
+plot.facet.labels <- c('Female' = 'Female', 'Male' = 'Male', 'Prefer not to answer / Another' = 'Prefer not to answer / Another*')                       
+
+df <- gen_tc_freq %>% 
+  filter(tc_freq_group != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe)
+
+df_simple <- gen_tc_freq_simple %>% 
+  filter(tc_freq_group != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe,
+         tc_freq_group = factor(tc_freq_group, levels = c('Telecommuted at least once per week', 'Never / None')))
+
+
+```
+
+```{r data summaries combined gender, include=FALSE}
+
+# 2017/2019 All Genders ----
+
+gen_tc_freq_1719_tot <- hhts_count(wrkr_1719,
+                               # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                               spec_wgt = 'hh_weight_2017_2019_adult',
+                               group_vars = 'tc_freq_group') %>%
+  mutate(period = survey_a$label)
+
+gen_tc_freq_1719_simple_tot <- hhts_count(wrkr_1719,
+                                      # spec_wgt = 'hh_weight_2017_2019_v2021_adult',
+                                      spec_wgt = 'hh_weight_2017_2019_adult',
+                                      group_vars = 'tc_freq_group_simple') %>%
+  mutate(period = survey_a$label) %>%
+  rename(tc_freq_group = tc_freq_group_simple)
+
+# 2017 All Genders ----
+
+gen_tc_freq_2017_tot <- hhts_count(wrkr_2017, 
+                               # spec_wgt = 'hh_weight_2017_v2021',
+                               spec_wgt = 'hh_weight_2017',
+                               group_vars = 'tc_freq_group') %>%
+  mutate(period = survey_c$label)
+
+gen_tc_freq_2017_simple_tot <- hhts_count(wrkr_2017, 
+                                      # spec_wgt = 'hh_weight_2017_v2021',
+                                      spec_wgt = 'hh_weight_2017',
+                                      group_vars = 'tc_freq_group_simple') %>%
+  mutate(period = survey_c$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+# 2019 All Genders ----
+
+gen_tc_freq_2019_tot <- hhts_count(wrkr_2019, 
+                               # spec_wgt = 'hh_weight_2019_v2021',
+                               spec_wgt = 'hh_weight_2019',
+                               group_vars = 'tc_freq_group') %>%
+  mutate(period = survey_d$label)
+
+gen_tc_freq_2019_simple_tot <- hhts_count(wrkr_2019, 
+                                      # spec_wgt = 'hh_weight_2019_v2021',
+                                      spec_wgt = 'hh_weight_2019',
+                                      group_vars = 'tc_freq_group_simple') %>%
+  mutate(period = survey_d$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+# 2021 All Genders ----
+
+gen_tc_freq_2021_tot <- hhts_count(wrkr_2021, 
+                                   group_vars = 'telecommute_freq', 
+                                   # spec_wgt = 'person_weight_2021_ABS_Panel_adult'
+                                   spec_wgt = 'person_adult_weight_2021'
+                                   ) %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(tc_freq_group = telecommute_freq)
+
+gen_tc_freq_2021_simple_tot <- hhts_count(wrkr_2021, 
+                                      # spec_wgt = 'person_weight_2021_ABS_Panel_adult',
+                                      spec_wgt = 'person_adult_weight_2021',
+                                      group_vars = 'tc_freq_group_simple') %>% 
+  mutate(period = survey_b$label) %>% 
+  rename(tc_freq_group = tc_freq_group_simple)
+
+gen_tc_freq_tot <- bind_rows(gen_tc_freq_1719_tot, gen_tc_freq_2021_tot, gen_tc_freq_2017_tot, gen_tc_freq_2019_tot) %>% 
+  mutate(period = as.factor(period))
+
+gen_tc_freq_simple_tot <- bind_rows(gen_tc_freq_1719_simple_tot, gen_tc_freq_2021_simple_tot, gen_tc_freq_2017_simple_tot, gen_tc_freq_2019_simple_tot) %>% 
+  mutate(period = as.factor(period))
+
+plot.title.tot <- 'Gender and Telecommute Frequency'
+plot.subtitle.tot <- 'Times per week'
+plot.caption.tot <- "\n*Includes 'Non-Binary' responses but unable to report separately because of small sample size"
+
+df_tot <- gen_tc_freq_tot %>% 
+  filter(tc_freq_group != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe)
+
+df_simple_tot <- gen_tc_freq_simple_tot %>% 
+  filter(tc_freq_group != 'Total') %>% 
+  mutate(upper = share + share_moe,
+         lower = share - share_moe,
+         tc_freq_group = factor(tc_freq_group, levels = c('Telecommuted at least once per week', 'Never / None')))
+
+# root <- "T:\\2022July\\christy"
+# write.csv(df_simple_tot, file.path(root, "gtf_simple_tot.csv"))
+```
+
+## Plots
+
+```{r plot simple 2017-19 2021 a, echo=FALSE}
+df_simple %>%
+  filter(survey %in% c('2017_2019', '2021')) %>%
+  filter(tc_freq_group != 'Never / None') %>%
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+There has been an increase of females telecommuting at least once per week in 2021 compared to pre-COVID years.
+
+```{r plot 2017-19 2021 a, echo=FALSE}
+df %>%
+  filter(survey %in% c('2017_2019', '2021')) %>%
+  filter(!(tc_freq_group %in% c('Never / None', 'A few times per month', 'Less than monthly'))) %>%
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+While distribution of telecommuters are somewhat fairly distributed across the bins in 2021, there appears to be slightly more 1-2 day female telecommuters than before while for males the data skews towards more 5+ day telecommuting.
+
+```{r plot simple 2017-19 2021, include=FALSE}
+# filter df for just 2017/19 2021
+df_simple %>% filter(survey %in% c('2017_2019', '2021')) %>% 
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+```{r plot 2017-19 2021, include=FALSE}
+# filter df for just 2017/19 2021
+df %>% filter(survey %in% c('2017_2019', '2021')) %>% 
+gender_tcf(plot.source.year = '2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title, palette = "Paired", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+```
+
+
+### All Genders
+
+```{r, echo=FALSE}
+df_simple_tot %>% 
+  filter(tc_freq_group != 'Never / None') %>%
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
+```
+
+For all workers, between 2017 and 2021 there is an increase in people telecommuting at least once per week.
+
+```{r, echo=FALSE}
+df_tot %>% 
+  filter(!(tc_freq_group %in% c('Never / None', 'A few times per month', 'Less than monthly'))) %>%
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = '', plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = FALSE)
+```
+
+For all workers, there is a definite increase in 3-4 day telecommuting in 2021 compared to pre-COVID years, but there appears to have been a larger proportion that has been telecommuting for 1-2 days.
+
+```{r plot all years, echo=FALSE}
+df %>% 
+  filter(!(tc_freq_group %in% c('Never / None', 'A few times per month', 'Less than monthly'))) %>% 
+  filter(gender_group != 'Prefer not to answer / Another') %>% 
+  gender_tcf(plot.source.year = '2017, 2019, 2017/19, 2021', plot.caption = plot.caption.01, plot.title = plot.title.01, palette = "Set3", hjust = .5, vjust = 0, angle = 0, facet = TRUE)
+
+```
+
+Between 2017 and 2021, there was a sharp increase in females telecommuting 1-2 days and an increase of males telecommuting 5+ days in 2021.While there is a significant increase in females telecommuting 3-4 days, a larger proportion of females are commuting 1-2 days. 
+
+
+## Literature
+
+- https://www.intereconomics.eu/contents/year/2021/number/5/article/teleworking-a-curse-or-a-blessing-for-gender-equality-and-work-life-balance.html
+  - the pandemic has hit women harder than men, and the risk of the reversal of women’s hard-won gains is real, the pandemic has also opened up new opportunities to correct structural gender inequalities
+- https://www.theurbanist.org/2020/03/11/telecommuting-surged-transit-use-lagged-among-downtown-seattle-workers-in-2019/

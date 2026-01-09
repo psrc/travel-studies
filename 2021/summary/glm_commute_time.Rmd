@@ -1,0 +1,108 @@
+---
+title: "playing around with modeling commute distance"
+author: "suzanne"
+date: "May 2022"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r global, warning=FALSE, message=FALSE}
+library(psrc.travelsurvey)
+library(tidyverse)
+library(stats)
+library(ggplot2)
+
+```
+
+
+
+## Analyze commute distances and times across demographics
+# the data was only posted in 2019, 2021
+
+```{r what does the data look like, eval=FALSE}
+# First does the data make sense?
+
+commute_vars<- c('commute_auto_distance', 'commute_auto_time')
+demo_vars<- c('age', 'gender', 'jobs_count', 'employment', 'worker', 'workplace', 'vehicle_count',
+                  'commute_mode', 'commute_freq', 'race_category', 'res_factors_30min', 'res_factors_afford', 'res_factors_school', 'work_lat', 'work_lng', 'res_factors_hwy',
+                  'res_factors_transit', 'numworkers', 'final_home_puma10', 'hhsize', 'lifecycle', 'hhincome_broad', 'car_share', 'rent_own', 'res_dur', 'res_type', 'broadband' , 'prev_res_factors_more_space' )
+
+
+all_vars<- get_hhts(survey= '2019',
+         level = 'p',
+         vars = c(commute_vars, demo_vars))
+
+
+
+```
+
+```{r}
+# Who answered the question, who has values filled in?
+# how many workers are missing lats ad longs
+
+people_with_work_lats<- all_vars %>% drop_na(work_lat)
+# couldn't tag distances if work lats were missing
+count(people_with_work_lats)
+
+```
+```{r}
+people_with_work_dist<- all_vars %>% drop_na(commute_auto_distance)
+count(people_with_work_lats)-count(people_with_work_dist)
+```
+Only 18 missing, seems okay to ignore to get started.
+```{r}
+ggplot(people_with_work_dist, aes(x=commute_auto_distance))+geom_histogram(binwidth=2)+xlim(0.001, 100)
+```
+
+```{r glm, eval=TRUE}
+#looks like i should take the log to make it linear
+ggplot(people_with_work_dist, aes(x=log(1+commute_auto_distance)))+geom_histogram(binwidth=.2)+xlim(0.001, 15)
+
+```
+it looks kind of normally distributed now with a long tail, good enough for me
+```{r}
+
+
+
+```
+
+```{r}
+commute_dist_model<-glm(log(1+commute_auto_distance) ~ age + gender, family =gaussian, data=people_with_work_dist)
+summary(commute_dist_model)
+```
+```{r}
+x_vars<- c('age', 'gender', 'jobs_count', 'employment', 'worker', 'workplace', 'vehicle_count',
+                  'commute_mode', 'commute_freq', 'race_category', 'res_factors_30min', 'res_factors_afford', 'res_factors_school', 'res_factors_hwy',
+                  'res_factors_transit', 'numworkers', 'final_home_puma10', 'hhsize', 'lifecycle', 'hhincome_broad', 'car_share', 'rent_own', 'res_dur', 'res_type', 'broadband' , 'prev_res_factors_more_space' )
+
+commute_dist_model<-glm(log(1+commute_auto_distance) ~ age + gender+jobs_count+worker+vehicle_count, family =gaussian, data=people_with_work_dist)
+```
+
+
+```{r}
+summary(commute_dist_model)
+```
+
+```{r}
+
+commute_vars<- c('commute_auto_distance', 'commute_auto_time')
+demo_vars<- c('industry', 'age', 'gender', 'jobs_count', 'employment', 'worker', 'workplace', 'vehicle_count',
+                  'commute_mode', 'commute_freq', 'race_eth_broad', 'res_factors_30min', 'res_factors_afford', 'res_factors_school', 'work_lat', 'work_lng', 'res_factors_hwy','student', 'sample_county', 'commute_dur', 'work_county',
+                  'res_factors_transit', 'numworkers', 'final_home_puma10', 'hhsize', 'lifecycle', 'hhincome_broad', 'car_share', 'rent_own', 'res_dur', 'res_type', 'broadband' , 'prev_res_factors_more_space', 'workplace_pre_covid', 'commute_freq_pre_covid', 'commute_mode_pre_covid', 'employment_change_employer',  'employment_change_location')
+
+
+all_vars<- get_hhts(survey= '2021',
+         level = 'p',
+         vars = c(commute_vars, demo_vars))
+
+```
+```{r}
+
+```
+

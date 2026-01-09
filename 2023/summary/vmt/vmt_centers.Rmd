@@ -1,0 +1,359 @@
+---
+title: "vmt"
+author: "suzanne"
+date: "2024-05-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(sf)
+source('../survey-23-preprocess.R')
+```
+
+
+
+## Read in data items from Elmer
+
+The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
+
+
+```{r }
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad, home_lat, home_lng,survey_year, hh_weight,home_rgcname
+                from HHSurvey.v_households_labels")
+
+
+person<- get_query(sql= "select household_id as hh_id,race_category, 
+person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq, employment
+                from HHSurvey.v_persons_labels")
+                
+day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels")
+
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,driver,
+person_id, mode_1, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight 
+                from HHSurvey.v_trips_labels")
+setDT(hh)
+setDT(person)
+setDT(day)
+setDT(trip)
+```
+#race_category needs to be added to the codebook
+
+# to do: add Seattle, Bellevue geographies
+
+## Read in Codebook
+```{r , echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+
+## Set IDs as characters
+I guess for joining?, functionalize convert all ids to charcets
+```{r}
+
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+day[, hh_id:=as.character(hh_id)]
+trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+day[, person_id := as.character(person_id)]
+trip[, person_id := as.character(person_id)]
+
+day[, day_id := as.character(day_id)]
+trip[, day_id := as.character(day_id)]
+
+trip[, trip_id := as.character(trip_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
+person <- person%>%mutate(survey_year=as.character(survey_year))
+day <- day%>%mutate(survey_year=as.character(survey_year))
+trip <- trip%>%mutate(survey_year=as.character(survey_year))
+```
+
+## Make a new variable
+
+If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
+
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='dest_purpose_simple')
+value_labels<-add_values_code(group_name='dest_purpose_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='dest_purpose', grouped_name='dest_purpose_simple')
+```
+
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='mode_simple')
+value_labels<-add_values_code(group_name='mode_simple')
+trip<-grp_to_tbl(tbl=trip, ungrouped_name='mode_1', grouped_name='mode_simple')
+```
+
+```{r}
+variable_list<-add_variable(variable_list, 'vmt','trip',data_type='numeric')
+```
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'travelers_total_num','trip',data_type='numeric')
+```
+
+
+
+```{r}
+
+driving_trip<-trip %>% dplyr::filter(mode_simple=='Drive') %>%
+  filter(!is.na(travelers_total) | !is.na(distance_miles)| 
+          !(travelers_total=='Missing Response'))%>% # remove missing data
+  mutate(travelers_total_num=as.numeric(substring(travelers_total,1,1)))%>%
+  mutate(travelers_total_num=if_else(is.na(travelers_total_num), 1,travelers_total_num))%>%
+  mutate(travelers_total_num=
+            ifelse(travelers_total_num>=5, 7, travelers_total_num)) # have to make some assumption for 5+
+           
+
+
+```
+
+
+
+```{r}
+
+driving_trip<-driving_trip%>%mutate(weighted_vmt=distance_miles*trip_weight/travelers_total_num)%>%
+  mutate(weighted_vmt=ifelse(is.na(weighted_vmt), 0, weighted_vmt))%>%
+  mutate(unweighted_vmt=distance_miles/travelers_total_num)%>%
+  mutate(unweighted_vmt=ifelse(is.na(unweighted_vmt), 0, unweighted_vmt))%>%
+  filter(distance_miles<200)
+
+```
+
+```{r}
+driving_day<-driving_trip%>%group_by(day_id)%>%summarize(total_vmt=sum(weighted_vmt), vmt_est_day=sum(unweighted_vmt))
+```
+
+
+
+
+```{r}
+
+driving_year<-driving_trip%>%group_by(survey_year)%>%
+  summarize(total_vmt=sum(weighted_vmt), total_trips=sum(trip_weight))
+```
+
+```{r}
+people<-person%>%group_by(survey_year)%>%
+  summarise(people=sum(person_weight))
+people
+  
+```
+
+
+
+
+```{r}
+driving_per_person<-merge(driving_year, people, by = 'survey_year')%>%mutate(vmt_per_person=total_vmt/people, trips_per_person=total_trips/people)
+driving_per_person
+write.csv(driving_per_person, 'driving_per_person.csv')
+```
+
+# read in all the geographies
+
+```{r}
+uga.lyr<-st_read_elmergeo('URBAN_GROWTH_AREA_evw')
+```
+
+
+```{r}
+center.lyr <- st_read_elmergeo('URBAN_CENTERS_evw')
+```
+
+
+
+```{r}
+hh_geo<-hh%>%
+  st_as_sf(coords=c('home_lng','home_lat'), crs=4326)
+```
+
+
+```{r}
+hh_in_uga<-st_filter(hh_geo, uga.lyr)
+```
+
+```{r}
+hh_in_uga<-hh_in_uga%>%mutate(in_uga=1)
+```
+
+```{r}
+hh<-left_join(hh, hh_in_uga)
+hh<-hh%>%  mutate(in_uga=if_else(is.na(in_uga), 0, 1))
+```
+
+
+
+
+```{r}
+hh<-left_join(hh, center.lyr, by=join_by(home_rgcname==name), suffix= c("", '.origin'))
+```
+
+
+
+
+
+
+
+```{r}
+hh_in_rural<-st_filter(hh_geo, rural)
+```
+
+
+
+
+
+
+
+
+
+
+```{r }
+hh<-hh%>%mutate(rgc_cat_home= 
+                      case_when(is.na(category) ~ 'NotRGC',
+                                category=='Metro' ~ 'MetroRGC',
+                                category=='Urban' ~ 'UrbanRGC',
+                                TRUE ~'Missing')
+)
+```
+                    
+
+
+```{r}
+hh%>%group_by(rgc_cat_home, survey_year)%>%summarize( count=n())
+```
+
+
+
+
+
+
+```{r}
+hh<-hh%>%mutate(rgc_uga=paste(in_uga, rgc_cat_home, sep='_'))
+hh_day<-right_join(hh, day, by='hh_id')%>%mutate(survey_year=survey_year.x)
+```
+
+
+```{r}
+day_rgc_cat<-hh_day%>%group_by(survey_year,rgc_cat_home)%>%summarize(person_days=sum(day_weight))%>%mutate(home_rgc=
+ if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
+```
+```{r}
+day_rgc_uga<-hh_day%>%group_by(survey_year,rgc_uga)%>%summarize(person_days=sum(day_weight))
+```
+
+```{r}
+day_vmt<-left_join(hh, driving_trip, by = 'hh_id')%>%
+  mutate(weighted_vmt=replace_na(weighted_vmt, 0))%>%rename(survey_year=survey_year.x)
+day_vmt<-day_vmt%>%mutate(home_rgc=
+ if_else(rgc_cat_home %in% c('MetroRGC','UrbanRGC'), 'RGC', 'Not RGC'))
+
+```
+
+```{r}
+day_vmt_rgc<-day_vmt%>%group_by(survey_year, rgc_cat_home)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))
+
+
+
+day_vmt_summary_rgc<-merge(day_vmt_rgc, day_rgc_cat, by=c( 'survey_year', 'rgc_cat_home'))%>%mutate(vmt_per_person=total_vmt/person_days)
+
+day_vmt_summary_rgc
+
+
+```
+
+```{r}
+
+day_vmt_summary_2<-day_vmt_summary_rgc%>%group_by(survey_year, home_rgc)%>%
+  summarize(vmt_rgc=sum(total_vmt), person_days_rgc=sum(person_days))%>%
+  mutate(vmt_home_rgc=vmt_rgc/person_days_rgc)
+
+day_vmt_summary_2
+
+
+
+
+```
+
+
+
+```{r}
+day_vmt_rgc_uga<-day_vmt%>%group_by(survey_year, rgc_uga)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))
+
+
+
+day_vmt_summary_rgc_uga<-merge(day_vmt_rgc_uga, day_rgc_uga, by=c( 'survey_year', 'rgc_uga'))%>%mutate(vmt_per_person=total_vmt/person_days)
+
+day_vmt_summary_rgc_uga
+
+
+```
+
+do a couple more geographies
+
+
+
+
+
+
+#redo analysis with regional geographies
+```{r}
+regional.geogs<-st_read_elmergeo('REGIONAL_GEOGRAPHIES_evw')
+```
+
+
+
+```{r}
+sf_use_s2(FALSE)
+hh_reg_geog<-st_join(regional.geogs, hh_geo, join=st_intersects)%>%filter(!is.na(hh_id))
+```
+
+```{r}
+hh<-left_join(hh, hh_reg_geog, by='hh_id')
+```
+```{r}
+hh_reg_geog_year<-hh%>%group_by(class_desc, survey_year)%>%summarize( count=n())
+```
+
+```{r}
+
+hh_day<-right_join(hh, day, by='hh_id')%>%mutate(survey_year=survey_year.x)
+```
+
+```{r}
+day_reg_geo<-hh_day%>%group_by(survey_year,class_desc)%>%summarize(person_days=sum(day_weight))
+```
+
+```{r}
+day_vmt_reg_geo<-day_vmt%>%group_by(survey_year, class_desc)%>%
+  summarize(total_vmt=sum(weighted_vmt))%>%
+  mutate(total_vmt=replace_na(total_vmt,0))
+
+
+
+day_vmt_summary_reg_geo<-merge(day_vmt_reg_geo, day_reg_geo, by=c( 'survey_year', 'class_desc'))%>%mutate(vmt_per_person=total_vmt/person_days)
+
+day_vmt_summary_reg_geo
+
+
+```

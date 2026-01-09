@@ -1,0 +1,70 @@
+---
+title: "VMT research notes"
+output: 
+  html_document:
+    toc: true
+    # toc_float: true
+    theme: cosmo
+    df_print: kable
+date: "2023-06-21"
+---
+
+
+
+## Goal
+gap remains in understanding the processes and policies that cities can adopt to reduce their reliance on cars
+
+- **the variables that correlate with household vehicle miles traveled**. Fine out how weekday household vehicle miles travelled relates to household, land use, and cost characteristics
+    
+- look into the value of employer commuter benefits- such as- can we measure the impact on vehicle miles traveled of an employer offering 1)free parking 2)free transit pass
+- find a statistical model that can analyze the the sensitivity of the interventions
+  
+## Model concept
+
+some type of multidimensional model: a sketch model to bound our expectations about what changing a particular variable could have on vehicle miles traveled (**elasticity**)
+
+- potential datasets and correlation variables: **household travel survey data, local land use data, Census data** 
+  - land use: residential density, distance to transit stops/workplace (regional accessibility to jobs and jobs-housing balance), 
+  - household income, 
+  - having a transit pass given by work, having telecommute available to you
+  - generalized accessibility measures)
+
+## Research direction
+
+1. Look into research implementing household travel survey data, local land use data, Census data
+2. What model forms and why?
+3. _Summarize higher quality research into short notes (like 4 sentences)_
+4. 10 pages notes
+
+
+# Research Approach
+
+## data description
+
+- gather data, info on Washington State legislation on ghg emission
+- vmt distribution across the region and socioeconomic groups
+- control socioeconomic characteristics: compare behaviors of people in same social group, but in different regions
+
+
+# notes for weighting
+
+## trip weights
+- trip rates: the number of trips per day among groups. To calculate a weighted trip rate, data users must divide the number of weighted trips by the number of weighted travel days. 
+    - If there are 225,000 person-trips by car across 75,000 person-days, then the person-trip rate for car trips is 3.0.
+- vehicle trip rates: would require calculating the weighted vehicle trips taking place 
+    - in this example, if the average vehicle occupancy is two people, then the vehicle trip rate would be 1.5
+    
+## day weights
+- day-weights for multi-day survey data
+    - an “average weekday” day-level weight for multi-day smartphone data: to combine the multi-day smartphone-based data with the single-day data from online and call center participants using a consistent weighting method.
+    - For each respondent, count **the number of weekdays (N)** for which the respondent provided complete and valid data. Set **the person-day level weight equal to the person-level weight divided by N.** In this way, when the data is weighted and aggregated, the sum of the person-day weights across days for each person is equal to the person weight, and the weighted results will reflect an average day for each respondent.
+- Selection of respondents for weighting
+    - any household which has **at least one complete and valid weekday travel day** will be included in the weighting. a complete weekday is any complete Monday, Tuesday, Wednesday, or Thursday. The selection of “weekdays” essentially assumes that trip rates and behavior on those days are similar enough to consider them interchangeable, with an average weekday being the average of travel across those days. Only those weekdays will be given person-day weights for analysis.
+    - RSG did not weight travel data for Friday, Saturday, Sunday, or Monday because 
+        1. data was only collected from smartphone-participating households on those days
+        2. the travel behavior for those days is not assumed to be interchangeable with the behavior for Monday-Thursday, and
+        3. the data is used primarily to analyze and model typical weekday travel.
+
+- hh_weight_day should be used for household-day and person-day analyses
+    - Data users should always calculate **the number of weighted travel days using the day table** rather than the trip table given that persons with zero-trip travel days do not have any records in the trip tables for those days
+    - For trip rate comparison and adjustment, Friday is excluded along with Saturday and Sunday.

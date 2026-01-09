@@ -1,0 +1,1942 @@
+---
+title: "residential_displacement"
+author: "suzanne"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE)
+```
+
+## Residential Displacement Analysis
+
+This document looks at residential displacement data from the 2019 and 2021 travel surveys.
+
+What share of households experienced residential displacement in 2019 and 2021?
+
+To lookup variable names the codebook is here: J:\Projects\Surveys\HHTravel\Survey2021\\Data\\Combined_Codebook_2021_With_Weights.xlsx
+
+We will use the psrc.travesurvey package, documentation is here: <https://psrc.github.io/psrc.travelsurvey/articles/calculate_hhts_summaries.html>
+
+Code is here: <https://github.com/psrc/psrc.travelsurvey>
+
+
+### Background 
+3,044 households answered res_dur in 2019
+2, 793 household answered res_dur in 2021
+
+```{r libraries and set up}
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(psrcplot)
+library(ggplot2)
+library(forcats)
+library(data.table)
+library(odbc)
+library(DBI)
+
+res_dur_2019<-get_hhts(survey='2019', level="h", vars="res_dur")
+res_dur_2019_counts<- hhts_count(df=res_dur_2019, group_vars='res_dur')
+
+
+res_dur_2021<-get_hhts(survey='2021', level="h", vars="res_dur")
+res_dur_2021_counts<- hhts_count(df=res_dur_2021, group_vars='res_dur')
+
+res_dur_2019_2021_counts<-rbind(res_dur_2019_counts, res_dur_2021_counts)%>%
+filter(res_dur!='Total')%>%mutate(res_dur_ordered=factor(res_dur, levels= c('Less than a year', 'Between 1 and 2 years',
+                                                                    'Between 2 and 3 years', 'Between 3 and 5 years',
+                                                                    'Between 5 and 10 years', 'Between 10 and 20 years', 
+                                                                    'More than 20 years', 
+                                                                    ordered=TRUE)))
+
+
+static_column_chart(t=res_dur_2019_2021_counts, x='res_dur_ordered', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+There may have been more movers in 2021 in the past year as compared to 2019.
+
+
+Let's analyze 2019 movers in the past 5 years for residential displacement (by itself first). Look at 1. prev_res_factors, 2. res_factors 3. by income, 4. by race and ethnicity;
+
+this is 987 households. In the past five years for movers in WA, 29% of households had experienced displacement related reasons for moving.
+```{r}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced', y='share', fill='survey',color=  "pognbgy_5")
+```
+
+
+```{r}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_category', 'hhincome_broad' ))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))%>%mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000 or more",'$200,000 or more', "Prefer not to answer")))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+```
+
+```{r}
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hh_race_category','prev_res_factors_displaced'))%>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(hh_race_category!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_category != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_category, -share))
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced', y='share', fill='hh_race_high_low',color=  "pognbgy_10")
+```
+
+```{r}
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hhincome_100_f','prev_res_factors_displaced'))%>%
+filter(prev_res_factors_displaced!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced=='Displaced')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced', y='share', fill='hhincome_100_f',color=  "pognbgy_10")
+```
+
+```{r}
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_category', 'hhincome_broad' ))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years'))%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))%>%mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000-$199,000",'$200,000 or more', "Prefer not to answer")))
+
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+```
+
+```{r}
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('hh_race_category','prev_res_factors_displaced')) %>%
+  filter(prev_res_factors_displaced!='Total') %>%
+  filter(hh_race_category!='Total')%>%filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_category != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_category, -share))
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced', y='share', fill='hh_race_high_low',color=  "pognbgy_10", moe='share_moe')
+```
+
+```{r}
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('hhincome_100_f','prev_res_factors_displaced'))%>%
+filter(prev_res_factors_displaced!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced=='Displaced')
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced', y='share', fill='hhincome_100_f',color=  "pognbgy_10", moe='share_moe')
+```
+
+In 2019, there was a strong correlation between income and experiencing displacement. 55% of hhs with incomes of less than $25K experienced displacement. 13% of households with incomes over 200K
+
+39% of African American hhs, 36% of other hhs experienced displacement, at higher rates than White Only, Hispanic, and Asian HHs
+
+### By time frame
+#### Past 5 years
+Both datasets in the past 5 years (there is overlap in the time frame); no statistically significant difference (987 hhs in 2019, 860 in 2021)
+```{r }
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)%>%
+filter(prev_res_factors_displaced!='Total')
+
+static_column_chart(t=displaced_2019_2021_counts, x='prev_res_factors_displaced', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+```
+
+#### Past 2 years 
+Both datasets in the past 2 years NO overlap; 361 hhs in 2019; 298 hhs in 2021; 42% of hhs to 28%
+```{r }
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years' ) & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)%>%
+filter(prev_res_factors_displaced!='Total')%>%filter(prev_res_factors_displaced=='Displaced')
+
+static_column_chart(t=displaced_2019_2021_counts, x='prev_res_factors_displaced', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=displaced_2019_2021_counts, x='prev_res_factors_displaced', y='share', fill='survey',color=  "pognbgy_5")
+
+```
+
+#### Past 1 year - all movers
+Both datasets in the past 1 year ("Less than a year"). Limiting it to within one year of the survey means that there is no overlap between the samples and we are looking at the households that moved before COVID (spring/summer 2018-2019) and during COVID (spring/summer 2020-2021).
+\
+
+* 2019: 361
+* 2021: 198
+\
+```{r 1 year move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa')) %>%
+  filter(prev_home_wa =='Yes, previous home was in Washington') %>% 
+   mutate(res_dur_f=factor(res_dur, levels=c("Less than a year" , "Between 1 and 2 years",
+                                             "Between 2 and 3 years" , "Between 3 and 5 years")))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars='res_dur_f')%>%
+filter(res_dur_f!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa'))%>%
+  filter(prev_home_wa =='Yes, previous home was in Washington') %>% 
+   mutate(res_dur_f=factor(res_dur, levels=c("Less than a year" , "Between 1 and 2 years",
+                                             "Between 2 and 3 years" , "Between 3 and 5 years")))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars='res_dur_f') %>%
+  filter(res_dur_f!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_column_chart(t=movers_2019_2021_counts, x='res_dur_f', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=movers_2019_2021_counts, x='res_dur_f', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Race
+###### 5 race categories
+Both datasets in the past 1 year by **race**. The sample sizes by race and year are very small:
+
+* African American: 14 | 9
+* Asian: 68 | 47
+* Hispanic: 25 | 17
+* Other: 31 | 16
+* White only: 204 | 101
+\
+```{r 1 year race move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_category'))%>%
+  filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hh_race_category')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hh_race_category!='Total') %>%
+  filter(hh_race_category != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_category, -share))
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c("res_dur", 'prev_home_wa', 'hh_race_category'))%>%
+  filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hh_race_category')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(hh_race_category!='Total')%>%
+  filter(hh_race_category != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_category, -share))
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_column_chart(t=movers_2019_2021_counts, x='hh_race_category', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=movers_2019_2021_counts, x='hh_race_category', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### 3 race categories
+```{r 1 year race apoc move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_apoc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hh_race_apoc')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hh_race_apoc!='Total') %>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_apoc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hh_race_apoc')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(hh_race_apoc!='Total')%>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_column_chart(t=movers_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=movers_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### 2 race categories
+```{r 1 year race poc move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hh_race_poc')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hh_race_poc!='Total') %>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hh_race_poc')) %>%
+  filter(res_dur!='Total') %>%
+  filter(hh_race_poc!='Total')%>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_column_chart(t=movers_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=movers_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### 2 race categories: 2017-2021
+```{r 1 year race poc move 2017}
+movers_hh_2017<-get_hhts(survey='2017', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2017_counts<- hhts_count(df=movers_hh_2017, group_vars=c('res_dur','hh_race_poc')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hh_race_poc!='Total') %>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hh_race_poc')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hh_race_poc!='Total') %>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hh_race_poc')) %>%
+  filter(res_dur!='Total') %>%
+  filter(hh_race_poc!='Total')%>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+movers_2017_2021_counts<-rbind(movers_hh_2017_counts,
+                               movers_hh_2019_counts, 
+                               movers_hh_2021_counts)
+
+static_column_chart(t=movers_2017_2021_counts, x='hh_race_high_low', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=movers_2017_2021_counts, x='hh_race_high_low', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Income
+Both datasets in the past 1 year by **income**. The sample sizes by race and year are very small:
+
+* Under $25k: 34 | 17
+* $25-49k 79 | 32
+* $50-74k: 61 | 21
+* $75-99k: 39 | 32
+* $100-199k (only 2021): 59
+* $100k+ (only 2019): 98
+* $200k+: 39 | 27
+* Prefer not to answer: 11 | 10
+\
+```{r 1 year income move} 
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000 or more",'$200,000 or more', "Prefer not to answer")))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hhincome_100_f')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hhincome_100_f!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>%
+  mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000-$199,000",'$200,000 or more', "Prefer not to answer")))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hhincome_100_f')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(hhincome_100_f!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhincome_100_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhincome_100_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified income categories
+```{r 1 year simp income move} 
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>%
+  mutate(hhincome_simp=case_when(hhincome_broad == "Under $25,000" |
+                                   hhincome_broad == "$25,000-$49,999" |
+                                   hhincome_broad == "$50,000-$74,999" ~ "Under $75k",
+                                 hhincome_broad == "$75,000-$99,999" |
+                                   hhincome_broad == "$100,000 or more" |
+                                   hhincome_broad == "$200,000 or more" ~ "Above $75k",
+                                 hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer")) %>% 
+  mutate(hhincome_simp_f=factor(hhincome_simp, levels=c("Under $75k" , "Above $75k", "Prefer not to answer")))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hhincome_simp_f')) %>%
+  filter(res_dur!='Total')%>%
+  filter(hhincome_simp_f!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>%
+  mutate(hhincome_simp=case_when(hhincome_broad== "Under $25,000" | 
+                                   hhincome_broad== "$25,000-$49,999"|
+                                   hhincome_broad == "$50,000-$74,999" ~ "Under $75k",
+                                 hhincome_broad== "$75,000-$99,999" |
+                                   hhincome_broad== "$100,000-$199,000" |
+                                   hhincome_broad== "$200,000 or more" ~ "Above $75k",
+                                 hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer")) %>% 
+  mutate(hhincome_simp_f=factor(hhincome_simp, levels=c("Under $75k" , "Above $75k", "Prefer not to answer")))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hhincome_simp_f')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(hhincome_simp_f!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhincome_simp_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhincome_simp_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Regional growth center
+Both data sets in the past 1 year by final home address location within or outside of a regional growth center. The moes are overlapping, but before COVID (2019 survey), people who moved within the past year moved to a location not in an RGC. After COVID (2021), there were more households who moved to areas within an RGC. 
+\
+```{r 1 year rgc move} 
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','final_home_rgcnum')) %>%
+  filter(res_dur!='Total')%>%
+  filter(final_home_rgcnum!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','final_home_rgcnum')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(final_home_rgcnum!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='final_home_rgcnum', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='final_home_rgcnum', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified RGC: 3 categories
+The RGS are categorized as urban or metro
+\
+\
+**Metro**: Bellevue, Bremerton, Everett, Redmond Downtown, Seattle Downtown, Seattle First Hill/Capitol Hill, Seattle Northgate, Seattle South Lake Union, Seattle University Community, Seattle Uptown, Tacoma Downtown
+\
+**Urban** : Bothell Canyon Park, Issaquah, Kirkland Totem Lake, Lynnwood, Puyallup Downtown, Puyallup South Hill
+```{r 1 year simp 3 rgc move} 
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%
+  filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(rcg3_simp=case_when(final_home_rgcnum=="Bellevue" |
+                              final_home_rgcnum=="Bremerton" |
+                              final_home_rgcnum=="Everett" |
+                              final_home_rgcnum=="Redmond Downtown" |
+                              final_home_rgcnum=="Seattle Downtown" |
+                              final_home_rgcnum=="Seattle First Hill/Capitol Hill" |
+                              final_home_rgcnum=="Seattle Northgate" |
+                              final_home_rgcnum=="Seattle South Lake Union" |
+                              final_home_rgcnum=="Seattle University Community" |
+                              final_home_rgcnum=="Seattle Uptown" |
+                              final_home_rgcnum=="Tacoma Downtown" ~ "Metro RGC",
+                            final_home_rgcnum=="Not RGC" ~ "Not RGC", 
+                            TRUE~ "Urban RGC"))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','rcg3_simp')) %>%
+  filter(res_dur!='Total')%>%
+  filter(rcg3_simp!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%
+  filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(rcg3_simp=case_when(final_home_rgcnum=="Bellevue" |
+                              final_home_rgcnum=="Bremerton" |
+                              final_home_rgcnum=="Everett" |
+                              final_home_rgcnum=="Redmond Downtown" |
+                              final_home_rgcnum=="Seattle Downtown" |
+                              final_home_rgcnum=="Seattle First Hill/Capitol Hill" |
+                              final_home_rgcnum=="Seattle Northgate" |
+                              final_home_rgcnum=="Seattle South Lake Union" |
+                              final_home_rgcnum=="Seattle University Community" |
+                              final_home_rgcnum=="Seattle Uptown" |
+                              final_home_rgcnum=="Tacoma Downtown" ~ "Metro RGC",
+                            final_home_rgcnum=="Not RGC" ~ "Not RGC", 
+                            TRUE~ "Urban RGC"))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','rcg3_simp')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(rcg3_simp!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='rcg3_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='rcg3_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified RGC: 2 categories
+```{r 1 year simp rgc move} 
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%
+  filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(rcg_simp=case_when(final_home_rgcnum!="Not RGC" ~ "RGC",
+                            TRUE~ as.character(final_home_rgcnum)))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','rcg_simp')) %>%
+  filter(res_dur!='Total')%>%
+  filter(rcg_simp!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%
+  filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(rcg_simp=case_when(final_home_rgcnum!="Not RGC" ~ "RGC",
+                            TRUE~ as.character(final_home_rgcnum)))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','rcg_simp')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(rcg_simp!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='rcg_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='rcg_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Household size
+It's difficult to interpret because of the large moes and the multiple dimensions. Some major conclusions could be:
+
+* Households with children moved at higher rates in 2019 (before COVID)
+* For 1-person households, more moved in 2021 (after COVID)
+```{r 1 year hhsize move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hhsize')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(hhsize!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hhsize')) %>%
+  filter(res_dur!='Total') %>%
+  filter(hhsize!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhsize', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhsize', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified household size
+```{r 1 year simp hhsize move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(hhsz_simp=case_when(hhsize == "3 people" |
+                               hhsize == "4 people" |
+                               hhsize == "5 people" |
+                               hhsize == "6 people" |
+                               hhsize == "7 people" |
+                               hhsize == "8 people" ~ "3+ people",
+                             TRUE ~ as.character(hhsize))) %>% 
+  mutate(hhsz_simp_f=factor(hhsz_simp, levels=c("1 person" , "2 people", "3+ people")))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','hhsz_simp_f')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(hhsz_simp_f!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(hhsz_simp=case_when(hhsize == "3 people" |
+                               hhsize == "4 people" |
+                               hhsize == "5 people" |
+                               hhsize == "6 people" |
+                               hhsize == "7 people" |
+                               hhsize == "8 people" ~ "3+ people",
+                             TRUE ~ as.character(hhsize))) %>% 
+  mutate(hhsz_simp_f=factor(hhsz_simp, levels=c("1 person" , "2 people", "3+ people")))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','hhsz_simp_f')) %>%
+  filter(res_dur!='Total') %>%
+  filter(hhsz_simp_f!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhsz_simp_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='hhsz_simp_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Life cylce
+It's difficult to interpret because of the large moes and the multiple dimensions. Some major conclusions could be:
+
+* Households with children moved at higher rates in 2019 (before COVID)
+* In 1-person households, more moved in 2021 (after COVID)
+```{r 1 year lifecycle move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','lifecycle')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(lifecycle!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','lifecycle')) %>%
+  filter(res_dur!='Total') %>%
+  filter(lifecycle!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='lifecycle', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='lifecycle', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### *Simplified life cycle*
+```{r 1 year simp lifecycle move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(lifecycle_simp = case_when(lifecycle=="Household includes children age 5-17" |
+                                      lifecycle=="Household includes children under 5" ~  "Households with children",
+                                    lifecycle=="Household size = 1, Householder age 65+" |
+                                      lifecycle=="Household size > 1, Householder age 65+" ~  "Households with older adults",
+                                    lifecycle=="Household size = 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size = 1, Householder under age 35" |
+                                      lifecycle=="Household size > 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size > 1, Householder under age 35"~  "Other households"))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','lifecycle_simp')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(lifecycle_simp!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(lifecycle_simp = case_when(lifecycle=="Household includes children age 5-17" |
+                                      lifecycle=="Household includes children under 5" ~  "Households with children",
+                                    lifecycle=="Household size = 1, Householder age 65+" |
+                                      lifecycle=="Household size > 1, Householder age 65+" ~  "Households with older adults",
+                                    lifecycle=="Household size = 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size = 1, Householder under age 35" |
+                                      lifecycle=="Household size > 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size > 1, Householder under age 35"~  "Other households"))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','lifecycle_simp')) %>%
+  filter(res_dur!='Total') %>%
+  filter(lifecycle_simp!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='lifecycle_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='lifecycle_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Tenure
+###### Previous tenure
+The majority of people who experienced displacement in both years were renters prior to moving.
+```{r 1 year prev tenure move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'prev_rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','prev_rent_own')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(prev_rent_own!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'prev_rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','prev_rent_own')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(prev_rent_own!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='prev_rent_own', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='prev_rent_own', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Current tenure
+At the time of the survey, more respondents were renters than owners. The difference is more distinct for 2021 respondents. 
+```{r 1 year current tenure move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','rent_own')) %>%
+  filter(res_dur!='Total')%>%
+  filter(rent_own!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','rent_own')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(rent_own!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='rent_own', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='rent_own', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Residential type
+###### Previous residential type
+Large, overlapping moes. 
+
+* Pre-COVID (2019 survey), a large share of the households who moved had previously lived in SF
+* After COVID (2021 survey), a large share of the households who moved had previously lived in 4+ apartment/condo buildings
+```{r 1 year prev res move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','prev_res_type')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(prev_res_type!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','prev_res_type')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(prev_res_type!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='prev_res_type', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='prev_res_type', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### *Simplified previous*
+```{r 1 year simp prev res move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(prev_res_simp=case_when(prev_res_type=="Townhouse (attached house)" |
+                                   prev_res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','prev_res_simp')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(prev_res_simp!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(prev_res_simp=case_when(prev_res_type=="Townhouse (attached house)" |
+                                   prev_res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','prev_res_simp')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(prev_res_simp!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='prev_res_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='prev_res_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Current residential type
+Large, overlapping moes. 
+```{r 1 year current res move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','res_type')) %>%
+  filter(res_dur!='Total')%>%
+  filter(res_type!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','res_type')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(res_type!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='res_type', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='res_type', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### *Simplified current*
+```{r 1 year simp current res move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(res_type_simp=case_when(res_type=="Townhouse (attached house)" |
+                                   res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','res_type_simp')) %>%
+  filter(res_dur!='Total')%>%
+  filter(res_type_simp!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(res_type_simp=case_when(res_type=="Townhouse (attached house)" |
+                                   res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density")) 
+  
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','res_type_simp')) %>%
+  filter(res_dur!='Total') %>% 
+  filter(res_type_simp!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='res_type_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='res_type_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Vehicle ownership
+It's difficult to interpret because of the large moes. Households with 1 or 2 vehicles were more likely to move, both in 2019 and 2021. 
+```{r 1 year auto move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','vehicle_count')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(vehicle_count!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','vehicle_count')) %>%
+  filter(res_dur!='Total') %>%
+  filter(vehicle_count!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='vehicle_count', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='vehicle_count', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified vehicle ownership
+```{r 1 year simp auto move}
+movers_hh_2019<-get_hhts(survey='2019', level="h", vars=c('res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(veh_simp=case_when(vehicle_count == "3 vehicles" |
+                              vehicle_count == "8+ vehicles" ~ "3+ vehicles",
+                            TRUE ~ as.character(vehicle_count))) %>% 
+  mutate(veh_simp_f=factor(veh_simp, levels=c("0 (no vehicles)" , "1 vehicle", "2 vehicles", "3+ vehicles")))
+
+movers_hh_2019_counts<- hhts_count(df=movers_hh_2019, group_vars=c('res_dur','veh_simp_f')) %>%
+  filter(res_dur!='Total')%>% 
+  filter(veh_simp_f!='Total')
+
+movers_hh_2021<-get_hhts(survey='2021', level="h", vars=c('res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington') %>% 
+  mutate(veh_simp=case_when(vehicle_count == "3 vehicles" |
+                              vehicle_count == "8+ vehicles" ~ "3+ vehicles",
+                            TRUE ~ as.character(vehicle_count))) %>% 
+  mutate(veh_simp_f=factor(veh_simp, levels=c("0 (no vehicles)" , "1 vehicle", "2 vehicles", "3+ vehicles")))
+
+movers_hh_2021_counts<- hhts_count(df=movers_hh_2021, group_vars=c('res_dur','veh_simp_f')) %>%
+  filter(res_dur!='Total') %>%
+  filter(veh_simp_f!='Total')
+
+movers_2019_2021_counts<-rbind(movers_hh_2019_counts, movers_hh_2021_counts)
+
+static_bar_chart(t=movers_2019_2021_counts, y='veh_simp_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=movers_2019_2021_counts, y='veh_simp_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+\
+
+
+#### Past 1 year - displaced movers
+Both datasets in the past 1 year ("Less than a year"). Limiting it to within one year of the survey means that there is no overlap between the samples and we are looking at the households that moved before COVID (spring/summer 2018-2019) and during COVID (spring/summer 2020-2021) *and selected a reason that indicated they were displaced*.
+\
+
+* 2019: 266 not displaced, 95 displaced = 361
+* 2021: 145 not displaced, 53 displaced = 198
+\
+```{r 1 year disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='prev_res_factors_displaced')%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)%>%
+filter(prev_res_factors_displaced!='Total')%>%filter(prev_res_factors_displaced=='Displaced')
+
+static_column_chart(t=displaced_2019_2021_counts, x='prev_res_factors_displaced', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=displaced_2019_2021_counts, x='prev_res_factors_displaced', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Race
+###### 5 race categories
+Both datasets in the past 1 year by **race**. The sample sizes by race and year are very small:
+
+* African American: 7 | 1
+* Asian: 16 | 13
+* Hispanic: 6 | 7
+* Other: 13 | 4
+* White only: 48 | 27 
+\
+```{r 1 year race disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_category'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hh_race_category')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_category!='Total') %>%
+  filter(hh_race_category != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_category, -share))
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_category'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hh_race_category')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_category!='Total')%>%
+  filter(hh_race_category != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_category, -share))
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_column_chart(t=displaced_2019_2021_counts, x='hh_race_category', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=displaced_2019_2021_counts, x='hh_race_category', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### 3 race categories
+```{r 1 year race apoc disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_apoc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hh_race_apoc')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_apoc!='Total') %>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_apoc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hh_race_apoc')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_apoc!='Total')%>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_column_chart(t=displaced_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=displaced_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### 2 race categories
+```{r 1 year race poc disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hh_race_poc')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_poc!='Total') %>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hh_race_poc')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_poc!='Total')%>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_column_chart(t=displaced_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=displaced_2019_2021_counts, x='hh_race_high_low', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### 2 race categories: 2017-2021
+```{r 1 year race poc disp 2017}
+displaced_hh_2017<-get_hhts(survey='2017', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2017_counts<- hhts_count(df=displaced_hh_2017, group_vars=c('prev_res_factors_displaced','hh_race_poc')) %>%
+  # filter(prev_res_factors_displaced!='Total')%>%
+  # filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_poc!='Total') %>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hh_race_poc')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_poc!='Total') %>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hh_race_poc'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hh_race_poc')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hh_race_poc!='Total')%>%
+  filter(hh_race_poc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_poc, -share))
+
+displaced_2017_2021_counts<-rbind(displaced_hh_2017_counts,
+                                  displaced_hh_2019_counts, 
+                                  displaced_hh_2021_counts)
+
+static_column_chart(t=displaced_2017_2021_counts, x='hh_race_high_low', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_column_chart(t=displaced_2017_2021_counts, x='hh_race_high_low', y='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Income
+Both datasets in the past 1 year by **income**. The sample sizes by race and year are very small:
+
+* Under $25k: 16 | 5
+* $25-49k 24 | 12
+* $50-74k: 20 | 7
+* $75-99k: 12 | 8
+* $100-199k (only 2021): 13
+* $100k+ (only 2019): 19
+* $200k+ (only 2021): 6
+* Prefer not to answer: 3 | 2
+\
+```{r 1 year income disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000 or more",'$200,000 or more', "Prefer not to answer")))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hhincome_100_f')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hhincome_100_f!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000-$199,000",'$200,000 or more', "Prefer not to answer")))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hhincome_100_f')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hhincome_100_f!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhincome_100_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhincome_100_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified income categories 
+```{r 1 year simp income disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>%
+  mutate(hhincome_simp=case_when(hhincome_broad == "Under $25,000" |
+                                   hhincome_broad == "$25,000-$49,999" |
+                                   hhincome_broad == "$50,000-$74,999" ~ "Under $75k",
+                                 hhincome_broad == "$75,000-$99,999" |
+                                   hhincome_broad == "$100,000 or more" |
+                                   hhincome_broad == "$200,000 or more" ~ "Above $75k",
+                                 hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer")) %>% 
+  mutate(hhincome_simp_f=factor(hhincome_simp, levels=c("Under $75k" , "Above $75k", "Prefer not to answer")))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hhincome_simp_f')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hhincome_simp_f!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhincome_broad'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>%
+  mutate(hhincome_simp=case_when(hhincome_broad== "Under $25,000" | 
+                                   hhincome_broad== "$25,000-$49,999"|
+                                   hhincome_broad == "$50,000-$74,999" ~ "Under $75k",
+                                 hhincome_broad== "$75,000-$99,999" |
+                                   hhincome_broad== "$100,000-$199,000" |
+                                   hhincome_broad== "$200,000 or more" ~ "Above $75k",
+                                 hhincome_broad == "Prefer not to answer" ~ "Prefer not to answer")) %>% 
+  mutate(hhincome_simp_f=factor(hhincome_simp, levels=c("Under $75k" , "Above $75k", "Prefer not to answer")))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hhincome_simp_f')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>%
+  filter(hhincome_simp_f!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhincome_simp_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhincome_simp_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Regional growth center
+Both data sets in the past 1 year by final home address location within or outside of a regional growth center. THe moes are large and overlapping.
+\
+```{r 1 year rgc disp} 
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','final_home_rgcnum')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(final_home_rgcnum!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','final_home_rgcnum')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(final_home_rgcnum!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='final_home_rgcnum', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='final_home_rgcnum', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified RGC: 3 categories
+The RGS are categorized as urban or metro
+\
+\
+**Metro**: Bellevue, Bremerton, Everett, Redmond Downtown, Seattle Downtown, Seattle First Hill/Capitol Hill, Seattle Northgate, Seattle South Lake Union, Seattle University Community, Seattle Uptown, Tacoma Downtown
+\
+**Urban** : Bothell Canyon Park, Issaquah, Kirkland Totem Lake, Lynnwood, Puyallup Downtown, Puyallup South Hill
+```{r 1 year simp 3 rgc disp} 
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(rcg3_simp=case_when(final_home_rgcnum=="Bellevue" |
+                              final_home_rgcnum=="Bremerton" |
+                              final_home_rgcnum=="Everett" |
+                              final_home_rgcnum=="Redmond Downtown" |
+                              final_home_rgcnum=="Seattle Downtown" |
+                              final_home_rgcnum=="Seattle First Hill/Capitol Hill" |
+                              final_home_rgcnum=="Seattle Northgate" |
+                              final_home_rgcnum=="Seattle South Lake Union" |
+                              final_home_rgcnum=="Seattle University Community" |
+                              final_home_rgcnum=="Seattle Uptown" |
+                              final_home_rgcnum=="Tacoma Downtown" ~ "Metro RGC",
+                            final_home_rgcnum=="Not RGC" ~ "Not RGC", 
+                            TRUE~ "Urban RGC"))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','rcg3_simp')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(rcg3_simp!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(rcg3_simp=case_when(final_home_rgcnum=="Bellevue" |
+                              final_home_rgcnum=="Bremerton" |
+                              final_home_rgcnum=="Everett" |
+                              final_home_rgcnum=="Redmond Downtown" |
+                              final_home_rgcnum=="Seattle Downtown" |
+                              final_home_rgcnum=="Seattle First Hill/Capitol Hill" |
+                              final_home_rgcnum=="Seattle Northgate" |
+                              final_home_rgcnum=="Seattle South Lake Union" |
+                              final_home_rgcnum=="Seattle University Community" |
+                              final_home_rgcnum=="Seattle Uptown" |
+                              final_home_rgcnum=="Tacoma Downtown" ~ "Metro RGC",
+                            final_home_rgcnum=="Not RGC" ~ "Not RGC", 
+                            TRUE~ "Urban RGC"))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','rcg3_simp')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(rcg3_simp!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='rcg3_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='rcg3_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified RGC: 2 categories
+```{r 1 year simp rgc disp} 
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(rcg_simp=case_when(final_home_rgcnum!="Not RGC" ~ "RGC",
+                            TRUE~ as.character(final_home_rgcnum)))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','rcg_simp')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(rcg_simp!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'final_home_rgcnum'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(rcg_simp=case_when(final_home_rgcnum!="Not RGC" ~ "RGC",
+                            TRUE~ as.character(final_home_rgcnum)))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','rcg_simp')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(rcg_simp!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='rcg_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='rcg_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Household size
+It's difficult to interpret because of the large moes. It appears that 1-person households were more likely to report moving because of displacement in 2021 (after COVID), than in 2019. Households with 2 people seem similar, but those with 3 or more peole experienced displacement at higher rates in 2019. 
+```{r 1 year hhsize disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hhsize')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(hhsize!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hhsize')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(hhsize!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhsize', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhsize', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified household size
+```{r 1 year simp hhsize disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(hhsz_simp=case_when(hhsize == "3 people" |
+                               hhsize == "4 people" |
+                               hhsize == "5 people" |
+                               hhsize == "6 people" |
+                               hhsize == "7 people" |
+                               hhsize == "8 people" ~ "3+ people",
+                             TRUE ~ as.character(hhsize))) %>% 
+  mutate(hhsz_simp_f=factor(hhsz_simp, levels=c("1 person" , "2 people", "3+ people")))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','hhsz_simp_f')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(hhsz_simp_f!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'hhsize'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(hhsz_simp=case_when(hhsize == "3 people" |
+                               hhsize == "4 people" |
+                               hhsize == "5 people" |
+                               hhsize == "6 people" |
+                               hhsize == "7 people" |
+                               hhsize == "8 people" ~ "3+ people",
+                             TRUE ~ as.character(hhsize))) %>% 
+  mutate(hhsz_simp_f=factor(hhsz_simp, levels=c("1 person" , "2 people", "3+ people")))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','hhsz_simp_f')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(hhsz_simp_f!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhsz_simp_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='hhsz_simp_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Life cylce
+It's difficult to interpret because of the large moes and the multiple dimensions. Some major conclusions could be:
+
+* Households with children <5 experienced displacement at higher rates in 2019 (before COVID)
+    + There doesn't appear to be a change over between before/after COVID for households with children 5-17
+* In 1-person households, displacement impacted people under 35 and over 65 after COVID, more so than before COVID
+    + People 35-64 don't show much change
+* In households with more than 1 person, 35-64 was impacted more after COVID than before
+```{r 1 year lifecycle disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','lifecycle')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(lifecycle!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','lifecycle')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(lifecycle!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='lifecycle', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='lifecycle', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### *Simplified life cycle*
+```{r 1 year simp lifecycle disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(lifecycle_simp = case_when(lifecycle=="Household includes children age 5-17" |
+                                      lifecycle=="Household includes children under 5" ~  "Households with children",
+                                    lifecycle=="Household size = 1, Householder age 65+" |
+                                      lifecycle=="Household size > 1, Householder age 65+" ~  "Households with older adults",
+                                    lifecycle=="Household size = 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size = 1, Householder under age 35" |
+                                      lifecycle=="Household size > 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size > 1, Householder under age 35"~  "Other households"))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','lifecycle_simp')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(lifecycle_simp!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'lifecycle'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(lifecycle_simp = case_when(lifecycle=="Household includes children age 5-17" |
+                                      lifecycle=="Household includes children under 5" ~  "Households with children",
+                                    lifecycle=="Household size = 1, Householder age 65+" |
+                                      lifecycle=="Household size > 1, Householder age 65+" ~  "Households with older adults",
+                                    lifecycle=="Household size = 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size = 1, Householder under age 35" |
+                                      lifecycle=="Household size > 1, Householder age 35 - 64" |
+                                      lifecycle=="Household size > 1, Householder under age 35"~  "Other households"))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','lifecycle_simp')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(lifecycle_simp!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='lifecycle_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='lifecycle_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Tenure
+###### Previous tenure
+The majority of people who experienced displacement in both years were renters prior to moving.
+```{r 1 year prev tenure disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'prev_rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','prev_rent_own')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(prev_rent_own!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'prev_rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','prev_rent_own')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(prev_rent_own!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='prev_rent_own', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='prev_rent_own', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Current tenure
+The majority of people who experienced displacement were renters at the time of the survey. Any changes between before and after covid are difficult to confirm because of the large, overlapping moes.
+```{r 1 year current tenure disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','rent_own')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(rent_own!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'rent_own'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','rent_own')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(rent_own!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='rent_own', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='rent_own', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Residential type
+###### Previous residential type
+Large, overlapping moes.
+```{r 1 year prev res disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','prev_res_type')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(prev_res_type!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','prev_res_type')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(prev_res_type!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='prev_res_type', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='prev_res_type', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### *Simplified previous*
+```{r 1 year simp prev res disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(prev_res_simp=case_when(prev_res_type=="Townhouse (attached house)" |
+                                   prev_res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','prev_res_simp')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(prev_res_simp!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'prev_res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(prev_res_simp=case_when(prev_res_type=="Townhouse (attached house)" |
+                                   prev_res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','prev_res_simp')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(prev_res_simp!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='prev_res_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='prev_res_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Current residential type
+Large, overlapping moes.
+```{r 1 year current res disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','res_type')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(res_type!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','res_type')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(res_type!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='res_type', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='res_type', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### *Simplified current*
+```{r 1 year simp current res disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(res_type_simp=case_when(res_type=="Townhouse (attached house)" |
+                                   res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','res_type_simp')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(res_type_simp!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'res_type'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(res_type_simp=case_when(res_type=="Townhouse (attached house)" |
+                                   res_type=="Single-family house (detached house)" ~ "Townhouse or single-family",
+                                 TRUE ~ "More density"))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','res_type_simp')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(res_type_simp!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='res_type_simp', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='res_type_simp', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+##### Vehicle ownership
+It's difficult to interpret because of the large moes and the multiple dimensions. One major conclusions could be:
+
+* Fewer 2-vehicle households were displaced in 2021 (during/after COVID)
+* Shares of displacement among 0-vehicle households and 1-vehicle households was similar over time
+
+**This is different from general movers sample where 2-vehicle households were close to the share of 1-vehicle households. Among displaced movers, there are similar shares of 0-vehicle households and 2-vehicle households.** 
+```{r 1 year auto disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) 
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','vehicle_count')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(vehicle_count!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','vehicle_count')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(vehicle_count!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='vehicle_count', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='vehicle_count', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+
+###### Simplified vehicle ownership
+```{r 1 year simp auto disp}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(veh_simp=case_when(vehicle_count == "3 vehicles" |
+                              vehicle_count == "8+ vehicles" ~ "3+ vehicles",
+                            TRUE ~ as.character(vehicle_count))) %>% 
+  mutate(veh_simp_f=factor(veh_simp, levels=c("0 (no vehicles)" , "1 vehicle", "2 vehicles", "3+ vehicles")))
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('prev_res_factors_displaced','veh_simp_f')) %>%
+  filter(prev_res_factors_displaced!='Total')%>%
+  filter(prev_res_factors_displaced=='Displaced') %>% 
+  filter(veh_simp_f!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa', 'vehicle_count'))%>%filter(res_dur %in% 'Less than a year' & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>% 
+  mutate(veh_simp=case_when(vehicle_count == "3 vehicles" |
+                              vehicle_count == "8+ vehicles" ~ "3+ vehicles",
+                            TRUE ~ as.character(vehicle_count))) %>% 
+  mutate(veh_simp_f=factor(veh_simp, levels=c("0 (no vehicles)" , "1 vehicle", "2 vehicles", "3+ vehicles")))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('prev_res_factors_displaced','veh_simp_f')) %>%
+  filter(prev_res_factors_displaced!='Total') %>% 
+  filter(prev_res_factors_displaced=='Displaced')%>% 
+  filter(veh_simp_f!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)
+
+static_bar_chart(t=displaced_2019_2021_counts, y='veh_simp_f', x='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+static_bar_chart(t=displaced_2019_2021_counts, y='veh_simp_f', x='share', fill='survey',color=  "pognbgy_5")
+```
+\
+\
+
+
+#### Overlapping time periods
+Showing displacement by time period. this part is a little tricky; i think I need someone to check me.
+```{r }
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))%>%mutate(move_year= case_when(
+  res_dur =='Less than a year' ~ 'Spring 2018-Spring 2019',
+  res_dur == 'Between 1 and 2 years' ~ 'Spring 2017-Spring 2018',
+  res_dur == 'Between 2 and 3 years' ~ 'Spring 2016-Spring 2017',
+  res_dur == 'Between 3 and 5 years' ~ 'Spring 2014-Spring 2016'
+  
+))
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars= c( 'move_year','prev_res_factors_displaced'))%>%
+filter(prev_res_factors_displaced!='Total')
+
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))%>%mutate(move_year= case_when(
+  res_dur =='Less than a year' ~ 'Spring 2020-Spring 2021',
+  res_dur == 'Between 1 and 2 years' ~ 'Spring 2019-Spring 2020',
+  res_dur == 'Between 2 and 3 years' ~ 'Spring 2018-Spring 2019',
+  res_dur == 'Between 3 and 5 years' ~ 'Spring 2016- Spring 2018'
+  
+))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c( 'move_year','prev_res_factors_displaced'))%>%
+filter(move_year!='Total')
+
+displaced_2019_2021_counts<-rbind(displaced_hh_2019_counts, displaced_hh_2021_counts)%>%
+filter(move_year!='Total')%>%filter(prev_res_factors_displaced=='Displaced')
+
+static_column_chart(t=displaced_2019_2021_counts, x='move_year', y='share', fill='survey',color=  "pognbgy_5")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+static_column_chart(t=displaced_2019_2021_counts, x='move_year', y='share', fill='survey', moe='share_moe', color=  "pognbgy_5")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+```
+
+```{r moved_recently}
+hhs_2021<-get_hhts(survey='2021', level="h", vars=c("res_dur",
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk",
+"res_factors_cultural",
+'prev_home_wa'
+
+))%>%filter(res_dur %in% c('Less than a year' , 'Between 1 and 2 years'))
+
+
+
+vars_to_summarize<-c(
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk",
+"res_factors_cultural")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c(x))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[2])}) %>% data.table::rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[2]) %>% relocate(var_name)
+
+mover_shares_2021<-mover_sum%>% select(var_name, var_value, share,survey, share_moe)%>%filter(var_value=='Very important')
+
+```
+
+```{r}
+hhs_2019<-get_hhts(survey='2019', level="h", vars=c("res_dur",
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk"
+))%>%filter(res_dur %in% c('Less than a year' , 'Between 1 and 2 years'))
+
+
+
+vars_to_summarize<-c(
+"res_factors_30min",
+"res_factors_afford",
+"res_factors_closefam",
+"res_factors_hwy",
+"res_factors_school",
+"res_factors_space",
+"res_factors_transit",
+"res_factors_walk")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c(x))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[2])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[2]) %>% relocate(var_name)
+
+mover_shares_2019<-mover_sum%>% select(var_name, var_value, share,survey, share_moe)%>%filter(var_value=='Very important')                                                          
+
+
+
+```
+
+### Reasons for moving
+Why did you move to current residence
+```{r}
+mover_shares_19_21<-rbind(mover_shares_2019, mover_shares_2021)%>%mutate(var_name=str_wrap(var_name,10))
+
+static_column_chart(mover_shares_19_21, x='var_name' , y='share', fill='survey', color= "pognbgy_5")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+static_column_chart(mover_shares_19_21, x='var_name' , y='share', fill='survey', color= "pognbgy_5", moe='share_moe')+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+
+
+```{r }
+hhs_2019<-get_hhts(survey='2019', level="h", vars=c("res_dur",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify"
+
+))%>%drop_na(prev_res_factors_housing_cost)
+
+
+
+vars_to_summarize<-c(
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify")
+
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c(x))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[2])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[2]) %>% relocate(var_name)
+
+mover_shares_2019<-mover_sum%>% select(var_name, var_value, share,survey, share_moe)%>%filter(var_value=='Selected')         
+
+
+
+
+
+```
+
+```{r prev-2021}
+hhs_2021<-get_hhts(survey='2021', level="h", vars=c("res_dur",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify"
+
+))%>%drop_na(prev_res_factors_housing_cost)%>%mutate(displacement_recode= case_when(
+  prev_res_factors_forced == 'Selected' ~ 'Displaced'
+))
+
+
+
+vars_to_summarize<-c(
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_covid_flexibility",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_covid_health",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+"prev_res_factors_other",
+"prev_res_factors_specify")
+
+
+
+mover_sum<- list()
+mover_sum <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c(x))) %>%
+    lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[2])}) %>% rbindlist(use.names=FALSE) %>% 
+    rename(var_value=colnames(.)[2]) %>% relocate(var_name)
+
+mover_shares_2021<-mover_sum%>% select(var_name, var_value, share,survey, share_moe)%>%filter(var_value=='Selected')
+```
+
+
+```{r}
+mover_shares_19_21<-rbind(mover_shares_2019, mover_shares_2021)%>%mutate(var_name=str_wrap(var_name,10))
+
+static_column_chart(mover_shares_19_21, x='var_name' , y='share', fill='survey', color= "pognbgy_5")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+static_column_chart(mover_shares_19_21, x='var_name' , y='share', fill='survey', color= "pognbgy_5", moe='share_moe')+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+
+redefining 
+
+
+```{r}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", "prev_res_factors_housing_cost", "prev_res_factors_forced", "prev_res_factors_income_change", "prev_res_factors_community_change", 'res_dur', 'prev_home_wa'))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years', 'Between 2 and 3 years', 	'Between 3 and 5 years') & prev_home_wa =='Yes, previous home was in Washington')%>% 
+  mutate(prev_res_factors_displaced_2 =case_when(prev_res_factors_housing_cost=='Selected' | 
+                                                   prev_res_factors_forced=='Selected' | 
+                                                   prev_res_factors_income_change=='Selected' |                prev_res_factors_community_change=='Selected'~ 'Displaced', 
+  TRUE ~ 'Not displaced')   )                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced_2')%>%
+filter(prev_res_factors_displaced_2!='Total')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='survey',color=  "pognbgy_5")
+```
+
+```{r}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", "prev_res_factors_housing_cost", "prev_res_factors_forced", "prev_res_factors_income_change", "prev_res_factors_community_change", 'res_dur', 'prev_home_wa', 'hh_race_apoc', 'hhincome_broad' ))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years') & prev_home_wa =='Yes, previous home was in Washington') %>%
+  mutate(prev_res_factors_displaced_2 =case_when(prev_res_factors_housing_cost=='Selected' |
+                                                   prev_res_factors_forced=='Selected' |
+                                                   prev_res_factors_income_change=='Selected' |
+                                                   prev_res_factors_community_change=='Selected'~ 'Displaced', 
+                                                 TRUE ~ 'Not displaced') )  %>%
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>%
+  mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000 or more",'$200,000 or more', "Prefer not to answer")))
+
+
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced_2')%>%
+filter(prev_res_factors_displaced_2!='Total')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='survey', moe='share_moe',
+                    color=  "pognbgy_5")
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hh_race_apoc','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%
+  filter(hh_race_apoc!='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')%>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='hh_race_high_low',color=  "pognbgy_10", moe='share_moe')
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hhincome_100_f','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='hhincome_100_f',color=  "pognbgy_10")
+
+```
+
+```{r}
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", "prev_res_factors_housing_cost", "prev_res_factors_forced", "prev_res_factors_income_change", 'res_dur', 'prev_home_wa', 'hh_race_apoc', 'hhincome_broad' ))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years') & prev_home_wa =='Yes, previous home was in Washington')%>%
+  mutate(prev_res_factors_displaced_2 =case_when((prev_res_factors_housing_cost=='Selected' | 
+                                                    prev_res_factors_forced=='Selected' | 
+                                                    prev_res_factors_income_change=='Selected')~ "Displaced", 
+                                                 TRUE ~ 'Not displaced') )  %>% 
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))%>%mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999",	
+                                                                                                                                                    "$100,000-$199,000",'$200,000 or more', "Prefer not to answer")))
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='prev_res_factors_displaced_2')%>%
+filter(prev_res_factors_displaced_2!='Total')
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced_2', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('hh_race_apoc','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%
+  filter(hh_race_apoc!='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')%>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced_2', y='share', fill='hh_race_high_low',color=  "pognbgy_10")
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('hhincome_100_f','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced_2', y='share', fill='hhincome_100_f',color=  "pognbgy_10")
+```
+
+```{r}
+displaced_hh_2019<-get_hhts(survey='2019', level="h", vars=c("prev_res_factors_displaced", "prev_res_factors_housing_cost", "prev_res_factors_forced", "prev_res_factors_income_change",  'res_dur', 'prev_home_wa', 'hh_race_apoc', 'hhincome_broad' ))%>%filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years') & prev_home_wa =='Yes, previous home was in Washington')%>%
+  mutate(prev_res_factors_displaced_2 =case_when(prev_res_factors_housing_cost=='Selected' | 
+                                                   prev_res_factors_forced=='Selected' | 
+                                                   prev_res_factors_income_change=='Selected' ~ 'Displaced', 
+                                                 TRUE ~ 'Not displaced') )  %>%                                                                                                                                   mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response'))%>%mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999", "$100,000 or more",'$200,000 or more', "Prefer not to answer")))
+
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars='prev_res_factors_displaced_2')%>%
+filter(prev_res_factors_displaced_2!='Total')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hh_race_apoc','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%
+  filter(hh_race_apoc!='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')%>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='hh_race_high_low',color=  "pognbgy_10", moe='share_moe')
+
+displaced_hh_2019_counts<- hhts_count(df=displaced_hh_2019, group_vars=c('hhincome_100_f','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')
+
+static_column_chart(t=displaced_hh_2019_counts, x='prev_res_factors_displaced_2', y='share', fill='hhincome_100_f',color=  "pognbgy_10")
+
+```
+
+```{r}
+displaced_hh_2021<-get_hhts(survey='2021', level="h", vars=c("prev_res_factors_displaced", "prev_res_factors_housing_cost", "prev_res_factors_forced", "prev_res_factors_income_change",  'res_dur', 'prev_home_wa', 'hh_race_apoc', 'hhincome_broad' )) %>%
+  filter(res_dur %in% c('Less than a year', '	Between 1 and 2 years') & prev_home_wa =='Yes, previous home was in Washington') %>%
+  mutate(prev_res_factors_displaced_2 =case_when(prev_res_factors_housing_cost=='Selected' | 
+                                                   prev_res_factors_forced=='Selected' | 
+                                                   prev_res_factors_income_change=='Selected' ~ 'Displaced',
+                                                 TRUE ~ 'Not displaced'))  %>% 
+  mutate(prev_res_factors_displaced = replace_na(prev_res_factors_displaced,'No response')) %>%
+  mutate(hhincome_100_f=factor(hhincome_broad, levels=c("Under $25,000" , "$25,000-$49,999" ,  "$50,000-$74,999" , "$75,000-$99,999",	
+"$100,000-$199,000",'$200,000 or more', "Prefer not to answer")))
+
+
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars='prev_res_factors_displaced_2')%>%
+filter(prev_res_factors_displaced_2!='Total')
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced_2', y='share', fill='survey', moe='share_moe',color=  "pognbgy_5")
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('hh_race_apoc','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%
+  filter(hh_race_apoc!='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')%>%
+  filter(hh_race_apoc != 'Missing') %>%
+  mutate(hh_race_high_low= fct_reorder(hh_race_apoc, -share))
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced_2', y='share', fill='hh_race_high_low',color=  "pognbgy_10")
+
+displaced_hh_2021_counts<- hhts_count(df=displaced_hh_2021, group_vars=c('hhincome_100_f','prev_res_factors_displaced_2'))%>%
+filter(prev_res_factors_displaced_2!='Total')%>%filter(hhincome_100_f !='Total')%>%filter(prev_res_factors_displaced_2=='Displaced')
+
+static_column_chart(t=displaced_hh_2021_counts, x='prev_res_factors_displaced_2', y='share', fill='hhincome_100_f',color=  "pognbgy_10")
+```

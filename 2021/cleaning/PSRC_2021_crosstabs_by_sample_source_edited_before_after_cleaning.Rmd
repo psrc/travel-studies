@@ -1,0 +1,912 @@
+---
+title: '2021 PSRC HTS: Unweighted Frequency Tables by Sample Source'
+# editor_options:
+#   chunk_output_type: console
+author: PSRC
+date: "Documentation last compiled on `r Sys.Date()`"
+output:
+  html_document:
+    collapsed: yes
+    self_contained: yes
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '4'
+  word_document:
+    toc: yes
+    toc_depth: '4'
+params:
+  codebook_path: J:/Projects/Surveys/HHTravel/Survey2021/Data/data_from_rsg_20210803/PSRC_2021_HTS_Combined_Codebook.xlsx
+  tab_by: sample_source
+  tables: [hts_hh, hts_vehicle, hts_person, hts_day, hts_trip]
+  variables_to_exclude: ["hhid", "personid", "tripid", "loc_start_other", "loc_end_other", "arrival_time_hhmm", "depart_time_hhmm", "arrival_time_mam", "depart_time_mam", "final_home_puma10", "survey_year", "hhmember1", "hhmember2", "hhmember3", "hhmember4", "hhmember5", "hhmember6", "hhmember7", "hhmember8", "hhmember9", "hhmember10", "hhmember11", "hhmember12"]
+  missing_values: !r c(994, 995, -9998, -9999)
+  weight_column: 
+  study_name: "PSRC HTS 2021"
+---
+
+```{r psrc functions, include = FALSE}
+# connecting to Elmer
+db.connect <- function() {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\Sockeye",
+                                database = "Elmer",
+                                trusted_connection = "yes"
+  )
+}
+
+# a function to read tables and queries from Elmer
+read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
+  elmer_connection <- db.connect()
+  if (type == 'table_name') {
+    dtelm <- dbReadTable(elmer_connection, SQL(astring))
+  } else {
+    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
+  }
+  dbDisconnect(elmer_connection)
+  dtelm
+}
+
+two_vars_average_by_sample_source = function(dataset,col_name,var_string){
+  
+  col_name = enquo(col_name)
+  
+  
+  trips_by_mode = dataset %>% 
+  group_by(sample_source.x,( !!col_name)) %>% 
+  summarise (n_trips = n_distinct(tripid)) 
+  
+  ABS_mode = trips_by_mode %>% 
+    filter(sample_source.x == 1) %>% 
+    rename (ABS_n_trips = n_trips) %>% 
+    mutate(ABS_trips_share = round(ABS_n_trips/sum(ABS_n_trips)*100,1))
+    
+    
+  panel_mode = trips_by_mode %>% 
+    filter(sample_source.x == 2)%>% 
+    rename (panel_n_trips = n_trips) %>% 
+    mutate(panel_trips_share = round(panel_n_trips/sum(panel_n_trips)*100,1))
+  
+  temp = ABS_mode %>% 
+    full_join(panel_mode,  by = var_string) %>% 
+    dplyr::select(-c(sample_source.x.x,sample_source.x.y)) %>% 
+    rename( "value" := !!col_name)
+   # mutate(value = !!col_name)
+  
+  var_label_table = as.data.frame(value_labels[value_labels$variable %in% c(var_string)] %>% mutate(value = as.double(value))) %>% 
+    dplyr::select(value, value_label)
+  
+  #browser()
+  
+  temp = temp %>% left_join(var_label_table, by = "value") %>% 
+    dplyr::select(-c(value)) %>%
+    relocate(value_label) %>% 
+    arrange(desc(ABS_trips_share))
+
+  return(temp)
+  
+}
+
+
+get_labels = function(dataset,col_name,var_string){
+  col_name = enquo(col_name)
+  
+  var_label_table = as.data.frame(value_labels[value_labels$variable %in% c(var_string)] %>% mutate(value = as.double(value))) %>% 
+    dplyr::select(value, value_label)
+  
+  dataset = dataset %>%
+    rename( "value" := !!col_name)
+  
+  temp = dataset %>% left_join(var_label_table, by = "value") %>% 
+    dplyr::select(-c(value)) %>%
+    relocate(value_label) 
+
+  return(temp)
+  
+}
+```
+
+```{r setup, include = FALSE, echo = FALSE, message = FALSE, warning = FALSE, results = 'asis'}
+
+# Update codebook path above & data input paths below if running outside of RSG!
+
+options(scipen = 99)
+options(knitr.kable.NA = '')
+library(data.table)
+library(knitr)
+library(kableExtra)
+library(readxl)
+library(lubridate)
+#library(RPostgres)
+library(stringr)
+library(ggplot2)
+library(odbc)
+library(DBI)
+library(tidyverse)
+source('C:/Users/schildress/Documents/GitHub/travel-survey-rsg-psrc-2021/rsg_qaqc/_crosstabs_functions.R')
+
+```
+
+------------------------------------------------------------------------
+
+First we will look at the UNCLEANED data by itself, then the CLEANED data, and then together compare the two.
+
+# Uncleaned data
+
+```{r get_inputs, include = FALSE, echo = FALSE, cache = FALSE}
+
+# UPDATE folder path if running outside of RSG
+# may also need to update file formats/read functions (e.g., read from a database)
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "hhts_cleaning",
+                              trusted_connection = "yes")
+h <- dbGetQuery(elmer_connection,
+                "SELECT * FROM dbo.hts_hh")
+p <- dbGetQuery(elmer_connection,
+                "SELECT * FROM dbo.hts_person")
+
+d <- dbGetQuery(elmer_connection,
+                "SELECT * FROM dbo.hts_day")
+
+t <- dbGetQuery(elmer_connection,
+                "SELECT * FROM dbo.hts_trip")
+```
+
+```{r varvals, cache = TRUE, echo = FALSE, message = FALSE}
+
+variable_labels = 
+  read_codebook(
+    params$codebook_path,
+    varvals = FALSE,
+    sheet = 'Variable_List')
+
+setnames(variable_labels, 'label', 'description', skip_absent = TRUE)
+
+value_labels = 
+    read_codebook(
+    params$codebook_path,
+    varvals = TRUE, 
+    sheet = 'Value_Labels')
+
+setnames(value_labels, 'label', 'value_label', skip_absent = TRUE)
+
+variable_labels[, common_name := gsub(':.*', '', description)]
+
+value_labels[, value := as.character(value)]
+
+# Change checkbox logic to be the same for each variable
+
+variable_labels[variable %like% 'delivery_', logic := '']
+variable_labels[variable %like% 'no_travel_', logic := 'If made no trips on travel day']
+variable_labels[variable %like% 'ethnicity_', logic := 'If related adult household member']
+variable_labels[variable %like% 'race_', logic := 'If related adult household member']
+
+
+```
+
+```{r join trips and person, include = FALSE ,message=FALSE,warning=FALSE}
+trips_person = left_join(t, p, by = "personid")
+
+trips_person_under17 = trips_person %>% 
+                        filter(age < 5)
+
+trips_hh = left_join(t,h, by = "hhid")
+```
+
+------------------------------------------------------------------------
+
+### average trips per person by panel vs ABS
+
+Here, average is calculated for people who made at least one trip (people who are present in trip table )
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
+
+
+temp = trips_person %>% 
+  group_by(sample_source.x) %>% 
+  summarise (n_trips = n_distinct(tripid), n_people = n_distinct(personid)) %>% 
+  mutate(average_trips_per_person = n_trips*1.0/n_people) %>% 
+  left_join(var_label_table, by = c("sample_source.x" = "value")) %>% 
+  dplyr::select(-c(variable, sample_source.x , label_value, val_order)) %>% 
+  relocate(value_label)
+
+avg_trips_uncleaned <- temp
+
+  temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+
+```
+
+Here, average is calculated for all people (including people that didnt do any trips)
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
+
+person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+
+person_panel_summary = person_panel %>% 
+    group_by(sample_source) %>%  summarise(ppl_count = n())
+
+ppl_ABS = p %>% 
+          filter(sample_source == 1)%>% 
+    group_by(sample_source) %>%  summarise(ppl_count = n())
+
+all_ppl = bind_rows(ppl_ABS,person_panel_summary)
+
+
+temp = t %>% 
+  group_by(sample_source) %>% 
+  summarise (n_trips = n_distinct(tripid)) %>% 
+  full_join(all_ppl, by = "sample_source") %>% 
+  mutate(average_trips_per_person = n_trips*1.0/ppl_count) %>% 
+  left_join(var_label_table, by = c("sample_source" = "value")) %>% 
+  dplyr::select(-c(variable, sample_source , label_value, val_order)) %>% 
+  relocate(value_label)
+ 
+avg_trips_all_uncleaned<-temp
+temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+
+```
+
+------------------------------------------------------------------------
+
+### trips by mode (mode_1) by panel vs ABS; and overall
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+
+trips_by_mode = trips_person %>% 
+  group_by(sample_source.x, mode_1) %>% 
+  summarise (n_trips = n_distinct(tripid)) 
+
+ABS_mode = trips_by_mode %>% 
+  filter(sample_source.x == 1) %>% 
+  rename (ABS_n_trips = n_trips) %>% 
+  mutate(ABS_trips_share = round(ABS_n_trips/sum(ABS_n_trips)*100,1))
+  
+  
+panel_mode = trips_by_mode %>% 
+  filter(sample_source.x == 2)%>% 
+  rename (panel_n_trips = n_trips) %>% 
+  mutate(panel_trips_share = round(panel_n_trips/sum(panel_n_trips)*100,1))
+
+temp = ABS_mode %>% 
+  full_join(panel_mode,  by = "mode_1") %>% 
+  dplyr::select(-c(sample_source.x.x,sample_source.x.y))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("mode_1")] %>% mutate(value = as.double(value))) %>% 
+  dplyr::select(value, value_label)
+
+temp = temp %>% left_join(var_label_table, by = c("mode_1" = "value")) %>% 
+  dplyr::select(-c(mode_1)) %>% 
+  relocate(value_label) %>% 
+  arrange(desc(ABS_trips_share))
+trips_by_mode_uncleaned<-temp
+
+  temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+------------------------------------------------------------------------
+
+### trips by origin purpose by panel vs ABS; overall
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+orig_purpose_all = two_vars_average_by_sample_source(trips_person, origin_purpose,"origin_purpose")
+
+orig_purpose_all_uncleaned<- orig_purpose_all
+orig_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+------------------------------------------------------------------------
+
+### trips by destination purpose by panel vs ABS; overall
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+dest_purpose_all = two_vars_average_by_sample_source(trips_person, dest_purpose,"dest_purpose")
+dest_purpose_all_uncleaned<-dest_purpose_all
+dest_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
+
+temp = trips_person_under17 %>% 
+  group_by(sample_source.x) %>% 
+  summarise (n_trips = n_distinct(tripid), n_people = n_distinct(personid)) %>% 
+  mutate(average_trips_per_person = n_trips*1.0/n_people) %>% 
+  left_join(var_label_table, by = c("sample_source.x" = "value")) %>% 
+  dplyr::select(-c(variable, sample_source.x , label_value, val_order)) %>% 
+  relocate(value_label)
+
+trips_und_17_uncleaned <-temp
+ temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+trips_und_17_uncleaned
+
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18 by mode;
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+mode_under17 = two_vars_average_by_sample_source(trips_person_under17, mode_1,"mode_1")
+
+mode_under17_uncleaned<-mode_under17
+mode_under17 %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+mode_under17_uncleaned
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18 by origin purpose
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+orig_purpose_all = two_vars_average_by_sample_source(trips_person_under17, origin_purpose,"origin_purpose")
+
+origin_purpose_all_und18_uncleaned<-orig_purpose_all
+orig_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+origin_purpose_all_und18_uncleaned
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18 by destination purpose
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+dest_purpose_all = two_vars_average_by_sample_source(trips_person_under17, dest_purpose,"dest_purpose")
+
+dest_purpose_all_und18_uncleaned<-dest_purpose_all
+dest_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+dest_purpose_all_und18_uncleaned
+```
+
+### people with no trips by sample source
+
+Online Panel Participants are assigned retrospective travel dates (most recent Monday, Tuesday, Wednesday, Thursday) and provide diary information for ONLY person 1. To find share of 0 trips for the panel, we need to subset pernum = 1. There are 896 people from the online panel that were asked o provide travel diary.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+
+person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+
+person_panel_summary = person_panel %>% 
+    group_by(sample_source) %>%  summarise(ppl_count = n())
+
+person_panel_summary_uncleaned<-person_panel_summary
+
+person_panel_summary_formatted<-get_labels(person_panel_summary, sample_source, "sample_source") %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+person_panel_summary_formatted
+
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+#for ABS panel
+
+personid_with_trips = t %>% distinct(personid)
+
+ppl_ABS = p %>% 
+          filter(sample_source == 1)
+
+ppl_with_no_trips_ABS = subset(ppl_ABS, !(personid %in% personid_with_trips$personid))
+
+ppl_with_no_trips_panel = subset(person_panel, !(personid %in% personid_with_trips$personid))
+
+no_trips_by_ss_ABS = ppl_with_no_trips_ABS %>% 
+                group_by(sample_source) %>% 
+                summarise(n_ppl_no_trips=n())
+
+no_trips_by_ss_panel = ppl_with_no_trips_panel %>% 
+                group_by(sample_source) %>% 
+                summarise(n_ppl_no_trips=n())
+
+no_trips_by_ss = bind_rows(no_trips_by_ss_ABS, no_trips_by_ss_panel)
+
+people_with_trips_panel = subset(person_panel, (personid %in% personid_with_trips$personid)) %>% 
+                          group_by(sample_source) %>% 
+                          summarise(n_ppl_with_trips =n())
+
+people_with_trips = t %>%
+  filter(sample_source == 1) %>% 
+  group_by(sample_source) %>% 
+  summarise (n_ppl_with_trips = n_distinct(personid)) %>% 
+  bind_rows(people_with_trips_panel)
+
+all_people = p %>% 
+            group_by(sample_source) %>% 
+            summarise (all_ppl = n_distinct(personid))
+
+full_trips = people_with_trips %>% 
+              full_join( no_trips_by_ss, by = "sample_source") %>%
+              full_join(all_people, by = "sample_source") %>% 
+              mutate(share_ppl_no_trips = n_ppl_no_trips*1.0/(n_ppl_no_trips+n_ppl_with_trips)*100)
+
+full_trips_uncleaned<-full_trips
+
+full_trips_formatted<-get_labels(full_trips, sample_source, "sample_source") %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+full_trips_formatted
+
+```
+
+# Cleaned Data
+
+```{r}
+
+
+# UPDATE folder path if running outside of RSG
+# may also need to update file formats/read functions (e.g., read from a database)
+
+elmer_connection <- dbConnect(odbc::odbc(),
+                              driver = "SQL Server",
+                              server = "AWS-PROD-SQL\\Sockeye",
+                              database = "hhts_cleaning",
+                              trusted_connection = "yes",
+                                port = 1433)
+#h <- dbGetQuery(elmer_connection,
+#                "SELECT * FROM HHSurvey.HouseholdV")
+p <- dbGetQuery(elmer_connection,
+                "SELECT * FROM HHSurvey.Person")
+
+d <- dbGetQuery(elmer_connection,
+                "SELECT * FROM HHSurvey.Day")
+
+t <- dbGetQuery(elmer_connection,
+                "SELECT [recid]
+      ,[survey_year]
+      ,[hhid]
+      ,[sample_source]
+      ,[hhgroup]
+      ,[nwkdays]
+      ,[personid]
+      ,[pernum]
+      ,[daynum]
+      ,[dayofweek]
+      ,[traveldate]
+      ,[data_source]
+      ,[tripid]
+      ,[tripnum]
+      ,[travelers_total]
+      ,[origin_purpose]
+      ,[origin_purpose_cat]
+      ,[dest_purpose]
+      ,[dest_purpose_cat]
+      ,[mode_1]
+      ,[mode_type]
+      ,[driver]
+       FROM HHSurvey.Trip")
+
+```
+
+```{r, cache = TRUE, echo = FALSE, message = FALSE}
+
+variable_labels = 
+  read_codebook(
+    params$codebook_path,
+    varvals = FALSE,
+    sheet = 'Variable_List')
+
+setnames(variable_labels, 'label', 'description', skip_absent = TRUE)
+
+value_labels = 
+    read_codebook(
+    params$codebook_path,
+    varvals = TRUE, 
+    sheet = 'Value_Labels')
+
+setnames(value_labels, 'label', 'value_label', skip_absent = TRUE)
+
+variable_labels[, common_name := gsub(':.*', '', description)]
+
+value_labels[, value := as.character(value)]
+
+# Change checkbox logic to be the same for each variable
+
+variable_labels[variable %like% 'delivery_', logic := '']
+variable_labels[variable %like% 'no_travel_', logic := 'If made no trips on travel day']
+variable_labels[variable %like% 'ethnicity_', logic := 'If related adult household member']
+variable_labels[variable %like% 'race_', logic := 'If related adult household member']
+
+
+```
+
+```{r, include = FALSE ,message=FALSE,warning=FALSE}
+p<-p%>%mutate(personid=as.numeric(personid))
+trips_person = left_join(t, p, by = "personid")
+
+trips_person_under17 = trips_person %>% 
+                        filter(age < 5)
+
+trips_hh = left_join(t,h, by = "hhid")
+```
+
+### average trips per person by panel vs ABS
+
+Here, average is calculated for people who made at least one trip (people who are present in trip table )
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
+
+
+temp = trips_person %>% 
+  group_by(sample_source.x) %>% 
+  summarise (n_trips = n_distinct(tripid), n_people = n_distinct(personid)) %>% 
+  mutate(average_trips_per_person = n_trips*1.0/n_people) %>% 
+  left_join(var_label_table, by = c("sample_source.x" = "value")) %>% 
+  dplyr::select(-c(variable, sample_source.x , label_value, val_order)) %>% 
+  relocate(value_label)
+
+avg_trips_cleaned <- temp
+
+  temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+
+```
+
+Here, average is calculated for all people (including people that didnt do any trips)
+
+```{r, echo=FALSE,message=FALSE,warning=FALSE}
+day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
+
+person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+
+person_panel_summary = person_panel %>% 
+    group_by(sample_source) %>%  summarise(ppl_count = n())
+
+ppl_ABS = p %>% 
+          filter(sample_source == 1)%>% 
+    group_by(sample_source) %>%  summarise(ppl_count = n())
+
+all_ppl = bind_rows(ppl_ABS,person_panel_summary)
+
+
+temp = t %>% 
+  group_by(sample_source) %>% 
+  summarise (n_trips = n_distinct(tripid)) %>% 
+  full_join(all_ppl, by = "sample_source") %>% 
+  mutate(average_trips_per_person = n_trips*1.0/ppl_count) %>% 
+  left_join(var_label_table, by = c("sample_source" = "value")) %>% 
+  dplyr::select(-c(variable, sample_source , label_value, val_order)) %>% 
+  relocate(value_label)
+ 
+avg_trips_all_cleaned<-temp
+temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+
+
+```
+
+------------------------------------------------------------------------
+
+### trips by mode (mode_1) by panel vs ABS; and overall
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+
+trips_by_mode = trips_person %>% 
+  group_by(sample_source.x, mode_1) %>% 
+  summarise (n_trips = n_distinct(tripid)) 
+
+ABS_mode = trips_by_mode %>% 
+  filter(sample_source.x == 1) %>% 
+  rename (ABS_n_trips = n_trips) %>% 
+  mutate(ABS_trips_share = round(ABS_n_trips/sum(ABS_n_trips)*100,1))
+  
+  
+panel_mode = trips_by_mode %>% 
+  filter(sample_source.x == 2)%>% 
+  rename (panel_n_trips = n_trips) %>% 
+  mutate(panel_trips_share = round(panel_n_trips/sum(panel_n_trips)*100,1))
+
+temp = ABS_mode %>% 
+  full_join(panel_mode,  by = "mode_1") %>% 
+  dplyr::select(-c(sample_source.x.x,sample_source.x.y))
+
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("mode_1")] %>% mutate(value = as.double(value))) %>% 
+  dplyr::select(value, value_label)
+
+temp = temp %>% left_join(var_label_table, by = c("mode_1" = "value")) %>% 
+  dplyr::select(-c(mode_1)) %>% 
+  relocate(value_label) %>% 
+  arrange(desc(ABS_trips_share))
+trips_by_mode_cleaned<-temp
+
+  temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+```
+
+------------------------------------------------------------------------
+
+### trips by origin purpose by panel vs ABS; overall
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+orig_purpose_all = two_vars_average_by_sample_source(trips_person, origin_purpose,"origin_purpose")
+
+orig_purpose_all_cleaned<- orig_purpose_all
+orig_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+------------------------------------------------------------------------
+
+### trips by destination purpose by panel vs ABS; overall
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+dest_purpose_all = two_vars_average_by_sample_source(trips_person, dest_purpose,"dest_purpose")
+dest_purpose_all_cleaned<-dest_purpose_all
+dest_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+var_label_table = as.data.frame(value_labels[value_labels$variable %in% c("sample_source")] %>% mutate(value = as.double(value)))
+
+temp = trips_person_under17 %>% 
+  group_by(sample_source.x) %>% 
+  summarise (n_trips = n_distinct(tripid), n_people = n_distinct(personid)) %>% 
+  mutate(average_trips_per_person = n_trips*1.0/n_people) %>% 
+  left_join(var_label_table, by = c("sample_source.x" = "value")) %>% 
+  dplyr::select(-c(variable, sample_source.x , label_value, val_order)) %>% 
+  relocate(value_label)
+
+trips_und_17_cleaned <-temp
+ temp %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+trips_und_17_cleaned
+
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18 by mode;
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+mode_under17 = two_vars_average_by_sample_source(trips_person_under17, mode_1,"mode_1")
+
+mode_under17_cleaned<-mode_under17
+mode_under17 %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+mode_under17_cleaned
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18 by origin purpose
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+orig_purpose_all = two_vars_average_by_sample_source(trips_person_under17, origin_purpose,"origin_purpose")
+
+origin_purpose_all_und18_cleaned<-orig_purpose_all
+orig_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+
+origin_purpose_all_und18_cleaned
+```
+
+------------------------------------------------------------------------
+
+### total number of trips made by people under 18 by destination purpose
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+dest_purpose_all = two_vars_average_by_sample_source(trips_person_under17, dest_purpose,"dest_purpose")
+
+dest_purpose_all_und18_cleaned<-dest_purpose_all
+dest_purpose_all %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+dest_purpose_all_und18_cleaned
+```
+
+### people with no trips by sample source
+
+Online Panel Participants are assigned retrospective travel dates (most recent Monday, Tuesday, Wednesday, Thursday) and provide diary information for ONLY person 1. To find share of 0 trips for the panel, we need to subset pernum = 1. There are 896 people from the online panel that were asked o provide travel diary.
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+day_panel_pernum1 = d %>% filter(sample_source == 2, pernum == 1)
+
+person_panel = subset(p, (personid %in% day_panel_pernum1$personid)) 
+
+person_panel_summary = person_panel %>% 
+    group_by(sample_source) %>%  summarise(ppl_count = n())
+
+person_panel_summary_cleaned<-person_panel_summary
+
+person_panel_summary_formatted<-get_labels(person_panel_summary, sample_source, "sample_source") %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+person_panel_summary_formatted
+
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+#for ABS panel
+
+personid_with_trips = t %>% distinct(personid)
+
+ppl_ABS = p %>% 
+          filter(sample_source == 1)
+
+ppl_with_no_trips_ABS = subset(ppl_ABS, !(personid %in% personid_with_trips$personid))
+
+ppl_with_no_trips_panel = subset(person_panel, !(personid %in% personid_with_trips$personid))
+
+no_trips_by_ss_ABS = ppl_with_no_trips_ABS %>% 
+                group_by(sample_source) %>% 
+                summarise(n_ppl_no_trips=n())
+
+no_trips_by_ss_panel = ppl_with_no_trips_panel %>% 
+                group_by(sample_source) %>% 
+                summarise(n_ppl_no_trips=n())
+
+no_trips_by_ss = bind_rows(no_trips_by_ss_ABS, no_trips_by_ss_panel)
+
+people_with_trips_panel = subset(person_panel, (personid %in% personid_with_trips$personid)) %>% 
+                          group_by(sample_source) %>% 
+                          summarise(n_ppl_with_trips =n())
+
+people_with_trips = t %>%
+  filter(sample_source == 1) %>% 
+  group_by(sample_source) %>% 
+  summarise (n_ppl_with_trips = n_distinct(personid)) %>% 
+  bind_rows(people_with_trips_panel)
+
+all_people = p %>% 
+            group_by(sample_source) %>% 
+            summarise (all_ppl = n_distinct(personid))
+
+full_trips = people_with_trips %>% 
+              full_join( no_trips_by_ss, by = "sample_source") %>%
+              full_join(all_people, by = "sample_source") %>% 
+              mutate(share_ppl_no_trips = n_ppl_no_trips*1.0/(n_ppl_no_trips+n_ppl_with_trips)*100)
+
+full_trips_cleaned<-full_trips
+
+full_trips_formatted<-get_labels(full_trips, sample_source, "sample_source") %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+full_trips_formatted
+
+
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+compare_df<-function(df1, df2){
+  df1_num<- df1 %>% select(where(is.numeric))
+  df2_num<- df2 %>% select(where(is.numeric))
+  df_diff<- df2_num -df1_num
+  df_differs <- cbind(df1%>%select(1), df_diff)%>%rename_with(~paste0(.,' cleaned-uncleaned difference'))
+  df_percent_diff<-df_diff/df1_num
+  df_percent_diff<-  df_percent_diff%>%mutate_at(names(.),funs(scales::percent(.)))%>%rename_with(~paste0(.,' cleaned-uncleaned percent difference'))
+  df_percent_differs<- cbind(df_differs, df_percent_diff)
+  df_percent_differs %>%
+  kbl() %>%
+  #kable_material(c("striped", "hover"))
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"))
+}
+```
+
+# Compare Cleaned and Uncleaned data
+
+## average trips per person
+
+```{r}
+compare_df(avg_trips_all_uncleaned,avg_trips_all_cleaned)
+
+```
+
+## trips by mode
+
+```{r}
+compare_df(trips_by_mode_uncleaned,trips_by_mode_cleaned)
+
+```
+
+## trips by origin purpose
+
+```{r}
+orig_purpose_all_uncleaned
+orig_purpose_all_cleaned
+```
+
+## trips by destination purpose
+
+```{r}
+dest_purpose_all_uncleaned
+dest_purpose_all_cleaned
+```
+
+## trips made by people under 18
+
+```{r}
+compare_df(trips_und_17_cleaned,trips_und_17_uncleaned)
+```
+
+## people with no trips
+
+```{r}
+full_trips_uncleaned
+full_trips_cleaned
+```

@@ -1,0 +1,699 @@
+---
+title: "Centers monitoring: 2017/2019 and 2023 regional destinations"
+date: today
+format: 
+  html:
+    mainfont: Poppins
+    theme: [cosmo, custom.scss]
+    toc: true
+    df-print: kable
+    warning: false
+    echo: false
+---
+
+```{r}
+source("region_dest_data.R")
+source("region_dest_data_2023_new.R")
+
+formatting_func <- function(.data){
+  .data %>%
+  mutate(share = scales::percent(share,accuracy=1),
+         count = scales::number(count,accuracy=1000,big.mark = ","),
+         `trip/acre` = scales::number(`trip/acre`,accuracy=0.01,big.mark = ","),
+         `trip/activity unit` = scales::number(`trip/activity unit`,accuracy=0.01))
+}
+
+pal_rgc <- c(psrc_colors$purples_inc[2],psrc_colors$greens_inc[2])
+pal_rgc <- setNames(pal_rgc, c("RGC","Not RGC"))
+
+pal_rgc_mu <- c(psrc_colors$oranges_inc[2],psrc_colors$blues_inc[2],psrc_colors$greens_inc[2])
+pal_rgc_mu <- setNames(pal_rgc_mu, c("Metro","Urban","Not RGC"))
+
+trip_data_uga_17_19 <- trip_data_uga_17_19 %>% mutate(survey_year = survey)
+```
+
+
+- data source:
+  1. trip data: 2017/2019 and 2023 household travel survey
+  2. employment data: 2018 and 2022 Covered Employment Estimates by NAICS2
+  3. population data: 2018 and 2023 OFM data
+
+## activity units in centers
+
+- activity units in all areas increased
+```{r}
+#| tbl-cap: area and activity units in centers
+#| out-width: 650px
+
+df_tbl <- df_rgc %>% select(d_rgcname,acres,activity_unit) %>%
+    rename(activity_unit2017 = activity_unit,
+           category = d_rgcname) %>%
+    add_column(
+      df_rgc_2023 %>% select(activity_unit) %>%
+        rename(activity_unit2023 = activity_unit))
+
+kbl(
+  data.frame(category="Total",
+                       acres = sum(df_tbl$acres),
+                       activity_unit2017 = sum(df_tbl$activity_unit2017),
+                       activity_unit2023 = sum(df_tbl$activity_unit2023)) %>%
+    add_row(df_tbl) %>%
+    rename(`2017/2019 activity units` = activity_unit2017,
+           `2023 activity units` = activity_unit2023) %>%
+    filter(category!="Not RGC") %>%
+    add_row(
+      df_metro_urban %>% select(category,acres,activity_unit) %>%
+        mutate(category=factor(category, levels=c("Metro","Urban","Not RGC"))) %>%
+        arrange(category)%>%
+        rename(`2017/2019 activity units` = activity_unit) %>%
+        add_column(
+          df_metro_urban_2023 %>% 
+            mutate(category=factor(category, levels=c("Metro","Urban","Not RGC"))) %>%
+            arrange(category)%>%
+            select(activity_unit) %>%
+            rename(`2023 activity units` = activity_unit))
+    ) %>%
+    mutate(`activity units change` = `2023 activity units`-`2017/2019 activity units`,
+           `activity units % change` = `2023 activity units`/`2017/2019 activity units`-1,
+           acres = scales::number(acres,accuracy=1000,big.mark = ","),
+           `2023 activity units` = scales::number(`2023 activity units`,accuracy=1000,big.mark = ","),
+           `2017/2019 activity units` = scales::number(`2017/2019 activity units`,accuracy=1000,big.mark = ","),
+           `activity units change` = scales::number(`activity units change`,accuracy=1000,big.mark = ",", style_positive="plus"),
+           `activity units % change` = scales::percent(`activity units % change`,accuracy=0.01, style_positive="plus"))
+  
+  )%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins", full_width = F) %>%
+  row_spec(2, background = psrc_colors$purples_inc[1]) %>%
+  row_spec(3, background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(4, background = psrc_colors$blues_inc[1]) %>%
+  row_spec(5, background = psrc_colors$greens_inc[1])
+```
+
+## all trips
+
+::: {.callout-note}
+recommend looking at metro and urban centers separately as they show very different results
+:::
+
+- overall regional trip counts decreased by \-5\%
+- trip counts in metro centers dropped significantly \(\-29\%\)
+- only trip counts in urban centers increased
+
+
+```{r}
+# rgc
+df_plot <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("d_rgcname"),spec_wgt = "trip_weight_2017_2019",incl_na=FALSE) %>%
+  # filter(d_rgcname!= "Total") %>%
+  mutate(survey_year = "2017/2019") %>%
+  select(survey_year,d_rgcname,share,count)
+
+df_plot_23 <- get_hts_summary(dt_list=hts_data, 
+                              summary_var=c('survey_year', 'd_rgcname'), 
+                              id_var='trip_id', wt_var='trip_weight') %>%
+  filter(survey_year=="2023") %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>%
+  select(survey_year,d_rgcname,share,count) 
+
+df_plot_23 <- df_plot_23 %>%
+  add_row(data.frame(survey_year="2023",
+                     d_rgcname="Total",
+                     count=sum(df_plot_23$count),
+                     share=sum(df_plot_23$share)))
+
+# metro/urban
+df_plot_mu <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("category"),spec_wgt = "trip_weight_2017_2019",incl_na=FALSE) %>%
+  filter(category!= "Total", category!="Not RGC") %>%
+  mutate(survey_year = "2017/2019") %>%
+  select(survey_year,category,share,count)
+
+df_plot_mu_23 <- get_hts_summary(dt_list=hts_data, 
+                              summary_var=c('survey_year', 'category'), 
+                              id_var='trip_id', wt_var='trip_weight') %>%
+  filter(survey_year=="2023", category!="Not RGC") %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>%
+  select(survey_year,category,share,count) 
+
+df_plot_all <- df_plot %>% 
+  add_row(df_plot_23)%>% 
+  add_row(df_plot_mu %>% rename(d_rgcname=category))%>% 
+  add_row(df_plot_mu_23 %>% rename(d_rgcname=category))
+df_plot_all$d_rgcname <- factor(df_plot_all$d_rgcname,
+                                levels=c("Total","RGC","Metro","Urban","Not RGC"))
+```
+
+
+```{r}
+generate_trip_count_table <- function(.data){
+  .data %>%
+    mutate(`trip count change` = `trip count 2023`-`trip count 2017/2019`,
+           `trip count % change` = `trip count 2023`/`trip count 2017/2019`-1) %>%
+    mutate(`trip count change` = scales::number(`trip count change`, accuracy=1000, 
+                                                big.mark = ",",
+                                                style_positive="plus"),
+           `trip count 2023` = scales::number(`trip count 2023`, accuracy=1000, 
+                                              big.mark = ","),
+           `trip count 2017/2019` = scales::number(`trip count 2017/2019`, accuracy=1000, 
+                                                   big.mark = ","),
+           `trip count % change` = scales::percent(`trip count % change`, accuracy=1,
+                                                   style_positive="plus"))
+}
+```
+
+
+```{r}
+df_table <- df_plot_all %>%
+  arrange(d_rgcname) %>%
+  pivot_wider(id_cols = c(d_rgcname), names_from = survey_year, values_from = count, names_prefix = "trip count ") %>%
+  generate_trip_count_table()
+
+kbl(df_table)%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(2), background = psrc_colors$purples_inc[1]) %>%
+  row_spec(c(3), background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(c(4), background = psrc_colors$blues_inc[1]) %>%
+  row_spec(c(5), background = psrc_colors$greens_inc[1])
+```
+
+## trips in centers
+
+:::{.panel-tabset}
+
+### RGC
+
+```{r}
+df_plot <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("trip_type","d_rgcname"),spec_wgt = "trip_weight_2017_2019") %>%
+  filter(d_rgcname!= "Total") %>%
+  left_join(df_rgc, by="d_rgcname") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit,
+         survey_year="2017/2019") %>%
+  select(all_of(c("survey_year","trip_type", "d_rgcname", "share", "count", "trip/acre","trip/activity unit")))
+df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC"))
+
+prepped_dt <- hts_prep_variable(summarize_var = 'd_rgcname',
+                                summarize_by = c('survey_year', 'trip_type'),
+                                data = hts_data,
+                                id_cols='trip_id',
+                                wt_cols='trip_weight',
+                                weighted=TRUE)
+
+
+summary_dt <- hts_summary(prepped_dt = prepped_dt$cat,
+                         summarize_var = 'd_rgcname',
+                         summarize_by = c('survey_year', 'trip_type'),
+                         summarize_vartype = 'categorical',
+                         id_cols = 'trip_id',
+                         wtname ='trip_weight',
+                         weighted=TRUE,
+                         se=TRUE)
+
+df_plot_23 <- summary_dt$summary$wtd %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>% 
+  left_join(df_rgc_2023, by="d_rgcname") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit) %>%
+  filter(survey_year=="2023") %>%
+  select(all_of(c("survey_year","trip_type", "d_rgcname", "share", "count", "trip/acre","trip/activity unit")))
+df_plot_23$d_rgcname <- factor(df_plot_23$d_rgcname, levels=c("RGC","Not RGC"))
+```
+
+```{r}
+#| tbl-cap: weekday trip counts in centers
+
+df_tab <- df_plot %>% add_row(df_plot_23) %>%
+  pivot_wider(id_cols = c(trip_type, d_rgcname), names_from = survey_year, values_from = count, names_prefix = "trip count ") %>%
+  generate_trip_count_table()
+
+
+df_tab2 <- df_plot %>% add_row(df_plot_23) %>%
+  pivot_wider(id_cols = c(trip_type, d_rgcname), names_from = survey_year, values_from = share, names_prefix = "trip share ") %>%
+  rename(`trip type` = trip_type) %>%
+  mutate(`trip share 2023` = scales::percent(`trip share 2023`,accuracy=1),
+         `trip share 2017/2019` = scales::percent(`trip share 2017/2019`,accuracy=1))
+
+
+kbl(df_tab2 %>% 
+      add_column(df_tab[,-c(1,2)], .name_repair = "minimal"))%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(1,3), background = psrc_colors$purples_inc[1]) %>%
+  row_spec(c(2,4), background = psrc_colors$greens_inc[1])
+```
+
+
+1. **trips per acre**
+*percent change in trips per acre equals percent change in trip count as the area remained the same across years*
+
+```{r}
+df_tab <- df_plot %>% add_row(df_plot_23) %>%
+  pivot_wider(id_cols = c(trip_type, d_rgcname), names_from = survey_year, values_from = `trip/acre`, names_prefix = "trip/acre ") %>%
+  mutate(`trip/acre 2023` = scales::number(`trip/acre 2023`,accuracy=0.1,big.mark = ","),
+         `trip/acre 2017/2019` = scales::number(`trip/acre 2017/2019`,accuracy=0.1,big.mark = ",")
+         )
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(1,3), background = psrc_colors$purples_inc[1]) %>%
+  row_spec(c(2,4), background = psrc_colors$greens_inc[1])
+```
+
+
+2. **trips per activity unit**
+
+```{r}
+df_tab <- df_plot %>% add_row(df_plot_23) %>%
+  pivot_wider(id_cols = c(trip_type, d_rgcname), names_from = survey_year, values_from = `trip/activity unit`, names_prefix = "trip/activity unit ") %>%
+  mutate(`trip/activity unit % change` = `trip/activity unit 2023`/`trip/activity unit 2017/2019`-1) %>%
+  mutate(`trip/activity unit 2023` = scales::number(`trip/activity unit 2023`, accuracy=0.01, big.mark = ","),
+         `trip/activity unit 2017/2019` = scales::number(`trip/activity unit 2017/2019`,accuracy=0.01,big.mark = ","),
+         `trip/activity unit % change` = scales::percent(`trip/activity unit % change`, accuracy=0.01, style_positive="plus"))
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(1,3), background = psrc_colors$purples_inc[1]) %>%
+  row_spec(c(2,4), background = psrc_colors$greens_inc[1])
+```
+
+
+### Metro/Urban RGC
+
+- **non-work**: trips in urban centers increased while those in metro center and non-center decreased, making urban centers the most popular regional destinations
+- **work**: trip share and trip count in metro centers dropped significantly
+  - need additional information (e.g., telecommute from HTS) to confirm if workers with work location in centers are telecommuting or shifting to non-centers
+
+```{r}
+
+df_plot3 <- trip_data_uga_17_19 %>% 
+  hhts_count(group_vars=c("trip_type","category"),spec_wgt = "trip_weight_2017_2019") %>%
+  filter(category!= "Total") %>%
+  left_join(df_metro_urban, by="category") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit,
+         survey_year="2017/2019") %>%
+  select(all_of(c("survey_year","trip_type", "category", "share", "count", "trip/acre","trip/activity unit")))
+df_plot3$category <- factor(df_plot3$category, levels=c("Metro","Urban","Not RGC"))
+
+df_plot3_23 <- get_hts_summary(dt_list=hts_data, 
+                              summary_var=c('survey_year', 'trip_type', 'category'), 
+                              id_var='trip_id', wt_var='trip_weight') %>%
+  rename(share = prop,
+         sample = count,
+         count = est) %>% 
+  left_join(df_metro_urban_2023, by="category") %>%
+  mutate(`trip/acre` = count/acres,
+         `trip/activity unit` = count/activity_unit) %>%
+  filter(survey_year=="2023") %>%
+  select(all_of(c("survey_year","trip_type", "category", "share", "count", "trip/acre","trip/activity unit")))
+df_plot3_23$category <- factor(df_plot3_23$category, levels=c("Metro","Urban","Not RGC"))
+
+```
+```{r}
+#| tbl-cap: weekday trip counts in centers
+
+df_tab <- df_plot3 %>% add_row(df_plot3_23) %>%
+  pivot_wider(id_cols = c(trip_type, category), names_from = survey_year, values_from = count, names_prefix = "trip count ") %>%
+  generate_trip_count_table()
+
+
+df_tab2 <- df_plot3 %>% add_row(df_plot3_23) %>%
+  pivot_wider(id_cols = c(trip_type, category), names_from = survey_year, values_from = share,
+names_prefix = "trip share ") %>%
+  rename(`trip type` = trip_type) %>%
+  mutate(`trip share 2023` = scales::percent(`trip share 2023`,accuracy=0.1),
+         `trip share 2017/2019` = scales::percent(`trip share 2017/2019`,accuracy=0.1))
+
+kbl(df_tab2 %>% 
+      add_column(df_tab[,-c(1,2)]))%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(1,4), background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(c(2,5), background = psrc_colors$blues_inc[1]) %>%
+  row_spec(c(3,6), background = psrc_colors$greens_inc[1])
+```
+
+
+
+1. **trips per acre**
+*percent change in trips per acre equals percent change in trip count as the area remained the same across years*
+- non-work trips per acre in urban centers exceeds metro centers
+
+```{r}
+df_tab <- df_plot3 %>% add_row(df_plot3_23) %>%
+  pivot_wider(id_cols = c(trip_type, category), names_from = survey_year, values_from = `trip/acre`, names_prefix="trip/acre ") %>%
+  mutate(`trip/acre 2023` = scales::number(`trip/acre 2023`,accuracy=0.1,big.mark = ","),
+         `trip/acre 2017/2019` = scales::number(`trip/acre 2017/2019`,accuracy=0.1,big.mark = ","))
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(1,4), background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(c(2,5), background = psrc_colors$blues_inc[1]) %>%
+  row_spec(c(3,6), background = psrc_colors$greens_inc[1])
+```
+
+
+2. **trips per activity unit**
+
+- only urban centers have growth in non-work trips per activity unit
+
+```{r}
+df_tab <- df_plot3 %>% add_row(df_plot3_23) %>%
+  pivot_wider(id_cols = c(trip_type, category), names_from = survey_year, values_from = `trip/activity unit`, names_prefix = "trip/activity unit ") %>%
+  mutate(`trip/activity unit % change` = `trip/activity unit 2023`/`trip/activity unit 2017/2019`-1) %>%
+  mutate(`trip/activity unit 2023` = scales::number(`trip/activity unit 2023`,accuracy=0.01,big.mark = ","),
+         `trip/activity unit 2017/2019` = scales::number(`trip/activity unit 2017/2019`, accuracy=0.01,big.mark = ","),
+         `trip/activity unit % change` = scales::percent(`trip/activity unit % change`,accuracy=0.01, style_positive="plus"))
+
+kbl(df_tab)%>%
+  kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>%
+  row_spec(c(1,4), background = psrc_colors$oranges_inc[1]) %>%
+  row_spec(c(2,5), background = psrc_colors$blues_inc[1]) %>%
+  row_spec(c(3,6), background = psrc_colors$greens_inc[1])
+```
+
+
+:::
+
+<!-- ## trips in centers by trip purpose -->
+
+
+<!-- :::{.panel-tabset} -->
+
+<!-- ### RGC -->
+
+<!-- ```{r} -->
+<!-- df_plot <- trip_data_uga_17_19 %>%  -->
+<!--   filter(trip_type=="Non-work") %>% -->
+<!--   hhts_count(group_vars=c("d_rgcname",'dest_purpose_cat'),spec_wgt = "trip_weight_2017_2019") %>%  -->
+<!--   filter(dest_purpose_cat != "Total") %>% -->
+<!--   left_join(df_rgc, by="d_rgcname") %>% -->
+<!--   mutate(`trip/acre` = count/acres, -->
+<!--          `trip/activity unit` = count/activity_unit, -->
+<!--          survey_year="2017/2019") %>% -->
+<!--   select(all_of(c("survey_year","d_rgcname",'dest_purpose_cat', "share", "count", "trip/acre","trip/activity unit"))) -->
+<!-- df_plot$d_rgcname <- factor(df_plot$d_rgcname, levels=c("RGC","Not RGC")) -->
+
+<!-- prepped_dt <- hts_prep_variable(summarize_var = 'dest_purpose_simple', -->
+<!--                                 summarize_by = c('survey_year', 'trip_type', 'd_rgcname'), -->
+<!--                                 data = hts_data, -->
+<!--                                 id_cols='trip_id', -->
+<!--                                 wt_cols='trip_weight', -->
+<!--                                 weighted=TRUE) -->
+
+
+<!-- summary_dt <- hts_summary(prepped_dt = prepped_dt$cat, -->
+<!--                          summarize_var = 'dest_purpose_simple', -->
+<!--                          summarize_by = c('survey_year', 'trip_type', 'd_rgcname'), -->
+<!--                          summarize_vartype = 'categorical', -->
+<!--                          id_cols = 'trip_id', -->
+<!--                          wtname ='trip_weight', -->
+<!--                          weighted=TRUE, -->
+<!--                          se=TRUE) -->
+
+<!-- df_plot_23 <- summary_dt$summary$wtd %>% -->
+<!--   filter(trip_type=="Non-work",survey_year=="2023") %>% -->
+<!--   rename(share = prop, -->
+<!--          sample = count, -->
+<!--          count = est) %>% -->
+<!--   left_join(df_rgc_2023, by="d_rgcname") %>% -->
+<!--   mutate(`trip/acre` = count/acres, -->
+<!--          `trip/activity unit` = count/activity_unit) %>% -->
+<!--   select(all_of(c("survey_year","d_rgcname",'dest_purpose_simple', "share", "count", "trip/acre","trip/activity unit"))) -->
+<!-- df_plot_23$d_rgcname <- factor(df_plot_23$d_rgcname, levels=c("RGC","Not RGC")) -->
+<!-- df_plot_23$dest_purpose_simple <- factor(df_plot_23$dest_purpose_simple, levels= c("Errand/Other", "Escort", "Meal", "Shop", "Social/Recreation")) -->
+
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| tbl-cap: weekday non-work trip counts by purpose -->
+
+
+<!-- df_tab <- df_plot %>% rename(dest_purpose_simple = dest_purpose_cat) %>% add_row(df_plot_23) %>% -->
+<!--   pivot_wider(id_cols = c(dest_purpose_simple, d_rgcname), names_from = survey_year, values_from = count) %>% -->
+<!--   mutate(`trip count % change` = `2023`/`2017/2019`-1) %>% -->
+<!--   rename(`2023 trip count` = `2023`, -->
+<!--          `2017/2019 trip count` = `2017/2019`) %>% -->
+<!--   mutate(`2023 trip count` = scales::number(`2023 trip count`,accuracy=1000,big.mark = ","), -->
+<!--          `2017/2019 trip count` = scales::number(`2017/2019 trip count`,accuracy=1000,big.mark = ","), -->
+<!--          `trip count % change` = scales::percent(`trip count % change`,accuracy=0.01, style_positive="plus")) -->
+
+
+<!-- kbl(df_tab)%>% -->
+<!--   kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>% -->
+<!--   row_spec(c(1:5), background = psrc_colors$purples_inc[1]) %>% -->
+<!--   row_spec(c(6:10), background = psrc_colors$greens_inc[1]) -->
+<!-- ``` -->
+
+<!-- 1. **trips per acre** -->
+
+<!-- ```{r} -->
+
+<!-- df_tab <- df_plot %>% rename(dest_purpose_simple = dest_purpose_cat) %>% add_row(df_plot_23) %>% -->
+<!--   pivot_wider(id_cols = c(dest_purpose_simple, d_rgcname), names_from = survey_year, values_from = `trip/acre`) %>% -->
+<!--   mutate(`trip/acre % change` = `2023`/`2017/2019`-1) %>% -->
+<!--   rename(`2023 trip/acre` = `2023`, -->
+<!--          `2017/2019 trip/acre` = `2017/2019`) %>% -->
+<!--   mutate(`2023 trip/acre` = scales::number(`2023 trip/acre`,accuracy=0.1,big.mark = ","), -->
+<!--          `2017/2019 trip/acre` = scales::number(`2017/2019 trip/acre`,accuracy=0.1,big.mark = ","), -->
+<!--          `trip/acre % change` = scales::percent(`trip/acre % change`,accuracy=0.01, style_positive="plus")) -->
+
+<!-- kbl(df_tab)%>% -->
+<!--   kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>% -->
+<!--   row_spec(c(1:5), background = psrc_colors$purples_inc[1]) %>% -->
+<!--   row_spec(c(6:10), background = psrc_colors$greens_inc[1]) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| layout-ncol: 2 -->
+<!-- #| out-height: 400px -->
+<!-- #| out-width: 400px -->
+
+<!-- # plot_ly(data = df_plot, -->
+<!-- #         x = ~dest_purpose_cat, y = ~`trip/acre`,type = "bar",  -->
+<!-- #         text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",  -->
+<!-- #         color = ~d_rgcname, colors = pal_rgc) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f",range=c(0,29)),  -->
+<!-- #          title = "2017/2019 weekday non-work trip <br>per acre by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- # plot_ly(data = df_plot_23, -->
+<!-- #         x = ~dest_purpose_simple, y = ~`trip/acre`,type = "bar",  -->
+<!-- #         text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",  -->
+<!-- #         color = ~d_rgcname, colors = pal_rgc) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f",range=c(0,29)),  -->
+<!-- #          title = "2023 weekday non-work trip <br>per acre by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- ``` -->
+
+
+<!-- 2. **trips per activity unit** -->
+
+<!-- ```{r} -->
+<!-- df_tab <- df_plot %>% rename(dest_purpose_simple = dest_purpose_cat) %>% add_row(df_plot_23) %>% -->
+<!--   pivot_wider(id_cols = c(dest_purpose_simple, d_rgcname), names_from = survey_year, values_from = `trip/activity unit`) %>% -->
+<!--   mutate(`trip/activity unit % change` = `2023`/`2017/2019`-1) %>% -->
+<!--   rename(`2023 trip/activity unit` = `2023`, -->
+<!--          `2017/2019 trip/activity unit` = `2017/2019`) %>% -->
+<!--   mutate(`2023 trip/activity unit` = scales::number(`2023 trip/activity unit`,accuracy=0.01,big.mark = ","), -->
+<!--          `2017/2019 trip/activity unit` = scales::number(`2017/2019 trip/activity unit`,accuracy=0.01,big.mark = ","), -->
+<!--          `trip/activity unit % change` = scales::percent(`trip/activity unit % change`,accuracy=0.01, style_positive="plus")) -->
+
+<!-- kbl(df_tab)%>% -->
+<!--   kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>% -->
+<!--   row_spec(c(1:5), background = psrc_colors$purples_inc[1]) %>% -->
+<!--   row_spec(c(6:10), background = psrc_colors$greens_inc[1]) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| layout-ncol: 2 -->
+<!-- #| out-height: 400px -->
+<!-- #| out-width: 400px -->
+
+<!-- # plot_ly(data = df_plot, -->
+<!-- #         x = ~dest_purpose_cat, y = ~`trip/activity unit`,type = "bar",  -->
+<!-- #         text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",  -->
+<!-- #         color = ~d_rgcname, colors = pal_rgc) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f",range=c(0,0.49)),  -->
+<!-- #          title = "2017/2019 weekday non-work trip per <br>activity unit by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # plot_ly(data = df_plot_23, -->
+<!-- #         x = ~dest_purpose_simple, y = ~`trip/activity unit`,type = "bar",  -->
+<!-- #         text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",  -->
+<!-- #         color = ~d_rgcname, colors = pal_rgc) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".2f",range=c(0,0.49)),  -->
+<!-- #          title = "2023 weekday non-work trip <br>per activity unit by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- ``` -->
+
+
+
+<!-- ### Metro/Urban RGC -->
+
+<!-- ```{r} -->
+<!-- df_plot <- trip_data_uga_17_19 %>%  -->
+<!--   filter(trip_type=="Non-work") %>% -->
+<!--   hhts_count(group_vars=c("category",'dest_purpose_cat'),spec_wgt = "trip_weight_2017_2019") %>%  -->
+<!--   filter(dest_purpose_cat != "Total") %>% -->
+<!--   left_join(df_metro_urban, by="category") %>% -->
+<!--   mutate(`trip/acre` = count/acres, -->
+<!--          `trip/activity unit` = count/activity_unit, -->
+<!--          survey_year="2017/2019") %>% -->
+<!--   select(all_of(c("survey_year","category",'dest_purpose_cat', "share", "count", "trip/acre","trip/activity unit"))) -->
+<!-- df_plot$category <- factor(df_plot$category, levels=c("Metro", "Urban", "Not RGC")) -->
+
+
+<!-- prepped_dt <- hts_prep_variable(summarize_var = 'dest_purpose_simple', -->
+<!--                                 summarize_by = c('survey_year', 'trip_type', 'category'), -->
+<!--                                 data = hts_data, -->
+<!--                                 id_cols='trip_id', -->
+<!--                                 wt_cols='trip_weight', -->
+<!--                                 weighted=TRUE) -->
+
+
+<!-- summary_dt <- hts_summary(prepped_dt = prepped_dt$cat, -->
+<!--                          summarize_var = 'dest_purpose_simple', -->
+<!--                          summarize_by = c('survey_year', 'trip_type', 'category'), -->
+<!--                          summarize_vartype = 'categorical', -->
+<!--                          id_cols = 'trip_id', -->
+<!--                          wtname ='trip_weight', -->
+<!--                          weighted=TRUE, -->
+<!--                          se=TRUE) -->
+
+<!-- df_plot_23 <- summary_dt$summary$wtd %>% -->
+<!--   filter(trip_type=="Non-work",survey_year=="2023") %>% -->
+<!--   rename(share = prop, -->
+<!--          sample = count, -->
+<!--          count = est)  %>%  -->
+<!--   left_join(df_metro_urban_2023, by="category") %>% -->
+<!--   mutate(`trip/acre` = count/acres, -->
+<!--          `trip/activity unit` = count/activity_unit) %>% -->
+<!--   filter(survey_year=="2023")%>% -->
+<!--   select(all_of(c("survey_year","category",'dest_purpose_simple', "share", "count", "trip/acre","trip/activity unit"))) -->
+<!-- df_plot_23$category <- factor(df_plot_23$category, levels=c("Metro","Urban","Not RGC")) -->
+<!-- df_plot_23$dest_purpose_simple <- factor(df_plot_23$dest_purpose_simple, levels=c("Errand/Other","Escort","Meal","Shop","Social/Recreation")) -->
+
+
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- #| tbl-cap: weekday non-work trip count by purpose -->
+
+<!-- df_tab <- df_plot %>% rename(dest_purpose_simple = dest_purpose_cat) %>% add_row(df_plot_23) %>% -->
+<!--   pivot_wider(id_cols = c(dest_purpose_simple, category), names_from = survey_year, values_from = count) %>% -->
+<!--   mutate(`trip count % change` = `2023`/`2017/2019`-1) %>% -->
+<!--   rename(`2023 trip count` = `2023`, -->
+<!--          `2017/2019 trip count` = `2017/2019`) %>% -->
+<!--   mutate(`2023 trip count` = scales::number(`2023 trip count`,accuracy=1000,big.mark = ","), -->
+<!--          `2017/2019 trip count` = scales::number(`2017/2019 trip count`,accuracy=1000,big.mark = ","), -->
+<!--          `trip count % change` = scales::percent(`trip count % change`,accuracy=0.01, style_positive="plus")) -->
+
+
+<!-- kbl(df_tab)%>% -->
+<!--   kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>% -->
+<!--   row_spec(c(1:5), background = psrc_colors$oranges_inc[1]) %>% -->
+<!--   row_spec(c(6:10), background = psrc_colors$blues_inc[1]) %>% -->
+<!--   row_spec(c(11:15), background = psrc_colors$greens_inc[1]) -->
+
+<!-- ``` -->
+
+<!-- 1. **trips per acre** -->
+
+<!-- ```{r} -->
+<!-- df_tab <- df_plot %>% rename(dest_purpose_simple = dest_purpose_cat) %>% add_row(df_plot_23) %>% -->
+<!--   pivot_wider(id_cols = c(dest_purpose_simple, category), names_from = survey_year, values_from = `trip/acre`) %>% -->
+<!--   mutate(`trip/acre % change` = `2023`/`2017/2019`-1) %>% -->
+<!--   rename(`2023 trip/acre` = `2023`, -->
+<!--          `2017/2019 trip/acre` = `2017/2019`) %>% -->
+<!--   mutate(`2023 trip/acre` = scales::number(`2023 trip/acre`,accuracy=0.1,big.mark = ","), -->
+<!--          `2017/2019 trip/acre` = scales::number(`2017/2019 trip/acre`,accuracy=0.1,big.mark = ","), -->
+<!--          `trip/acre % change` = scales::percent(`trip/acre % change`,accuracy=0.01, style_positive="plus")) -->
+
+<!-- kbl(df_tab)%>% -->
+<!--   kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>% -->
+<!--   row_spec(c(1:5), background = psrc_colors$oranges_inc[1]) %>% -->
+<!--   row_spec(c(6:10), background = psrc_colors$blues_inc[1]) %>% -->
+<!--   row_spec(c(11:15), background = psrc_colors$greens_inc[1]) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| layout-ncol: 2 -->
+<!-- #| out-height: 400px -->
+<!-- #| out-width: 550px -->
+
+<!-- # plot_ly(data = df_plot, -->
+<!-- #         x = ~dest_purpose_cat, y = ~`trip/acre`,type = "bar",  -->
+<!-- #         text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",  -->
+<!-- #         color = ~category, colors = pal_rgc_mu, width=470) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f",range=c(0,34)),  -->
+<!-- #          title = "2017/2019 weekday non-work trip <br>per acre by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- #  -->
+<!-- # plot_ly(data = df_plot_23, -->
+<!-- #         x = ~dest_purpose_simple, y = ~`trip/acre`,type = "bar",  -->
+<!-- #         text = ~`trip/acre`, textposition = 'outside',texttemplate =  "%{y:.0f}",  -->
+<!-- #         color = ~category, colors = pal_rgc_mu, width=470) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/acre', tickformat=".0f",range=c(0,34)),  -->
+<!-- #          title = "2023 weekday non-work trip <br>per acre by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- ``` -->
+
+
+
+<!-- 2. **trips per activity unit** -->
+
+<!-- ```{r} -->
+<!-- df_tab <- df_plot %>% rename(dest_purpose_simple = dest_purpose_cat) %>% add_row(df_plot_23) %>% -->
+<!--   pivot_wider(id_cols = c(dest_purpose_simple, category), names_from = survey_year, values_from = `trip/activity unit`) %>% -->
+<!--   mutate(`trip/activity unit % change` = `2023`/`2017/2019`-1) %>% -->
+<!--   rename(`2023 trip/activity unit` = `2023`, -->
+<!--          `2017/2019 trip/activity unit` = `2017/2019`) %>% -->
+<!--   mutate(`2023 trip/activity unit` = scales::number(`2023 trip/activity unit`,accuracy=0.01,big.mark = ","), -->
+<!--          `2017/2019 trip/activity unit` = scales::number(`2017/2019 trip/activity unit`,accuracy=0.01,big.mark = ","), -->
+<!--          `trip/activity unit % change` = scales::percent(`trip/activity unit % change`,accuracy=0.01, style_positive="plus")) -->
+
+<!-- kbl(df_tab)%>% -->
+<!--   kable_styling(bootstrap_options = c("hover"), html_font = "Poppins") %>% -->
+<!--   row_spec(c(1:5), background = psrc_colors$oranges_inc[1]) %>% -->
+<!--   row_spec(c(6:10), background = psrc_colors$blues_inc[1]) %>% -->
+<!--   row_spec(c(11:15), background = psrc_colors$greens_inc[1]) -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- #| layout-ncol: 2 -->
+<!-- #| out-height: 400px -->
+<!-- #| out-width: 550px -->
+
+<!-- # plot_ly(data = df_plot, -->
+<!-- #         x = ~dest_purpose_cat, y = ~`trip/activity unit`,type = "bar",  -->
+<!-- #         text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",  -->
+<!-- #         color = ~category, colors = pal_rgc_mu, width=470) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f",range=c(0,1.4)),  -->
+<!-- #          title = "2017/2019 weekday non-work trip <br>per activity unit by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # plot_ly(data = df_plot_23, -->
+<!-- #         x = ~dest_purpose_simple, y = ~`trip/activity unit`,type = "bar",  -->
+<!-- #         text = ~`trip/activity unit`, textposition = 'outside',texttemplate =  "%{y:.2f}",  -->
+<!-- #         color = ~category, colors = pal_rgc_mu, width=470) %>% -->
+<!-- #   layout(xaxis = list(title = 'trip purpose'), yaxis = list(title = 'trip/activity unit', tickformat=".2f",range=c(0,1.4)),  -->
+<!-- #          title = "2023 weekday non-work trip <br>per activity unit by purpose", -->
+<!-- #          font = list(family="Poppins")) -->
+<!-- ``` -->
+
+
+
+<!-- ::: -->
+

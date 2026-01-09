@@ -1,0 +1,37 @@
+\usepackage{fancyhdr}
+\usepackage{fontspec}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{pdfcomment}
+\usepackage{datetime}
+\usepackage{subfig}
+\usepackage[article]{ragged2e}
+% \usepackage{titling}
+% \documentclass{report}
+
+\setmainfont{Poppins}
+\newdateformat{monthyeardate}{\monthname[\THEMONTH] \THEYEAR}
+
+\fancypagestyle{firstpage}[fancydefault]{
+  \setlength{\headheight}{75pt}
+  \setlength{\textheight}{5in}
+  \fancyhead[C]{}
+  \fancyhead[L]{\includegraphics{X:/DSA/Trends/household-travel-survey/headers/PST_2021_HTS_header.png}}
+  \fancyhead[R]{}
+  \fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. \monthyeardate\today}
+  \fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
+  \fancyfoot[C]{}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{4pt}
+  \renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}
+} % added to show header and footer in the first page
+
+% footer
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot[L]{\scriptsize{1011 Western Ave, Suite 500, Seattle WA 98104} \textcolor[HTML]{F05A28}. 206.464.7532 \textcolor[HTML]{F05A28}. www.psrc.org \textcolor[HTML]{F05A28}. \monthyeardate\today}
+\fancyfoot[R]{\textcolor[HTML]{F05A28}\thepage}
+\fancyfoot[C]{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{4pt}
+\renewcommand{\footrule}{\hbox to \headwidth{\color[HTML]{BCBEC0}\leaders\hrule height \footrulewidth\hfill}}

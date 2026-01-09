@@ -1,0 +1,52 @@
+---
+title: "changes-checks"
+author: "suzanne"
+date: "2025-01-23"
+output: html_document
+---
+```{r}
+library(psrc.travelsurvey)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+library(stringr)
+
+# Specify which variables to retrieve
+vars <- c("hhsize", "hhincome_broad", "employment", "mode_acc", "origin_purpose", "dest_purpose", "mode_class", "workplace",  "telecommute_freq", "mode_characterization")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars)
+```
+
+
+
+        
+```{r}
+hts_data$trip<-hts_data$trip%>%
+  mutate(work_od=if_else((str_detect(origin_purpose, "primary workplace")|
+                        str_detect(dest_purpose, "primary workplace")), 
+         "Work", "Non-Work"))%>%
+  filter(!is.na(work_od))
+
+```
+
+```{r}
+primary_work_not<-psrc_hts_stat(hts_data, "trip", c("work_od"))%>%
+  mutate(survey_year=as.integer(survey_year))
+```
+        
+                          
+```{r}
+hts_data$trip<-hts_data$trip%>%
+  mutate(work_od=if_else((str_detect(origin_purpose, "work")|
+                        str_detect(dest_purpose, "work")), 
+         "Work", "Non-Work"))%>%
+  filter(!is.na(work_od))
+
+```
+
+```{r}
+all_work_not<-psrc_hts_stat(hts_data, "trip", c("work_od"))%>%
+  mutate(survey_year=as.integer(survey_year))
+```
+

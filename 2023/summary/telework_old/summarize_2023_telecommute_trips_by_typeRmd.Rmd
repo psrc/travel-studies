@@ -1,0 +1,164 @@
+
+
+```{r setup, include=FALSE}
+# Required Packages ============================================================
+
+library(data.table) # general data manipulation
+library(srvyr)      # survey statistics
+library(dplyr)      # helpers for srvyr (mutate, group_by, and %>% pipe), 
+                    # plus function near(), used in qa/qc checks 
+library(stringr)    # string helper functions
+library(flextable)  # formatted tables
+library(ggplot2)    # plotting
+library(scales)     # ggplot2 helpers
+library(plotly)     # interactive plots
+library(rstudioapi) # for setting working directory
+library(psrcelmer)
+library(tidyr)
+
+# Point to where the 2023 codebook lives:
+codebook_path = 'J:/Projects/Surveys/HHTravel/Survey2023/Data/data_deliverable_81823/codebook_guide/PSRC_Combined_Codebook_2023_08162023.xlsx'
+
+# Read Data  ===================================================================
+
+#data as delivered
+hh_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_household")
+person_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_person")
+day_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_day")
+trip_rsg<-get_table(db_name = "HouseholdTravelSurvey2023", "combined_data", "v_trip")
+#trip_rsg<-merge(trip_rsg,day_rsg, by=c('person_id', 'daynum'))
+
+
+
+
+
+## Codebook -------------------------------------------------------------------- 
+
+variables = readxl::read_xlsx(
+  codebook_path,
+  sheet = 'variable_list_2023'
+)
+
+values =  readxl::read_xlsx(
+  codebook_path,
+  sheet = 'value_labels_2023'
+)
+
+setDT(variables)
+setDT(values)
+
+```
+
+
+
+filter to workers, get info on 0 work trip days
+```{r}
+
+workers<-person_rsg%>%filter(employment %in% c(1, 2, 3))
+worker_days<-workers%>%left_join(day_rsg, by='person_id' )
+# only include days for workers that are Tuesday, Wednesday, or Thursday
+worker_days<-worker_days%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))%>%filter(travel_dow %in% c(2,3,4))
+trip_rsg<-trip_rsg%>%mutate(person_id=as.character(person_id), daynum=as.character(daynum))
+trips<-merge(worker_days,trip_rsg, by=c('person_id', 'daynum'))
+```
+`
+```{r}
+label_values<-function(df, varname, values, new_name){
+  vals<- values%>%filter(variable==sym(varname))
+  df<-df%>%
+      left_join(vals, by=join_by(!!ensym(varname)==value))%>%
+      rename(!!ensym(new_name):=final_label)
+  
+  return(df)
+}
+```
+
+```{r}
+trips_per_day_recs<-trips%>%
+  mutate(telework_hrs= telework_time%/% 60) %>%
+  mutate(telework_group=ifelse(telework_hrs<3, 'Less than 3 hours','Greater than or Equal to 3 hours'))%>%
+  group_by(person_id, daynum,telework_group,dest_purpose_cat)%>%
+  count()
+
+trips_labeled<-label_values(trips_per_day_recs, 'dest_purpose_cat', values, 'destination_purpose')
+```
+
+```{r}
+dest_cats<-trips%>%distinct(dest_purpose_cat)
+dest_cats_labeled<-label_values(dest_cats, 'dest_purpose_cat', values, 'destination_purpose')%>%mutate(zero=0)%>%select(destination_purpose)
+```
+
+```{r}
+workers_days_all<-worker_days%>%group_by(person_id,daynum)%>%
+  mutate(dests=list(dest_cats_labeled))%>%
+  unnest%>%
+  select(person_id, daynum,destination_purpose)
+
+```
+
+```{r}
+workers_days_trips<-left_join(workers_days_all, trips_labeled, by=c('person_id','daynum', 'destination_purpose'))%>%  ## get all days 
+  mutate(n=replace_na(n,0))%>%mutate(trip_group=case_when(n==0 ~ 0,
+                                    n>0 ~ 1,
+                                   .default= 0))%>%
+  fill(telework_group)
+
+
+```
+
+```{r}
+telework_n_trips<-workers_days_trips%>%group_by(telework_group,destination_purpose)%>%
+  summarize(mean_num_trips=mean(n))%>%drop_na()%>%filter(!destination_purpose %in% c('Change mode', 'Not imputable'))%>% mutate(telework_group=factor(telework_group, levels= c('Less than 3 hours', 'Greater than or Equal to 3 hours')))
+```
+
+
+```{r}
+
+ggplot(telework_n_trips, aes(x=telework_group, y=mean_num_trips, fill=destination_purpose))+
+  geom_bar( stat="identity")+geom_text(aes(label=round(mean_num_trips,2)), position=position_stack(vjust=0.5))+xlab('Number of Hours Teleworking')+ylab('Mean Number of Trips per Day')
+```
+
+```{r}
+trips_per_day_recs<-trips%>%
+  group_by(person_id, daynum,telecommute_freq,dest_purpose_cat)%>%
+  count()
+
+trips_labeled<-label_values(trips_per_day_recs, 'dest_purpose_cat', values, 'destination_purpose')
+trips_labeled<-label_values(trips_labeled, 'telecommute_freq', values, 'telecommute frequency')
+```
+
+```{r}
+dest_cats<-trips%>%distinct(dest_purpose_cat)
+dest_cats_labeled<-label_values(dest_cats, 'dest_purpose_cat', values, 'destination_purpose')%>%mutate(zero=0)%>%select(destination_purpose)
+```
+
+```{r}
+workers_days_all<-worker_days%>%group_by(person_id,daynum)%>%
+  mutate(dests=list(dest_cats_labeled))%>%
+  unnest%>%
+  select(person_id, daynum,destination_purpose)
+
+```
+
+```{r}
+workers_days_trips<-left_join(workers_days_all, trips_labeled, by=c('person_id','daynum', 'destination_purpose'))%>%  ## get all days 
+  mutate(n=replace_na(n,0))%>%mutate(trip_group=case_when(n==0 ~ 0,
+                                    n>0 ~ 1,
+                                   .default= 0))%>%
+  fill(telecommute_freq)
+
+
+```
+
+```{r}
+telework_n_trips<-workers_days_trips%>%group_by(telecommute_freq,destination_purpose)%>%
+  summarize(mean_num_trips=mean(n))%>%drop_na()%>%filter(!destination_purpose %in% c('Change mode', 'Not imputable'))
+telework_n_trips<-label_values(telework_n_trips, 'telecommute_freq', values, 'telecommute frequency')
+```
+
+
+```{r}
+
+ggplot(telework_n_trips, aes(x=`telecommute frequency`, y=mean_num_trips, fill=destination_purpose))+
+  geom_bar( stat="identity")+geom_text(aes(label=round(mean_num_trips,2)), position=position_stack(vjust=0.5))+xlab('Days per Week Telecommuting')+ylab('Mean Number of Trips per Day')+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```

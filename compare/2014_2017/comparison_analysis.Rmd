@@ -1,0 +1,1198 @@
+---
+title: "2017_2014_comparison"
+author: "mjennings"
+date: "January 24, 2018"
+output: html_document
+---
+
+```{r, warning=FALSE, echo=FALSE}
+rm(list=ls(all=TRUE))
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(lubridate)
+library(weights)
+library(reshape2)
+library(survey)
+
+#setwd("C:\\Users\\mjennings\\Documents\\Survey 2017\\Survey Comparisons")
+setwd("J:\\Projects\\Surveys\\HHTravel\\SurveyComparisons")
+
+
+#actual survey data (for rideshare/GPS data analysis)
+surveytrip17a <- read.csv("2017ActualSurvey.csv")
+surveytrip17b <- read.csv("2017ActualSurveyRMove.csv")
+commoncols <- intersect(colnames(surveytrip17a), colnames(surveytrip17b))
+surveytrip17 <- rbind(subset(surveytrip17a, select = commoncols), subset(surveytrip17b, select = commoncols))
+surveytrip14 <- read.csv("2014ActualSurvey.csv")
+
+#Daysim data
+trip06 <- read.csv("trip06.csv")
+person14 <- read.csv("person14.csv")
+trip14 <- read.csv("trip14.csv")
+person17 <- read.csv("person17.csv")
+rmovetrip17 <- read.csv("rmovetrip17.csv")
+rsurveytrip17 <- read.csv("rsurveytrip17.csv")
+trip17 <- read.csv("combinedtrip17.csv") #this file is used for most analysis
+household14 <- read.csv("household14.csv")
+household17 <- read.csv("household17.csv")
+
+names(trip14)[1] <- "hhno"
+names(person14)[1] <- "hhno"
+
+#adding age to trip files
+trip14 <- left_join(trip14, person14[,c(1,2,4)], by=c("hhno", "pno"))
+trip17 <- left_join(trip17, person17[,c(2,3,5)], by=c("hhno", "pno"))
+rmovetrip17 <- left_join(rmovetrip17, person17[,c(2,3,5)], by=c("hhno", "pno"))
+rsurveytrip17 <- left_join(rsurveytrip17, person17[,c(2,3,5)], by=c("hhno", "pno"))
+
+#converting pagey from 2014 into pagey from 2017
+trip14$pagey[trip14$pagey < 5] <- 1
+trip14$pagey[trip14$pagey >= 5 & trip14$pagey < 12] <- 2
+trip14$pagey[trip14$pagey >= 12 & trip14$pagey < 16] <- 3
+trip14$pagey[trip14$pagey >= 16 & trip14$pagey < 18] <- 4
+trip14$pagey[trip14$pagey >= 18 & trip14$pagey < 25] <- 5
+trip14$pagey[trip14$pagey >= 25 & trip14$pagey < 35] <- 6
+trip14$pagey[trip14$pagey >= 35 & trip14$pagey < 45] <- 7
+trip14$pagey[trip14$pagey >= 45 & trip14$pagey < 55] <- 8
+trip14$pagey[trip14$pagey >= 55 & trip14$pagey < 65] <- 9
+trip14$pagey[trip14$pagey >= 65 & trip14$pagey < 75] <- 10
+trip14$pagey[trip14$pagey >= 75 & trip14$pagey < 85] <- 11
+trip14$pagey[trip14$pagey >= 85] <- 12
+
+#removing college trips from 2014 Daysim file
+trip14 <- subset(trip14, hhno > 14000000)
+
+#!!!!!!!!
+#for best results, run these code chunks in order because some rely on tables created in the previous chunks
+```
+
+```{r}
+#general distributions of dpurp, mode, pagey, etc. for daysim files (including rmove and rsurvey separately)
+
+#dpurpose fields for trip14 do not include medical or recreational so we need to update trip 17 to reflect that
+rmovetrip17$dpurp[rmovetrip17$dpurp == 8] <- 7
+rmovetrip17$dpurp[rmovetrip17$dpurp == 9] <- 4
+rsurveytrip17$dpurp[rsurveytrip17$dpurp == 8] <- 7
+rsurveytrip17$dpurp[rsurveytrip17$dpurp == 9] <- 4
+
+trip14_dpurp_share <- trip14 %>%
+  group_by(dpurp) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+#removing rows where dpurp == 11 (due to -9998 as dpurp value in actual survey)
+rmove17_dpurp_share <- subset(rmovetrip17, rmovetrip17$dpurp != 11) %>%
+  group_by(dpurp) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+rsurvey17_dpurp_share <- subset(rsurveytrip17, rsurveytrip17$dpurp != 11) %>%
+  group_by(dpurp) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+trip14_dpurp_share$year <- rep("2014", nrow(trip14_dpurp_share))
+rmove17_dpurp_share$year <- rep("2017, RMove", nrow(rmove17_dpurp_share))
+rsurvey17_dpurp_share$year <- rep("2017, RSurvey", nrow(rsurvey17_dpurp_share))
+
+dpurp_share_merged <- rbind(trip14_dpurp_share, rmove17_dpurp_share, rsurvey17_dpurp_share)
+
+dpurp_share_merged$dpurp <- as.factor(dpurp_share_merged$dpurp)
+
+ggplot(dpurp_share_merged, aes(x=dpurp, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share % by purpose")
+
+
+#mode share
+trip14_mode_share <- trip14 %>%
+  group_by(mode) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+rmove17_mode_share <- rmovetrip17 %>%
+  group_by(mode) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+rsurvey17_mode_share <- rsurveytrip17 %>%
+  group_by(mode) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+trip14_mode_share$year <- rep("2014", nrow(trip14_mode_share))
+rmove17_mode_share$year <- rep("2017, RMove", nrow(rmove17_mode_share))
+rsurvey17_mode_share$year <- rep("2017, RSurvey", nrow(rsurvey17_mode_share))
+
+mode_share_merged <- rbind(trip14_mode_share, rmove17_mode_share, rsurvey17_mode_share)
+
+mode_share_merged$mode <- as.factor(mode_share_merged$mode)
+
+ggplot(mode_share_merged, aes(x=mode, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share % by mode")
+
+#pagey share
+trip14_age_share <- trip14 %>%
+  group_by(pagey) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+rmove17_age_share <- rmovetrip17 %>%
+  group_by(pagey) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+rsurvey17_age_share <- rsurveytrip17 %>%
+  group_by(pagey) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+names(trip14_age_share)[1] <- "pagey"
+trip14_age_share$year <- rep("2014", nrow(trip14_age_share))
+rmove17_age_share$year <- rep("2017, RMove", nrow(rmove17_age_share))
+rsurvey17_age_share$year <- rep("2017, RSurvey", nrow(rsurvey17_age_share))
+
+
+age_share_merged <- rbind(trip14_age_share, rmove17_age_share, rsurvey17_age_share)
+
+age_share_merged$pagey <- as.factor(age_share_merged$pagey)
+
+ggplot(age_share_merged, aes(x=pagey, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share % by age")
+
+
+#dpurp for daysim file
+#0=home, 1=work, 2=school, 3=pick up/drop off, 4=personal business, 5=shopping, 6=food, 7=social/recreational, 10=change mode
+
+#mode for daysim file
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+#age for daysim file
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+
+#RMove skewed towards the 25 to 44 age group and under representing older age groups
+
+```
+
+
+```{r}
+#starting with Daysim analysis, focusing on overall differences between 2014 and 2017 (2006 data seems mostly unreliable)
+
+#visualizing mode types by year
+trip14_mode <- trip14 %>% count(mode)
+trip17_mode <- trip17 %>% count(mode)
+trip14_mode$year <- rep("2014", nrow(trip14_mode))
+trip17_mode$year <- rep("2017", nrow(trip17_mode))
+
+mode_merged <- rbind(trip14_mode, trip17_mode)
+
+ggplot(mode_merged, aes(x=mode, y=n, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  ylab("Number of Trips")
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+```
+
+
+
+```{r}
+#can we look at mode types by age?
+
+# trip14$mode <- as.factor(trip14$mode)
+# trip14$pagey <- as.factor(trip14$pagey)
+# trip17$mode <- as.factor(trip17$mode)
+# trip17$pagey <- as.factor(trip17$pagey)
+
+trip17_mode_age <- trip17 %>%
+  select(mode, pagey)
+
+trip17_mode_age<- as.data.frame(table(trip17_mode_age))
+
+#removing infrequently used modes to make plotting easier
+trip17_mode_age <- subset(trip17_mode_age, trip17_mode_age$mode %in% c(1,3,4,5,6))
+
+ggplot(trip17_mode_age, aes(x=pagey, y=Freq, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Number of Trips")
+
+#mode values
+#1=walk, 3=sov, 4=hov2, 5=hov3+, 6=transit
+
+#age values
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+  
+```
+
+```{r}
+#function to specify a selection of age groups to compare
+plot_mode_age <- function(age) {
+  trip17_mode_age <- subset(trip17_mode_age, trip17_mode_age$pagey %in% age)
+
+  ggplot(trip17_mode_age, aes(x=pagey, y=Freq, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Number of Trips")
+}
+
+plot_mode_age(c(4,5))
+
+#mode values
+#1=walk, 3=sov, 4=hov2, 5=hov3+, 6=transit
+
+#age values
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+```
+
+```{r}
+#comparing 2014 and 2017 in given age bracket
+trip14_mode_age <- trip14 %>%
+  select(mode, pagey)
+
+trip14_mode_age<- as.data.frame(table(trip14_mode_age))
+
+#removing infrequently used modes to make plotting easier
+trip14_mode_age <- subset(trip14_mode_age, trip14_mode_age$mode %in% c(1,3,4,5,6))
+
+names(trip14_mode_age)[2] <- "pagey"
+
+trip14_mode_age$year <- "2014"
+trip17_mode_age$year <- "2017"
+
+mode_age_merged <- rbind(trip14_mode_age, trip17_mode_age)
+
+#write.csv(mode_age_merged, "mode_age_merged.csv")
+
+#pick an age group to compare 2014 vs. 2017
+plot_mode_age_year <- function(age) {
+  mode_age_merged <- subset(mode_age_merged, mode_age_merged$pagey %in% age)
+
+  ggplot(mode_age_merged, aes(x=year, y=Freq, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Number of Trips")
+}
+
+plot_mode_age_year(7)
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+#age values
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+
+```
+
+```{r}
+#switching over to actual survey data to look at rideshares
+
+#pulling out taxi/rideshare columns
+#note: taxi and rideshare are combined for 2014 (mode = 13) and separated in 2017 (36 for taxi, 37 for rideshare)
+
+rideshare14 <- subset(surveytrip14, mode == 13)
+rideshare17 <- subset(surveytrip17, mode_1 == 36 | mode_1 == 37)
+
+#d_purp is not the same, need to match them up
+rideshare17$d_purpose[rideshare17$d_purp == 1] <- 1
+rideshare17$d_purpose[rideshare17$d_purp == 10] <- 2
+rideshare17$d_purpose[rideshare17$d_purp == 11] <- 3
+rideshare17$d_purpose[rideshare17$d_purp == 30] <- 4
+rideshare17$d_purpose[rideshare17$d_purp == 32] <- 5
+rideshare17$d_purpose[rideshare17$d_purp == 6] <- 6
+rideshare17$d_purpose[rideshare17$d_purp == 34] <- 7
+rideshare17$d_purpose[rideshare17$d_purp == 33] <- 8
+rideshare17$d_purpose[rideshare17$d_purp == 9] <- 9
+rideshare17$d_purpose[rideshare17$d_purp == 51] <- 10
+rideshare17$d_purpose[rideshare17$d_purp == 50] <- 11
+rideshare17$d_purpose[rideshare17$d_purp == 52] <- 12
+rideshare17$d_purpose[rideshare17$d_purp == 53] <- 13
+rideshare17$d_purpose[rideshare17$d_purp == 54] <- 14
+rideshare17$d_purpose[rideshare17$d_purp == 60] <- 15
+rideshare17$d_purpose[rideshare17$d_purp == 97] <- 16
+
+rideshare14_dpurp <- rideshare14 %>%
+  group_by(d_purpose) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+rideshare17_dpurp <- rideshare17 %>%
+  group_by(d_purpose) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+#d_purps that appear more than once in rideshare14
+d_purp_vector <- c(1,2,3,7,11,12,13,15)
+
+rideshare14_dpurp <- subset(rideshare14_dpurp, d_purpose %in% d_purp_vector)
+rideshare17_dpurp <- subset(rideshare17_dpurp, d_purpose %in% d_purp_vector)
+
+rideshare14_dpurp$year <- rep("2014", nrow(rideshare14_dpurp))
+rideshare17_dpurp$year <- rep("2017", nrow(rideshare17_dpurp))
+
+rideshare_dpurp_merged <- rbind(rideshare14_dpurp, rideshare17_dpurp)
+
+rideshare_dpurp_merged$d_purpose <- as.factor(rideshare_dpurp_merged$d_purpose)
+
+ggplot(rideshare_dpurp_merged, aes(x=d_purpose, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share")
+
+#d_purpose values for survey file
+#1=home, 2=work, 3=other work related place, 4=grocery, 5=other shopping, 6=school/daycare, 7=medical appointment, 8=personal business, 9=drop off/pick up, 10=exercise, 11=restaurant/eating, 12=social event, 13=recreational event, 14=religious/community, 15=transfer mode, 16=other
+```
+
+```{r}
+#measuring average time/distance of rideshare trips
+
+years <- as.factor(c(2014, 2017))
+time <- c("time", "time")
+rideshare_time <- data.frame(year=years, variable=time)
+rideshare_time$value <- c(mean(rideshare14$trip_dur_reported), mean(rideshare17$reported_duration))
+distance <- c("distance", "distance")
+rideshare_dist <- data.frame(year=years, variable=distance)
+rideshare_dist$value <- c(mean(rideshare14$gdist), mean(rideshare17$trip_path_distance))
+
+ggplot(rideshare_time, aes(x=variable, y=value, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip duration (minutes)") 
+
+ggplot(rideshare_dist, aes(x=variable, y=value, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Distance (miles)")
+
+#Average rideshare trip is over 7 minutes shorter on average for 2017
+#Average rideshare trip about 0.5 miles shorter on average for 2017
+```
+
+```{r}
+#Average time and distance by d_purpose
+
+#dpurpose fields for trip14 do not include medical or recreational so we need to update trip 17 to reflect that
+trip17$dpurp[trip17$dpurp == 8] <- 7
+trip17$dpurp[trip17$dpurp == 9] <- 4
+trip06$dpurp[trip06$dpurp == 8] <- 7
+trip06$dpurp[trip06$dpurp == 9] <- 4
+
+#changing NA values to 0
+trip17$travdist[is.na(trip17$travdist)] <- 0
+
+#removing rows where travdist/time = -1 (this happens to include all rows where dpurp = 10)
+d_purpose_time_06 <- subset(trip06, trip06$travtime != -1 & trip06$travdist != -1) %>% 
+  select(dpurp, travtime, travdist) %>%
+  group_by(dpurp) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+#removing rows where travdist/time = -1 (this happens to include all rows where dpurp = 10)
+d_purpose_time_14 <- subset(trip14, trip14$travtime != -1 & trip14$travdist != -1) %>% 
+  select(dpurp, travtime, travdist) %>%
+  group_by(dpurp) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+#removing rows where dpurp == 11 (due to -9998 as dpurp value in actual survey) and dpurp = 10 (to match trip 14)
+d_purpose_time_17 <- subset(trip17, trip17$dpurp != 11 & trip17$dpurp != 10) %>% 
+  select(dpurp, travtime, travdist) %>%
+  group_by(dpurp) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+d_purpose_time_06$year <- rep("2006", nrow(d_purpose_time_06))
+d_purpose_time_14$year <- rep("2014", nrow(d_purpose_time_14))
+d_purpose_time_17$year <- rep("2017", nrow(d_purpose_time_17))
+
+d_purpose_time_dist <- rbind(d_purpose_time_06, d_purpose_time_14, d_purpose_time_17)
+
+ggplot(d_purpose_time_dist, aes(x=dpurp, y=time, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(0,7,1)) +
+  ggtitle("Average trip time by purpose")
+
+ggplot(d_purpose_time_dist, aes(x=dpurp, y=dist, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(0,7,1)) +
+  ggtitle("Average trip dist by purpose")
+
+#dpurp for daysim file
+#0=home, 1=work, 2=school, 3=pick up/drop off, 4=personal business, 5=shopping, 6=food, 7=social/recreational
+```
+
+```{r}
+#Average time and distance by mode
+
+mode_time_06 <- trip06 %>% 
+  select(mode, travtime, travdist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+#modes from 2006 do not seem to match up with 2014/2017 so they will not be included in the graphs
+
+mode_time_14 <- trip14 %>% 
+  select(mode, travtime, travdist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+mode_time_17 <- trip17 %>% 
+  select(mode, travtime, travdist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+mode_time_14$year <- rep("2014", nrow(mode_time_14))
+mode_time_17$year <- rep("2017", nrow(mode_time_17))
+
+mode_time_dist <- rbind(mode_time_14, mode_time_17)
+
+#mode=9 (other) seems to be distorted by plane trips so it can be removed
+mode_time_dist <- subset(mode_time_dist, mode != 9)
+
+ggplot(mode_time_dist, aes(x=mode, y=time, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  ggtitle("Average trip time by mode")
+
+ggplot(mode_time_dist, aes(x=mode, y=dist, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  ggtitle("Average trip dist by mode")
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+```
+
+```{r}
+#It seems like 2017 saw higher trip times and distances across most modes and purposes, what if we break it down by RSurvey and RMove?
+
+#dpurpose fields for trip14 do not include medical or recreational so we need to update trip 17 to reflect that
+rmovetrip17$dpurp[rmovetrip17$dpurp == 8] <- 7
+rmovetrip17$dpurp[rmovetrip17$dpurp == 9] <- 4
+rsurveytrip17$dpurp[rsurveytrip17$dpurp == 8] <- 7
+rsurveytrip17$dpurp[rsurveytrip17$dpurp == 9] <- 4
+
+#changing NA values to 0
+rsurveytrip17$travdist[is.na(rsurveytrip17$travdist)] <- 0
+
+#removing rows where travdist/time = -1 (this happens to include all rows where dpurp = 10)
+d_purpose_time_14 <- subset(trip14, trip14$travtime != -1 & trip14$travdist != -1) %>% 
+  select(dpurp, travtime, travdist) %>%
+  group_by(dpurp) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+#removing rows where dpurp == 11 (due to -9998 as dpurp value in actual survey) and dpurp = 10 (to match trip 14)
+rmove_d_purpose_time_17 <- subset(rmovetrip17, rmovetrip17$dpurp != 11 & rmovetrip17$dpurp != 10) %>% 
+  select(dpurp, travtime, travdist) %>%
+  group_by(dpurp) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+rsurvey_d_purpose_time_17 <- subset(rsurveytrip17, rsurveytrip17$dpurp != 11 & rsurveytrip17$dpurp != 10) %>% 
+  select(dpurp, travtime, travdist) %>%
+  group_by(dpurp) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+d_purpose_time_14$year <- rep("2014", nrow(d_purpose_time_14))
+rmove_d_purpose_time_17$year <- rep("2017, RMove", nrow(rmove_d_purpose_time_17))
+rsurvey_d_purpose_time_17$year <- rep("2017, RSurvey", nrow(rsurvey_d_purpose_time_17))
+
+d_purpose_time_dist <- rbind(d_purpose_time_14, rmove_d_purpose_time_17, rsurvey_d_purpose_time_17)
+
+ggplot(d_purpose_time_dist, aes(x=dpurp, y=time, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(0,7,1)) +
+  ggtitle("Average trip time by purpose")
+
+ggplot(d_purpose_time_dist, aes(x=dpurp, y=dist, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(0,7,1)) +
+  ggtitle("Average trip dist by purpose")
+
+#dpurp for daysim file
+#0=home, 1=work, 2=school, 3=pick up/drop off, 4=personal business, 5=shopping, 6=food, 7=social/recreational
+```
+
+```{r}
+#there are some outliers in the previous graph, notably for trips in RSurvey where dpurp = 4 
+#also interesting that RMove trips have a higher average distance and time across pretty much every purpose
+
+#let's use the survey file to break down the different dpurps that were lumped into the daysim version
+
+#durps from survey that are converted to dpurp = 4 in daysim
+dpurp_survey_vector <- c(33, 34, 54, 56, 61, 97)
+
+dpurp_breakdown <- subset(surveytrip17a, d_purp %in% dpurp_survey_vector) %>%
+  select(d_purp, google_duration, trip_path_distance) %>%
+  group_by(d_purp) %>%
+  summarise(time=mean(google_duration), dist=mean(trip_path_distance))
+
+dpurp_breakdown$d_purp <- as.factor(dpurp_breakdown$d_purp)
+
+ggplot(dpurp_breakdown, aes(x=d_purp, y=dist)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Average trip dist by purpose")
+
+ggplot(dpurp_breakdown, aes(x=d_purp, y=time)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Average trip time by purpose")
+
+#seems like trips labeled 97 (other) are significantly throwing off estimates for personal business, specifically in the survey version. I will go back and update the daysim conversion file to treat 97 as "others" to be removed in analysis so the previous chunk should be fixed
+
+```
+
+```{r}
+#the other major outlier is dpurp = 7 for RMove
+
+#durps from survey that are converted to dpurp = 7 in daysim (includes 7 and 8)
+dpurp_survey_vector <- c(51, 52, 53, 62) #dpurp = 62 is for RMove only
+
+dpurp_breakdown_rmove <- subset(surveytrip17b, d_purp %in% dpurp_survey_vector) %>%
+  select(d_purp, google_duration, trip_path_distance) %>%
+  group_by(d_purp) %>%
+  summarise(time=mean(google_duration), dist=mean(trip_path_distance))
+
+dpurp_breakdown_rmove$d_purp <- as.factor(dpurp_breakdown_rmove$d_purp)
+
+dpurp_breakdown_rsurvey <- subset(surveytrip17a, d_purp %in% dpurp_survey_vector & !is.na(surveytrip17a$google_duration) & !is.na(surveytrip17a$trip_path_distance)) %>%
+  select(d_purp, google_duration, trip_path_distance) %>%
+  group_by(d_purp) %>%
+  summarise(time=mean(google_duration), dist=mean(trip_path_distance))
+
+dpurp_breakdown_rsurvey$d_purp <- as.factor(dpurp_breakdown_rsurvey$d_purp)
+
+dpurp_breakdown_rmove$survey <- rep("Rmove", nrow(dpurp_breakdown_rmove))
+dpurp_breakdown_rsurvey$survey <- rep("RSurvey", nrow(dpurp_breakdown_rsurvey))
+
+dpurp_breakdown <- rbind(dpurp_breakdown_rmove, dpurp_breakdown_rsurvey)
+
+ggplot(dpurp_breakdown, aes(x=d_purp, y=dist, fill=survey)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Average trip dist by purpose")
+
+ggplot(dpurp_breakdown, aes(x=d_purp, y=time, fill=survey)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Average trip time by purpose")
+
+#trip times and distances for dpurp = 51 (exercise) and 53 (recreational event) are significantly higher for the RMove trips, which is strange because dpurp = 52 (social events) don't seem to have the same problems
+```
+
+```{r}
+#Let's take a look at commute trips for each year
+
+commute_AM_06 <- subset(trip06, opurp == 0 & dpurp == 1 & trip06$travtime != -1 & trip06$travdist != -1)
+commute_AM_14 <- subset(trip14, opurp == 0 & dpurp == 1 & trip14$travtime != -1 & trip14$travdist != -1)
+commute_AM_17 <- subset(trip17, opurp == 0 & dpurp == 1 & trip17$travtime != -1 & trip17$travdist != -1)
+
+#removing modes 7-9 because they are missing/not consistent/other (they make up a small % of total trips)
+commute_AM_06 <- subset(commute_AM_06, mode %in% c(1:6))
+commute_AM_14 <- subset(commute_AM_14, mode %in% c(1:6))
+commute_AM_17 <- subset(commute_AM_17, mode %in% c(1:6))
+
+#examining average time/distance/speed
+
+commute_AM_06_mode <- commute_AM_06 %>% 
+  select(mode, travtime, travdist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+commute_AM_14_mode <- commute_AM_14 %>% 
+  select(mode, travtime, travdist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+commute_AM_17_mode <- commute_AM_17 %>% 
+  select(mode, travtime, travdist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(travtime), dist=mean(travdist))
+
+commute_AM_06_mode$year <- rep("2006", nrow(commute_AM_06_mode))
+commute_AM_14_mode$year <- rep("2014", nrow(commute_AM_14_mode))
+commute_AM_17_mode$year <- rep("2017", nrow(commute_AM_17_mode))
+
+commute_AM_mode <- rbind(commute_AM_06_mode, commute_AM_14_mode, commute_AM_17_mode)
+
+ggplot(commute_AM_mode, aes(x=mode, y=dist, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,6,1)) +
+  ggtitle("Average trip dist by mode")
+#2017 has shortest average commute distance for all vehicle commutes
+
+ggplot(commute_AM_mode, aes(x=mode, y=time, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,6,1)) +
+  ggtitle("Average trip time by mode")
+
+#2006 vehicle trips take much longer but are not significantly farther than others. Maybe calculating an average speed would be more helpful
+
+commute_AM_speed <- commute_AM_mode %>%
+  group_by(mode, year) %>%
+  summarise(speed=60*dist/time)
+
+ggplot(commute_AM_speed, aes(x=mode, y=speed, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,6,1)) +
+  ggtitle("Average trip time by mode")
+
+#2014 has highest average speed for all vehicle commuting trips, with 2017 usually close behind
+
+
+#examining mode share
+
+commute_AM_06_mode_share <- commute_AM_06 %>% 
+  group_by(mode) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+commute_AM_14_mode_share <- commute_AM_14 %>% 
+  group_by(mode) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+commute_AM_17_mode_share <- commute_AM_17 %>% 
+  group_by(mode) %>%
+  summarise(n=n()) %>%
+  mutate(freq=n/sum(n))
+
+commute_AM_06_mode_share$year <- rep("2006", nrow(commute_AM_06_mode_share))
+commute_AM_14_mode_share$year <- rep("2014", nrow(commute_AM_14_mode_share))
+commute_AM_17_mode_share$year <- rep("2017", nrow(commute_AM_17_mode_share))
+
+commute_AM_mode_share <- rbind(commute_AM_06_mode_share, commute_AM_14_mode_share, commute_AM_17_mode_share)
+#removing modes 7-9 because they are missing/not consistent/other
+commute_AM_mode_share <- subset(commute_AM_mode_share, mode %in% c(1:6))
+
+ggplot(commute_AM_mode_share, aes(x=mode, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,6,1)) +
+  ggtitle("Average commute share by mode")
+
+#very interesting trend that shows a major shift away from SOV commuting towards transit
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit
+```
+
+```{r}
+#what about the PM commute? how does it compare to the AM commute for each year?
+
+commute_PM_06 <- subset(trip06, opurp == 1 & dpurp == 0 & trip06$travtime != -1 & trip06$travdist != -1)
+commute_PM_14 <- subset(trip14, opurp == 1 & dpurp == 0 & trip14$travtime != -1 & trip14$travdist != -1)
+commute_PM_17 <- subset(trip17, opurp == 1 & dpurp == 0 & trip17$travtime != -1 & trip17$travdist != -1)
+
+#just looking at time since distance should be about the same
+commute_AM_PM_time <- data.frame(year=rep(c("2006","2014","2017"), each=2), time=rep(c("AM","PM"), times=3),
+                                 length=c(mean(commute_AM_06$travtime), mean(commute_PM_06$travtime),
+                                          mean(commute_AM_14$travtime), mean(commute_PM_14$travtime),
+                                          mean(commute_AM_17$travtime), mean(commute_PM_17$travtime)))
+
+ggplot(commute_AM_PM_time, aes(x=year, y=length, fill=time)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("AM vs. PM commute by year")
+
+#morning commute was worse in 2006, afternoon commute slightly worse in 2014 and 2017
+```
+
+```{r}
+#Let's look at the departure times for trip to see if there are any major differences between the surveys
+
+#RMove starts at midnight while RSurvey starts at 3AM, so we need to assign values separately and merge together
+rmovetrip17$deptm2 <- rmovetrip17$deptm - ((rmovetrip17$day-1)*(60*24))
+rmovetrip17$arrtm2 <- rmovetrip17$deptm2 + (rmovetrip17$arrtm - rmovetrip17$deptm)
+
+#also need to take out trips with a incomplete data
+rmovetrip17 <- subset(rmovetrip17, deptm > 0 & deptm2 > 0 & deptm2 < 1700 & arrtm > 0)
+
+#now neet to assign a time bin to each deptm
+rmovetrip17$time_bin <- cut(rmovetrip17$deptm2, breaks = seq(0, 1440, by = 60), labels = c(0:23))
+
+#some RMove data got messed up and went to the next day, this should fix it
+rmovetrip17$time_bin[rmovetrip17$deptm2 > 1440 & rmovetrip17$deptm2 < 1501] <- 1
+rmovetrip17$time_bin[rmovetrip17$deptm2 > 1500 & rmovetrip17$deptm2 < 1561] <- 2
+rmovetrip17$time_bin[rmovetrip17$deptm2 > 1560] <- 3
+
+#now removing dept2 and arr2 since they aren't needed
+rmovetrip17 <- rmovetrip17[,c(1:26,29)]
+
+#need to take out trips with a incomplete data
+rsurveytrip17 <- subset(rsurveytrip17, deptm > 0 & deptm < 1700 & arrtm > 0)
+
+#now neet to assign a time bin to each deptm, but account for the fact that it starts at 3AM
+rsurveytrip17$time_bin <- cut(rsurveytrip17$deptm, breaks = seq(0, 1440, by = 60), labels = c(3:26))
+rsurveytrip17$time_bin <- as.numeric(rsurveytrip17$time_bin) + 2
+rsurveytrip17$time_bin[rsurveytrip17$time_bin == 24] <- 0
+rsurveytrip17$time_bin[rsurveytrip17$time_bin == 25] <- 1
+rsurveytrip17$time_bin[rsurveytrip17$time_bin == 26] <- 2
+
+time_bins_trip_17 <- rbind(rmovetrip17, rsurveytrip17)
+
+time_bins <- time_bins_trip_17 %>% count(time_bin)
+
+ggplot(time_bins, aes(x=time_bin, y=n)) +
+  geom_bar(stat = "identity") +
+  ggtitle("Number of Trips by hour")
+
+```
+
+```{r}
+#breakdown time_bins by mode and purpose
+time_bins_mode <- time_bins_trip_17 %>%
+  group_by(time_bin, mode) %>%
+  summarise(count=n())
+
+#write.csv(time_bins_mode, file = "time_bins_mode.csv")
+
+time_bins_purpose <- time_bins_trip_17 %>%
+  group_by(time_bin, dpurp) %>%
+  summarise(count=n())
+
+#write.csv(time_bins_purpose, file = "time_bins_purpose.csv")
+
+#plots completed in Tableau
+
+#same trends for 2014 and 2017?
+trip14$time_bin <- cut(trip14$deptm, breaks = seq(0, 1440, by = 60), labels= c(0:23))
+trip14$time_bin[trip14$deptm == 0] <- 0
+
+time_bins <- rbind(trip14 %>% count(time_bin), time_bins_trip_17 %>% count(time_bin))
+time_bins$year <- c(rep("2014",24),rep("2017",24))
+
+ggplot(time_bins, aes(x=time_bin, y=n, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ggtitle("Number of Trips by hour, 2014 vs. 2017")
+
+
+```
+
+```{r}
+#let's look at some of the columns in the actual survey for quick analysis
+
+destination_count <- surveytrip17 %>% count(dest_name)
+
+#nothing surprising, almost half of trips have unlabeled destination
+
+#how about average trip speed by mode?
+surveytrip17$speed_mph <- as.numeric(surveytrip17$speed_mph)
+
+speed_by_mode <- subset(surveytrip17, !is.na(speed_mph) & !is.na(mode_1) & mode_1 < 100 & mode_1 > 0) %>%
+  select(speed_mph, mode_1) %>%
+  group_by(mode_1) %>%
+  summarise(avg_speed=mean(speed_mph))
+
+#commuter rail (mode=41) is fast, public bus (mode=23) is pretty slow, household vehicles (mode=3-8) in between
+
+
+#bus transit trips (looks like they are only available for rSurvey trips)
+bus_transit <- subset(surveytrip17, !is.na(transit_system_1))
+
+#most popular transit systems
+bus_count <- bus_transit %>% 
+  select(transit_system_1, transit_line_1) %>%
+  group_by(transit_system_1) %>%
+  summarise(trips=n())
+
+#most popular are King County Metro (3) and Sound Transit (12 and 13)
+
+#table including individual bus routes
+bus_detailed_count <- bus_transit %>% 
+  select(transit_system_1, transit_line_1) %>%
+  group_by(transit_system_1, transit_line_1) %>%
+  summarise(trips=n()) %>%
+  arrange(desc(trips))
+
+#most popular is link (transit_line 549), followed by Redmond-Seattle bus (399)
+
+#how about trips by day of the week?
+#data more accurate for rMove
+day_of_week <- surveytrip17b %>% count(dayofweek)
+
+ggplot(day_of_week, aes(x=dayofweek, y=n)) +
+  geom_bar(stat = "identity") +
+  scale_x_continuous(breaks=c(1:7), labels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) +
+  ggtitle("Number of Trips for each day of the week")
+
+#breakdown by mode, adding day of week to Daysim format for condensed mode groupings
+rmovetrip17 <- left_join(rmovetrip17, surveytrip17b[,c(9,10,11,113)], by=c("hhno"="hhid", "pno"="pernum", "tsvid"="tripnum"))
+
+#using trip shares since there are differences in trip totals
+day_of_week_mode <- rmovetrip17 %>%
+  select(dayofweek, mode) %>%
+  group_by(dayofweek, mode) %>%
+  summarise(trips=n()) %>%
+  mutate(freq=trips/sum(trips))
+
+day_of_week_mode$mode <- as.factor(day_of_week_mode$mode)
+
+#write.csv(day_of_week_mode, "day_of_week_mode.csv")
+
+ggplot(day_of_week_mode, aes(x=dayofweek, y=freq, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=c(1:7), labels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) +
+  ggtitle("Number of trips by day of week and mode")
+
+#a little too crowded, let's create a function to plot by mode
+plot_day_of_week_mode <- function(mode1) {
+  day_of_week_mode <- rmovetrip17 %>%
+    select(dayofweek, mode) %>%
+    group_by(dayofweek, mode) %>%
+    summarise(trips=n()) %>%
+    mutate(freq=trips/sum(trips))
+  
+  day_of_week_mode$mode <- as.factor(day_of_week_mode$mode)
+  
+  day_of_week_mode <- subset(day_of_week_mode, day_of_week_mode$mode %in% mode1)
+
+  ggplot(day_of_week_mode, aes(x=dayofweek, y=freq)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=c(1:7), labels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) +
+  ggtitle(paste("Share of Trips, Mode =",mode1))
+}
+
+plot_day_of_week_mode(6)
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+#Seems like the codebook might be mislabeled, why would transit be so much lower on Monday and Sunday? I think the days should all be moved one to the right so that transit ridership is highest on all of the weekdays
+
+#Maybe looking at dpurp will confirm this suspicion
+
+day_of_week_dpurp <- rmovetrip17 %>%
+  select(dayofweek, dpurp) %>%
+  group_by(dayofweek, dpurp) %>%
+  summarise(trips=n()) %>%
+  mutate(freq=trips/sum(trips))
+
+day_of_week_dpurp$dpurp <- as.factor(day_of_week_dpurp$dpurp)
+
+#write.csv(day_of_week_dpurp, "day_of_week_dpurp.csv")
+
+ggplot(day_of_week_dpurp, aes(x=dayofweek, y=freq, fill=dpurp)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=c(1:7), labels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) +
+  ggtitle("Number of trips by day of week and dpurp")
+
+plot_day_of_week_mode <- function(dpurp1) {
+  day_of_week_dpurp <- rmovetrip17 %>%
+    select(dayofweek, dpurp) %>%
+    group_by(dayofweek, dpurp) %>%
+    summarise(trips=n()) %>%
+    mutate(freq=trips/sum(trips))
+  
+  day_of_week_dpurp$dpurp <- as.factor(day_of_week_dpurp$dpurp)
+  
+  day_of_week_dpurp <- subset(day_of_week_dpurp, day_of_week_dpurp$dpurp %in% dpurp1)
+
+  ggplot(day_of_week_dpurp, aes(x=dayofweek, y=freq)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=c(1:7), labels=c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")) +
+  ggtitle(paste("Share of Trips, Dpurp =",dpurp1))
+}
+
+plot_day_of_week_mode(1)
+
+#codebook is definitely wrong on the labels for the days, emailed Brian to confirm
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+Now starting analysis featuring weighted tables
+```{r}
+#initial addition of weight columns
+
+weights14 <- read.csv("weights14.csv") 
+trip14 <- left_join(trip14, weights14[,c(4,5,6,113)], by=c("hhno"="hhid", "pno"="pernum", "tsvid"="tripnum"))
+names(trip14)[29] <- "weight"
+trip14_weighted <- subset(trip14, !is.na(weight) & weight !=0)
+
+
+weights17 <- read.csv("weights17.csv") 
+trip17 <- left_join(trip17, weights17[,c(3,4,5,114)], by=c("hhno"="hhid", "pno"="pernum", "tsvid"="tripnum"))
+names(trip17)[27] <- "weight"
+trip17_weighted <- subset(trip17, !is.na(weight) & weight !=0)
+
+
+
+```
+
+
+```{r}
+######generating trip share/weighted versions of trip14 and trip17_mode_age
+trip17_mode_age <- trip17_weighted %>%
+  select(mode, pagey, weight)
+
+trip17_mode_age <- as.data.frame(table(trip17_mode_age))
+trip17_mode_age$weight <- as.numeric(levels(trip17_mode_age$weight))[trip17_mode_age$weight]
+trip17_mode_age$total <- trip17_mode_age$weight * trip17_mode_age$Freq
+
+trip17_mode_age <- trip17_mode_age %>%
+  group_by(mode,pagey) %>%
+  summarise(final=sum(total))
+
+#removing infrequently used modes to make plotting easier
+trip17_mode_age <- subset(trip17_mode_age, trip17_mode_age$mode %in% c(1,3,4,5,6))
+
+ggplot(trip17_mode_age, aes(x=pagey, y=final, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Weighted Trip Value")
+
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+#age values
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+```
+
+```{r}
+#function to specify a selection of age groups to compare
+plot_mode_age <- function(age) {
+  trip17_mode_age <- subset(trip17_mode_age, trip17_mode_age$pagey %in% age)
+
+  ggplot(trip17_mode_age, aes(x=pagey, y=final, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Weighted Trip Value")
+  
+}
+
+plot_mode_age(c(4,5))
+
+#mode values
+#1=walk, 3=sov, 4=hov2, 5=hov3+, 6=transit
+
+#age values
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+```
+
+```{r}
+#comparing 2014 and 2017 in given age bracket
+trip14_mode_age <- trip14_weighted %>%
+  select(mode, pagey, weight)
+names(trip14_mode_age)[2] <- "pagey"
+
+trip14_mode_age <- as.data.frame(table(trip14_mode_age))
+trip14_mode_age$weight <- as.numeric(levels(trip14_mode_age$weight))[trip14_mode_age$weight]
+trip14_mode_age$total <- trip14_mode_age$weight * trip14_mode_age$Freq
+
+trip14_mode_age <- trip14_mode_age %>%
+  group_by(mode,pagey) %>%
+  summarise(final=sum(total))
+
+#removing infrequently used modes to make plotting easier
+trip14_mode_age <- subset(trip14_mode_age, trip14_mode_age$mode %in% c(1,3,4,5,6))
+
+names(trip14_mode_age)[2] <- "pagey"
+
+trip14_mode_age$year <- "2014"
+trip17_mode_age$year <- "2017"
+
+mode_age_merged <- rbind(trip14_mode_age, trip17_mode_age)
+
+#write.csv(mode_age_merged, "mode_age_merged.csv")
+
+#pick an age group to compare 2014 vs. 2017
+plot_mode_age_year <- function(age) {
+  mode_age_merged <- subset(mode_age_merged, mode_age_merged$pagey %in% age)
+
+  ggplot(mode_age_merged, aes(x=year, y=final, fill=mode)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Weighted Trip Value") +
+  ggtitle(paste("Share of Trips, Age Group =",age))
+}
+
+plot_mode_age_year(7)
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+#age values
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+
+```
+
+```{r}
+#weighted shares of dpurp, mode, pagey
+
+#dpurpose fields for trip14 do not include medical or recreational so we need to update trip 17 to reflect that
+trip17_weighted$dpurp[trip17_weighted$dpurp == 8] <- 7
+trip17_weighted$dpurp[trip17_weighted$dpurp == 9] <- 4
+
+#dpurp share
+trip14_dpurp_share <- trip14_weighted %>%
+  select(dpurp, weight) %>%
+  group_by(dpurp) %>%
+  summarise(total=sum(weight)) %>%
+  mutate(freq=total/sum(total))
+
+#removing rows where dpurp == 11 (due to -9998 as dpurp value in actual survey)
+trip17_dpurp_share <- subset(trip17_weighted, trip17_weighted$dpurp != 11) %>%
+  select(dpurp, weight) %>%
+  group_by(dpurp) %>%
+  summarise(total=sum(weight)) %>%
+  mutate(freq=total/sum(total))
+
+trip14_dpurp_share$year <- rep("2014", nrow(trip14_dpurp_share))
+trip17_dpurp_share$year <- rep("2017", nrow(trip17_dpurp_share))
+
+dpurp_share_merged <- rbind(trip14_dpurp_share, trip17_dpurp_share)
+
+dpurp_share_merged$dpurp <- as.factor(dpurp_share_merged$dpurp)
+
+ggplot(dpurp_share_merged, aes(x=dpurp, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share %") +
+  ggtitle("Trip Share % by purpose")
+
+
+#mode share
+trip14_mode_share <- trip14_weighted %>%
+  select(mode, weight) %>%
+  group_by(mode) %>%
+  summarise(total=sum(weight)) %>%
+  mutate(freq=total/sum(total))
+  
+trip17_mode_share <- trip17_weighted %>%
+  select(mode, weight) %>%
+  group_by(mode) %>%
+  summarise(total=sum(weight)) %>%
+  mutate(freq=total/sum(total))
+
+trip14_mode_share$year <- rep("2014", nrow(trip14_mode_share))
+trip17_mode_share$year <- rep("2017", nrow(trip17_mode_share))
+
+mode_share_merged <- rbind(trip14_mode_share, trip17_mode_share)
+
+mode_share_merged$mode <- as.factor(mode_share_merged$mode)
+
+ggplot(mode_share_merged, aes(x=mode, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share %") +
+  ggtitle("Trip Share % by mode")
+
+
+#pagey share
+trip14_age_share <- trip14_weighted %>%
+  select(pagey, weight) %>%
+  group_by(pagey) %>%
+  summarise(total=sum(weight)) %>%
+  mutate(freq=total/sum(total))
+
+trip17_age_share <- trip17_weighted %>%
+  select(pagey, weight) %>%
+  group_by(pagey) %>%
+  summarise(total=sum(weight)) %>%
+  mutate(freq=total/sum(total))
+
+trip14_age_share$year <- rep("2014", nrow(trip14_age_share))
+trip17_age_share$year <- rep("2017", nrow(trip17_age_share))
+
+
+age_share_merged <- rbind(trip14_age_share, trip17_age_share)
+
+age_share_merged$pagey <- as.factor(age_share_merged$pagey)
+
+ggplot(age_share_merged, aes(x=pagey, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  ylab("Trip Share %") +
+  ylab("Trip Share % by age")
+
+
+#dpurp for daysim file
+#0=home, 1=work, 2=school, 3=pick up/drop off, 4=personal business, 5=shopping, 6=food, 7=social/recreational, 10=change mode
+
+#mode for daysim file
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+
+#age for daysim file
+#1=0-4, 2=5-11, 3=12-15, 4=16-17, 5=18-24, 6=25-34, 7=35-44, 8=45-54, 9=55-64, 10=65-74, 11=75-84, 12=85+
+
+```
+
+```{r}
+#trying commute share with weighted survey
+commute_AM_14 <- subset(trip14_weighted, opurp == 0 & dpurp == 1 & trip14_weighted$travtime != -1 & trip14_weighted$travdist != -1)
+commute_AM_17 <- subset(trip17_weighted, opurp == 0 & dpurp == 1 & trip17_weighted$travtime != -1 & trip17_weighted$travdist != -1)
+
+#removing modes 7-9 because they are missing/not consistent/other (they make up a small % of total trips)
+commute_AM_14 <- subset(commute_AM_14, mode %in% c(1:6))
+commute_AM_17 <- subset(commute_AM_17, mode %in% c(1:6))
+
+commute_AM_14_mode_share <- commute_AM_14 %>% 
+  group_by(mode) %>%
+  summarise(n=sum(weight)) %>%
+  mutate(freq=n/sum(n))
+
+commute_AM_17_mode_share <- commute_AM_17 %>% 
+  group_by(mode) %>%
+  summarise(n=sum(weight)) %>%
+  mutate(freq=n/sum(n))
+
+commute_AM_14_mode_share$year <- rep("2014", nrow(commute_AM_14_mode_share))
+commute_AM_17_mode_share$year <- rep("2017", nrow(commute_AM_17_mode_share))
+
+commute_AM_mode_share <- rbind(commute_AM_14_mode_share, commute_AM_17_mode_share)
+
+ggplot(commute_AM_mode_share, aes(x=mode, y=freq, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,6,1)) +
+  ggtitle("Average commute share by mode")
+
+#weighted survey shows a much smaller decline
+
+```
+
+```{r}
+#Weighted average time and distance by mode
+
+mode_time_14 <- trip14_weighted %>% 
+  select(mode, travtime, travdist, weight)
+
+#getting a weighted value for each trip (does this make sense?)
+mode_time_14$weighted_time <- (mode_time_14$travtime * mode_time_14$weight)/mean(mode_time_14$weight)
+mode_time_14$weighted_dist <- (mode_time_14$travdist * mode_time_14$weight)/mean(mode_time_14$weight)
+
+mode_time_14 <- mode_time_14 %>% 
+  select(mode, weighted_time, weighted_dist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(weighted_time), dist=mean(weighted_dist))
+
+mode_time_17 <- trip17_weighted %>% 
+  select(mode, travtime, travdist, weight)
+
+mode_time_17$weighted_time <- (mode_time_17$travtime * mode_time_17$weight)/mean(mode_time_17$weight)
+mode_time_17$weighted_dist <- (mode_time_17$travdist * mode_time_17$weight)/mean(mode_time_17$weight)
+
+mode_time_17 <- mode_time_17 %>% 
+  select(mode, weighted_time, weighted_dist) %>%
+  group_by(mode) %>%
+  summarise(time=mean(weighted_time), dist=mean(weighted_dist))
+
+mode_time_14$year <- rep("2014", nrow(mode_time_14))
+mode_time_17$year <- rep("2017", nrow(mode_time_17))
+
+mode_time_dist <- rbind(mode_time_14, mode_time_17)
+
+#mode=9 (other) seems to be distorted by plane trips so it can be removed
+mode_time_dist <- subset(mode_time_dist, mode != 9)
+
+ggplot(mode_time_dist, aes(x=mode, y=time, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  ggtitle("Average trip time by mode")
+
+ggplot(mode_time_dist, aes(x=mode, y=dist, fill=year)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_x_continuous(breaks=seq(1,9,1)) +
+  ggtitle("Average trip dist by mode")
+
+#not sure how accurate this is 
+
+#mode values
+#1=walk, 2=bike, 3=sov, 4=hov2, 5=hov3+, 6=transit, 8=school bus, 9=other
+```

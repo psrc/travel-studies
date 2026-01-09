@@ -1,0 +1,160 @@
+---
+title: "auto-ownership"
+author: "suzanne"
+date: "2024-03-20"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+## Load in Packages
+IF YOU need to download some packages on github: travelSurveyTools, psrcelmer, and psrcplot.
+For this use the syntax:
+library(devtools)
+devtools::install_github('rsgInc/travelSurveyTools')
+devtools::install_github('psrc/psrcelmer')
+devtools::install_github('psrc/psrcplot')
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+source('survey-23-preprocess.R')
+```
+
+## Debugging travelSurveyTools
+
+travelSurveyTools still has many cryptic error messages usually related to data or codebook formatting and naming. You may need to debug to find where or why the problem exists.
+
+You can use: devtools::load_all('C:/GitHub/travelSurveyTools/R') and then browser() and put breakpoints in the code to find the problem.
+
+
+## Read in data items from Elmer
+
+The travelSurveyTools package expects everything to be a data.table, so run setDT all over the place.
+```{r }
+household<- get_query(sql= "select household_id, survey_year, vehicle_count, hhincome_detailed, hh_weight 
+                from HHSurvey.v_households_labels")
+
+setDT(household)
+```
+
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_packagable.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Set IDs as characters
+I guess for joining?, functionalize convert all ids to charcets
+```{r}
+household[, hh_id := as.character(household_id)]
+
+
+
+household <- household%>%mutate(survey_year=as.character(survey_year))
+```
+
+## Make a new variable
+
+If your variable is going to be a transformation of existing data in the codebook- for example grouping- you need to add the new variable and its new values to the internal to code, working codebook.
+
+## Adding a new variable to the codebook
+
+make a function with bunch of default
+#to do make this easier
+```{r}
+
+variable_list<-rbind(
+    variable_list,
+    data.table(
+      variable = c("vehicle_count_simple"),
+      is_checkbox = c(0),
+      hh = c(1),
+      person = c(0),
+      day = c(0),
+      trip = c(0),
+      vehicle = c(0),
+      location = c(0),
+      description = c("vehicle_count_simple"),
+      logic = c("vehicle_count_simple"),
+      data_type = c("integer/categorical"),
+      shared_name = c("vehicle_count_simple")
+    )
+  )
+
+```
+
+
+# Add associated values
+
+```{r}
+group_labels<-get_grouped_labels(group_id='group_1', group_name='vehicle_count_simple')
+value_labels<-add_values_code(group_name='vehicle_count_simple')
+household<-grp_to_tbl(tbl=household, ungrouped_name='vehicle_count', grouped_name='vehicle_count_simple')
+
+```
+
+
+
+
+
+
+The package expects the data to be in a list of data.tables.
+```{r}
+household <- household%>%filter(survey_year=='2023')
+
+hts_data = list(hh = household)
+
+```
+
+
+```{r}
+#some how a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+```{r}
+
+
+
+```
+
+##summarize data
+```{r}
+
+vehicle_summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'vehicle_count_simple',
+                               summarize_by = 'hhincome_detailed',
+                               id_cols='household_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+                               )
+```
+
+
+
+
+```{r}
+vehs<-vehicle_summary$summary$wtd
+vehs<-order_factors(vehs, 'hhincome_detailed', value_labels)
+
+static_column_chart(vehs, x='vehicle_count_simple', y='prop', fill='hhincome_detailed', color='pgnobgy_10')
+
+vehs_pivot<-vehs%>%pivot_wider(id_cols=vehicle_count_simple, names_from=hhincome_detailed, values_from=prop )
+
+write.csv(vehs_pivot, 'vehicles_by_hhincome.csv')
+vehs_pivot
+```
+
+

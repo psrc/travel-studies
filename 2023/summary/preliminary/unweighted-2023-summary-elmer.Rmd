@@ -1,0 +1,466 @@
+---
+title: "2023 Post cleaning, pre-weighting survey summary"
+author: "suzanne"
+date: "2024-01-29"
+output: html_document
+---
+```{r}
+library(usethis)
+library(devtools)
+```
+
+```{r}
+usethis::use_git_config(user.name = "Ennazus", user.email = "childresssuzanne@gmail.com")
+```
+```{r}
+ credentials::set_github_pat()
+```
+
+
+```{r}
+remotes::install_github('RSGInc/travelSurveyTools', force = TRUE)
+
+```
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# install package
+# remotes::install_github('RSGInc/travelSurveyTools', force = TRUE)
+
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(ggplot2)
+library(psrcplot)
+library(dplyr)
+library(psrcelmer)
+
+
+```
+
+## Read in data
+
+```{r load_data, message=FALSE}
+
+# load in data delivered to RSG 02/01/24 cleaned, unweighted
+dt_dir = "J:/Projects/Surveys/HHTravel/Survey2023/Data/data_unweighted_cleaned_to_rsg_020124"
+
+codebook_dir = 'J:/Projects/Surveys/HHTravel/Survey2023/Data/codebook/PSRC_Combined_Codebook_2023_groupings.xlsx'
+
+
+hts_data<- get_table(schema='HHSurvey', tbl_name='households_2017_2019')
+
+
+
+get_hhts_no_weights <- function(survey, level, vars, ...){
+  db_connection <- hhts_connect()
+  abbr <- tbl_ref <- NULL
+  dyears<-survey%>% as.list() %>% lapply(as.integer) %>% unlist()
+
+  
+  sql_hhts_lookup <- data.frame(
+    abbr    =c("h","p","t","d","v","households","persons","trips","days","vehicles"),
+    tbl_ref =rep(c("HHSurvey.v_households",
+                   "HHSurvey.v_persons",
+                   "HHSurvey.v_trips",
+                   "HHSurvey.v_days",
+                   "HHSurvey.v_vehicles"),2)) %>% setDT()
+    sql_tbl_ref <- sql_hhts_lookup[abbr==level, .(tbl_ref)][[1]]
+    want_vars <- c(unlist(vars)) 
+    sql_code <- paste0("SELECT survey_year, ",
+                       paste(want_vars, collapse=", "), " FROM ",sql_tbl_ref,                      # Build query for only relevant variables
+                       " WHERE survey_year IN(", paste(unique(dyears), collapse=", "),");")
+                                                                    # Recode NULL
+    df <- DBI::dbGetQuery(db_connection, DBI::SQL(sql_code))  
+    print(sql_code)
+    DBI::dbDisconnect(db_connection)
+    return(df) 
+}
+
+# Assign lowercase names to the list elements
+names(hts_data) <- tolower(sapply(files, function(f) stringr::str_match(basename(f), "(.*?).csv")[, 2]))
+
+# order list for data prep
+ordered_list = c("household", "person", "day", "trip", "vehicle")
+hts_data = hts_data[match(ordered_list, names(hts_data))]
+
+# rename the household data frame
+names(hts_data)[1] = 'hh'
+
+# read in the codebook
+variable_list = setDT(readxl::read_xlsx(codebook_dir, sheet = 'variable_list_2023'))
+
+value_labels = suppressWarnings(setDT(readxl::read_xlsx(codebook_dir, sheet = 'value_labels_2023')))
+
+# add needed columns to variable list
+variable_list[, shared_name := ifelse(
+        grepl('--', description_2023),
+        sub('_[^_]*$', '', variable), variable)
+    ]
+
+variable_list[, is_checkbox := ifelse(grepl('--', description_2023), 1, 0)]
+
+# rename columns in variable_list for data prep
+setnames(variable_list, c(
+  'hh_final', 
+  'person_final',
+  'vehicle_final', 
+  'day_final', 
+  'trip_final', 
+  'location_final'),
+  c('hh', 'person', 'vehicle', 'day', 'trip', 'location'))
+
+setnames(variable_list, 'data_type_2023', 'data_type')
+
+setnames(variable_list, 'description_2023', 'description')
+
+```
+
+## Unweighted household summaries by sample_segment
+
+```{r hh_summaries, message=FALSE}
+# Unweighted count and proportion of households by income group, household size, whether in city of Seattle, city of Bellevue, sample segment
+
+# create small function to not have to keep writing hts_prep_data and hts_summary calls for each variable
+summarize_hh_var = function(summarize_var, summarize_by){
+  
+  # preps data based on variables to summarize
+  prepped_dt = hts_prep_data(summarize_var = summarize_var,
+                                    summarize_by = summarize_by,
+                                    variables_dt = variable_list,
+                                    data = hts_data,
+                                    id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                                    weighted = FALSE)
+  
+  # takes prepped data and returns a summary with unweighted counts and proportions
+  cat_summary = hts_summary(prepped_dt = prepped_dt$cat,
+                               summarize_var = summarize_var,
+                               summarize_by = summarize_by,
+                               id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                               weighted = FALSE)
+  
+  return(cat_summary)
+
+}
+
+# use factorize_df so that final summary includes labels instead of values
+income_summary = factorize_df(df = summarize_hh_var('hhincome_broad', 'sample_segment')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+hhsize_summary = factorize_df(df = summarize_hh_var('hhsize', 'sample_segment')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+seattle_summary = factorize_df(df = summarize_hh_var('cityofseattle', 'sample_segment')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+bellevue_summary = factorize_df(df = summarize_hh_var('cityofbellevue', 'sample_segment')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+# stacked barcharts of household variables by sample segment
+ggplot(income_summary) + 
+  geom_col(aes(x = sample_segment, y = prop, fill = hhincome_broad)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Sample Segment', y = 'Proportion', fill = 'Household Income')
+
+ggplot(hhsize_summary) + 
+  geom_col(aes(x = sample_segment, y = prop, fill = hhsize)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Sample Segment', y = 'Proportion', fill = 'Household Size')
+
+ggplot(seattle_summary) + 
+  geom_col(aes(x = sample_segment, y = prop, fill = cityofseattle)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Sample Segment', y = 'Proportion', fill = 'In Seattle')
+
+ggplot(bellevue_summary) + 
+  geom_col(aes(x = sample_segment, y = prop, fill = cityofbellevue)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Sample Segment', y = 'Proportion', fill = 'In Bellevue')
+
+```
+
+## Unweighted person summaries
+
+```{r person_summaries, message=FALSE}
+
+# Unweighted count and proportion of persons by race group, workplace, age, employment
+
+# changing shared_name of race_hisp since it isn't in the 2023 data
+variable_list[variable == 'race_hisp', shared_name := 'race_hisp']
+
+# create small function to not have to keep writing hts_prep_data and hts_summary calls for each variable
+summarize_person_var = function(summarize_var, summarize_vartype = 'categorical'){
+  
+  prepped_dt = hts_prep_data(summarize_var = summarize_var,
+                             variables_dt = variable_list,
+                             data = hts_data,
+                             id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                             weighted = FALSE)
+  
+  cat_summary = hts_summary(prepped_dt = prepped_dt$cat,
+                            summarize_var = summarize_var,
+                            id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                            weighted = FALSE,
+                            summarize_vartype = summarize_vartype)
+  
+  return(cat_summary)
+
+}
+
+# use factorize_df so that final summary includes labels instead of values
+race_summary = factorize_df(df = summarize_person_var('race', 'checkbox')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+workplace_summary = factorize_df(df = summarize_person_var('workplace')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+age_summary = factorize_df(df = summarize_person_var('age')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+employment_summary = factorize_df(df = summarize_person_var('employment')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+# stacked barcharts of person variables by sample segment
+ggplot(race_summary) + 
+  geom_col(aes(x = race, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Race', y = 'Proportion')
+
+ggplot(workplace_summary) + 
+  geom_col(aes(x = workplace, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Workplace', y = 'Proportion')
+
+ggplot(age_summary) + 
+  geom_col(aes(x = age, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Age', y = 'Proportion')
+
+ggplot(employment_summary) + 
+  geom_col(aes(x = employment, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Employment', y = 'Proportion')
+
+```
+```{r}
+gender_summary = factorize_df(df = summarize_person_var('gender')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+```
+
+## Unweighted day summaries
+
+```{r day_summaries, message=FALSE}
+
+# Unweighted count and proportion of days by number of trips, deliveries, telework_time
+
+# create small function to not have to keep writing hts_prep_data and hts_summary calls for each variable
+summarize_day_var = function(summarize_var, summarize_vartype = 'categorical'){
+  
+  prepped_dt = hts_prep_data(summarize_var = summarize_var,
+                             variables_dt = variable_list,
+                             data = hts_data,
+                             id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                             weighted = FALSE)
+
+  cat_summary = hts_summary(prepped_dt = prepped_dt$cat,
+                            summarize_var = summarize_var,
+                            id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                            weighted = FALSE,
+                            summarize_vartype = summarize_vartype)
+  
+  return(cat_summary)
+
+}
+
+# use factorize_df so that final summary includes labels instead of values
+num_trips_summary = factorize_df(df = summarize_day_var('num_trips')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+delivery_summary = factorize_df(df = summarize_day_var('deliver', 'checkbox')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+telework_time_summary = factorize_df(df = summarize_day_var('telework_time')$summary$unwtd,
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+# stacked barcharts of day variables by sample segment
+ggplot(num_trips_summary) + 
+  geom_col(aes(x = num_trips, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Number of Trips', y = 'Proportion')
+
+ggplot(delivery_summary) + 
+  geom_col(aes(x = deliver, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Delivery', y = 'Proportion')
+
+ggplot(telework_time_summary) + 
+  geom_col(aes(x = telework_time, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Telework Time', y = 'Proportion')
+
+```
+
+## Unweighted trip summaries
+
+```{r trip_summaries, message=FALSE}
+
+# Unweighted count and proportion of trips by mode_type, dest_purpose_cat, distance, speed
+
+hts_data$trip[, distance_miles := as.numeric(distance_miles)]
+
+# create small function to not have to keep writing hts_prep_data and hts_summary calls for each variable
+summarize_trip_var = function(summarize_var, summarize_by){
+  
+  prepped_dt = hts_prep_data(summarize_var = summarize_var,
+                             summarize_by = summarize_by,
+                             variables_dt = variable_list,
+                             data = hts_data,
+                             id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                             weighted = FALSE,
+                             missing_values = c(995, NULL))
+
+  if(summarize_var %in% c('mode_type', 'dest_purpose_cat')){
+    cat_summary = hts_summary(prepped_dt = prepped_dt$cat,
+                              summarize_var = summarize_var,
+                              summarize_by = summarize_by,
+                              id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                              weighted = FALSE)
+  } else{
+    cat_summary = hts_summary(prepped_dt = prepped_dt$num,
+                              summarize_var = summarize_var,
+                              summarize_by = summarize_by,
+                              id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                              weighted = FALSE,
+                              summarize_vartype = 'numeric')
+  }
+  
+  return(cat_summary)
+
+}
+
+# use factorize_df so that final summary includes labels instead of values
+mode_type_summary = factorize_df(df = summarize_trip_var('mode_type', NULL)$summary$unwtd[mode_type != 'NULL'],
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+dest_purpose_summary = factorize_df(df = summarize_trip_var('dest_purpose_cat', NULL)$summary$unwtd[dest_purpose_cat != 'NULL'],
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+mode_by_distance = factorize_df(df = summarize_trip_var('distance_miles', 'mode_type')$summary$unwtd[mode_type != 'NULL'],
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+purpose_by_speed = factorize_df(df = summarize_trip_var('speed_mph', 'dest_purpose_cat')$summary$unwtd[dest_purpose_cat != 'NULL'],
+                              vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+# stacked barcharts of trip variables
+ggplot(mode_type_summary) + 
+  geom_col(aes(x = mode_type, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Mode Type', y = 'Proportion')
+
+ggplot(dest_purpose_summary) + 
+  geom_col(aes(x = dest_purpose_cat, y = prop)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Destination Purpose', y = 'Proportion')
+
+ggplot(mode_by_distance) + 
+  geom_col(aes(x = mode_type, y = mean)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Mode Type', y = 'Average Distance (miles)')
+
+ggplot(purpose_by_speed) + 
+  geom_col(aes(x = dest_purpose_cat, y = mean)) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Destination Purpose', y = 'Average Speed (mph)')
+
+```
+how to summarize a variable that is based off a different table - hhgroup is on the households table, but we want to summarize days by it
+```{r}
+hts_data$day = hts_cbind_var(lhs_table = hts_data$day, rhs_var = 'hhgroup', cbind_ids = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'), variable_list = variable_list, hts_data = hts_data)
+
+variable_list[variable == 'hhgroup', day := 1]
+
+prepped_dt = hts_prep_data(summarize_var = 'hhgroup', variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+
+hts_summary(prepped_dt = prepped_dt$cat, summarize_var = 'hhgroup', id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'))
+
+```
+```{r}
+
+prepped_dt = hts_prep_data(summarize_var = 'mode_type', summarize_by='gender',variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+
+summ<-factorize_df(df=hts_summary(prepped_dt = prepped_dt$cat, summarize_var = 'mode_type', summarize_by='gender', id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'))$summary$unwtd[mode_type != 'NULL'],vals_df = value_labels,
+                              value_label_colname = 'final_label')
+
+ggplot(summ) + 
+  geom_col(aes(x = mode_type, y = prop, fill= gender),position=position_dodge()) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Mode', y = 'Proportion')
+```
+```{r}
+prepped_dt = hts_prep_data(summarize_var = 'mode_type', summarize_by='sexuality',variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+
+summ<-factorize_df(df=hts_summary(prepped_dt = prepped_dt$cat, summarize_var = 'mode_type', summarize_by='sexuality', id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'))$summary$unwtd[mode_type != 'NULL'],vals_df = value_labels,
+                              value_label_colname = 'final_label')%>%filter(mode_type!='Car')
+
+ggplot(summ) + 
+  geom_col(aes(x = mode_type, y = prop, fill= sexuality),position=position_dodge()) +
+  coord_flip() +
+  scale_x_discrete(limits = rev) +
+  labs(x = 'Mode', y = 'Proportion')
+```
+how to use a checkbox variable
+```{r}
+prepped_dt = hts_prep_data(summarize_var = 'prev_res_factors',
+                           variables_dt = variable_list,
+                           data = hts_data,
+                           id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                           weighted = FALSE)
+  
+cat_summary = hts_summary(prepped_dt = prepped_dt$cat,
+                          summarize_var = 'prev_res_factors',
+                          summarize_vartype = 'checkbox',
+                          id_cols = c('hhid', 'person_id', 'day_id', 'tripid', 'vehid'),
+                          weighted = FALSE)
+
+res_summary<-cat_summary$summary$unwtd
+res_summary
+```
+
+Using a grouped variable from the codebook
+```{r}
+
+```
+

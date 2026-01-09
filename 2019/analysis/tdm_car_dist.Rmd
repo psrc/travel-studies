@@ -1,0 +1,382 @@
+---
+title: "model_everything"
+author: "suzanne"
+date: "10/19/2021"
+output: html_document
+---
+
+```{r libraries, include=FALSE}
+source('travel_survey_analysis_functions.R')
+library(tidyverse)
+library(openxlsx)
+library(odbc)
+library(DBI)
+library(MASS)
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(jtools)
+```
+
+What is the relationship between:
+* belonging to carsharing (car_share)
+* Off-street parking spaces at residence (offpark)
+* Off-street parking at residence cost per month(offpark_cost)
+* On-street parking availability at/near residence (streetpark)
+* telecommute_freq
+* benefits_1 (flextime), benefits_2(compressed workweek), benefits_3(free/partially subsidized passes/fares), benefits_4 (other subsidized commute)
+*deliver_pkg, deliver_food, deliver_grocery, deliver_work
+* workpass
+* workpass_cost
+
+And
+* Person Miles Traveled (build it)
+
+
+Control for:
+* race_category
+* hhsize
+* vehicle_count
+* numadults
+* numchildren
+* lifecycle
+* education
+* car_share
+* age
+* gender
+* employment
+* license
+* accessibility
+
+tract variables from displacement risk index
+parcel variables from land use
+
+
+
+```{r read_data}
+#### Read in Data ####
+#where you are running your R code
+wrkdir <- "C:/Users/SChildress/Documents/GitHub/travel_studies/2019/analysis"
+
+#where you want to output tables
+file_loc <- 'C:/Users/SChildress/Documents/HHSurvey/commuting'
+
+sql.trip.query <- paste("SELECT mode_simple, driver, park_type, park_pay, trip_path_distance, travelers_hh, travelers_nonhh, travelers_total, google_duration,person_id,daynum,
+                        survey_year,trip_wt_combined FROM HHSurvey.v_trips_2017_2019_in_house")
+trips <- read.dt(sql.trip.query, 'sqlquery')
+
+
+
+sql.person.query<-paste("SELECT work_rgcname,work_tract, work_taz2010, household_id,hhsize, final_home_tract, lifecycle, numchildren, numworkers, numadults, employment,hhincome_broad, worker, student,person_id,education, hhincome_detailed,race_category,telecommute_freq, vehicle_count,commute_auto_time,  license, hours_work, age_category, gender, car_share,commute_auto_distance, commute_mode, work_county, age, work_park_type,  survey_year, workpass_cost, workpass,
+benefits_1, benefits_2, benefits_3, benefits_4, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5, workplace,parcel_id,
+hh_wt_2019, hh_wt_revised, hh_wt_combined FROM HHSurvey.v_persons_2017_2019_in_house")
+
+persons<-read.dt(sql.person.query, 'sqlquery')
+
+sql.days.query<-paste("SELECT person_id, hhid,daynum,dayofweek,survey_year, use_toll, online_shop_time, telework_time, delivery_pkgs_freq, deliver_package,delivery_grocery_freq, deliver_grocery, delivery_food_freq,deliver_food  FROM HHSurvey.days_2017_2019")
+
+days<-read.dt(sql.days.query, 'sqlquery')
+```
+
+
+
+```{r}
+#creating a table with ppl who telework by filtering out NAs and including all ppl-days that have any telework-time
+time_parse = function (value) {
+  
+  if (is.na(value) == TRUE ) {
+    return (NA)
+  } else if (value == "None"){
+    return ("None")
+  }
+  temp = str_split (value, " ")[[1]]
+  
+  if (length(temp) == 4 ) {
+    return ( as.numeric(temp[1]) *60 + as.numeric(temp[3])/60)
+  } else if (temp[2] == "hour") {
+    return(60)
+  } else if (temp[2] == "hours") {
+    return( 60 * as.numeric(temp[1]))
+  } else if (temp[2] == "minutes") {
+    return( as.numeric(temp[1])/60)
+  }
+  
+}
+days_telecom = days %>% mutate(upd_telework_time = 0)
+
+for (i in 1:nrow(days)){
+  days_telecom$upd_telework_time[i] = time_parse(days$telework_time[i])
+}
+telework_day = days_telecom %>% 
+  mutate(
+    telework_cat = case_when(
+      (as.numeric(upd_telework_time) > 0 & as.numeric(upd_telework_time) <= 60)  ~ "NotFulltime",
+      (as.numeric(upd_telework_time) > 60 & as.numeric(upd_telework_time) < 360) ~ "NotFulltime",
+      as.numeric(upd_telework_time) >= 360 & as.numeric(upd_telework_time) <= 720 ~ "Full-time or greater",
+      TRUE ~"NotFulltime"
+    ))
+```
+
+
+```{r}
+day_upd = telework_day %>% 
+  mutate(delivery_pkgs_freq_upd = case_when(delivery_pkgs_freq == "0 (none)" ~ 0,
+                                            delivery_pkgs_freq == "1" ~ 1,
+                                            delivery_pkgs_freq == "2" ~ 1,
+                                            delivery_pkgs_freq == "3" ~ 1,
+                                            delivery_pkgs_freq == "4" ~ 1,
+                                            delivery_pkgs_freq == "5 or more" ~ 1)) %>% 
+  mutate(delivery_pkgs_all = case_when(delivery_pkgs_freq_upd == 1 ~ 1,
+                                       delivery_pkgs_freq_upd == 0 ~ 0,
+                                       deliver_package == "Yes" ~ 1,
+                                       deliver_package == "No" ~ 0)) %>% 
+  
+  mutate(delivery_grocery_freq_upd = case_when(delivery_grocery_freq == "0 (none)" ~ 0,
+                                               delivery_grocery_freq == "1" ~ 1,
+                                               delivery_grocery_freq == "2" ~ 1,
+                                               delivery_grocery_freq == "3" ~ 1,
+                                               delivery_grocery_freq == "4" ~ 1,
+                                               delivery_grocery_freq == "5 or more" ~ 1)) %>% 
+  mutate(delivery_grocery_all = case_when(delivery_grocery_freq_upd == 1 ~ 1,
+                                          delivery_grocery_freq_upd == 0 ~ 0,
+                                          deliver_grocery == "Yes" ~ 1,
+                                          deliver_grocery == "No" ~ 0)) %>% 
+  
+  mutate(delivery_food_freq_upd = case_when(delivery_food_freq == "0 (none)" ~ 0,
+                                            delivery_food_freq == "1" ~ 1,
+                                            delivery_food_freq == "2" ~ 1,
+                                            delivery_food_freq == "3" ~ 1,
+                                            delivery_food_freq == "4" ~ 1,
+                                            delivery_food_freq == "5 or more" ~ 1)) %>% 
+  mutate(delivery_food_all = case_when(delivery_food_freq_upd == 1 ~ 1,
+                                       delivery_food_freq_upd == 0 ~ 0,
+                                       deliver_food == "Yes" ~ 1,
+                                       deliver_food == "No" ~ 0)) %>% 
+  mutate(delivery = if_else(delivery_pkgs_all > 0 | delivery_grocery_all > 0 | delivery_food_all > 0 , 1, 0))
+
+day_household= day_upd %>% group_by(hhid, daynum) %>%
+  summarise(sum_pkg = sum(delivery_pkgs_all,na.rm = TRUE),
+            sum_groc = sum(delivery_grocery_all,na.rm = TRUE),
+            sum_food = sum(delivery_food_all,na.rm = TRUE))%>% 
+  mutate(sum_pkg_upd = case_when(sum_pkg == 0 ~ 0,
+                                 sum_pkg > 0 ~ 1),
+         sum_groc_upd = case_when(sum_groc == 0 ~ 0,
+                                  sum_groc > 0 ~ 1),
+         sum_food_upd = case_when(sum_food == 0 ~ 0,
+                                  sum_food > 0 ~ 1)) %>%
+  mutate(delivery = if_else(sum_pkg > 0 | sum_groc > 0 | sum_food > 0 , 1, 0))
+
+```
+
+```{r read_data2}
+parcel_data <- 'C:/Users/SChildress/Documents/HHSurvey/displace_estimate/buffered_parcels.dat'
+displ_index_data<- 'J:/Projects/Surveys/HHTravel/Survey2019/Analysis/displacement/estimation_files/displacement_risk_estimation.csv'
+
+parcel_df<-read.table(parcel_data, header=TRUE, sep='')
+displ_risk_df <- read.csv(displ_index_data)
+```
+
+```{r merge homelocs}
+
+# switch over to using df syntax for simplicity
+person_df <- setDF(persons)
+
+
+person_df$census_2010_tract <- as.character(person_df$final_home_tract)
+
+person_df$worktract <- as.character(person_df$work_tract)
+person_df$worktaz_2010 <- as.character(person_df$work_tract)
+
+#join people to the displacement risk data
+person_df_dis <- merge(person_df,displ_risk_df, by.x='census_2010_tract', by.y='GEOID', all.x=TRUE)
+
+
+# a list of parcel -based variables I'd like to try in the model, there are more on the file
+parcel_based_vars<-c('taz_p','hh_2', 'stugrd_2', 'stuhgh_2', 'stuuni_2', 'empedu_2', 'empfoo_2', 'empgov_2', 'empind_2',
+                      'empmed_2', 'empofc_2', 'empret_2', 'empsvc_2', 'emptot_2', 'ppricdy2', 'pprichr2',
+                     'tstops_2', 'nparks_2', 'aparks_2', 'dist_lbus', 'dist_ebus', 'dist_crt', 'dist_fry',
+                      'dist_lrt')
+
+person_df_dis$parcel_id = as.character(person_df_dis$parcel_id)
+
+parcel_df$parcelid <- as.character(parcel_df$parcelid)
+parcel_df$taz_p <- as.character(parcel_df$taz_p)
+#merging by the previous residence parcel from the person table and by the parcel id in the parcel table
+person_df_dis_parcel<- merge(person_df_dis, parcel_df, by.x='parcel_id', by.y='parcelid', all.x = TRUE)
+```
+```{r merge_work}
+
+#find out characteristics of the work location
+person_df_dis_work1 <- merge(person_df_dis_parcel,displ_risk_df, by.x='worktract', by.y='GEOID', all.x=TRUE,suffixes=c('home', 'work'))
+
+person_df_dis_work1$work_taz2010 <- as.character(person_df_dis_work1$work_taz2010)
+
+parcel_df_sm<- parcel_df %>% group_by(taz_p) %>% filter(row_number()==1)
+person_df_dis_work<-merge(person_df_dis_work1, parcel_df_sm, by.x='work_taz2010', by.y='taz_p', all.x = TRUE,suffixes=c('home', 'work'))
+
+
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r calcs, echo=FALSE}
+person_day_dist<-trips%>%
+  mutate(car_trip_dist =ifelse(mode_simple == 'Drive',trip_path_distance, 0),walk_bike_trip_dist =ifelse((mode_simple == 'Bike' | mode_simple == 'Walk'), trip_path_distance, 0), transit_trip_dist=ifelse(mode_simple=='Transit', trip_path_distance, 0)) %>% 
+  group_by(person_id,daynum) %>% 
+  summarise(tot_dist = sum(trip_path_distance, na.rm = TRUE),
+            tot_car_dist = sum(car_trip_dist, na.rm = TRUE),
+            tot_transit_dist = sum(transit_trip_dist, na.rm = TRUE),
+            tot_walk_bike_dist = sum(walk_bike_trip_dist, na.rm = TRUE))
+
+```
+
+```{r}
+person_day_dist<-person_day_dist[!duplicated(as.list(person_day_dist))]
+person_day_dist<- dplyr::left_join(person_day_dist, person_df_dis_work)
+```
+```{r}
+person_day_dist_d<-merge(person_day_dist, day_household, by.x=c('household_id','daynum'), by.y=c('hhid','daynum'))
+
+person_day_dist_d<-merge(person_day_dist_d, telework_day, by=c('person_id', 'daynum'))
+```
+
+```{r}
+person_day_dist_d$college<- with(person_day_dist_d,ifelse(education %in% c('Bachelor degree',
+                                                                         'Graduate/post-graduate degree'), 'college', 'no_college'))
+                                                                         
+person_day_dist_d$vehicle_group= 
+with(person_day_dist_d,ifelse(vehicle_count > numadults, 'careq_gr_adults', 'cars_less_adults')) 
+
+
+
+person_day_dist_d$has_children= 
+  with(person_day_dist_d,ifelse(numchildren>=1, 'children', 'no children')) 
+
+person_day_dist_d$wrker_group= 
+         with(person_day_dist_d,ifelse(numworkers==0, 'no workers', 'are workers'))
+
+person_day_dist_d$size_group= 
+  with(person_day_dist_d,ifelse(hhsize>=3, 'hhsize_3ormore', 'hhsize_2orless'))
+
+person_day_dist_d$license_group= 
+  with(person_day_dist_d,ifelse(license=='Yes, has an intermediate or unrestricted license', 'license', 'no_license'))
+
+person_day_dist_d$race_category[person_day_dist_d$race_category=='Asian'] <- 'AsianorWhite'
+
+person_day_dist_d$race_category[person_day_dist_d$race_category=='White Only'] <- 'AsianorWhite'
+
+person_day_dist_d$flextime <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$flextime[person_day_dist_d$benefits_1=='Not offered'] <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$flextime[person_day_dist_d$benefits_1=='Offered, but I don\'t use'] <- 'Offered'
+person_day_dist_d$flextime[person_day_dist_d$benefits_1== 'Offered, and I use'] <- 'Offered'
+
+person_day_dist_d$compressed <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Not offered'] <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Offered, but I don\'t use'] <- 'Offered'
+person_day_dist_d$compressed[person_day_dist_d$benefits_2=='Offered, and I use'] <- 'Offered'
+
+person_day_dist_d$transit_pass <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Not offered'] <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Offered, but I don\'t use'] <- 'Offered'
+person_day_dist_d$transit_pass[person_day_dist_d$benefits_3=='Offered, and I use'] <- 'Offered'
+
+person_day_dist_d$othersubsidy <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Not offered'] <- 'MissingOrDontKnowNot offered'
+person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Offered, but I don\'t use'] <- 'Offered'
+person_day_dist_d$othersubsidy[person_day_dist_d$benefits_4=='Offered, and I use'] <- 'Offered'
+
+
+person_day_dist_d[is.na(person_day_dist_d)] = 0
+person_day_dist_d<-person_day_dist_d %>% filter(!age %in% c('Under 5 years old', '5-11 years', '12-15 years', '16-17 years')) %>%filter(worker==
+'1+ job(s) (including part-time)')%>%filter(tot_car_dist<200)%>%filter(!dayofweek %in% c('Saturday', 'Sunday'))
+```
+```{r}
+# get characteristics of the work location
+```
+
+
+
+
+
+```{r}
+ggplot(person_day_dist_d, aes_string(x='tot_car_dist')) + geom_histogram()
+```
+```{r}
+person_day_dist_d$logcardist<-log(1+person_day_dist_d$tot_car_dist)
+ggplot(person_day_dist_d, aes_string(x='logcardist')) + geom_histogram()
+```
+
+
+```{r}
+person_day_dist_d$distornot<- with(person_day_dist_d,ifelse(logcardist==0, 0, 1))
+
+person_day_has_dist<-person_day_dist_d%>% filter(logcardist>0)
+```
+```{r}
+ xvar <- c('employment','student','hhincome_broad','license_group','transit_pass','transit_qt_milehome','transit_qt_milework','delivery','dayofweek','survey_year.y','telework_cat','college','vehicle_group','race_category')
+  for(xvar1 in xvar ){
+ # 
+ #   count_yesnodist<-person_day_dist_d %>%
+ #     group_by_(c('distornot', xvar1))%>%summarise(count=n())
+ # 
+    mean_dist<- person_day_dist_d%>% group_by_(xvar1)%>%summarise(mean=mean(tot_car_dist))
+    print(mean_dist)
+ # 
+ # 
+ #   print(count_yesnodist)
+ # 
+  }
+
+mean(person_day_dist_d$tot_car_dist)
+summary(person_day_dist_d$tot_car_dist)
+mean(person_day_has_dist$tot_car_dist)
+summary(person_day_has_dist$tot_car_dist)
+person_day_dist_d%>%filter(logcardist==0)%>%summarise(n=n())
+```
+
+
+https://seananderson.ca/2014/05/18/gamma-hurdle/
+
+
+
+
+```{r, echo=FALSE}
+# binomial model for whether the worker travels by car or not:
+
+
+fit_car_or_not<- glm(distornot~numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+car_share+vehicle_group+race_category,data = person_day_dist_d, family=binomial() )
+                                                             
+summ(fit_car_or_not)
+#stage two a linear model (with the dependent variable log transformed) for workers that have a distance
+```
+
+
+```{r, echo=FALSE}
+```
+
+
+```{r, echo=FALSE}
+fit_car<-lm(logcardist~     numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+vehicle_group+car_share+race_category,data = person_day_has_dist)
+
+summ(fit_car)
+```
+
+
+```{r, echo=FALSE}
+```
+
+```{r}
+ggplot(person_day_dist_d, aes(x=log(1+pprichr2home/100)))+geom_histogram(position="dodge")
+ggplot(person_day_dist_d, aes(x=log(1+pprichr2work/100)))+geom_histogram(position="dodge")
+```
+
+```{r}
+fit_car<-lm(logcardist~     numchildren+numworkers+age+gender+employment+student+hhincome_broad+license_group+transit_pass+ln_jobs_auto_30home+ln_jobs_transit_45home+transit_qt_milehome+ln_jobs_auto_30work+ln_jobs_transit_45work+transit_qt_milework+log(1+dist_superwork)+log(1+dist_pharmwork)+votinghome+log(1+pprichr2home/100)+log(1+nodes1_2home)+log(1+nodes4_2home)+log(1+pprichr2work/100)+log(1+nodes1_2work)+log(1+nodes4_2work)+log(1+emptot_2work)+delivery+dayofweek+survey_year.y+telework_cat+othersubsidy+compressed+flextime+college+vehicle_group+car_share+race_category,data = person_day_dist_d)
+
+summ(fit_car)
+```
+

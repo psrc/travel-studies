@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.3.433">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Travel Survey Summarization</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="travel_survey_summarization_how_to_2023_files/libs/clipboard/clipboard.min.js"></script>
+<script src="travel_survey_summarization_how_to_2023_files/libs/quarto-html/quarto.js"></script>
+<script src="travel_survey_summarization_how_to_2023_files/libs/quarto-html/popper.min.js"></script>
+<script src="travel_survey_summarization_how_to_2023_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="travel_survey_summarization_how_to_2023_files/libs/quarto-html/anchor.min.js"></script>
+<link href="travel_survey_summarization_how_to_2023_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="travel_survey_summarization_how_to_2023_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="travel_survey_summarization_how_to_2023_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="travel_survey_summarization_how_to_2023_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="travel_survey_summarization_how_to_2023_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Travel Survey Summarization</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<section id="new-package-travelsurveytools" class="level1">
+<h1>New Package travelSurveyTools</h1>
+<p>PSRC and RSG have built a new package called travelSurveyTools to work with travel survey data. It is recommended to read through this documentation before you start using the package. <a href="https://rsginc.github.io/travelSurveyTools/" class="uri">https://rsginc.github.io/travelSurveyTools/</a></p>
+<section id="read-in-libraries" class="level2">
+<h2 class="anchored" data-anchor-id="read-in-libraries">Read in Libraries</h2>
+<p>YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here’s how:</p>
+<p>library(devtools)</p>
+<p>devtools::install_github(‘rsgInc/travelSurveyTools’) devtools::install_github(‘psrc/psrcelmer’)</p>
+<p>devtools::install_github(‘psrc/psrcplot’)</p>
+</section>
+<section id="read-in-codebook" class="level2">
+<h2 class="anchored" data-anchor-id="read-in-codebook">Read in Codebook</h2>
+<p>variable_list and value_labels will be used by the travelSurveyTools package whenever you summarize.</p>
+</section>
+<section id="read-in-data-from-elmer" class="level2">
+<h2 class="anchored" data-anchor-id="read-in-data-from-elmer">Read in Data from Elmer</h2>
+<p>The 2017, 2019, 2021, and 2023 travel survey data is in Elmer. You will need to select exactly which columns you want to summarize. Note that the variables and values you pull in must match the codebook. (if for some reason in error, there is inconsistency we have to fix it).</p>
+<p>The package uses DT and data.table for most operation, so you will usually want inputs to be in data.table format.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>hh<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select  household_id as hh_id, hhincome_broad,survey_year, hh_weight</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="st">                from HHSurvey.v_households_labels"</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>person<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select household_id as hh_id,race_category,</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="st">person_id, workplace, telecommute_freq, survey_year, person_weight, gender, age, industry,office_available, commute_freq, employment</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="st">                from HHSurvey.v_persons_labels"</span>)</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>                </span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>day<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select person_id, day_id, household_id as hh_id, telework_time, day_weight , survey_year from HHSurvey.v_days_labels"</span>)</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span> <span class="fu">get_query</span>(<span class="at">sql=</span> <span class="st">"select trip_id, household_id as hh_id, day_id,</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="st">person_id, mode_1, dest_purpose, travelers_total, survey_year, distance_miles,trip_weight </span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="st">                from HHSurvey.v_trips_labels"</span>)</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(hh)</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(person)</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(day)</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a><span class="fu">setDT</span>(trip)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="set-ids-as-characters" class="level2">
+<h2 class="anchored" data-anchor-id="set-ids-as-characters">Set IDs as characters</h2>
+<p>We should fix this by writing a function. But for now set all ids to characters for easy joining.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>hh[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>person[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>day[, hh_id<span class="sc">:</span><span class="er">=</span><span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>trip[, hh_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(hh_id)]</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>person[, person_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(person_id)]</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>day[, person_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(person_id)]</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>trip[, person_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(person_id)]</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>day[, day_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(day_id)]</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>trip[, day_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(day_id)]</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>trip[, trip_id <span class="sc">:</span><span class="er">=</span> <span class="fu">as.character</span>(trip_id)]</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>hh <span class="ot">&lt;-</span> hh<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>person <span class="ot">&lt;-</span> person<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>day <span class="ot">&lt;-</span> day<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>trip <span class="ot">&lt;-</span> trip<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">survey_year=</span><span class="fu">as.character</span>(survey_year))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>variable_list<span class="ot">&lt;-</span><span class="fu">add_variable</span>(variable_list, <span class="st">'mode_simple'</span>,<span class="st">'trip'</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>group_labels<span class="ot">&lt;-</span><span class="fu">get_grouped_labels</span>(<span class="at">group_id=</span><span class="st">'group_1'</span>, <span class="at">group_name=</span><span class="st">'mode_simple'</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>value_labels<span class="ot">&lt;-</span><span class="fu">add_values_code</span>(<span class="at">group_name=</span><span class="st">'mode_simple'</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span><span class="fu">grp_to_tbl</span>(<span class="at">tbl=</span>trip, <span class="at">ungrouped_name=</span><span class="st">'mode_1'</span>, <span class="at">grouped_name=</span><span class="st">'mode_simple'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Before you get started on any summary, please review the survey instrument for the question wording and options.</p>
+<p>Carefully pay attention to which survey participants were asked which question. Often only a subset of the participants answered a question.</p>
+<p>Furthermore, if you are going to summarize any data across time, you will need to RECONCILE any changes.</p>
+<p>The survey instrument is here: J:/Projects/Surveys/HHTravel/Survey2023/Documents/Survey_Instrument/Puget_Sound_HTS_Questionnaire_2023_Final.docx</p>
+<p>Open the codebook and review the variable and it’s values. J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx</p>
+</section>
+</section>
+<section id="careful-with-multi-year-summaries." class="level1">
+<h1>Careful with multi-year summaries.</h1>
+<p>If you are doing a multi year summary, carefully look back at the questionnaire to note question changes. Here are the questionnaires for 2019:<a href="file:///J:/Projects/Surveys/HHTravel/Survey2019/Planning/Survey%20Materials/PSRC_2019_Online_Questionnaire.html#employment_and_commute_questions" class="uri">file:///J:/Projects/Surveys/HHTravel/Survey2019/Planning/Survey%20Materials/PSRC_2019_Online_Questionnaire.html#employment_and_commute_questions</a> and 2021:J:/Projects/Surveys/HHTravel/Survey2021/Questionnaire/PSRC_2021_Questionnaire_032521.docx</p>
+<p>Note that in the values table, we have groupings. These groupings can help you handle inconsistencies in the questions over time.</p>
+<p>Also we generally have way too much detail in the responses to have statistically significant results, so most of the time you want to summarize grouped data. You can add the groupings to the variables table by using the function get_grouped_labels</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">#some how a duplicate snuck into the variable list not sure how</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>variable_list<span class="ot">&lt;-</span>variable_list<span class="sc">%&gt;%</span><span class="fu">distinct</span>(variable, <span class="at">.keep_all=</span><span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>travelSurveyTools expects the data to be in a list of data.tables. You must also specify the names of the ids on each table, and the names of the weights.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>hts_data <span class="ot">=</span> <span class="fu">list</span>(<span class="at">hh=</span>hh,</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">person=</span>person,</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">day=</span>day,</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>                <span class="at">trip =</span> trip)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>ids <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'hh_id'</span>, <span class="st">'person_id'</span>,<span class="st">'day_id'</span>, <span class="st">'trip_id'</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>wts <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'hh_weight'</span>, <span class="st">'person_weight'</span>, <span class="st">'day_weight'</span>, <span class="st">'trip_weight'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now mode_simple is on the variables table, the values table, and the trip table. And we can run a summary.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>mode_summary <span class="ot">=</span> <span class="fu">summarize_weighted</span>(<span class="at">hts_data=</span> hts_data,</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_var =</span> <span class="st">'mode_simple'</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_by =</span> <span class="st">'survey_year'</span>,</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">id_cols=</span> ids,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wt_cols=</span>wts,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wtname=</span><span class="st">'trip_weight'</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>                               )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in hts_validate_variable_list(variables_dt, data): Variable(s) do not
+have a location specified: accuracy, bearing, collect_time, fuel,
+home_in_region, lat, lon, make, model, model_other, speed, toll_transponder,
+vehid, vehnum, year</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>common_modes<span class="ot">&lt;-</span>mode_summary<span class="sc">$</span>summary<span class="sc">$</span>wtd<span class="sc">%&gt;%</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">mode_simple=</span> <span class="fu">fct_reorder</span>(mode_simple,<span class="sc">-</span>prop))<span class="sc">%&gt;%</span><span class="fu">drop_na</span>(mode_simple)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fu">static_column_chart</span>(common_modes, <span class="at">x=</span><span class="st">'mode_simple'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,<span class="at">ylabel=</span> <span class="st">'Share'</span>, <span class="at">xlabel=</span><span class="st">'Trip Mode'</span>)<span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),<span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="travel_survey_summarization_how_to_2023_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+<p>What if we want to summarize a newly created variable that requires multiple fields, for example sov mode.</p>
+<p>We still need to add the variable and values to the codebook.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>variable_list<span class="ot">&lt;-</span><span class="fu">add_variable</span>(variable_list, <span class="st">'mode_w_sov'</span>,<span class="st">'trip'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>#to do: make this a function</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>new_values<span class="ot">&lt;-</span><span class="fu">new_value_tbl</span>(<span class="at">variable_name_list=</span><span class="st">'mode_w_sov'</span>, <span class="at">variable_value_list=</span><span class="fu">c</span>(<span class="st">'SOV'</span>, <span class="st">'HOV'</span>, <span class="st">'Walk'</span>, <span class="st">'Transit'</span>, <span class="st">'Bike'</span>, <span class="st">'Other'</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>new_value_labels<span class="ot">&lt;-</span><span class="fu">rbind</span>(new_values, value_labels)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>value_labels<span class="ot">&lt;-</span>new_value_labels  </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="add-mode_w_sov-to-the-trip-table" class="level1">
+<h1>add mode_w_sov to the trip table</h1>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span> trip<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">travelers_total_fix=</span> <span class="fu">ifelse</span>(travelers_total<span class="sc">!=</span><span class="st">'1 traveler'</span>, <span class="st">'More than 1'</span>, <span class="st">'1 traveler'</span>))</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span>trip<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">mode_simple=</span> <span class="fu">replace_na</span>(mode_simple, <span class="st">'Drive'</span>))<span class="sc">%&gt;%</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mutate</span>(<span class="at">mode_w_sov=</span><span class="fu">case_when</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  mode_simple<span class="sc">==</span><span class="st">"Drive"</span><span class="sc">&amp;</span> travelers_total<span class="sc">==</span><span class="st">'1 traveler'</span> <span class="sc">~</span> <span class="st">'SOV'</span>,</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">is.na</span>(travelers_total) <span class="sc">~</span> <span class="st">'SOV'</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  mode_simple<span class="sc">==</span><span class="st">"Drive"</span><span class="sc">&amp;</span> travelers_total<span class="sc">!=</span><span class="st">'1 traveler'</span><span class="sc">~</span>  <span class="st">'HOV'</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">.default=</span> mode_simple</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span> trip<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">travelers_total_fix=</span> <span class="fu">ifelse</span>(travelers_total<span class="sc">!=</span><span class="st">'1 traveler'</span>, <span class="st">'More than 1'</span>, <span class="st">'1 traveler'</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>trip<span class="ot">&lt;-</span>trip<span class="sc">%&gt;%</span><span class="fu">mutate</span>(<span class="at">mode_simple=</span> <span class="fu">replace_na</span>(mode_simple, <span class="st">'Drive'</span>))<span class="sc">%&gt;%</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="fu">mutate</span>(<span class="at">mode_w_sov=</span><span class="fu">case_when</span>(</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  mode_simple<span class="sc">==</span><span class="st">"Drive"</span><span class="sc">&amp;</span> travelers_total<span class="sc">==</span><span class="st">'1 traveler'</span> <span class="sc">~</span> <span class="st">'SOV'</span>,</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">is.na</span>(travelers_total) <span class="sc">~</span> <span class="st">'SOV'</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  mode_simple<span class="sc">==</span><span class="st">"Drive"</span><span class="sc">&amp;</span> travelers_total<span class="sc">!=</span><span class="st">'1 traveler'</span><span class="sc">~</span>  <span class="st">'HOV'</span>,</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">.default=</span> mode_simple</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>hts_data <span class="ot">=</span> <span class="fu">list</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>                <span class="at">trip =</span> trip)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>ids <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'trip_id'</span>)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>wts <span class="ot">=</span> <span class="fu">c</span>(<span class="st">'trip_weight'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>mode_summary <span class="ot">=</span> <span class="fu">summarize_weighted</span>(<span class="at">hts_data=</span> hts_data,</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_var =</span> <span class="st">'mode_w_sov'</span>,</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>                               <span class="at">summarize_by =</span> <span class="st">'survey_year'</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">id_cols=</span>ids,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wt_cols=</span>wts,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">wtname=</span><span class="st">'trip_weight'</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>                               )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Warning in hts_validate_variable_list(variables_dt, data): Variable(s) do not
+have a location specified: accuracy, age, attend_school_1, attend_school_2,
+attend_school_3, attend_school_998, attend_school_999, bearing, bike_freq,
+broadband, carshare_freq, collect_time, commute_dur, commute_freq,
+commute_subsidy_1, commute_subsidy_2, commute_subsidy_3, commute_subsidy_4,
+commute_subsidy_5, commute_subsidy_6, commute_subsidy_7, commute_subsidy_996,
+commute_subsidy_998, commute_subsidy_use_1, commute_subsidy_use_2,
+commute_subsidy_use_3, commute_subsidy_use_4, commute_subsidy_use_5,
+commute_subsidy_use_6, commute_subsidy_use_7, commute_subsidy_use_996,
+day_weight, deliver_elsewhere, deliver_food, deliver_grocery, deliver_none,
+deliver_office, deliver_other, deliver_package, deliver_work, diary_platform,
+disability_person, education, employment, ethnicity_1, ethnicity_2,
+ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999, ethnicity_other,
+ev_typical_charge_1, ev_typical_charge_2, ev_typical_charge_3,
+ev_typical_charge_4, ev_typical_charge_5, ev_typical_charge_6,
+ev_typical_charge_997, fuel, gender, hh_day_iscomplete, hh_is_complete,
+hh_weight, hhgroup, hhincome_detailed, hhincome_followup, hhsize,
+home_in_region, hours_work, industry, industry_other, is_participant,
+jobs_count, lat, license, loc_end, loc_start, lon, make, mobility_aides, model,
+model_other, no_school_closed, no_school_dont_know, no_school_no_answer,
+no_school_online_home, no_school_online_other, no_school_other, no_school_sick,
+no_school_vacation, notravel_delivery, notravel_housework, notravel_kidsbreak,
+notravel_kidshomeschool, notravel_madetrips, notravel_not_sure,
+notravel_notransport, notravel_other, notravel_sick, notravel_telecommute,
+notravel_vacation, notravel_weather, num_complete_fri, num_complete_mon,
+num_complete_sat, num_complete_sun, num_complete_thu,
+num_complete_trip_surveys, num_complete_tue, num_complete_wed,
+num_days_complete_weekday, num_days_complete_weekend, num_participants,
+num_students, num_surveyable, num_trips, numadults, numchildren,
+numdayscomplete, numworkers, office_available, participate, person_is_complete,
+person_weight, prev_home_notwa_city, prev_home_notwa_state,
+prev_home_notwa_zip, prev_home_wa, prev_rent_own, prev_res_factors_amenities,
+prev_res_factors_community_change, prev_res_factors_crime,
+prev_res_factors_employment, prev_res_factors_forced, prev_res_factors_hh_size,
+prev_res_factors_housing_cost, prev_res_factors_income_change,
+prev_res_factors_less_space, prev_res_factors_more_space,
+prev_res_factors_no_answer, prev_res_factors_other, prev_res_factors_quality,
+prev_res_factors_school, prev_res_factors_specify, prev_res_factors_telework,
+prev_res_type, proxy, proxy_complete, proxy_parent, race_afam, race_aiak,
+race_asian, race_hapi, race_noanswer, race_other, race_other_specify,
+race_white, race_category, relationship, remote_class_freq, rent_own,
+reported_lat, reported_lng, res_dur, res_months, res_type, sample_lat,
+sample_lng, sample_segment, school_bg, school_freq, school_in_region,
+school_loc_lat, school_loc_lng, school_mode_typical, school_puma10, schooltype,
+second_home, second_home_in_region, second_home_lat, second_home_lon,
+sexuality, share_1, share_2, share_3, share_4, share_5, share_996,
+signup_platform, smartphone_type, speed, student, summary_complete, surveyable,
+telecommute_freq, telework_time, tnc_freq, toll_transponder, transit_freq,
+transit_pass, traveldate_end, traveldate_start, trips_yesno, vehicle_count,
+vehicleused, vehid, vehnum, walk_freq, work_bg, work_in_region, work_lat,
+work_lng, work_mode, work_puma10, worker, workplace, year</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>common_modes<span class="ot">&lt;-</span>mode_summary<span class="sc">$</span>summary<span class="sc">$</span>wtd<span class="sc">%&gt;%</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">mode_w_sov=</span> <span class="fu">fct_reorder</span>(mode_w_sov,<span class="sc">-</span>prop))<span class="sc">%&gt;%</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">drop_na</span>(mode_w_sov)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">static_column_chart</span>(common_modes, <span class="at">x=</span><span class="st">'mode_w_sov'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,<span class="at">ylabel=</span> <span class="st">'Share'</span>, <span class="at">xlabel=</span><span class="st">'Trip Mode with SOV'</span>)<span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),<span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<p><img src="travel_survey_summarization_how_to_2023_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid" width="672"></p>
+</div>
+</div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

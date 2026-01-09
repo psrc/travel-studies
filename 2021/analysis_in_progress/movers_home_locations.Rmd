@@ -1,0 +1,44 @@
+---
+title: "movers location summary"
+author: "suzanne"
+date: "2023-02-17"
+output: pdf_document
+---
+
+
+```{r}
+library(psrcplot)
+library(psrc.travelsurvey)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+install_psrc_fonts()
+
+```
+
+
+# 2017/2019
+```{r }
+hh_17_2019<- get_hhts(survey ='2017/2019', level='h', vars= c('res_dur', 'prev_home_wa','prev_home_jurisdiction','prev_home_notwa_state', 'prev_home_lat', 'hh_weight_2017_2019'))
+
+```
+6319 households answered
+
+```{r}
+hh_17_2019_move<-hhts_count(hh_17_2019, group_var='prev_home_wa', spec_wgt='hh_weight_2017_2019')
+```
+
+```{r}
+hh_17_2019_move<-hhts_count(hh_17_2019, group_var='prev_home_jurisdiction', spec_wgt='hh_weight_2017_2019')
+
+```
+
+```{r}
+hh_17_2019%>%filter(!is.na(prev_home_lat))%>%count()
+
+```
+```{r}
+
+```
+

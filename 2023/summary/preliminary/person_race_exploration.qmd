@@ -1,0 +1,1225 @@
+```{r}
+
+```
+
+```{r}
+
+```
+
+---
+title: "Race and Ethnicity Analysis"
+format: 
+  html:
+    toc: true
+editor: visual
+execute:
+  warning: false
+---
+
+# General setup 
+
+PSRC and RSG have built a new package called travelSurveyTools to work with travel survey data. It is recommended to read through this documentation before you start using the package. <https://rsginc.github.io/travelSurveyTools/>
+
+## Read in Libraries
+```{r setup}
+# YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here's how:
+# library(devtools)
+# 
+# devtools::install_github('rsgInc/travelSurveyTools') 
+# devtools::install_github('psrc/psrcelmer')
+# devtools::install_github('psrc/psrcplot')
+devtools::install_github('psrc/psrc.travelsurvey')
+
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(table1)
+library(psrc.travelsurvey)
+# source('../survey-23-preprocess.R')
+source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
+```
+
+## Read in Codebook
+```{r}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Read in Data from Elmer
+```{r }
+hh<- get_query(sql= "select  household_id as hh_id, hh_race_category, hh_weight, survey_year
+                from HHSurvey.v_households_labels")
+
+person<- get_query(sql= "select household_id as hh_id, race_category, survey_year,
+                   race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_other_specify, race_white,
+                   ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999, ethnicity_other,
+                   person_id, person_weight, gender, age
+                   from HHSurvey.v_persons_labels")
+                
+setDT(hh)
+setDT(person)
+```
+
+## Set IDs as characters
+```{r}
+
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+person[, person_id := as.character(person_id)]
+
+hh <- hh%>%mutate(survey_year=as.character(survey_year))
+person <- person%>%mutate(survey_year=as.character(survey_year))
+```
+
+```         
+```
+
+The survey instrument is here: J:/Projects/Surveys/HHTravel/Survey2023/Documents/Survey_Instrument/Puget_Sound_HTS_Questionnaire_2023_Final.docx
+
+Open the codebook and review the variable and it's values. J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx
+
+# Data setup
+```{r}
+# somehow a duplicate snuck into the variable list not sure how
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+```
+
+
+```{r}
+# nrow(person) #25364
+# nrow(person$ethnicity_999) #prefer not to answer: NULL
+# nrow(person$race_noanswer) #NULL
+
+table(person$age)
+adult <- person %>%
+  filter(age%in% c('18-24 years', '25-34 years', '35-44 years', '45-54 years', '55-64 years', '65-74 years', '75-84 years', '85 years or older'))
+# table(adult$age)
+# nrow(adult) #21492
+# length(unique(adult$person_id)) #21492 - just to check
+
+# check <- adult %>% 
+#   filter(hh_id=="23226964")
+unique(person$race_category)
+table(person$race_category, person$age)
+
+# unique(adult$race_other_specify) #checking 'other' responses
+# length(unique(adult$race_other_specify)) #99 people who selected 'other' 
+
+adult_23 <- adult %>% 
+  filter(survey_year=="2023") #5931 - to know how many respondents total
+
+# some_other <- adult_23  %>% 
+#   filter(race_category=="Some Other Race non-Hispanic")
+check_race_eth <- adult_23 %>%
+  filter(ethnicity_999=="Selected",
+         race_noanswer=="Selected")
+```
+
+# Person Race and Ethnicity
+## Race
+```{r}
+# pivot table so that each row is a different race column
+adult_pivot_race <- adult_23 %>% 
+  pivot_longer(cols = c(race_afam, race_aiak, race_asian, race_hapi, race_noanswer, race_other, race_white),
+               names_to = "race_group",
+               values_to = "select")
+# unique(adult_pivot_race$race_other_specify)
+# table(adult_pivot_race$survey_year)
+
+adult_pivot_race_select <- adult_pivot_race %>% 
+  filter(select %in% 'Selected')
+
+person_id_multiple_23_race <- adult_pivot_race_select %>% 
+  group_by(person_id) %>% dplyr::summarise(n=n()) %>% #count how many racial groups were selected per person
+  right_join(adult_pivot_race_select, by = ("person_id")) #join to main table so number connected to races selected
+
+# nrow(person_id_multiple_23_race) #22056
+table(person_id_multiple_23_race$n)
+table1(~race_category, data=adult_23)
+```
+
+```{r, include = FALSE, eval=FALSE}
+## before making function (for checking) ----
+adult_1race <- person_id_multiple_23_race %>%
+  filter(n %in% 1)
+adult_2race <- person_id_multiple_23_race %>%
+  filter(n %in% 2)
+adult_3race <- person_id_multiple_23_race %>%
+  filter(n %in% 3)
+adult_4race <- person_id_multiple_23_race %>%
+  filter(n %in% 4)
+adult_5race <- person_id_multiple_23_race %>%
+  filter(n %in% 5)
+adult_6race <- person_id_multiple_23_race %>%
+  filter(n %in% 6)
+
+adult_2race_summary <- adult_2race %>%
+  pivot_wider(names_from = race_group, values_from = n, values_fill = 0) %>%
+  dplyr::select(race_asian:race_other) %>%
+  group_by(across(race_asian:race_other)) %>% count %>% arrange(desc(freq)) %>%
+  mutate(total=sum(freq)) %>%
+  mutate(prop=(round(freq/total, digits = 3)))
+```
+
+```{r}
+# create simplified table for combining with ethnicity data (eventually)
+adult_race <- person_id_multiple_23_race %>%
+  dplyr::select(person_id, race_group, n)
+
+## after making function ----
+race_list <- c('race_afam', 'race_aiak', 'race_asian', 'race_hapi', 'race_white', 'race_noanswer', 'race_other')
+
+count_combination_race <- function(group, n_races){
+  temp <- person_id_multiple_23_race %>% 
+    filter(n %in% n_races)
+  
+  pivot <- temp %>% 
+    pivot_wider(names_from = group, values_from = n, values_fill = 0) %>% 
+    dplyr::select(any_of(race_list)) %>% 
+    group_by(across(any_of(race_list))) %>% count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+adult_1race_summary <- count_combination_race('race_group', 1) #5655 people
+adult_2race_summary <- count_combination_race('race_group', 2) #234 people 
+adult_3race_summary <- count_combination_race('race_group', 3) #32 people
+adult_4race_summary <- count_combination_race('race_group', 4) #2 people
+# adult_5race_summary <- count_combination_race('race_group', 5) #0 people
+# adult_6race_summary <- count_combination_race('race_group', 6) #0 people
+```
+
+```{r, echo=FALSE}
+adult_1race_summary
+```
+1 RACE:
+
+* 68.7%: white
+* 15.5%: asian
+* 11.1%: no answer
+* 2.7%: african american/black
+* 1.1%: 'Other'
+* 0.5%: american indian/alaskan native
+* 0.4%: hawaiian/pacific islander
+
+```{r, echo=FALSE}
+adult_2race_summary
+```
+2 RACES:
+
+* 51.3%: asian AND white 
+* 18.8%: american indian/alaskan native AND white
+* 9%: african american/black AND white
+* 6%: other AND white
+* 5.1%: asian AND hawaiian/pacific islander
+* 4.3%: hawaiian/pacific islander AND white
+* 2.1%: african american/black AND white
+
+```{r, echo=FALSE}
+adult_3race_summary
+```
+3 RACES:
+
+* 40.6%: african american/black AND american indian/alaskan native AND white
+* 21.9: asian AND hawaiian/pacific islander AND white
+* 9.4%: asian AND other AND white
+* 9.4%: american indian/alaskan native AND asian AND white
+* 9.4%: african american/black AND asian AND white
+
+
+```{r, include=FALSE, eval=FALSE}
+# testing numbers
+race_afam <- person_id_multiple_23_race %>% 
+  filter(n==1,
+         race_group=="race_afam")
+
+check <- person_id_multiple_23_race %>%
+  filter(ethnicity_999=="Selected") #789
+length(unique(check$person_id)) #776 
+
+pivot <- check %>% 
+    pivot_wider(names_from = race_group, values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(race_list)) %>%
+  group_by(across(any_of(race_list))) %>% 
+    count %>% arrange(desc(n))
+
+output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+```
+
+
+## Ethnicity
+```{r}
+# pivot table so that each row is a different ethnicity column
+adult_pivot_ethnicity <- adult_23 %>% 
+  pivot_longer(cols = c(ethnicity_1, ethnicity_2, ethnicity_3, ethnicity_4, ethnicity_997, ethnicity_999),
+               names_to = "ethnicity_group",
+               values_to = "select") #%>% 
+  # mutate(eth_expand=case_when(ethnicity_group=="ethnicity_1"~"Not of Hispanic, Latino, or Spanish origin",
+  #                             ethnicity_group=="ethnicity_2"~"Mexican, Mexican American, Chicano",
+  #                             ethnicity_group=="ethnicity_3"~"Puerto Rican",
+  #                             ethnicity_group=="ethnicity_4"~"Cuban",
+  #                             ethnicity_group=="ethnicity_997"~"Another Hispanic, Latino, or Spanish origin",
+  #                             ethnicity_group=="ethnicity_999"~"Prefer not to answer"))
+
+# unique(adult$ethnicity_1)
+table(adult$ethnicity_1, adult$ethnicity_2)
+# unique(adult_pivot_ethnicity$ethnicity_other) #83
+# unique(adult_pivot_ethnicity$survey_year) #83
+# length(unique(adult_pivot_ethnicity$person_id)) #5931 - correct number of people
+# table(adult_pivot_ethnicity$select)
+
+adult_pivot_ethnicity_select <- adult_pivot_ethnicity %>%
+  filter(select %in% 'Selected')
+
+# length(unique(adult_pivot_ethnicity_select$person_id)) #5923 - 8 people missing
+
+
+person_id_multiple_23_eth <- adult_pivot_ethnicity_select %>% 
+  group_by(person_id) %>% dplyr::summarise(n=n()) %>% #count how many ethnicity groups were selected per person
+  right_join(adult_pivot_ethnicity_select, by = ("person_id")) #join to main table so number connected to ethnicity selected
+
+# length(unique(person_id_multiple_23_eth$person_id)) #5923 - 8 people missing
+table(person_id_multiple_23_eth$n)
+
+# unique(person_id_multiple_23_eth$ethnicity_other)
+# length(unique(person_id_multiple_23_eth$person_id)) #5923 - 8 people missing
+
+# where are 8 missing people?
+check_join <- adult_pivot_ethnicity %>% 
+  anti_join(adult_pivot_ethnicity_select, by="person_id") 
+
+# length(unique(check_join$person_id)) #8
+missing_ids <- unique(check_join$person_id)
+
+missing_people <- adult_23 %>% 
+  filter(person_id %in% missing_ids) %>%
+  print
+```
+The 2023 adult dataset contains 5,931 people, but when looking at the ethnicity data, there were 5,923 people. The table above shows the 8 people who are missing - they didn't respond to the race or ethnicity questions?
+
+```{r, include=FALSE, eval=FALSE}
+## before making function (for checking) ----
+adult_2eth <- person_id_multiple_23_eth %>%
+  filter(n %in% 2)
+adult_3eth <- person_id_multiple_23_eth %>%
+  filter(n %in% 3)
+
+adult_3eth_summary <- adult_3eth %>%
+  pivot_wider(names_from = ethnicity_group, values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999'))) %>%
+  group_by(across(any_of(c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')))) %>% count %>% arrange(desc(n))
+
+adult_2eth_summary <- adult_2eth %>%
+  pivot_wider(names_from = ethnicity_group, values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(c('Not of Hispanic, Latino, or Spanish origin',
+                           'Mexican, Mexican American, Chicano',
+                           'Puerto Rican',
+                           'Cuban',
+                           'Another Hispanic, Latino, or Spanish origin',
+                           'Prefer not to answer'))) %>%
+  group_by(across(any_of(c('Not of Hispanic, Latino, or Spanish origin',
+                           'Mexican, Mexican American, Chicano',
+                           'Puerto Rican',
+                           'Cuban',
+                           'Another Hispanic, Latino, or Spanish origin',
+                           'Prefer not to answer')))) %>% count %>% arrange(desc(n))
+```
+
+```{r}
+# create simplified table for combining with race data (eventually)
+adult_eth <- person_id_multiple_23_eth %>% 
+  dplyr::select(person_id, ethnicity_group, n)
+
+## after making function ----
+ethnicity_list <- c('ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 'ethnicity_997', 'ethnicity_999')
+
+count_combination_eth <- function(group, n_ethnicities){
+  temp <- person_id_multiple_23_eth %>% 
+    filter(n %in% n_ethnicities)
+  
+  pivot <- temp %>% 
+    pivot_wider(names_from = group, values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(ethnicity_list)) %>%
+  group_by(across(any_of(ethnicity_list))) %>% 
+    count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+adult_1eth_summary <- count_combination_eth('ethnicity_group', 1) #5902 people
+adult_2eth_summary <- count_combination_eth('ethnicity_group', 2) #19 people 
+adult_3eth_summary <- count_combination_eth('ethnicity_group', 3) #2 people
+# adult_4eth_summary <- count_combination_eth('ethnicity_group', 4) #0 people
+# adult_5eth_summary <- count_combination_eth('ethnicity_group', 5) #0 people
+# adult_6eth_summary <- count_combination_eth('ethnicity_group', 6) #0 people
+```
+
+```{r, echo=FALSE}
+adult_1eth_summary
+```
+1 ETHNICITY:
+
+* 81.3%: Not of Hispanic/Latino/Spanish origin (4801/5902)
+* 13.1%: 'Prefer not to answer' (776/5902)
+* 3.1%: Mexican, Mexican American, Chicano (182/5902)
+* 1.9%: 'Another' (112/5902)
+* 0.4%: Puerto Rican (22/5902)
+* 0.2%: Cuban (9/5902)
+
+```{r, echo=FALSE}
+adult_2eth_summary
+```
+2 ETHNICITIES:
+
+* 63.2%: Mexican, Mexican American, Chicano AND 'Another'
+* 21.1%: Puerto Rican AND 'Another'
+* 5.3%: Cuban AND 'Another'
+* 5.3%: Puerto Rican AND Cuban
+* 5.3%: Mexican, Mexican American, Chicano AND Cuban
+* 0.2%: Cuban
+
+```{r, echo=FALSE}
+adult_3eth_summary
+```
+3 ETHNICITIES:
+
+* 100%: Mexican, Mexican American, Chicano AND Puero Rican AND 'Another'
+
+```{r, include=FALSE, eval=FALSE}
+# test
+eth_3 <- person_id_multiple_23_eth %>% 
+  filter(n==1,
+         ethnicity_group=="ethnicity_3")
+
+table(person_id_multiple_23_eth$n) #5902 with 1 ethnicity
+filter <- person_id_multiple_23_eth %>% 
+  filter(n==1) #5902
+filter2 <- filter %>% 
+  filter(ethnicity_group=="ethnicity_1") #4801 people reporting 1 ethnicity are not hispanic/latino/Spanish origin
+```
+
+
+## Race + ethnicity combinations
+### For recoding exercise
+```{r}
+# 1. generating table for re-coding exercise 
+# nrow(adult_23) #5931
+
+other_race <- adult_23 %>% 
+  filter(race_other=="Selected") #133
+other_race_specify <- adult_23 %>% 
+  filter(!is.na(race_other_specify)) #133
+other_eth_specify <- adult_23 %>% 
+  filter(!is.na(ethnicity_other)) #132
+
+other_race_eth <- adult_23 %>% 
+  filter(!is.na(race_other_specify) |
+           !is.na(ethnicity_other)) #226
+# length(unique(other_race_eth$person_id)) #226 - just to make sure no duplicates
+
+# for writing a data.frame or list of data.frames to an xlsx file
+library(openxlsx)
+# write.xlsx(other_race_eth, 'T:/2024July/Mary/HHTS/2023/adult_2023_race_eth_recode.xlsx')
+```
+
+### Understanding general distribution
+```{r}
+# create simplified table that 
+race_temp <- adult_race %>% 
+  group_by(person_id) %>% 
+  dplyr::summarise(n_race=mean(n)) #5923 - making sure each row is a unique respondent
+eth_temp <- adult_eth %>% 
+  group_by(person_id) %>% 
+  dplyr::summarise(n_eth=mean(n)) #5923 - making sure each row is a unique respondent
+
+race_eth_temp <- race_temp %>% 
+  right_join(eth_temp, by = "person_id") #5923 - making sure each row is a unique respondent
+
+# checking to make sure that there are the correct numbers of respondents with 1,2,3 races/ethnicities
+# table(race_eth_temp$n_race)
+
+# join to original wide table with all race/ethnicity
+adult_race_eth_count <- adult %>% 
+  dplyr::filter(survey_year=="2023") %>% 
+  dplyr::select_if(grepl("person_id", names(.)) | 
+                     grepl("race_", names(.)) | 
+                     grepl("ethnicity_", names(.))) %>% #5931
+  right_join(race_eth_temp, by = "person_id")
+
+# length(unique(adult_race_eth_count$person_id)) #5931 - making sure each row is a unique respondent
+
+# detail_names <- c("Not of Hispanic, Latino, or Spanish origin"="ethnicity_1",
+#                   "Mexican, Mexican American, Chicano"="ethnicity_2",
+#                   "Puerto Rican"="ethnicity_3",
+#                   "Cuban"="ethnicity_4",
+#                   "Another ethnicity"="ethnicity_997",
+#                   "Prefer not to answer"="ethnicity_999")
+# rename(adult_race_eth_count, all_of(detail_names))
+
+# table(adult_race_eth_count$n_race, adult_race_eth_count$n_eth)
+table1(~ factor(n_eth) | as.factor(n_race), data=adult_race_eth_count) #formatted table
+```
+
+The table shows general trends and combinations
+
+* 5,637/5,923 respondents : 1 race and 1 ethnicity (95.2%)
+* 17/5,923 respondents : 1 race and 2 ethnicities (0.29%)
+* 1/5,923 respondents : 1 race and 3 ethnicities (0%)
+* etc. 
+
+### Exploring different combinations
+Based on the table, the vast majority of respondents chose 1 race and 1 ethnicity
+```{r, include=FALSE, eval=FALSE}
+# before making function (for checking) ----
+race_eth_1 <- adult_race_eth_count %>%
+  dplyr::filter(n_race==1 & n_eth==1) %>%
+  dplyr::select(any_of(ethnicity_list)) %>%
+  group_by(across(any_of(ethnicity_list))) %>%
+    count %>% arrange(desc(n))
+```
+
+```{r}
+## after making function ----
+race_eth_combination <- function(num_race, num_eth, category_list){
+  output <- adult_race_eth_count %>% 
+    dplyr::filter(n_race==num_race & n_eth==num_eth) %>% 
+    dplyr::select(any_of(ethnicity_list)) %>%
+    group_by(across(any_of(ethnicity_list))) %>% 
+    count %>% arrange(desc(n))
+  
+  final <- output %>% 
+    mutate(total=sum(output$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+race_1_eth_1 <- race_eth_combination(1,1,ethnicity_list) #5637
+race_2_eth_1 <- race_eth_combination(2,1,ethnicity_list) #233
+race_3_eth_1 <- race_eth_combination(3,1,ethnicity_list) #30
+race_4_eth_1 <- race_eth_combination(4,1,ethnicity_list) #2
+# race_5_eth_1 <- race_eth_combination(5,1,ethnicity_list) #0
+
+race_1_eth_2 <- race_eth_combination(1,2,ethnicity_list) #17
+race_1_eth_3 <- race_eth_combination(1,3,ethnicity_list) #1
+# race_1_eth_4 <- race_eth_combination(1,4,ethnicity_list) #0
+```
+1 RACE/ 1 ETHNICITY: 5,637 respondents
+
+* 81.3%: not Hispanic/Latino/Spanish origin
+* 13.4%: 'Prefer not to answer'
+* 3%: Mexican, Mexican American, Chicano
+* 1.6%: 'Another'
+* 0.3%: Puerto Rican
+* 0.1%: Cuban
+
+2 RACES/1 ETHNICITY: 233 respondents
+
+* 85.4%: not Hispanic/Latino/Spanish origin
+* 5.6%: 'Another'
+* 5.2%: Mexican, Mexican American, Chicano
+* 2.6%: 'Prefer not to answer'
+* 0.9%: Puerto Rican
+* 0.4%: Cuban
+
+...
+
+1 RACE / 2 ETHNICITIES: 17 respondents
+
+* 64.7%: Mexican, Mexican American, Chicano AND 'Another'
+* 17.6%: Puerto Rican AND 'Another'
+* 5.9%: Cuban AND 'Another'
+* 5.9%: Puerto Rican AND Cuban
+* 5.9%: Mexican, Mexican American, Chicano AND Cuban
+
+```{r, include=FALSE, eval=FALSE}
+# before making function (for checking) ----
+eth_1 <- person_id_multiple_23_eth %>%
+  filter(n==1,
+         ethnicity_group=="ethnicity_1") #4801
+pivot <- eth_1 %>%
+  pivot_wider(names_from = 'ethnicity_group', values_from = n, values_fill = 0) %>%
+  dplyr::select(any_of(race_list)) %>%
+  group_by(across(any_of(race_list))) %>% count %>% arrange(desc(n))
+output <- pivot %>%
+  mutate(total=sum(pivot$n)) %>%
+  mutate(prop=(round(n/total, digits = 3)))
+
+length(unique(eth_1$person_id))
+```
+
+```{r}
+## after making functions ----
+count_combination_race_by_ethnicitiy <- function(n_ethnicities, ethnicity_field, group){
+  data <- person_id_multiple_23_eth %>% 
+    filter(n==n_ethnicities,
+           ethnicity_group==ethnicity_field)
+  
+  pivot <- data %>% 
+    pivot_wider(names_from = group, values_from = n, values_fill = 0) %>% 
+    dplyr::select(any_of(race_list)) %>% 
+    group_by(across(any_of(race_list))) %>% count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+
+count_combination_race_by_ethnicitiy2 <- function(ethnicity_field, group){
+  data <- person_id_multiple_23_eth %>% 
+    filter(ethnicity_group!=ethnicity_field)
+  
+  pivot <- data %>% 
+    pivot_wider(names_from = group, values_from = n, values_fill = 0) %>% 
+    dplyr::select(any_of(race_list)) %>% 
+    group_by(across(any_of(race_list))) %>% count %>% arrange(desc(n))
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n)) %>% 
+    mutate(prop=(round(n/total, digits = 3)))
+}
+```
+
+#### Not Hispanic/Latino/Spanish Origin
+```{r}
+eth1_race <- count_combination_race_by_ethnicitiy(1, 'ethnicity_1', 'ethnicity_group')
+
+eth1_race
+```
+1 ETHNICITY (Not Hispanic/Latino/Spanish origin):
+
+* 74.2%: white (3562/4801)
+* 16.4%: asian (786/4801)
+* 2.7% african american (129/4801)
+* 2.4% white AND asian
+* 1.2% didn't provide an answer
+
+```{r, number check, include=FALSE, eval=FALSE}
+## CHECKING NUMBERS
+check <- adult_23 %>%
+  filter(ethnicity_1=="Selected",
+         ethnicity_2=="Not selected",
+         ethnicity_3=="Not selected",
+         ethnicity_4=="Not selected",
+         ethnicity_997=="Not selected",
+         ethnicity_999=="Not selected") #4750 
+length(unique(check$person_id))
+
+check <- adult_23 %>%
+  filter(ethnicity_1=="Selected",
+         is.na(ethnicity_2),
+         is.na(ethnicity_3),
+         is.na(ethnicity_4),
+         is.na(ethnicity_997),
+         is.na(ethnicity_999)) #51 
+length(unique(check$person_id))
+
+# why are these numbers not lining up? something is wrong with the person_id_multiple_23_eth dataset?
+check_join <- eth_1 %>% 
+  anti_join(check, by="person_id") 
+
+length(unique(check_join$person_id)) #51
+missing_ids <- unique(check_join$person_id)
+
+missing_people <- adult_23 %>% 
+  filter(person_id %in% missing_ids)
+# the missing 51 people - a recoding issue - NA vs Not Selected after 51 respondents were updated 
+# the values have been updated 7/25, so all set
+```
+
+#### Hispanic/Latino/Spanish Origin
+```{r}
+not_eth1_race <- count_combination_race_by_ethnicitiy2('ethnicity_1', 'ethnicity_group') #1122
+
+#check to make sure function works
+# adult_23 #5931 people in dataset
+# person_id_multiple_23_eth #5946 ethnicities (some people have multiple ethnicities)
+# length(unique(adult_23$person_id)) #5931 people in dataset
+# length(unique(person_id_multiple_23_race$person_id)) #5923
+# length(unique(person_id_multiple_23_eth$person_id)) #5923
+# 
+# check <- person_id_multiple_23_eth %>% 
+#   filter(ethnicity_group!="ethnicity_1") #1145
+# length(unique(check$person_id)) #1122
+
+not_eth1_race
+```
+1 ETHNICITY (Hispanic/Latino/Spanish origin):
+
+* 51.1%: no answer (573/1122)
+* 28.6%: white (321/1122)
+* 7.9% asian (89/1122)
+* 5.1% other 
+* 2.1% african american/black
+* 1.0%: white AND other
+* 0.8%: american indian/alaskan native AND white
+* 0.6%: african american/black AND american indian/alaskan native AND white
+* 0.5%: asian AND white
+* 0.4%: american indian/alaskan native
+
+### Spot checking race category designations
+```{r, include=FALSE, eval=FALSE}
+table(adult_23$race_category)
+table1(~race_category, data = adult_23)
+
+no_missing_race_cat_2023_b <- adult_23 %>% 
+  filter(race_category!="Missing/No response")
+table1(~race_category, data = no_missing_race_cat_2023_b)
+
+# spot check - random sample
+check_df <- adult_23 %>% 
+  dplyr::select(-c(hh_id, race_category, survey_year, person_weight, 
+                   gender, age,  
+                   race_other_specify, ethnicity_other)) %>% 
+  dplyr::sample_frac(size=0.005) 
+
+check_df[check_df== 'Not Selected' | #to account for race categories
+           check_df== 'Not selected'] <- 0 #to account for ethnicity categories
+
+# hapi_check <- adult_23 %>% 
+#   dplyr::select(-c(hh_id, race_category, survey_year, person_weight, 
+#                    gender, age, 
+#                    race_other_specify, ethnicity_other)) %>%
+#   dplyr::filter(race_hapi=="Selected" & race_asian=="Selected")
+#   dplyr::sample_frac(size=0.5)
+
+
+# ISSUES FOUND AFTER FIRST ROUND OF SPOT CHECKS -------------------------------------------
+# case when asian and ethnicity_1 were selected but was grouped as Hispanic, person_id=2301887102
+# case when aiak, white, and ethnicity_1 were selected but was grouped as white, person_id=2341004601
+# case when afam, white, and ethnicity_1 were selected but was grouped as white, person_id=2333290001
+# case when asian, white, and ethnicity_1 were selected but grouped as white, person_id=2310134001, 2306473501, 2316162403
+# case when asian, hapi, and white were selected but grouped as white, person_id=2302756402, 2304251301, 2304947401
+
+check_df_ids <- adult_23 %>% 
+  dplyr::select(-c(hh_id, race_category, survey_year, person_weight, 
+                   gender, age, race_category,  
+                   race_other_specify, ethnicity_other)) %>% 
+  dplyr::filter(person_id=="2301887102")
+
+# SECOND CHECK -------------------------------------------
+# 30 cases when race_noanswer and ethnicity_2 were selected and was grouped as Hispanic, person_id=2334480902, 2314196601, 2305926901, 2301957402, 2311501401
+missing_norace_eth <- adult_23 %>% 
+  filter(ethnicity_2=="Selected",
+         race_noanswer=="Selected") %>% #30 select ethnicity_2, but do provide race
+  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category, person_id)
+# 2 cases when race_noanswer and ethnicity_3 were selected and was grouped as Hispanic, person_id=2334480902, 2335237701 
+# 2 cases when race_noanswer and ethnicity_997 were selected and was grouped as Hispanic, person_id=2334480902, 2315385501   
+missing_norace_eth <- adult_23 %>% 
+  filter(ethnicity_1!="Selected",
+         ethnicity_999!="Selected",
+         race_noanswer=="Selected") %>% #30 select ethnicity_2, but do provide race
+  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category, person_id)
+
+# THIRD CHECK -------------------------------------------
+# case when race_white and ethnicity_999 were selected and was grouped as missing/no response, but should be white? person_id=2302993902, 2334376002, 2324371402, 2316054601, 2324640701
+white_999 <- adult_23 %>% 
+  filter(race_white=="Selected",
+         ethnicity_999=="Selected") %>% #124
+  dplyr::select(race_afam:race_white, starts_with("ethnicity"), race_category, person_id)
+
+# 838 missing/no response ---
+# looking into overlap between `race_noanswer` and `ethnicity_999`
+# how many people identify as ethnicity_999, but provide a race? like afam (2304254201) or asian (2326142801)
+missing_eth <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_noanswer!="Selected") %>% #235 don't provide ethnicity, but do provide race
+  dplyr::select(race_afam:race_white, race_category, person_id)
+
+# how many of that group was classified as "Missing/No response" but had a race chosen?
+missing_eth_999 <- missing_eth %>% 
+  filter(race_category=="Missing/No response") #119
+table(missing_eth_999$race_white) #119
+
+# looking into each race -----
+# table1(~race_afam, data=missing_eth) #13 afam
+missing_eth_afam <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_afam=="Selected") %>% #13
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
+# person_id = 2322282101 selected ethnicity_999, but was categorized as 2+ races (selected afam, aiak, white) 
+
+# table1(~race_asian, data=missing_eth) #88 asian
+missing_eth_asian <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_asian=="Selected") %>% #88
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
+# person_id = 2315970702 selected ethnicity_999, but was categorized as 2+ races (asian, hapi, other)
+
+# table1(~race_aiak, data=missing_eth) #3 aiak
+missing_eth_aiak <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_aiak=="Selected") %>% #3
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
+# person_id = 2322282101 selected ethnicity_999, but was categorized as 2+ races (selected afam, aiak, white) 
+
+# table1(~race_hapi, data=missing_eth) #5 hapi
+missing_eth_hapi <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_hapi=="Selected") %>% #5
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
+# person_id = 2315970702 selected ethnicity_999, but was categorized as 2+ races (asian, hapi, other)
+
+# table1(~race_white, data=missing_eth) #124 white
+missing_eth_white <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_white=="Selected") %>% #124
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
+# person_id = 2322282101 selected ethnicity_999, but was categorized as 2+ races (selected afam, aiak, white) 
+# person_id = 2304197102 selected white and ethnicity_999, but was categorized as other
+
+# table1(~race_other, data=missing_eth) #8 other
+missing_eth_other <- adult_23 %>% 
+  filter(ethnicity_999=="Selected", #776
+         race_other=="Selected") %>% #8
+  dplyr::select(race_afam:race_white, race_category, person_id, ethnicity_999)
+# person_id = 2315970702 selected ethnicity_999, but was categorized as 2+ races (asian, hapi, other)
+
+table1(~race_category, data=missing_eth) # mistake - shouldn't have any race categories other than 'missing/no response' because ethnicity_999 was selected for this subgroup of 235 people
+
+# how many people identify as race_noanswer but provide ethnicity
+missing_race <- adult_23 %>% 
+  filter(race_noanswer=="Selected", #630
+         ethnicity_999!="Selected") #89 provide ethnicity, 541 choose no to provide 
+
+# how many of these 89 people identify as hispanic/latino/spanish origin (not ethnicity_1)
+missing_race_hispanic <- missing_race %>% 
+  filter(ethnicity_1!= "Selected") #32, 57 chose NOT hispanic/latino/spanish origin
+
+# how many people identify as race_noanswer and ethnicity_999
+missing_both <- adult_23 %>% 
+  filter(ethnicity_999=="Selected",
+         race_noanswer=="Selected") #541
+
+# table1(~race_category, data=missing_both) #to check - result as expected
+```
+
+# race_category_2023_c > race_category
+## Person Race > Household Race 
+### By size
+The new person race variable: 'race_category_2023' and 'race_category_2023_b'
+```{r}
+# table(adult_23$race_category)
+adult_23_simp <- adult_23 %>% 
+  select(hh_id, person_id, race_category, age) 
+
+hh_id_multiple_23_prace <- adult_23_simp %>% 
+  group_by(hh_id) %>% dplyr::summarise(n_members=n()) #count how many people per hh - total hh is 3661, total people is 5931
+```
+total households: 3,661
+total people: 5,931
+```{r}
+# share of households by number of people
+table1(~as.factor(n_members), data=hh_id_multiple_23_prace) 
+```
+
+```{r}
+# full data set (each row is different person) includes number of people in household
+combined <- adult_23_simp %>% 
+  right_join(hh_id_multiple_23_prace, by = ("hh_id"))
+
+updated_race_list <- (unique(combined$race_category))
+```
+
+```{r, include=FALSE, eval=FALSE}
+# before making function (for checking) ----
+# select households with two people
+hh_2people <- combined %>% 
+  filter(n_members==2)
+
+hh_2people_wider <- combined %>% 
+  filter(n_members==2) %>% 
+  pivot_wider(names_from = race_category, values_from = n_members, values_fill = 0) %>% 
+  group_by(hh_id) %>% dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
+  rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
+  group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(n)) %>% 
+  mutate(total=sum(pivot$n)) %>%
+  mutate(prop=(round(n/total, digits = 3)))
+
+hh_2people_wider[,1:ncol(hh_2people_wider)]/2
+```
+
+```{r}
+## after making function ----
+count_combination_prace <- function(n){
+  temp <- combined %>% 
+    filter(n_members==n) 
+  
+  pivot <- temp %>% 
+    pivot_wider(names_from = race_category, values_from = n_members, values_fill = 0) %>% 
+    group_by(hh_id) %>% dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>%
+    rename_with(~ sub("_sum$", "", .x), everything()) %>% #remove suffix 'sum' 
+    group_by(across(any_of(updated_race_list))) %>% count %>% arrange(desc(n)) 
+  
+  output <- pivot %>% 
+    mutate(total=sum(pivot$n),
+           prop=(round(n/total, digits = 3)))
+  }
+
+hh1 <- count_combination_prace(1)
+hh2 <- count_combination_prace(2)
+hh3 <- count_combination_prace(3)
+hh4 <- count_combination_prace(4)
+hh5 <- count_combination_prace(5)
+hh6 <- count_combination_prace(6)
+```
+
+#### 1-Person Households
+```{r}
+hh1
+```
+
+* 60%: White alone non-Hispanic
+* 13%: Asian alone non-Hispanic
+* 12%: Missing/No response
+* 7%: Hispanic
+
+#### 2-Person Households
+```{r}
+hh2
+```
+
+#### 3-Person Households
+```{r}
+hh3
+```
+
+#### 4-Person Households
+```{r}
+hh4
+```
+
+#### 5-Person Households
+```{r}
+hh5
+```
+
+#### 6-Person Households
+```{r}
+hh6
+```
+
+
+
+
+### By race
+```{r}
+combined
+updated_race_list
+
+combined_race_number <- combined %>% 
+  dplyr::mutate(race_num=case_when(race_category=="White non-Hispanic"~1,
+                                   race_category=="Hispanic"~2,
+                                   race_category=="Black or African American non-Hispanic"~3,
+                                   race_category=="Asian non-Hispanic"~4,
+                                   race_category=="Some Other Race non-Hispanic"~5,
+                                   race_category=="Two or More Races non-Hispanic"~6,
+                                   race_category=="Missing/No response"~7))
+
+hh_race_num <- combined_race_number %>% 
+  group_by(hh_id) %>% 
+  dplyr::summarise(product=prod(race_num)) 
+
+join <- hh_id_multiple_23_prace%>% 
+  right_join(hh_race_num, by="hh_id")%>% 
+  mutate(hh_grouping=case_when(product==1~"white hh",
+                               product>1~"other")) #3661
+table1(~hh_grouping|n_members, data=join)
+```
+
+
+#### All people
+```{r}
+all_people <- combined %>% 
+  dplyr::mutate(person_cat=case_when(race_category=="Black or African American non-Hispanic"~"African American",
+                                 race_category=="Asian non-Hispanic"~"AANHPI",
+                                 race_category=="Hispanic"~"Hispanic",
+                                 race_category=="Missing/No response"~"Missing",
+                                 race_category=="White non-Hispanic"~"White",
+                                 race_category=="Some Other Race non-Hispanic" |
+                                   race_category=="Two or More Races non-Hispanic"~"Other"))
+
+table1(~person_cat, data=all_people)
+
+unique(all_people$person_cat)
+all_people_nomissing <- all_people %>% 
+  filter(person_cat!="Missing")
+
+table1(~person_cat, data=all_people_nomissing)
+
+```
+
+#### All white households (person-level)
+```{r}
+join_justwhite <- join %>% 
+  filter(hh_grouping=="white hh") %>% #2049 households
+  inner_join(combined_race_number, by="hh_id") #3192 person
+
+# length(unique(join_justwhite$hh_id)) #2049 to check
+table1(~as.factor(n_members.x), data=join_justwhite)
+```
+
+#### Other households
+##### One-person hh, non-white (person-level)
+```{r}
+one_person_hh_nonwhite <- join %>% 
+  filter(n_members==1,
+         hh_grouping == "other") %>% #652
+  left_join(combined_race_number, by="hh_id") #652
+  
+table1(~race_category, data=one_person_hh_nonwhite)
+```
+
+##### More than one-person hh, not just white
+```{r}
+other_hh <- join %>% 
+  filter(n_members>1,
+         hh_grouping=="other") #960 households
+# length(unique(other_hh$hh_id)) #960 to check
+
+other_hh_race <- other_hh %>% 
+  inner_join(combined_race_number, by="hh_id") #2202 person
+
+# checks ---
+length(unique(other_hh_race$hh_id)) #960 - confirming that this is the correct number of hh (out of all 3661 households, 2049 hh are just white, 652 are one person-other race hh)
+# table(other_hh$hh_grouping) #just to check
+
+# test_hh <- other_hh_race %>% 
+#   filter(hh_id==23000858 |
+#            hh_id==23001496 |
+#            hh_id==23001700)
+
+pivot <- other_hh_race %>% 
+  pivot_wider(names_from = race_category, values_from = n_members.x, values_fill = 0) %>% 
+  group_by(hh_id, n_members.y) %>% 
+  dplyr::summarise(across(any_of(updated_race_list), list(sum = sum))) %>% 
+  rename_with(~ sub("_sum$", "", .x), everything()) #remove suffix 'sum'
+
+twoplus_person_notjustwhite <- pivot %>% 
+  group_by(hh_id, n_members.y) %>% 
+  dplyr::summarise(across(any_of(updated_race_list), ~.x/n_members.y)) %>% ungroup()
+```
+#### Household combinations
+##### All combinations (with hh size)
+```{r}
+#to look at distribution
+library(plyr) #for count/pivot function
+library(dplyr)
+hh_comp_2plus_count <- count(twoplus_person_notjustwhite[, -1])
+
+hh_comp_2plus <- hh_comp_2plus_count %>% 
+  arrange(desc(freq)) %>% 
+  mutate(total=sum(hh_comp_2plus_count$freq)) %>% 
+  mutate(prop=(round(freq/total, digits = 3)))
+
+hh_comp_2plus
+
+# check
+# sum(hh_comp_2plus$n) #939
+```
+
+##### All combinations (no hh size)
+```{r}
+columns <- colnames(hh_comp_2plus[1:7])
+grouping_hh <- function(x) {
+  ifelse(x >0, 1, 0)}
+
+hh_comp_2plus_groups <- hh_comp_2plus %>% mutate_at(c(columns), grouping_hh)
+
+hh_comp_2plus_simp <- hh_comp_2plus_groups[2:9]
+
+hh_comp_2plus_race_groups <- hh_comp_2plus_simp %>% 
+  count(1:7, wt= 'freq') %>% #https://dplyr.tidyverse.org/reference/count.html
+  arrange(desc(freq)) %>% 
+  mutate(total=sum(hh_comp_2plus_simp$freq)) %>% 
+  mutate(prop=(round(freq/total, digits = 3)))
+
+hh_comp_2plus_race_groups
+# check
+# sum(hh_comp_2plus_race_groups$freq) #939
+```
+
+
+## Household Race/Ethnicity Categorization
+The categories and logic are based on documentation from 2020: https://www.psrc.org/media/3205
+
+### All white households, regardless of size
+```{r}
+all_hh_justwhite_categories <- join_justwhite %>% 
+  distinct(hh_id) %>% #keep unique hh id - 2049 households
+  dplyr::mutate(hh_cat="White") %>% #add field to match other dfs
+  inner_join(join_justwhite, by="hh_id", multiple="first") #join to base data to keep all fields
+
+# all_hh_justwhite_categories <- all_person_justwhite_categories %>% 
+  
+```
+
+
+### Non-white, 1 person households
+```{r}
+# unique(one_person_hh_nonwhite$race_category)
+# table(one_person_hh_nonwhite$race_category)
+
+oneperson_hh_nonwhite_categories <- one_person_hh_nonwhite %>% 
+  dplyr::mutate(hh_cat=case_when(race_category=="Black or African American non-Hispanic"~"African American",
+                                 race_category=="Asian non-Hispanic"~"AANHPI",
+                                 race_category=="Hispanic"~"Hispanic",
+                                 race_category=="Missing/No response"~"Missing",
+                                 race_category=="Some Other Race non-Hispanic" |
+                                   race_category=="Two or More Races non-Hispanic"~"Other"))
+
+# to check
+# table(oneperson_hh_nonwhite_categories$hh_cat)
+# nrow(oneperson_hh_nonwhite_categories) #652 - households
+# length(unique(oneperson_hh_nonwhite_categories$hh_id)) #652 - households
+```
+
+### Non-white only, 2+ households
+```{r}
+twoplus_person_nonwhite <- twoplus_person_notjustwhite %>% 
+  dplyr::mutate(hh_cat=case_when(`Missing/No response`>0~"Missing",
+                                 Hispanic>0 |
+                                   Hispanic>0 & 
+                                   `White non-Hispanic`>0~"Hispanic",
+                                 `Black or African American non-Hispanic` >0 |
+                                   `Black or African American non-Hispanic` >0 &
+                                   `White non-Hispanic`>0~"African American",
+                                 `Asian non-Hispanic`>0 |
+                                   `Asian non-Hispanic`>0 &
+                                   `White non-Hispanic`>0 ~"AANHPI",
+                                 `Some Other Race non-Hispanic`>0 | 
+                                   `Two or More Races non-Hispanic`>0 ~ "Other")) %>% 
+  dplyr::select(hh_id, hh_cat)
+
+length(unique(twoplus_person_nonwhite$hh_id)) #960 - households
+nrow(twoplus_person_nonwhite) #960 - persons
+
+
+# getting data in same format as other data sets
+colnames(twoplus_person_nonwhite)
+colnames(other_hh_race)
+
+twoplus_hh_nonwhite_categories <- twoplus_person_nonwhite %>% 
+  inner_join(other_hh_race, by=c('hh_id'), multiple="first") #join to base data to keep all fields but at hh level - 960
+```
+
+### All households
+```{r}
+colnames(all_hh_justwhite_categories) #2049
+colnames(oneperson_hh_nonwhite_categories) #652
+colnames(twoplus_hh_nonwhite_categories) #960
+
+
+all_hh_extra <- rbind(all_hh_justwhite_categories, #2049
+                      oneperson_hh_nonwhite_categories, #652
+                      twoplus_hh_nonwhite_categories) #960
+
+all_hh <- all_hh_extra %>%
+  dplyr::select(hh_id:hh_grouping)
+
+#check
+# table(all_hh$hh_grouping) #2049 white
+# table(all_hh$hh_cat) #2049 white
+```
+#### With Missing
+```{r}
+table1(~ hh_cat, data=all_hh)
+table1(~ hh_cat| n_members.x, data=all_hh)
+# table1(~ hh_cat| race_category, data=all_hh)
+```
+
+#### Without Missing
+```{r}
+all_hh_nomissing <- all_hh %>% 
+  dplyr::filter(hh_cat!="Missing") #4843
+
+
+table1(~ hh_cat, data=all_hh_nomissing)
+table1(~ hh_cat| n_members.x, data=all_hh_nomissing)
+# table1(~ hh_cat| race_category_c, data=all_hh_nomissing)
+```
+
+### Spot checking hh race category designations
+```{r}
+# need to look at household view for 2023 data
+hh_2023 <- hh %>% 
+  dplyr::filter(survey_year=="2023")
+
+table1(~hh_race_category, data = hh_2023)
+table1(~ hh_cat, data=all_hh) #checking against my manually coded categorizations
+# Both tables include 3,661 which is a good initial check
+# Missing and Non-hispanic white include the same numbers: 434 and 2049
+# African American, Asian, Hispanic, and Other values are slightly off
+
+
+
+# check
+hispanic_1hh_check <- oneperson_hh_nonwhite_categories %>% 
+  dplyr::filter(hh_cat=="Hispanic") #117
+hispanic_hh_check <- twoplus_person_notjustwhite %>% 
+  dplyr::filter(Hispanic>0) #171
+
+
+# check rows
+# join hh data with person level data - one person hh and 2+ person hh
+hh_1person_2023 <- one_person_hh_nonwhite %>% 
+  left_join(hh_2023, by="hh_id") #652
+hh_2person_2023 <- twoplus_person_notjustwhite %>% 
+  left_join(hh_2023, by="hh_id") #960
+# correct number of columns when added with just white
+
+# check 1 person hh - make sure the race_category aligns with the hh raca
+table(hh_1person_2023$race_category, hh_1person_2023$hh_race_category)
+
+# check 2 person hh - make sure the race_categories align with the hh_race_category
+check_df_2person <- hh_2person_2023 %>% 
+  dplyr::select(c(-survey_year, -n_members.y)) %>%
+  dplyr::sample_frac(size=0.04) 
+
+check_df_2person
+```
+
+### Weighted hh_race_category
+```{r}
+table1(~hh_race_category, data=hh_2023)
+
+# RSG function
+summary_hh_race <-  hts_summary(
+  prepped_dt = hh_2023,
+  summarize_var = "hh_race_category",
+  summarize_vartype = "categorical",
+  wtname = "hh_weight",
+  weighted = TRUE,
+  se=TRUE)
+
+hts_data=list(hh=hh)
+hh_race<- summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'hh_race_category',
+                               summarize_by = 'survey_year',
+                               id_cols=c('hh_id'),
+                               wt_cols=c('hh_weight'),
+                               wtname= 'hh_weight'
+                               )
+
+
+# using PSRC package -- not working
+hts_data <- get_psrc_hts(survey_vars = c("hh_race_category"))  # default includes all survey_years
+# Calculate a categorical summary, i.e. count/share
+rs2 <- psrc_hts_stat(hts_data, "household", c("hh_race_category"))
+
+dplyr::select(rs2[survey_year==2023], 
+                   -c(survey_year))
+```

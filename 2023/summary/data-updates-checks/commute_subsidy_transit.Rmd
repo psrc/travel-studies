@@ -1,0 +1,50 @@
+---
+title: "changes-checks"
+author: "suzanne"
+date: "2025-01-23"
+output: html_document
+---
+```{r}
+library(psrc.travelsurvey)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+library(ggplot2)
+
+# Specify which variables to retrieve
+vars <- c("hhsize", "hhincome_broad", "employment", "mode_acc", "origin_purpose", "dest_purpose", "mode_class", "workplace", "telecommute_freq", "mode_characterization", "commute_subsidy_transit")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars)%>%
+  hts_bin_worker()
+```
+
+```{r}
+hts_data$person <- hts_data$person%>%filter(worker=="Worker")%>%filter(survey_year==2023)
+```
+
+
+first include Missing values then don't
+
+```{r}
+worker_transit_subsidy<- psrc_hts_stat(hts_data, "person", c("hhincome_broad", "commute_subsidy_transit"))%>%mutate(survey_year=as.integer(survey_year))
+```
+
+
+```{r}
+static<-static_bar_chart(worker_transit_subsidy, x='prop', y='hhincome_broad', fill='commute_subsidy_transit', pos='stack' )
+static
+```
+excluding missing values
+
+```{r}
+
+hts_data$person <- hts_data$person%>%filter(commute_subsidy_transit!='Missing Response')
+worker_transit_subsidy<- psrc_hts_stat(hts_data, "person", c("hhincome_broad", "commute_subsidy_transit"))%>%mutate(survey_year=as.integer(survey_year))%>%filter(commute_subsidy_transit=='Offered')
+```
+
+
+```{r}
+static<-static_bar_chart(worker_transit_subsidy, x='prop', y='hhincome_broad', fill='hhincome_broad' )
+static
+```

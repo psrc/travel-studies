@@ -1,0 +1,384 @@
+---
+title: "modeling vehicle miles traveled"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+
+```{r }
+library(psrc.travelsurvey)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(psrcplot)
+library(forcats)
+library(odbc)
+library(DBI)
+library(tidyr)
+library(tidycensus)
+library(psrcslides)
+library(officer)
+library(DBI)
+library(stargazer)
+library(MASS)
+library(stats)
+library(psrcelmer)
+install_psrc_fonts()
+```
+
+```{r}
+persons_vmt_new<-read.csv('persons_vmt_17_19.csv')
+```
+
+
+```{r}
+summary(persons_vmt_new$vmt_day)
+summary(persons_vmt_new$ln_vmt_day)
+ggplot(persons_vmt_new, aes(ln_vmt_day))+
+geom_histogram()+
+xlim(0, 10)
+
+ggplot(persons_vmt_new, aes(vmt_day))+
+geom_histogram()
+```
+```{r}
+persons_vmt_new_21<-read.csv('persons_vmt_21.csv')
+```
+
+```{r}
+summary(persons_vmt_new_21$vmt_day)
+summary(persons_vmt_new_21$ln_vmt_day)
+ggplot(persons_vmt_new_21, aes(ln_vmt_day))+
+geom_histogram()+
+xlim(0, 10)
+```
+
+
+```{r}
+common_cols <- intersect(colnames(persons_vmt_new), colnames(persons_vmt_new_21))
+persons_vmt_17_19_21<-rbind(persons_vmt_new[, common_cols], persons_vmt_new_21[, common_cols])
+```
+
+
+```{r}
+table(persons_vmt_17_19_21$survey_year)
+
+persons_vmt_17_19_21%>%group_by(survey_year)%>%summarize(mean_vmt=mean(vmt_day))
+
+```
+
+
+
+
+# https://data.library.virginia.edu/interpreting-log-transformations-in-a-linear-model/
+
+
+
+
+Summarize weighted VMT by weighted characteristic
+```{r}
+vmt_summary <- function(person_day_df_1, person_weight_name_1,survey_year_1, 
+                           person_day_df_2, person_weight_name_2, survey_year_2,
+                           group) {
+  
+  vmt_mean_group_1<-person_day_df_1%>%
+    group_by(!!ensym(group))%>%
+    summarize(sum_per_weights=sum(!!ensym(person_weight_name_1)), sum_weighted_vmt=sum(weighted_vmt))%>%
+    mutate(vmt_mean=sum_weighted_vmt/sum_per_weights)%>%
+    mutate(survey_year=survey_year_1)
+  
+    vmt_mean_group_2<-person_day_df_2%>%
+    group_by(!!ensym(group))%>%
+    summarize(sum_per_weights=sum(!!ensym(person_weight_name_2)), sum_weighted_vmt=sum(weighted_vmt))%>%
+    mutate(vmt_mean=sum_weighted_vmt/sum_per_weights)%>%
+    mutate(survey_year=survey_year_2)
+    
+    vmt_mean_group<-rbind(vmt_mean_group_1, vmt_mean_group_2)%>%
+      drop_na()
+
+  return(vmt_mean_group)
+}
+
+```
+
+```{r}
+person_summary <- function(person_day_df_1, person_weight_name_1,survey_year_1, 
+                           person_day_df_2, person_weight_name_2, survey_year_2,
+                           group) {
+  
+  shares_group_1<-person_day_df_1%>%
+    group_by(!!ensym(group))%>%
+    summarize(sum_per_weights=sum(!!ensym(person_weight_name_1)))%>%
+    drop_na()%>%
+    mutate(share= sum_per_weights/sum(sum_per_weights))%>%
+    mutate(survey_year=survey_year_1)
+  
+    shares_group_2<-person_day_df_2%>%
+    group_by(!!ensym(group))%>%
+    summarize(sum_per_weights=sum(!!ensym(person_weight_name_2)))%>%
+    drop_na()%>%
+    mutate(share= sum_per_weights/sum(sum_per_weights))%>%
+    mutate(survey_year=survey_year_2)
+    
+    shares_group<-rbind(shares_group_1, shares_group_2)
+  return(shares_group)
+}
+
+```
+
+```{r}
+
+persons_list<- get_hhts(survey="2017_2019", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'commute_freq', 'hh_weight_2017_2019'))
+persons_list<-persons_list[,!duplicated(colnames(persons_list))]%>%filter('age_category'!='Under 18 years')
+
+```
+
+```{r}
+
+persons_list_21<- get_hhts(survey="2021", level="p", vars=c('person_id', 'numadults', 'employment', 'final_cnty', 'vehicle_count',  "hhincome_broad",  'hhincome_detailed', 'final_home_is_rgc','hhsize', 'lifecycle', 'age_category', 'survey_year', 'rent_own', 'res_dur', 'numworkers', 'numchildren', 'gender_grp', 'jobs_count', 'student', 'education', 'industry', 'license', 'commute_freq', 'commute_dur', 'telecommute_freq', 'work_county', 'benefits_1', 'benefits_2', 'benefits_3', 'benefits_4', 'rent_own', 'commute_auto_distance', 'res_dur','age', 'car_share', 'telecommute_freq_simple', 'workplace', 'person_adult_weight_2021'))
+
+
+```
+
+```{r}
+persons_list_21<-persons_list_21[,!duplicated(colnames(persons_list_21))]
+```
+
+```{r}
+workers_list<-persons_list%>%
+  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1 day a week", "2 days a week") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("3 days a week", "4 days a week") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("5 days a week", "6-7 days a week") ~ "5+ days",
+                                           telecommute_freq %in% c("Never", "Not applicable", "Less than monthly", "A few times per month") ~ "Never or Less than Every Week",
+                                          !is.na(telecommute_freq) ~ telecommute_freq,
+                                          is.na(telecommute_freq) ~ "Not Worker"))%>%filter(telecommute_freq_new!='Not Worker')
+  
+workers_list_21<-persons_list_21%>%
+  mutate(telecommute_freq_new = case_when(telecommute_freq %in% c("1-2 days") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("3-4 days") ~ "1-4 days per week", 
+                                          telecommute_freq %in% c("5+ days") ~ "5+ days",
+                                          telecommute_freq %in% c("Never / None")  ~ "Never or Less than Every Week",
+                                          !is.na(telecommute_freq) ~ telecommute_freq,
+                                          is.na(telecommute_freq) ~ 'Not Worker'))%>%filter(telecommute_freq_new!='Not Worker')
+  
+
+telework_share<-person_summary(workers_list,'hh_weight_2017_2019', '2017/2019',
+                            workers_list_21,'person_adult_weight_2021', '2021',
+                                  'telecommute_freq_new' )%>%
+mutate(telecommute_freq_new=factor(telecommute_freq_new, levels=c("Never or Less than Every Week", "1-4 days per week" ,"5+ days")))%>%
+         filter(telecommute_freq_new %in% c("Never or Less than Every Week", "1-4 days per week", "5+ days"))
+
+
+```
+
+```{r}
+static_column_chart(t=telework_share, x='telecommute_freq_new', y='share', fill='survey_year', 
+                    xlabel='Telecommute Frequency', ylabel='Share of Workers')+ theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14)) + theme(axis.title = element_text(size=18))
+```
+
+```{r}
+employment_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
+                                  'employment')%>%filter(employment!='Employed but not currently working (e.g., on leave, furloughed 100%)'
+)
+```
+
+```{r}
+static_column_chart(t=employment_vmt, x='employment', y='vmt_mean', fill='survey_year', 
+                    xlabel='Employment Status', ylabel='Vehicle Miles Traveled (mean)')+ theme(axis.text.x = element_text(size = 12),axis.text.y = element_text(size = 12)) + theme(axis.title = element_text(size=12))
+```
+
+
+```{r}
+hhgroup_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021', 
+                         'hhgroup')
+
+```
+
+
+
+
+
+```{r}
+telework_time_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'telework_time_grp')
+```
+
+```{r}
+static_column_chart(t=telework_time_vmt, x='telework_time_grp', y='vmt_mean', fill='survey_year', 
+                    xlabel='Telework Time', ylabel='Vehicle Miles Traveled (mean)')+ theme(axis.text.x = element_text(size = 12),axis.text.y = element_text(size = 12)) + theme(axis.title = element_text(size=12))
+```
+this is still not working!!!!
+```{r}
+delivery_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'delivery_pkgs_all')
+```
+
+
+
+
+
+
+```{r}
+vehicle_count_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
+                                  'vehicle_count_simple')
+
+
+```
+
+
+```{r}
+telework_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
+                                  'telecommute_freq_new')
+
+```
+
+```{r}
+static_column_chart(t=vehicle_count_vmt, x='vehicle_count_simple', y='vmt_mean', fill='survey_year', 
+                    xlabel='Household Vehicles', ylabel='vehicle miles traveled (mean)')
+
+```
+
+
+```{r}
+telework_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_adult_weight_2021.x', '2021',
+                                  'telecommute_freq_new')
+
+```
+
+```{r}
+static_column_chart(t=vehicle_count_vmt, x='vehicle_count_simple', y='vmt_mean', fill='survey_year', 
+                    xlabel='Household Vehicles', ylabel='vehicle miles traveled (mean)')
+
+```
+```{r}
+static_column_chart(t=telework_vmt, x='telecommute_freq_new', y='vmt_mean', fill='survey_year', 
+                    xlabel='Telecommute Frequency', ylabel='Vehicle Miles Traveled (mean)')+ theme(axis.text.x = element_text(size = 14),axis.text.y = element_text(size = 14)) + theme(axis.title = element_text(size=18))
+```
+```{r}
+transitben_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'benefits_3')
+
+```
+
+```{r}
+static_column_chart(t=transitben_vmt, x='benefits_3', y='vmt_mean', fill='survey_year', 
+                    xlabel='Transit Pass Work Benefit', ylabel='vehicle miles traveled (mean)')
+
+
+```
+
+
+```{r}
+rgc_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'final_home_is_rgc')
+
+```
+
+```{r}
+static_column_chart(t=rgc_vmt, x='final_home_is_rgc', y='vmt_mean', fill='survey_year', 
+                    xlabel='Home in a Regional Growth Center', ylabel='vehicle miles traveled (mean)')
+
+
+```
+
+```{r}
+rgc_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'final_home_is_rgc')
+
+```
+
+```{r}
+static_column_chart(t=rgc_vmt, x='final_home_is_rgc', y='vmt_mean', fill='survey_year', 
+                    xlabel='Home in a Regional Growth Center', ylabel='vehicle miles traveled (mean)')
+
+
+```
+
+
+
+```{r}
+county_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'final_cnty')
+
+```
+
+```{r}
+static_column_chart(t=county_vmt, x='final_cnty', y='vmt_mean', fill='survey_year', 
+                    xlabel='Home County', ylabel='vehicle miles traveled (mean)')
+
+
+```
+
+```{r}
+persons_vmt_new<-persons_vmt_new%>%mutate(ln_jobs_3_mile_bike=log(1+jobs_3_mile_bike))%>%mutate(survey_year_factor=as.factor(survey_year))
+ggplot(persons_vmt_new, aes(x=ln_jobs_3_mile_bike, y=ln_vmt_day, color=survey_year_factor))+geom_point()+
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE)
+
+```
+```{r}
+industry_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'industry')%>%filter(sum_per_weights>50000)
+
+```
+
+```{r}
+static_column_chart(t=industry_vmt, x='industry', y='vmt_mean', fill='survey_year', 
+                    xlabel='Worker industry', ylabel='vehicle miles traveled (mean)')
+
+
+```
+```{r}
+age_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'age')
+
+```
+
+```{r}
+static_column_chart(t=age_vmt, x='age', y='vmt_mean', fill='survey_year', 
+                    xlabel='age', ylabel='vehicle miles traveled (mean)')
+
+
+```
+```{r}
+wrkrs_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'numchildren')
+
+```
+
+```{r}
+static_column_chart(t=wrkrs_vmt, x='numchildren', y='vmt_mean', fill='survey_year', 
+                    xlabel='Number of household children', ylabel='vehicle miles traveled (mean)')
+
+
+```
+
+```{r}
+income_vmt<-vmt_summary(persons_vmt_new,'hh_weight_2017_2019_adult', '2017/2019',
+                            persons_vmt_new_21,'person_respondent_weight_2021.x', '2021',
+                                  'hhincome_broad')
+
+```
+
+```{r}
+static_column_chart(t=income_vmt, x='hhincome_broad', y='vmt_mean', fill='survey_year', 
+                    xlabel='hh_income', ylabel='vehicle miles traveled (mean)')
+
+
+```

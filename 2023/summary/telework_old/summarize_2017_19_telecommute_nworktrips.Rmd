@@ -1,0 +1,89 @@
+
+
+```{r setup, include=FALSE}
+# Required Packages ============================================================
+
+library(data.table) # general data manipulation
+library(srvyr)      # survey statistics
+library(dplyr)      # helpers for srvyr (mutate, group_by, and %>% pipe), 
+                    # plus function near(), used in qa/qc checks 
+library(stringr)    # string helper functions
+library(flextable)  # formatted tables
+library(ggplot2)    # plotting
+library(scales)     # ggplot2 helpers
+library(plotly)     # interactive plots
+library(rstudioapi) # for setting working directory
+library(psrcelmer)
+library(tidyr)
+library(psrc.travelsurvey)
+library(psrcplot)
+install_psrc_fonts()
+#
+# Read Data  ===================================================================
+
+# get data on workers
+person_17_19<- get_hhts(survey="2017_2019", level="p", vars=c('employment'))
+workers<-person_17_19%>%filter(employment %in% c("Employed full time (35+ hours/week, paid)", "Self-employed"))
+
+# get day info
+
+dsurvey_1719 <- get_hhts(survey = '2017/2019', 
+                       level = "d", 
+                       vars = c("dayofweek", "pernum", "telework_time"))
+
+dsurvey_1719<-dsurvey_1719[,!duplicated(colnames(dsurvey_1719))]%>%
+  filter(daynum==1)%>%
+  mutate(telework_time_grp = case_when(is.na(telework_time) ~ NA_character_,
+   between(as.numeric(str_replace(telework_time, "^(\\d+) hours? (\\d+).*", "\\1.\\2")), 3.1, 24) ~ "More than 3 hours",
+   between(as.numeric(str_replace(telework_time, "^(\\d+) hours? (\\d+).*", "\\1.\\2")), 1, 3) ~ "1-3 hours",
+   TRUE ~ "0-1 hour"))
+ 
+   
+#For ease of calculation filter to first day, 
+#then upweight the trips to account for this(they have been downweighted to not over represent R Move hhs)                             
+                                                           
+trip_17_19<- get_hhts(survey="2017_2019", level="t", vars=c('dest_purpose_cat', 'daynum', 'nwkdays'))
+trip_17_19<-trip_17_19[,!duplicated(colnames(trip_17_19))]%>%
+                  mutate(numwkdays=as.numeric(nwkdays))%>%
+                  mutate(trip_wt_1_day=numwkdays*trip_weight_2017_2019)%>%
+                  filter(daynum==1)
+
+```
+
+
+merge, because we only selected one day the person ids are one to one
+```{r}
+workers_day<-merge(workers, dsurvey_1719, by='person_id')
+workers_trips<-merge(workers_day, trip_17_19, by = 'person_id')%>%
+  filter(dest_purpose_cat=='Work')
+
+```
+
+```{r}
+
+workers_day_trips<-workers_trips%>%
+  group_by(person_id, daynum.x,telework_time_grp)%>%
+  summarize(weighted_trips=sum(trip_wt_1_day), count_trips=n()) %>%
+  right_join(workers_day, by=c('person_id','daynum.x'="daynum"))%>%  ## get all days whether or not they have work trips
+  mutate(count_trips=replace_na(count_trips,0), weighted_trips=replace_na(weighted_trips, 0))  ## fill in the days for people that have no work 
+
+
+
+```
+```{r}
+work_trips_summary<-workers_day_trips%>%
+  group_by(telework_time_grp.y)%>%
+  summarize(mean_raw_work_trips=mean(count_trips), sum_trip_weights=sum(weighted_trips), sum_person_weights=sum(hh_weight_2017_2019))%>%drop_na()%>%
+  mutate(weighted_ave_work_trips=sum_trip_weights/sum_person_weights)
+
+```
+
+```{r}
+static_column_chart(t=work_trips_summary, x='telework_time_grp.y', y='mean_raw_work_trips', fill='telework_time_grp.y', est='num', dec=2)
+
+```
+
+```{r}
+static_column_chart(t=work_trips_summary, x='telework_time_grp.y', y='weighted_ave_work_trips', fill='telework_time_grp.y', est='num', dec=2)
+
+```

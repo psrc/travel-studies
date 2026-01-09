@@ -1,0 +1,168 @@
+---
+title: "2024 HTS delivery notes"
+format: html
+
+echo: TRUE
+warning: FALSE
+---
+
+## Megan's 2022 analysis
+
+![delivery_2022.png](delivery_2022.png){width=50%}
+
+## Scope of 2024 analysis:
+
+1. organize delivery questions across the years
+    - [ ] add documentation to wiki
+2. answer question: share of households receiving packages/services in a typical weekday
+    - find a way to calculate as a household-day
+    - try: number of days (or number of) packages / number of valid weekdays
+3. demographics:
+    - [ ] household income
+    - [ ] lifecycle (with/without kids)
+    - [ ] home location in RGC
+4. relationships between
+    - telework
+    - VMT
+    - delivery
+    - (shopping trips: we don't know weekend trips)
+5. where do households with deliveries live?
+    - spatial analysis
+    
+## Delivery questions 
+
+- who was asked?
+    - 2017: the first person age 18+ in the HH
+    - all other years: all 18+ adults in HH 
+- how were the questions asked?
+    - 2023: checkbox
+    - all other years: dropdown asking how many were delivered
+
+:::{.panel-tabset}
+
+### 2017
+
+::: {.callout-note icon=false}
+
+## **On < traveldate >, how many of the following deliveries or services came to <Name’s/your> home?**
+
+*Do not include US Mail trucks (e.g. letters).*
+
+(select an answer for each of the following type of delivery/service)
+
+- Package delivery (e.g., FedEx, UPS, USPS packages)
+- Grocery delivery (e.g., Amazon Fresh, Instacart , Safeway online)
+- Food/meal delivery (e.g., pizza, sushi, Grubhub)
+- Someone came to do work at home (e.g., landscaping, cable service, house cleaning)
+
+Values (for dropdown)
+
+- 0 (none)
+- 1
+- 2
+- 3
+- 4
+- 5 or more
+
+:::
+
+- people that are asked this question: Only show to the first person age 18+ in the HH who is answering their diary. Subsequent adults (other adults in HH) don’t need to answer
+
+
+### 2019
+
+#### rMove question
+::: {.callout-note icon=false}
+
+## **On \<traveldate\>, which of the following occurred? Select all that apply**
+
+- [ ] Package Delivery (e.g., FedEx, UPS, USPS)
+- [ ] Grocery Delivery (e.g., Amazon Fresh, Instacart)
+- [ ] Food was delivered to home (e.g., pizza, sushi)
+- [ ] Someone came to do work at my home (e.g., landscaping, plumber, housecleaning)
+- [ ] None of the above
+
+:::
+
+- people that are asked this question: Asked every day of all adults (members age 18 and above)
+    
+#### Online Survey
+::: {.callout-note icon=false}
+
+## **On \<traveldate\>, how many of the following deliveries or services came to your home?**
+
+*Do not include US Mail trucks (e.g. letters).*
+
+(select an answer for each of the following type of delivery/service)
+
+- Package delivery (e.g., FedEx, UPS, USPS packages)
+- Grocery delivery (e.g., Amazon Fresh, Instacart, Safeway online)
+- Food/meal delivery (e.g., pizza, sushi, Grubhub)
+- Someone came to do work at home (e.g., landscaping, cable service, house-cleaning)
+
+Values (for dropdown)
+
+- 0 (none)
+- 1
+- 2
+- 3
+- 4
+- 5 or more
+:::
+
+- people that are asked this question: if age = 18+
+
+### 2021
+
+::: {.callout-note icon=false}
+
+## **On \<traveldate\>, how many of the following deliveries or services came to your home?**
+
+*Do not include US Mail trucks (e.g. letters).*
+
+(select an answer for each of the following type of delivery/service)
+
+- Package delivery (e.g., FedEx, UPS, USPS packages)
+- Grocery delivery (e.g., Amazon Fresh, Instacart, Safeway online)
+- Food/meal delivery (e.g., pizza, sushi, Grubhub)
+- Someone came to do work at home (e.g., landscaping, cable service, house-cleaning)
+- Other delivery (e.g., appliance)
+
+Values (for dropdown)
+
+- 0 (none)
+- 1
+- 2
+- 3
+- 4
+- 5 or more
+:::
+
+- people that are asked this question: if age = 18+
+
+### 2023 
+
+::: {.callout-note icon=false}
+
+## We want to know how delivery and household services contribute to travel.<br> **On \<traveldate\> , which of the following occurred? **
+
+Select all that apply.
+
+- [ ] Received packages at home (e.g., USPS, FedEx, UPS)
+- [ ] Received personal packages at work<br>
+      - *if employment = full/part/self/volunteer and job_type = "only one work location" or "teleworks some days and travels to a work location some days"*
+- [ ] Received packages at another location (e.g., Amazon locker, package pick-up point)
+- [ ] Take-out/prepared food delivered to home
+- [ ] Groceries delivered to home
+- [ ] Someone came to do work at home (e.g., babysitter, housecleaning, lawn)
+- [ ] Other item delivered to home (e.g., appliance)
+- [ ] None of the above
+:::
+
+- people that are asked this question: if rMove or (rMove for Web and person 1)
+
+
+
+
+
+:::

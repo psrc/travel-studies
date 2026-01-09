@@ -1,0 +1,919 @@
+---
+title: "2023 HTS: Walk, Bike, Micromobility"
+author: "Grant Gibson"
+format: html
+editor: visual
+---
+
+# Travel Mode: Walk, Bike, & Micromobility
+
+## Initial Summaries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+source("C:/Users/GGibson/GitHub/PSRC/travel-studies/2023/summary/survey-23-preprocess.R")
+```
+
+### Read in codebook
+
+```{r codebook}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+### Read in data from Elmer
+
+```{r elmer_data}
+hh <- get_query(sql = "SELECT household_id as hh_id, num_trips AS h_num_trips, hhsize, vehicle_count, hhincome_broad,
+                       hhincome_detailed, home_rgcname, home_jurisdiction, home_county, res_type, survey_year, hh_weight
+                       FROM HHSurvey.v_households_labels;")
+
+person <- get_query(sql = "SELECT person_id, household_id as hh_id, num_trips AS p_num_trips, age, gender, race_category,
+                           employment, workplace, bike_freq, bike_freq_pre_2023, walk_freq, walk_freq_pre_2023, disability_person,
+                           share_2, survey_year, person_weight
+                           FROM HHSurvey.v_persons_labels;")
+
+day <- get_query(sql = "SELECT person_id, day_id, household_id as hh_id, day_weight, survey_year FROM HHSurvey.v_days_labels")
+
+trip <- get_query(sql = "SELECT trip_id, household_id as hh_id, person_id, day_id, origin_x_coord, origin_y_coord, origin_county,
+                         origin_rgcname, origin_jurisdiction, dest_x_coord, dest_y_coord, dest_county, dest_rgcname, distance_miles,
+                         duration_minutes, dest_jurisdiction, origin_purpose_cat, origin_purpose, dest_purpose_cat, dest_purpose,
+                         mode_type, mode_1, mode_2, mode_3, mode_4, mode_acc, mode_egr, mode_characterization, mode_simple,
+                         travelers_total, travelers_hh, survey_year, trip_weight 
+                         FROM HHSurvey.v_trips_labels
+                         WHERE travel_dow NOT IN ('Friday', 'Saturday', 'Sunday');")
+
+setDT(hh)
+setDT(person)
+setDT(day)
+setDT(trip)
+```
+
+### Set IDs as character type
+
+```{r set_ids}
+hh[, hh_id := as.character(hh_id)]
+
+person[, hh_id := as.character(hh_id)]
+person[, person_id := as.character(person_id)]
+
+day[, hh_id:=as.character(hh_id)]
+day[, person_id := as.character(person_id)]
+day[, day_id := as.character(day_id)]
+
+trip[, hh_id := as.character(hh_id)]
+trip[, person_id := as.character(person_id)]
+trip[, day_id := as.character(day_id)]
+trip[, trip_id := as.character(trip_id)]
+
+hh[, survey_year := as.character(survey_year)]
+person[, survey_year := as.character(survey_year)]
+day[, survey_year := as.character(survey_year)]
+trip[, survey_year := as.character(survey_year)]
+```
+
+### Get unique modes from trips
+
+```{r trip_modes}
+#trip_modes <- unique(trip[, c("mode_1", "mode_type", "mode_characterization", "mode_simple")])
+```
+
+Based on the modes in the trip data, will need to filter on `mode_characterization` to remove "Airplane"
+
+### Filter trips to walk, bike, micromobility
+
+```{r walk_bike filter}
+trip <- filter(trip, mode_characterization != "Airplane")
+```
+
+### Create summaries
+```{r mode_char_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "mode_char_condensed",
+                              table_name = "trip",
+                              data_type = "character")
+
+trip <- trip %>% 
+  mutate(mode_char_condensed = case_when(#mode_characterization %in% c("Drive HOV2", "Drive HOV3+") ~ "HOV",
+                                         #mode_characterization == "Drive SOV" ~ "SOV",
+                                         mode_characterization %in% c("Drive HOV2", "Drive HOV3+", "Drive SOV") ~ "Drive",
+                                         TRUE ~ mode_characterization))
+```
+
+
+```{r age_cond_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "age_condensed",
+                              table_name = "person",
+                              data_type = "character")
+
+person <- person %>% 
+  mutate(age_condensed = case_when(age %in% c("Under 5 years old", "5-11 years", "12-15 years", "16-17 years") ~ "Under 18 years old",
+                                   age %in% c("18-24 years", "25-34 years") ~ "18-34 years",
+                                   age %in% c("35-44 years", "45-54 years", "55-64 years") ~ "35-64 years",
+                                   age %in% c("65-74 years", "75-84 years", "85 years or older") ~ "65 years or older")) %>% 
+  mutate(age_condensed = factor(age_condensed, levels = c("Under 18 years old", "18-34 years", "35-64 years", "65 years or older")))
+```
+
+```{r income_variable, include=FALSE}
+# variable_list <- add_variable(variable_list,
+#                               variable_name = "hhincome_broad_combined",
+#                               table_name = "hh",
+#                               data_type = "character")
+# 
+# hh <- hh %>% 
+#   mutate(hhincome_broad_combined = ifelse(hhincome_broad %in% c("$100,000-$199,000", "$200,000 or more"),
+#                                           "$100,000 or more", hhincome_broad)) %>% 
+#   mutate(hhincome_broad_combined = factor(hhincome_broad_combined,
+#                                           levels = c("Under $25,000", "$25,000-$49,999", "$50,000-$74,999",
+#                                                      "$75,000-$99,999", "$100,000 or more", "Prefer not to answer")))
+
+variable_list <- add_variable(variable_list,
+                              variable_name = "hhincome_detailed_combined",
+                              table_name = "hh",
+                              data_type = "character")
+
+hh <- hh %>% 
+  mutate(hhincome_detailed_combined = case_when(hhincome_detailed %in% c("Under $10,000", "$10,000-$24,999", "$25,000-$34,999", "$35,000-$49,999") ~ "Under $50,000",
+                                                hhincome_detailed %in% c("$50,000-$74,999", "$75,000-$99,999") ~ "$50,000-$99,999",
+                                                hhincome_detailed %in% c("$150,000-$199,999", "$200,000-$249,999", "$250,000 or more") ~ "$150,000 or more",
+                                                TRUE ~ hhincome_detailed)) %>% 
+  mutate(hhincome_detailed_combined = factor(hhincome_detailed_combined,
+                                          levels = c("Under $50,000", "$50,000-$99,999", "$100,000-$149,999",
+                                                     "$150,000 or more", "Prefer not to answer")))
+```
+
+```{r race_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "race_simple",
+                              table_name = "person",
+                              data_type = "character")
+
+person <- person %>% 
+  mutate(race_simple = case_when(race_category == "White non-Hispanic" ~ "White",
+                                 race_category == "Asian non-Hispanic" ~ "Asian American, Native Hawaiian, or Pacific Islander",
+                                 race_category == "Black or African American non-Hispanic" ~ "Black or African American",
+                                 race_category %in% c("Some Other Race non-Hispanic", "Two or More Races non-Hispanic") ~ "Some Other Race",
+                                 TRUE ~ race_category))
+```
+
+```{r gender_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "gender_group",
+                              table_name = "person",
+                              data_type = "character")
+
+person <- person %>% 
+  mutate(gender_group = case_when(gender %in% c("Female", "Girl/Woman (cisgender or transgender)") ~ "Women",
+                                  gender %in% c("Male", "Boy/Man (cisgender or transgender)") ~ "Men",
+                                  gender %in% c("Non-Binary", "Non-binary/Something else fits better", "Another") ~ "Non-Binary/Other",
+                                  gender == "Not listed here / prefer not to answer" ~ "Prefer not to answer",
+                                  TRUE ~ gender)) %>% 
+  mutate(gender_group = factor(gender_group, levels = c("Women", "Men", "Non-Binary/Other", "Prefer not to answer")))
+```
+
+```{r rgc_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "in_rgc",
+                              table_name = "hh",
+                              data_type = "character")
+
+hh <- hh %>% 
+  mutate(in_rgc = ifelse(home_rgcname == "Not RGC", "Home Not in RGC", "Home in RGC"))
+```
+
+```{r home_geo_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "home_geography",
+                              table_name = "hh",
+                              data_type = "character")
+
+hh <- hh %>% 
+  mutate(home_geography = factor(case_when(home_jurisdiction == "Seattle" ~ home_jurisdiction,
+                                           home_county == "King" & home_jurisdiction != "Seattle" ~ "Rest of King",
+                                           home_county %in% c("Kitsap", "Pierce", "Snohomish") ~ home_county),
+                                 levels = c("Seattle", "Rest of King", "Kitsap", "Pierce", "Snohomish")))
+```
+
+```{r vehicle_owner_variable, include=FALSE}
+# variable_list <- add_variable(variable_list,
+#                               variable_name = "vehicle_ownership",
+#                               table_name = "hh",
+#                               data_type = "character")
+# 
+# hh <- hh %>% 
+#   mutate(vehicle_ownership = ifelse(vehicle_count == "0 (no vehicles)", "Not a vehicle owner", "Vehicle owner"))
+```
+
+```{r summary_data, echo=FALSE}
+hts_data <- list(hh = hh,
+                 person = person,
+                 day = day,
+                 trip = trip)
+
+ids <- c("hh_id", "person_id", "day_id", "trip_id")
+wts <- c("hh_weight", "person_weight", "day_weight", "trip_weight")
+
+trip_totals <- summarize_weighted(hts_data = hts_data,
+                                  summarize_var = "survey_year",
+                                  summarize_by = NULL,
+                                  id_cols = ids,
+                                  wt_cols = wts,
+                                  wtname = "trip_weight"
+                                  )
+
+trips_by_mode <- summarize_weighted(hts_data = hts_data,
+                                    summarize_var = "mode_char_condensed",
+                                    summarize_by = "survey_year",
+                                    id_cols = ids,
+                                    wt_cols = wts,
+                                    wtname = "trip_weight"
+                                    )
+
+trip_summary <- trip_totals$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645,
+         est_rounded = est/1000000)
+
+mode_summary <- trips_by_mode$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+### Initial charts
+
+```{r trip_counts_chart, echo=FALSE}
+static_column_chart(trip_summary,
+                  x = "survey_year", y = "est_rounded", fill = "survey_year",
+                  ylabel = "# of Trips", xlabel = "Survey Year", title = "Total Trips in Region (in millions)",
+                  dec = 1) + theme(
+                    axis.text.x = element_text(size = 14),
+                    axis.text.y = element_text(size = 14),
+                    axis.title.y = element_text(size = 16),
+                    axis.title.x = element_text(size = 16),
+                    plot.title = element_text(size = 24)
+                    )
+```
+
+```{r all_modes_chart, echo=FALSE}
+static_column_chart(filter(mode_summary, survey_year == 2023),
+                    x = "mode_char_condensed", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Mode", title = "Trips by Mode - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 12),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r walk_chart_est, echo=FALSE}
+static_column_chart(filter(mode_summary, mode_char_condensed == "Walk"),
+                    x = "survey_year", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Walk Trips - Estimate",
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r walk_chart_share, echo=FALSE}
+static_column_chart(filter(mode_summary, mode_char_condensed == "Walk"),
+                    x = "survey_year", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Walk Trips - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_chart_est, echo=FALSE}
+static_column_chart(filter(mode_summary, mode_char_condensed == "Bike/Micromobility"),
+                    x = "survey_year", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Survey Year",
+                    title = "Bike & Micromobility Trips - Estimate",
+                    #source = "'Bike' includes standard bicycle or e-bike, as well as micromobility devices",
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      plot.title = element_text(size = 24),
+                      plot.caption = element_text(size = 14)
+                      )
+```
+
+```{r bike_trips_share, echo=FALSE}
+static_column_chart(filter(mode_summary, mode_char_condensed == "Bike/Micromobility"),
+                    x = "survey_year", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Survey Year",
+                    title = "Bike & Micromobility Trips - Share",
+                    #source = "'Bike' includes standard bicycle or e-bike, as well as micromobility devices",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      plot.title = element_text(size = 24),
+                      plot.caption = element_text(size = 14)
+                      )
+```
+
+## Walk Mode Share by Demographics
+
+### Household Income
+```{r walk_bike_income, echo=FALSE}
+mode_by_income <- summarize_weighted(hts_data = hts_data,
+                                     summarize_var = "mode_characterization",
+                                     summarize_by = c("survey_year", "hhincome_detailed_combined"),
+                                     id_cols = ids,
+                                     wt_cols = wts,
+                                     wtname = "trip_weight"
+                                     )
+
+walk_bike_by_income <- mode_by_income$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility")) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_income_chart, echo=FALSE}
+static_bar_chart(filter(walk_bike_by_income, mode_characterization == "Walk" & hhincome_detailed_combined != "Prefer not to answer"
+                            & survey_year == 2023),
+                    y = "hhincome_detailed_combined", x = "prop", fill = "survey_year",
+                    xlabel = "% of Trips", ylabel = "Household Income", title = "Walk Trips by Income - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 12),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_income_chart, echo=FALSE}
+# static_column_chart(filter(walk_bike_by_income, mode_characterization == "Bike/Micromobility" & hhincome_detailed_combined != "Prefer not to answer"
+#                             & survey_year == 2023),
+#                     x = "hhincome_detailed_combined", y = "prop", fill = "survey_year",
+#                     ylabel = "% of Trips", xlabel = "Household Income", title = "Bike Trips by Income - Share (2023)",
+#                     moe = "moe") + theme(
+#                       axis.text.x = element_text(size = 14),
+#                       axis.text.y = element_text(size = 14),
+#                       axis.title.y = element_text(size = 20),
+#                       axis.title.x = element_text(size = 20),
+#                       legend.text = element_text(size=14),
+#                       plot.title = element_text(size = 24)
+#                       )
+```
+
+### Race & Ethnicity
+```{r walk_bike_race, echo=FALSE}
+mode_by_race <- summarize_weighted(hts_data = hts_data,
+                                   summarize_var = "mode_characterization",
+                                   summarize_by = c("survey_year", "race_simple"),
+                                   id_cols = ids,
+                                   wt_cols = wts,
+                                   wtname = "trip_weight"
+                                   )
+
+walk_bike_by_race <- mode_by_race$summary$wtd %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_race_chart, echo=FALSE}
+static_bar_chart(filter(walk_bike_by_race, mode_characterization == "Walk"
+                           & !(race_simple %in% c("Child", "Missing/No response", "Some Other Race"))
+                           & survey_year == 2023),
+                    x = "prop", y = str_wrap("race_simple"), fill = "race_simple",
+                    xlabel = "% of Trips", ylabel = "Race & Ethnicity", title = "Walk Trips by Race - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 12),
+                      axis.text.y = element_text(size = 10),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      ) + 
+                    scale_x_discrete(labels = scales::label_wrap(20))
+```
+
+### Disability Status
+```{r walk_bike_disability, echo=FALSE}
+mode_by_disability <- summarize_weighted(hts_data = hts_data,
+                                         summarize_var = "mode_characterization",
+                                         summarize_by = c("survey_year", "disability_person"),
+                                         id_cols = ids,
+                                         wt_cols = wts,
+                                         wtname = "trip_weight"
+                                         )
+
+walk_bike_by_disability <- mode_by_disability$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility")) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+2023 survey question on disability: "Do you have a disability or illness that affects your ability to travel?"
+
+This question was only asked of adults completing the survey.
+
+```{r walk_disability_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_disability, mode_characterization == "Walk" & disability_person != "Prefer not to answer" & survey_year == 2023),
+                    x = "disability_person", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Disability Status", title = "Walk Trips by Disability Status - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 20)
+                      )
+```
+
+```{r bike_disability_chart, echo=FALSE}
+# static_column_chart(filter(walk_bike_by_disability, mode_characterization == "Bike/Micromobility" & disability_person != "Prefer not to answer" & survey_year == 2023),
+#                     x = "disability_person", y = "prop", fill = "survey_year",
+#                     ylabel = "% of Trips", xlabel = "Disability Status", title = "Bike Trips by Disability Status - Share (2023)",
+#                     moe = "moe") + theme(
+#                       axis.text.x = element_text(size = 14),
+#                       axis.text.y = element_text(size = 14),
+#                       axis.title.y = element_text(size = 20),
+#                       axis.title.x = element_text(size = 20),
+#                       legend.text = element_text(size=14),
+#                       plot.title = element_text(size = 24)
+#                       )
+```
+
+### Gender
+```{r walk_bike_gender, echo=FALSE}
+mode_by_gender_group <- summarize_weighted(hts_data = hts_data,
+                                           summarize_var = "mode_characterization",
+                                           summarize_by = c("survey_year", "gender_group"),
+                                           id_cols = ids,
+                                           wt_cols = wts,
+                                           wtname = "trip_weight"
+                                           )
+
+walk_bike_by_gender <- mode_by_gender_group$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility")) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_gender_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_gender, mode_characterization == "Walk" & gender_group != "Prefer not to answer" & survey_year == 2023),
+                    x = "gender_group", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Gender", title = "Walk Trips by Gender - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_gender_chart, echo=FALSE}
+# static_column_chart(filter(walk_bike_by_gender, mode_characterization == "Bike/Micromobility" & gender_group != "Prefer not to answer" & survey_year == 2023),
+#                     x = "gender_group", y = "prop", fill = "survey_year",
+#                     ylabel = "% of Trips", xlabel = "Gender", title = "Bike Trips by Gender - Share (2023)",
+#                     moe = "moe") + theme(
+#                       axis.text.x = element_text(size = 14),
+#                       axis.text.y = element_text(size = 14),
+#                       axis.title.y = element_text(size = 20),
+#                       axis.title.x = element_text(size = 20),
+#                       legend.text = element_text(size=14),
+#                       plot.title = element_text(size = 24)
+#                       )
+```
+
+### Age
+```{r walk_bike_age, echo=FALSE}
+mode_by_age_cond <- summarize_weighted(hts_data = hts_data,
+                                       summarize_var = "mode_characterization",
+                                       summarize_by = c("survey_year", "age_condensed"),
+                                       id_cols = ids,
+                                       wt_cols = wts,
+                                       wtname = "trip_weight"
+                                       )
+
+walk_bike_by_age_cond <- mode_by_age_cond$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility")) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_age_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_age_cond, mode_characterization == "Walk" & survey_year == 2023),
+                    x = "age_condensed", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Age Group", title = "Walk Trips by Age - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 12),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_age_chart, echo=FALSE}
+# static_column_chart(filter(walk_bike_by_age_cond, mode_simple == "Bike" & survey_year == 2023),
+#                     x = "age_condensed", y = "prop", fill = "survey_year",
+#                     ylabel = "% of Trips", xlabel = "Age Group", title = "Bike Trips by Age - Share (2023)",
+#                     moe = "moe") + theme(
+#                       axis.text.x = element_text(size = 14),
+#                       axis.text.y = element_text(size = 14),
+#                       axis.title.y = element_text(size = 20),
+#                       axis.title.x = element_text(size = 20),
+#                       legend.text = element_text(size=14),
+#                       plot.title = element_text(size = 24)
+#                       )
+```
+
+### Home Geography
+```{r walk_bike_rgc, echo=FALSE}
+mode_by_rgc <- summarize_weighted(hts_data = hts_data,
+                                  summarize_var = "mode_characterization",
+                                  summarize_by = c("survey_year", "in_rgc"),
+                                  id_cols = ids,
+                                  wt_cols = wts,
+                                  wtname = "trip_weight"
+                                  )
+
+walk_bike_by_rgc <- mode_by_rgc$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility")) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_rgc_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_rgc, mode_characterization == "Walk" & survey_year == 2023),
+                    x = "in_rgc", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Home Location", title = "Walk Trips by Home in RGCs - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 22)
+                      )
+```
+
+```{r bike_rgc_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_rgc, mode_characterization == "Bike/Micromobility" & survey_year == 2023),
+                    x = "in_rgc", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Home Location", title = "Bike Trips by Home in RGCs - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 22)
+                      )
+```
+
+```{r walk_bike_home_geo, echo=FALSE}
+mode_by_home_geo <- summarize_weighted(hts_data = hts_data,
+                                       summarize_var = "mode_characterization",
+                                       summarize_by = c("survey_year", "home_geography"),
+                                       id_cols = ids,
+                                       wt_cols = wts,
+                                       wtname = "trip_weight"
+                                       )
+
+walk_bike_by_home_geo <- mode_by_home_geo$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility")) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_home_geo_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_home_geo, mode_characterization == "Walk" & survey_year == 2023),
+                    x = "home_geography", y = "prop", fill = "home_geography",
+                    ylabel = "% of Trips", xlabel = "Home Location", title = "Walk Trips by Home Geography - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 20)
+                      )
+```
+
+```{r bike_home_geo_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_home_geo, mode_characterization == "Bike/Micromobility" & survey_year == 2023),
+                    x = "home_geography", y = "prop", fill = "home_geography",
+                    ylabel = "% of Trips", xlabel = "Home Location", title = "Bike Trips by Home Geography - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 20)
+                      )
+```
+
+### Mode Share by Purpose
+Looking at walking and biking trips by trip purpose: "utility" trips (work, shopping, errands, etc.) versus recreational trips
+
+```{r trip_purpose_variable, include=FALSE}
+# dest_purpose_counts <- trip %>% 
+#   group_by(survey_year, dest_purpose_cat) %>% 
+#   summarize(count = NROW(trip_id))
+
+variable_list <- add_variable(variable_list,
+                              variable_name = "trip_purpose_type",
+                              table_name = "trip",
+                              data_type = "character")
+
+trip <- trip %>% 
+  mutate(trip_purpose_type = case_when(dest_purpose_cat == "Social/Recreation" ~ "Recreation Trips",
+                                       dest_purpose_cat %in% c("Missing: Non-response", "Not imputable", "Home") ~ NA_character_,
+                                       is.na(dest_purpose_cat) ~ NA_character_,
+                                       TRUE ~ "Utility Trips"))
+
+hts_data <- list(hh = hh,
+                 person = person,
+                 day = day,
+                 trip = trip)
+```
+
+```{r walk_bike_trip_purpose, echo=FALSE}
+mode_by_purpose <- summarize_weighted(hts_data = hts_data,
+                                      summarize_var = "mode_characterization",
+                                      summarize_by = c("survey_year", "trip_purpose_type"),
+                                      id_cols = ids,
+                                      wt_cols = wts,
+                                      wtname = "trip_weight"
+                                      )
+
+walk_bike_by_purpose <- mode_by_purpose$summary$wtd %>% 
+  filter(mode_characterization %in% c("Walk", "Bike/Micromobility") & !(is.na(trip_purpose_type))) %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r walk_trip_purpose_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_purpose, mode_characterization == "Walk"),
+                    x = "survey_year", y = "prop", fill = "trip_purpose_type",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Walk Trips by Purpose - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_trip_purpose_chart, echo=FALSE}
+static_column_chart(filter(walk_bike_by_purpose, mode_characterization == "Bike/Micromobility"),
+                    x = "survey_year", y = "prop", fill = "trip_purpose_type",
+                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Bike Trips by Purpose - Share",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+Can we determine prevalence of scootering as a mode share or garner anything from the question on scooter/e-scooter ownership?
+```{r scooter_variable, include=FALSE}
+variable_list <- add_variable(variable_list,
+                              variable_name = "scooter_trip",
+                              table_name = "trip",
+                              data_type = "character")
+
+trip <- trip %>% 
+  mutate(scooter_trip = case_when(mode_1 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
+                                                "Scooter-share (e.g., Bird, Lime)",
+                                                "Skateboard or rollerblade",
+                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
+                                  mode_2 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
+                                                "Scooter-share (e.g., Bird, Lime)",
+                                                "Skateboard or rollerblade",
+                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
+                                  mode_3 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
+                                                "Scooter-share (e.g., Bird, Lime)",
+                                                "Skateboard or rollerblade",
+                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
+                                  mode_4 %in% c("Scooter or e-scooter (e.g., Lime, Bird, Razor)",
+                                                "Scooter-share (e.g., Bird, Lime)",
+                                                "Skateboard or rollerblade",
+                                                "Segway or Onewheel/electric unicycle") ~ "Scooter Trip",
+                                  #mode_acc %in% c() ~ "Scooter Trip",  # mode options not distinct enough
+                                  #mode_egr %in% c() ~ "Scooter Trip",  # mode options not distinct enough
+                                  TRUE ~ "Other"
+                                  ))
+
+hts_data <- list(hh = hh,
+                 person = person,
+                 day = day,
+                 trip = trip)
+```
+
+```{r scooters, echo=FALSE}
+# Region
+scooter_mode_summary <- summarize_weighted(hts_data = hts_data,
+                                           summarize_var = "scooter_trip",
+                                           summarize_by = "survey_year",
+                                           id_cols = ids,
+                                           wt_cols = wts,
+                                           wtname = "trip_weight"
+                                           )
+
+scooter_sums <- scooter_mode_summary$summary$wtd %>%
+  filter(scooter_trip == "Scooter Trip") %>% 
+  mutate(moe = prop_se * 1.645)
+
+# Seattle only
+hts_data_seattle <- list(hh = hh,
+                         person = person,
+                         day = day,
+                         trip = filter(hts_data$trip, origin_jurisdiction == "Seattle" | dest_jurisdiction == "Seattle"))
+
+scooter_seattle <- summarize_weighted(hts_data = hts_data_seattle,
+                                      summarize_var = "scooter_trip",
+                                      summarize_by = "survey_year",
+                                      id_cols = ids,
+                                      wt_cols = wts,
+                                      wtname = "trip_weight"
+                                      )
+
+scooter_sums_seattle <- scooter_seattle$summary$wtd %>%
+  filter(scooter_trip == "Scooter Trip") %>% 
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r scooter_region_chart, echo=FALSE}
+static_column_chart(scooter_sums,
+                    x = "survey_year", y = "est", fill = "scooter_trip",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Scooter Trips in Region",
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r scooter_seattle_chart, echo=FALSE}
+static_column_chart(scooter_sums_seattle,
+                    x = "survey_year", y = "est", fill = "scooter_trip",
+                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Scooter Trips in Seattle",
+                    moe = "est_se") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+Very few records in the data, so shares are too small to count.
+Scooter share in 2023 is 0.09% for the region vs. 0.27% for trips starting or ending in Seattle.
+
+## Bike Frequencies
+
+Bike trip shares are hard to cross-tabulate by demographic categories due to lower numbers. Looking at reported biking frequency to see if that can be analyzed by demographics.
+
+2023 survey questionnaire:
+1. "Typical Travel" is asked of adults
+2. Respondents see the question "Which of the following travel methods, if any, do you use? Select all that apply."
+3. If respondent selected "Bike (outside for 15 minutes or more)," then asked "How often have you ridden a bike outside for 15 or more minutes in the past 30 days?"
+4. Repsondents who did not select "Bike" are not asked the question
+
+```{r bike_frequency, include=FALSE}
+# walk/bike_freq and walk/bike_freq_pre_2023 in person table
+# All NAs in walk_freq are 2017/19/21 records. NAs in walk_freq_pre_2023 are a mix of 2017 and 2023.
+# "Missing Response" needs to be recoded in order to show up in the summary
+
+variable_list <- add_variable(variable_list,
+                              variable_name = "bike_freq2",
+                              table_name = "person",
+                              data_type = "character")
+
+person <- person %>% 
+  mutate(bike_freq2 = ifelse(bike_freq == "Missing Response", "Never", bike_freq))
+
+hts_data2023 <- list(hh = filter(hh, survey_year == 2023),
+                 person = filter(person, survey_year == 2023),
+                 day = filter(day, survey_year == 2023),
+                 trip = filter(trip, survey_year == 2023))
+
+bike_freq <- summarize_weighted(hts_data = hts_data2023,
+                                summarize_var = "bike_freq2",
+                                summarize_by = NULL, #"survey_year",
+                                id_cols = ids,
+                                wt_cols = wts,
+                                wtname = "person_weight"
+                                )
+
+bike_freq_summary <- bike_freq$summary$wtd %>%
+  mutate(moe = prop_se * 1.645)
+
+bike_freqv2 <- summarize_weighted(hts_data = hts_data2023,
+                                summarize_var = "share_2",
+                                summarize_by = NULL, #"survey_year",
+                                id_cols = ids,
+                                wt_cols = wts,
+                                wtname = "person_weight"
+                                )
+
+bike_freq_summaryv2 <- bike_freqv2$summary$wtd %>%
+  mutate(moe = prop_se * 1.645)
+
+# walk_freq_17_19_21 <- summarize_weighted(hts_data = hts_data,
+#                                          summarize_var = "walk_freq_pre_2023",
+#                                          summarize_by = "survey_year",
+#                                          id_cols = ids,
+#                                          wt_cols = wts,
+#                                          wtname = "person_weight"
+#                                          )
+# 
+# walk_freq_17_19_21_sums <- walk_freq_17_19_21$summary$wtd %>%
+#   filter(survey_year != 2023) %>% 
+#   mutate(moe = prop_se * 1.645)
+```
+
+```{r bike_freq_chart, echo=FALSE}
+static_column_chart(bike_freq_summaryv2,
+                    x = "share_2", y = "prop", fill = "share_2",
+                    ylabel = "Share", xlabel = "Frequency", title = "Bike Trip Frequencies (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+### Bike frequency by demographics
+```{r bike_freq_income, echo=FALSE}
+bike_freq_income <- summarize_weighted(hts_data = hts_data2023,
+                                       summarize_var = "share_2",
+                                       summarize_by = "hhincome_detailed_combined",
+                                       id_cols = ids,
+                                       wt_cols = wts,
+                                       wtname = "person_weight"
+                                       )
+
+bike_income_summary <- bike_freq_income$summary$wtd %>%
+  mutate(moe = prop_se * 1.645)
+```
+
+```{r bike_freq_income_chart, echo=FALSE}
+static_column_chart(filter(bike_income_summary, hhincome_detailed_combined != "Prefer not to answer" & share_2 == "Selected"),
+                    x = "hhincome_detailed_combined", y = "prop", fill = "hhincome_detailed_combined",
+                    ylabel = "Share", xlabel = "Income", title = "Bike Frequency by Income - Share (2023)",
+                    moe = "moe") + theme(
+                      axis.text.x = element_text(size = 12),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 20),
+                      axis.title.x = element_text(size = 20),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+```
+
+```{r bike_freq_gender, echo=FALSE}
+bike_freq_gender <- summarize_weighted(hts_data = hts_data2023,
+                                       summarize_var = "share_2",
+                                       summarize_by = "gender_group",
+                                       id_cols = ids,
+                                       wt_cols = wts,
+                                       wtname = "person_weight"
+                                       )
+
+bike_gender_summary <- bike_freq_gender$summary$wtd %>%
+  mutate(moe = prop_se * 1.645)
+```
+

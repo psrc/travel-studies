@@ -1,0 +1,59 @@
+---
+title: "changes-checks"
+author: "suzanne"
+date: "2025-01-23"
+output: html_document
+---
+```{r}
+library(psrc.travelsurvey)
+library(data.table)
+library(dplyr)
+library(psrcplot)
+library(ggplot2)
+
+# Specify which variables to retrieve
+vars <- c("hhsize", "hhincome_broad", "employment", "mode_acc", "origin_purpose", "dest_purpose", "mode_class", "workplace", "telecommute_freq", "mode_characterization", "worker")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars)
+```
+
+
+# mode choice, mode choice income, transit access mode
+```{r}
+hts_data <- hts_data %>% 
+  hts_bin_hhsize()%>%
+  hts_bin_income()%>%
+  hts_bin_worker()%>%
+  hts_bin_mode()%>%
+  hts_bin_telecommute_trichotomy()%>%
+  hts_bin_transit_mode_acc()
+  
+
+```
+#careful here- filter 1. to transit trips 2. to transit trips with an access mode    
+```{r}
+mode_class<- psrc_hts_stat(hts_data, "trip", c("mode_class"))%>%mutate(survey_year=as.integer(survey_year))
+  
+
+```
+        
+                          
+```{r}
+static<-static_column_chart(mode_class, y='prop', x='survey_year', fill='mode_class', pos='stack' )
+static
+```
+
+
+```{r}
+transit_inc<-psrc_hts_stat(hts_data, "trip", c("hhincome_broad","mode_class" ))%>%mutate(survey_year=as.integer(survey_year))%>%filter(survey_year==2023)%>%
+  filter(mode_class=='Transit')
+
+```
+
+```{r}
+static<-static_bar_chart(transit_inc, x='prop', y='hhincome_broad', fill='mode_class', moe='prop_moe')
+static
+```
+
+

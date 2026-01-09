@@ -1,0 +1,107 @@
+---
+title: "Workplace Location"
+author: "Christy"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This RMarkdown re-creates the [Workplace Locations Before and During COVID-19](https://www.psrc.org/household-travel-survey-program) graph by Grant using [`psrc.travelsurvey`](https://psrc.github.io/psrc.travelsurvey/) and [`ggiraph`](https://davidgohel.github.io/ggiraph/index.html).
+
+```{r, message=FALSE, warning=FALSE}
+library(psrc.travelsurvey)
+library(tidyverse)
+library(ggiraph)
+```
+```{r}
+wrkr2021 <- get_hhts(dyear = 2021, level = 'p', vars = c('sample_source', 'employment', 'jobs_count', 'employment_pre_covid', 'workplace', 'age_category', 'gender', 'worker', 'telecommute_freq')) %>%
+  filter(age_category != 'Under 18 years') %>%
+  filter(worker != 'No jobs') %>%
+  filter(!(workplace %in% c(str_subset(workplace, "^At\\shome.*"), str_subset(workplace, "^Drives.*"))))
+# exclude weight columns
+group_cols <- colnames(wrkr2021)[!(colnames(wrkr2021) %in% str_subset(colnames(wrkr2021), '.*weight.*'))]
+df_na <- wrkr2021 %>%
+  distinct(across(group_cols)) %>%
+  filter(is.na(telecommute_freq) | is.na(workplace))
+
+
+
+```
+
+
+```{r}
+
+
+wrkr <- get_hhts(dyear = 2021, level = 'p', vars = c('workplace_pre_covid', 'workplace', 'age_category', 'worker')) %>% 
+  filter(age_category != 'Under 18 years') %>%
+  filter(worker != 'No jobs')
+
+w_cur <- hhts_count(wrkr, group_vars = 'workplace')
+w_pre <- hhts_count(wrkr, group_vars = 'workplace_pre_covid')
+
+# custom ordering
+w_cur_sel <- w_cur %>% 
+  select(workplace, share) %>% 
+  mutate(key = c(5, 3, 4, 6, 1, 2, 7),
+         period = 'Spring 2021')
+
+w_pre_sel <- w_pre %>% 
+  select(workplace_pre_covid, share) %>% 
+  mutate(key = c(1, 2, 5, 3, 4, 6, 7),
+         period = 'Before March 2020')
+
+# labeling & sort
+lookup <- w_cur_sel %>% 
+  select(key, locations = workplace) %>% 
+  arrange(key) %>% 
+  mutate(locations = factor(locations, levels = locations))
+
+# final dataframe
+df <- bind_rows(w_cur_sel, w_pre_sel) %>% 
+  left_join(lookup, by = 'key') %>% 
+  select(-workplace, -workplace_pre_covid) %>% 
+  filter(!(key %in% c(6,7)))
+
+
+```
+
+```{r}
+gridline.color <- '#ededed'
+background.color <- 'white'
+plot.title <- 'Workplace Locations Before and During COVID-19'
+plot.caption <- 'Source: 2021 Household Travel Survey'
+
+g <- ggplot(df) +
+  geom_col_interactive(aes(locations, 
+                           share, 
+                           fill = period, 
+                           tooltip = paste0(period, ': ', round(share*100, 0), '%')), 
+                       position = 'dodge') +
+  scale_fill_brewer(palette = "Paired") +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_x_discrete(labels = function(x) stringr::str_wrap(x, width = 20)) +
+  theme(axis.text.x = element_text(# hjust = 1,
+                                   size = 6),
+        axis.ticks.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        legend.position = 'bottom',
+        legend.title = element_blank(),
+        panel.background = element_rect(fill = background.color),
+        panel.grid.major.y = element_line(color = gridline.color),
+        panel.grid.minor.y = element_line(color = gridline.color),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        plot.caption = element_text(size=5)
+        ) +
+  labs(x = NULL,
+       y = NULL,
+       title = plot.title,
+       caption = plot.caption)
+
+girafe(ggobj = g)
+```
+
+
+

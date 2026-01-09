@@ -1,0 +1,220 @@
+---
+title: "telecommute-summary"
+author: "suzanne"
+date: "2023-02-17"
+output: pdf_document
+---
+
+I'm comparing estimates of telecommuting on an average weekday from the 2019/2021 household travel surveys to Replica data.
+
+Differences- Replica data is Fall 2019 and Fall 2021; ours is from Spring 2019 and Spring 2021.
+Their data is labeled with work from home (on an average weekday). We just have a field for telework_time. A person can telework at home, and go into work. In 2021, I'd guess that happened frequently.  For example, I usually work from home on days that I go into work.
+
+```{r}
+library(psrcplot)
+library(psrc.travelsurvey)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+install_psrc_fonts()
+
+```
+```{r}
+replica_data_fldr<- 'C:/GitHub/travel-studies/2021/analysis_in_progress/telecommuting/replica-estimates/'
+
+telecommute_2019_inc_repl <- read.csv(paste0(replica_data_fldr, 'northwest-2019_Q4-thursday-household-income.csv'))
+telecommute_2019_race_eth_repl <- read.csv(paste0(replica_data_fldr, 'northwest-2019_Q4-thursday-race-and-ethnicity.csv'))
+
+
+
+telecommute_2021_inc_repl <- read.csv(paste0(replica_data_fldr, 'northwest-2021_Q4-thursday-household-income.csv'))
+telecommute_2021_race_eth_repl <- read.csv(paste0(replica_data_fldr, 'northwest-2021_Q4-thursday-race-and-ethnicity.csv'))
+
+telecommute_2019_inc_repl_p<-telecommute_2019_inc_repl%>%group_by(psrc_income)%>%
+  summarize(count = sum(count))%>%
+  mutate(year=2019)
+telecommute_2021_inc_repl_p<-telecommute_2021_inc_repl%>%group_by(psrc_income)%>%
+  summarize(count = sum(count))%>%
+mutate(year=2021)
+
+telecommute_2019_race_eth_repl_p<-telecommute_2019_race_eth_repl%>%group_by(race_eth_broad)%>%summarize(count = sum(count))%>%
+  mutate(year=2019)
+telecommute_2021_race_eth_repl_p<-telecommute_2021_race_eth_repl%>%group_by(race_eth_broad)%>%summarize(count = sum(count))%>%
+mutate(year=2021)
+
+telecommute_inc_repl<-rbind(telecommute_2019_inc_repl_p, telecommute_2021_inc_repl_p)%>%
+  mutate(source='Replica')
+telecommute_race_repl<-rbind(telecommute_2019_race_eth_repl_p, telecommute_2021_race_eth_repl_p)%>%
+  mutate(source='Replica')
+```
+
+
+
+Read in Household Travel Survey data on the same items,selected teleworking more than one hour on a day realized that Repilica was using a stricter definition of always teleworking
+# 2019
+```{r }
+days_2019<- get_hhts(survey ='2019', level='d', vars= c('hhincome_detailed', 'telework_time', 'race_eth_broad'))
+telework_days_2019<-days_2019%>%drop_na(telework_time)%>%filter(!telework_time %in% c('None', '1 hour'))
+
+# map income to same scale:
+telework_days_2019<- telework_days_2019 %>%
+  mutate(psrc_income = case_when(hhincome_detailed %in% c('Under $10,000', 	'$10,000-$24,999')~'Under $25,000',
+                                hhincome_detailed %in% c('$25,000-$34,999', 	'$35,000-$49,999')~'$25,000-$49,999',
+                                hhincome_detailed %in% c('$200,000-$249,999', 	'$250,000 or more')~'$200,000 or more',
+                                .default = hhincome_detailed))
+
+                                
+telecommute_2019_inc_hhts<- hhts_count(df=telework_days_2019, group_vars='psrc_income', spec_wgt='day_weight_2019')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey Workers with any Telework Time')%>%select(count, psrc_income, year, source)
+
+
+telecommute_2019_race_eth_hhts<- hhts_count(df=telework_days_2019, group_vars='race_eth_broad', spec_wgt='day_weight_2019')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey Workers with any Telework Time')%>%select(count, race_eth_broad, year, source)
+
+
+
+
+```
+
+
+# 2021
+```{r}
+
+days_2021<- get_hhts(survey ='2021', level='d', vars= c('hhincome_detailed', 'telework_time', 'race_eth_broad'))
+telework_days_2021<-days_2021%>%filter(telework_time %in% c('1-6 hours', 'More than 6 hours'))
+
+
+
+telework_days_2021<- telework_days_2021 %>%
+  mutate(psrc_income = case_when(hhincome_detailed %in% c('Under $10,000', 	'$10,000-$24,999')~'Under $25,000',
+                                hhincome_detailed %in% c('$25,000-$34,999', 	'$35,000-$49,999')~'$25,000-$49,999',
+                                hhincome_detailed %in% c('$200,000-$249,999', 	'$250,000 or more')~'$200,000 or more',
+                                .default = hhincome_detailed))
+
+telecommute_2021_inc_hhts<- hhts_count(df=telework_days_2021, group_vars='psrc_income')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey Workers with any Telework Time')%>%select(count, psrc_income, year, source)
+
+telecommute_2021_race_eth_hhts<- hhts_count(df=telework_days_2021, group_vars='race_eth_broad')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey Workers with any Telework Time')%>%select(count,race_eth_broad, year, source)
+
+
+
+
+```
+
+```{r}
+telecommute_inc_hhts<-rbind(telecommute_2019_inc_hhts, telecommute_2021_inc_hhts)
+telecommute_race_eth_hhts<-rbind(telecommute_2019_race_eth_hhts, telecommute_2021_race_eth_hhts)
+
+```
+
+
+Maybe the Replica data more aligns with the "workplace variable"
+
+Usually the same location (outside home)
+Workplace regularly varies (different offices or jobsites)
+At home (telecommute or self-employed with home office)
+Drives for a living (e.g., bus driver, salesperson)
+Telework some days and travel to a work location some days
+
+
+# Switch to the person table
+# 2019
+```{r }
+days_2019<- get_hhts(survey ='2019', level='p', vars= c('hhincome_detailed', 'workplace', 'race_eth_broad'))
+telework_days_2019<-days_2019%>%drop_na(workplace)%>%filter(workplace == 'At home (telecommute or self-employed with home office)')
+
+# map income to same scale:
+telework_days_2019<- telework_days_2019 %>%
+  mutate(psrc_income = case_when(hhincome_detailed %in% c('Under $10,000', 	'$10,000-$24,999')~'Under $25,000',
+                                hhincome_detailed %in% c('$25,000-$34,999', 	'$35,000-$49,999')~'$25,000-$49,999',
+                                hhincome_detailed %in% c('$200,000-$249,999', 	'$250,000 or more')~'$200,000 or more',
+                                .default = hhincome_detailed))
+
+                                
+telecommute_always_2019_inc_hhts<- hhts_count(df=telework_days_2019, group_vars='psrc_income', spec_wgt='hh_weight_2019')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey, Always Work at Home')%>%select(count, psrc_income, year, source)
+
+
+telecommute_always_2019_race_eth_hhts<- hhts_count(df=telework_days_2019, group_vars='race_eth_broad', spec_wgt='hh_weight_2019')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey, Always Work at Home')%>%select(count, race_eth_broad, year, source)
+
+
+
+
+```
+
+
+# switch to the person table
+```{r}
+
+days_2021<- get_hhts(survey ='2021', level='p', vars= c('hhincome_detailed', 'workplace', 'race_eth_broad'))
+telework_days_2021<-days_2021%>%filter(workplace == 'At home (telecommute or self-employed with home office)')
+
+
+
+telework_days_2021<- telework_days_2021 %>%
+  mutate(psrc_income = case_when(hhincome_detailed %in% c('Under $10,000', 	'$10,000-$24,999')~'Under $25,000',
+                                hhincome_detailed %in% c('$25,000-$34,999', 	'$35,000-$49,999')~'$25,000-$49,999',
+                                hhincome_detailed %in% c('$200,000-$249,999', 	'$250,000 or more')~'$200,000 or more',
+                                .default = hhincome_detailed))
+
+telecommute_always_2021_inc_hhts<- hhts_count(df=telework_days_2021, group_vars='psrc_income')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey, Always Work at Home')%>%select(count, psrc_income, year, source)
+
+telecommute_always_2021_race_eth_hhts<- hhts_count(df=telework_days_2021, group_vars='race_eth_broad')%>%
+  rename(year=survey)%>%mutate(source='Travel Survey, Always Work at Home')%>%select(count,race_eth_broad, year, source)
+
+
+
+
+```
+
+```{r}
+telecommute_inc_hhts_always<-rbind(telecommute_always_2019_inc_hhts, telecommute_always_2021_inc_hhts)
+telecommute_race_eth_hhts_always<-rbind(telecommute_always_2019_race_eth_hhts, telecommute_always_2021_race_eth_hhts)
+
+```
+
+put it together and what do we get?
+```{r}
+telecommute_inc<-rbind(telecommute_inc_repl,  telecommute_inc_hhts_always)%>%filter(psrc_income!='Total')%>%mutate(psrc_income= factor(psrc_income, levels=c('Under $25,000', '$25,000-$49,999', '$50,000-$74,999', '$75,000-$99,999', '$100,000-$149,999', '$150,000-$199,999', '$200,000 or more')))
+telecommute_race_eth<-rbind(telecommute_race_repl, telecommute_race_eth_hhts_always)%>%filter(race_eth_broad!='Total')%>%mutate(race_eth_broad= word(race_eth_broad, 1))
+
+```
+
+```{r}
+
+static_facet_column_chart(telecommute_inc, x ='psrc_income', y= 'count',  facet='year', fill='source', title='Always Telecommuters by Income', source='Replica, Fall 2019/2021 PSRC travel survey Spring 2019/2021', est='number')
+
+
+```
+
+```{r}
+
+static_facet_column_chart(telecommute_race_eth, x ='race_eth_broad', y= 'count',  facet='year', fill='source', title='Always Telecommuters by Race and Ethnicity', source='Replica, Fall 2019/2021 PSRC travel survey Spring 2019/2021', est='number')
+
+
+```
+
+```{r}
+telecommute_inc<-rbind(telecommute_inc_repl,  telecommute_inc_hhts)%>%filter(psrc_income!='Total')%>%mutate(psrc_income= factor(psrc_income, levels=c('Under $25,000', '$25,000-$49,999', '$50,000-$74,999', '$75,000-$99,999', '$100,000-$149,999', '$150,000-$199,999', '$200,000 or more')))
+telecommute_race_eth<-rbind(telecommute_race_repl, telecommute_race_eth_hhts)%>%filter(race_eth_broad!='Total')%>%mutate(race_eth_broad= word(race_eth_broad, 1))
+
+```
+
+```{r}
+
+static_facet_column_chart(telecommute_inc, x ='psrc_income', y= 'count',  facet='year', fill='source', title='Telecommuters by Income: Teleworking more than an hour on a Day from HHTS, Always from Replica ', source='Replica, Fall 2019/2021 PSRC travel survey Spring 2019/2021', est='number')
+
+
+```
+
+```{r}
+
+static_facet_column_chart(telecommute_race_eth, x ='race_eth_broad', y= 'count',  facet='year', fill='source', title='Telecommuters by Race and Ethnicity: Teleworking more than an hour on a Day from HHTS, Always from Replica ', source='Replica, Fall 2019/2021 PSRC travel survey Spring 2019/2021', est='number')
+
+
+```
+

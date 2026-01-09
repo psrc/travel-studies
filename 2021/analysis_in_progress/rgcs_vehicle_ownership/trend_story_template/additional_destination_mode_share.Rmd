@@ -1,0 +1,100 @@
+---
+title: "Trip Mode Share Summary in Growth Centers"
+output:
+  html_document:
+    fig_width: 7
+    fig_height: 6
+    number_sections: no
+    df_print: kable
+---
+
+
+```{r setup, include=FALSE}
+library(psrc.travelsurvey)
+library(scales)
+library(psrcplot)
+library(psrccensus)
+library(tidyverse)
+library(knitr)
+library(magick)
+library(openxlsx)
+library(tidycensus)
+library(gridExtra)
+
+options(tinytex.verbose=TRUE)
+
+opts_chunk$set(echo=FALSE, 
+               warning=FALSE, 
+               message=FALSE,
+               fig.align = "center")
+
+install_psrc_fonts()
+
+source("trend_processing.R")
+```
+In the original growth center story, we focused on looking at the mode share of all trips made by residents in the centers. But, trips made in the centers also include those made by travelers coming from other areas for work, shopping and more. 
+```{r mode share, fig.cap="All Trips Mode Share for Residents in centers (Source: PSRC 2021 Household Travel Survey)", fig.height=2.5, fig.width = 5}
+mode_metro
+```
+```{r}
+data <- data_mode_metro %>%
+  select(survey,urban_metro,mode_simple2,share,share_moe,sample_size) %>%
+  rename(center = urban_metro,
+         mode = mode_simple2) %>%
+  mutate(data_type = "residents in centers", 
+         .after = "survey") %>%
+  add_row(data_mode_metro_dest %>%
+            select(survey,dest_urban_metro,mode_simple2,share,share_moe,sample_size) %>%
+            rename(center = dest_urban_metro,
+                   mode = mode_simple2) %>%
+            mutate(data_type = "destination in centers"), 
+                   .after = "survey") %>%
+  add_row(data_mode_metro_dest_Work %>%
+            select(survey,dest_urban_metro,mode_simple2,share,share_moe,sample_size) %>%
+            rename(center = dest_urban_metro,
+                   mode = mode_simple2) %>%
+            mutate(data_type = "work destination in centers"), 
+                   .after = "survey")
+data$data_type <- factor(data$data_type, levels = c("residents in centers","destination in centers","work destination in centers"))
+
+
+print_mode_share <- function(mode_type,color_palatte){
+  ggplot(data %>% filter(mode==mode_type),aes(x=center, y=share, fill=data_type)) +
+    geom_bar(position="dodge", stat="identity") +
+    scale_y_continuous(labels = label_percent()) +
+    moe_bars+
+    psrc_style2() +
+    scale_fill_manual(values = color_palatte) +
+    labs(title = paste(mode_type,"mode share by different types of trips"))
+}
+```
+
+This short summary looks into the trip mode shares in centers for different trip types and groups of people. We put together three types of trip categories: 1)trips by residents in centers, 2)trips destinations in centers and 3)work trips destinations in centers.
+
+The figure below shows that urban centers hold the highest drive mode share for all types of trips. Also, the work trips destined in centers are more likely to have the highest share of drive trip mode while all trips destined in centers come in second. This is consistent with a lot of past studies where work trips have higher drive mode share compared to other trip purposes.
+```{r, fig.cap="Trips Mode Shares in centers (Source: PSRC 2021 Household Travel Survey)", fig.height=3, fig.width = 5}
+print_mode_share("Drive",psrc_colors$purples_dec[c(3,5,6)])
+```
+The figure below shows that metro centers hold the highest transit mode share for all types of trips. For urban centers, the transit shares for the three trip types are all below 2\%, while there is no clear difference between the three trip types as large portions of their moe bars are overlapping.
+```{r, fig.cap="Trips Mode Shares in centers (Source: PSRC 2021 Household Travel Survey)", fig.height=3, fig.width = 5}
+print_mode_share("Transit",psrc_colors$oranges_dec[c(3,5,6)])
+```
+The figure below shows that metro centers hold the highest walk/bike mode share for all types of trips while urban centers have the lowest walk/bike mode share. Across all trip types, work destination trips have the lowest walk/bike mode share.
+```{r, fig.cap="Trips Mode Shares in centers (Source: PSRC 2021 Household Travel Survey)", fig.height=3, fig.width = 5}
+print_mode_share("Walk/Bike",psrc_colors$greens_dec[c(3,5,6)])
+```
+## Data Table
+```{r}
+data %>%
+  mutate(share = paste0(as.character(round(share,4)*100),"%"),
+         share_moe = paste0(as.character(round(share_moe,4)*100),"%"))
+```
+## Recreating the mode share charts with trips destinations in centers and work trips destinations in centers
+```{r destination mode share, fig.height=2.5, fig.width = 5}
+dest_mode_metro + ggtitle("Destination in RGC mode share")
+```
+
+```{r work trip destination mode share, fig.height=2.5, fig.width = 5}
+dest_mode_metro_Work + ggtitle("Work trip destination in RGC mode share")
+# higher transit share for metro and not rgc, lower for urban
+```

@@ -1,0 +1,681 @@
+---
+title: "Statistical Analysis Functions"
+subtitle: "Example: comparing commuting patterns by gender and race"
+author: "Suzanne Childress & Mary Richards"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+  word_document: default
+  pdf_document: default
+---
+
+This document includes functions that help with statistical analysis, specifically comparing the differences between groups to determine if they are statistically significant. These functions will be applied to the Household Travel Survey (2019) to compare commuting patterns by gender and race. 
+
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, 
+                      warning=FALSE, 
+                      message=FALSE) # formatting
+```
+
+```{r libraries, include=FALSE}
+# source('travel_survey_analysis_functions.R')
+library(tidyverse)
+library(openxlsx)
+library(odbc)
+library(DBI)
+library(ggplot2)
+
+library(table1)
+library(knitr)
+library(kableExtra)
+library(summarytools)
+library(formattable)
+# library(ggpubr) #boxplots
+library(car) #Levene's test
+library(broom) #anova, p-values
+```
+
+```{r functions, include=FALSE}
+# connecting to Elmer
+db.connect <- function() {
+  elmer_connection <- dbConnect(odbc(),
+                                driver = "SQL Server",
+                                server = "AWS-PROD-SQL\\Sockeye",
+                                database = "Elmer",
+                                trusted_connection = "yes"
+  )
+}
+
+
+# a function to read tables and queries from Elmer
+read.dt <- function(astring, type =c('table_name', 'sqlquery')) {
+  elmer_connection <- db.connect()
+  if (type == 'table_name') {
+    dtelm <- dbReadTable(elmer_connection, SQL(astring))
+  } else {
+    dtelm <- dbGetQuery(elmer_connection, SQL(astring))
+  }
+  dbDisconnect(elmer_connection)
+  dtelm
+}
+
+
+# Confidence Interval for mean = sample mean + Z-value for confidence level(sample st. dev/sqrt(number of elements in sample))
+Mean.SD_CI <- function(x, cat_var, num_var, weight_var){
+  cat_var <- enquo(cat_var)
+  num_var <- enquo(num_var)
+  weight_var <- enquo(weight_var)
+
+  Mean.SD_CI_table <- x %>%
+    group_by(!!cat_var) %>%
+    summarize(Group_weight = round(sum(!!weight_var),0),
+              Weighted_percent = (round(Group_weight/sum(x$hh_wt_2019),4)),
+              Weighted_avg = round(weighted.mean(!!num_var, !!weight_var),2),
+              sd = round(sd(!!num_var),2),
+              se = round(sd/sqrt(n()),2),
+              CI_90 = round(z*(sd/sqrt(n())),2),
+              CI_95 = round(z_95*(sd/sqrt(n())),2),
+              n=n())
+    
+  # to remove sample size column from table
+  Mean.SD_CI_temp<- dplyr::select(Mean.SD_CI_table, -c(n))
+  # return(Mean.SD_CI_temp)
+  
+  # to include sample size column in table
+  # return(Mean.SD_CI_table)
+  
+  # create formatted output table
+  formattable(Mean.SD_CI_table,
+            list(area(col=c(2,9))~mycomma(digits=0),
+                 Weighted_percent=percent),
+            align=c("l", rep("c", NCOL(Mean.SD_CI_table))),
+            col.names=c("Race", "2019 Estimate", "2019 Percent", "2019 Average", "SD", "SE", "CI 90%", "CI 95%", "Sample Size"))
+}
+
+
+# adding commas to numbers - thousand separator 
+mycomma <- function(digits = 0) {
+      formatter("span", x ~ comma(x, digits = digits)
+      )
+    }
+
+
+# Statistical assumptions for margins of error
+p_MOE <- 0.5
+z <- 1.645 #90% CI
+z_95 <- 1.96 #95% CI
+```
+
+```{r read in and set up data}
+#### Read in Data ####
+#where you are running your R code
+wrkdir <- "C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis"
+
+
+#where you want to output tables
+file_loc <- 'C:/Users/mrichards/Documents/GitHub/travel-studies/2019/analysis/commute_travel/outputs'
+
+sql.trip.query <- paste("SELECT hhincome_detailed, race_category, person_dim_id, mode_simple,
+                        survey_year, o_purpose, d_purpose, trip_wt_2019 
+                        FROM HHSurvey.v_trips_2017_2019")
+
+trips <- read.dt(sql.trip.query, 'sqlquery')
+trips_2019 <- trips %>% filter(survey_year==2019)
+
+sql.person.query <- paste("SELECT employment, hhincome_detailed, hhincome_broad, race_category, person_dim_id, gender, age, age_category, education, vehicle_count,commute_auto_time,commute_auto_Distance, mode_freq_1,  mode_freq_2,  mode_freq_3, mode_freq_4, mode_freq_5, workplace, survey_year, sample_county, work_county,telecommute_freq, hh_wt_2019 FROM HHSurvey.v_persons_2017_2019")
+
+persons<-read.dt(sql.person.query, 'sqlquery')
+persons_2019 <- persons  %>% filter(survey_year==2019)
+```
+\
+
+## Background Information
+### Commuting Trips
+This analysis will focus on the commute trips of people who usually work outside the home. 
+
+Commuting will be defined as the trips where one of the trip ends is a regular workplace - based on the survey logic, the origin or destination purpose is 'Went to primary workplace'
+
+### Commuters
+For this analysis, commuters are those with: 
+
+1. full-time or part-time paid employment or those who identified as self-employed with workplaces.  
+2. workplaces that are not at home  
+3. commute distances less than 200 miles
+```{r}
+workers <- persons_2019 %>% 
+  filter(employment=='Employed full time (35+ hours/week, paid)'|
+           employment=='Employed part time (fewer than 35 hours/week, paid)'|
+           employment=='Self-employed')
+
+# get workers who don't work at home all the time with commute distances less than 200 miles
+# remove outliers
+not_home_workers <- workers %>% 
+  filter(workplace!='At home (telecommute or self-employed with home office)') %>%
+  filter(commute_auto_Distance<200)
+```
+\
+\
+
+## Descriptives: Individual Variables
+The three variables of interest include: commute distance, race, and gender.  
+
+### 1. Commute distance
+```{r}
+mean_dist<-weighted.mean(not_home_workers$commute_auto_Distance,
+                         w=not_home_workers$hh_wt_2019,
+                         na.rm=TRUE)
+
+ggplot(not_home_workers, aes(x=commute_auto_Distance, weight=hh_wt_2019)) + 
+  geom_histogram(fill="#00A7A0", binwidth=2)+xlim(c(0, 50)) +
+  geom_vline(xintercept=mean_dist) +
+  labs(title="Distribution of 2019 Commute Distances (from the HTS)",
+      x ="Commute Distance (miles)", y = "Number of Workers (Region)")
+```
+\
+\
+
+### 2. Race
+```{r}
+# reorder race categories
+not_home_workers$race_category <- 
+  factor(not_home_workers$race_category,
+         levels=c("African American",
+                  "Asian",
+                  "Hispanic",
+                  "White Only",
+                  "Other",
+                  "Missing"))
+```
+People who identify as White Only have the farthest commutes (15 miles). The margins of error for African American and Hispanic groups are relatively large due to the small sample sizes. 
+\
+
+*The average commuting distance by race*
+```{r dist race with sample CI}
+dist_race_stats <- Mean.SD_CI(not_home_workers, race_category, commute_auto_Distance, hh_wt_2019)
+dist_race_stats
+```
+
+```{r}
+avg_dist_by_race<-not_home_workers %>%
+  group_by(race_category) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_race, aes(x=race_category, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+      x ="Race Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$CI_95, 
+                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+#### Aggregated Race {#aggregated_race}
+Because of small sample sizes, some of the respondents have been aggregated.
+\
+\
+
+<span style="color:#486CAB">**African American, Hispanic, and Other**</span>  
+For this analysis, respondents who identified as African American, Hispanic, and Other were aggregated. 
+```{r}
+# reorder race categories
+not_home_workers$race_category <- as.character(not_home_workers$race_category)
+not_home_workers <- not_home_workers %>%
+  mutate(race_agg_2 = case_when(race_category=="African American" |
+                                  race_category=="Hispanic" |
+                                  race_category=="Other" ~ "Other POC",
+                                race_category=="Asian" ~ "Asian POC",
+                                TRUE~.$race_category))
+
+not_home_workers$race_agg_2 <- factor(not_home_workers$race_agg_2,
+                                      levels=c("Asian POC",
+                                               "Other POC",
+                                               "White Only",
+                                               "Missing"))
+```
+People who identify as African American, Hispanic, or Other have shorter commutes (11 miles), while White Only individuals have longer commutes (15 minutes).
+
+The margin of error for the Other POC group is distinct from respondents identifying as Asian or White Only.
+\
+\
+
+*The average commuting distance by race*
+```{r dist race_2 with sample CI}
+dist_race_stats <- Mean.SD_CI(not_home_workers, race_agg_2, commute_auto_Distance, hh_wt_2019)
+dist_race_stats
+```
+
+```{r}
+avg_dist_by_race<-not_home_workers %>%
+  group_by(race_agg_2) %>% 
+  summarize(n=n(),
+            Percent=round((n/nrow(not_home_workers))*100,2),
+            HouseholdWeight=sum(hh_wt_2019),
+            avg_weighted_dist=round(weighted.mean(commute_auto_Distance,hh_wt_2019),2))
+
+ggplot(avg_dist_by_race, aes(x=race_agg_2, y=avg_weighted_dist)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+      x ="Race Categories", y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=dist_race_stats$Weighted_avg-dist_race_stats$CI_95, 
+                    ymax=dist_race_stats$Weighted_avg+dist_race_stats$CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+### 3. Gender
+```{r}
+# reorder gender categories
+not_home_workers$gender <-
+  factor(not_home_workers$gender,
+         levels=c("Female",
+                  "Male",
+                  "Another",
+                  "Prefer not to answer"))
+```
+People who identify as male have the farthest commute (15 miles). Females have shorter commutes (13 miles), and people of another gender or who prefer not to answer do not have enough samples to draw a statistical conclusion. 
+\
+
+*The average commuting distance by gender*
+```{r dist gender with sample CI}
+dist_gender_stats <- Mean.SD_CI(not_home_workers, gender, commute_auto_Distance, hh_wt_2019)
+dist_gender_stats
+```
+\
+
+Because of the small sample sizes for respondents identifying as Another or choosing not to answer, these respondents were removed from the graph:
+\
+\
+```{r}
+avg_dist_by_gender<-not_home_workers %>%
+  select(gender, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender)
+
+temp <- avg_dist_by_gender %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender))*100,2),
+            Group_weight = round(sum(hh_wt_2019),0),
+            Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender$hh_wt_2019),4)*100),
+            Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+            sd = round(sd(commute_auto_Distance),3),
+            se = round(sd/sqrt(n),3),
+            CI_90 = round(z*(sd/sqrt(n)),3),
+            CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+ggplot(temp, aes(x=gender, y=Weighted_avg)) + 
+  geom_col() +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Gender",
+       x ="Gender Categories", 
+       y = "Average Weighted Distance (miles)") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+
+
+## Research: Multiple Variables
+Commute distance will be the dependent variable in this analysis and the two independent variables will be gender and race. 
+\
+
+### <span style="color:#8CC63E">Visually comparing the differences</span>
+```{r}
+# commute distance: gender and race
+not_home_workers$race_category <- factor(not_home_workers$race_category,
+                                         levels = c("African American",
+                                                    "Asian",
+                                                    "Hispanic",
+                                                    "White Only",
+                                                    "Other",
+                                                    "Missing"))
+
+avg_dist_by_gender_race<-not_home_workers %>%
+  select(gender, race_category, race_agg_2, commute_auto_Distance, hh_wt_2019) %>%
+  group_by(gender, race_category, race_agg_2)
+```
+
+```{r}
+temp_gender_race <- avg_dist_by_gender_race %>%
+  filter(gender=="Female" | gender=="Male") %>%
+  group_by(gender, race_category) %>%
+  summarize(n=n(),
+            Percent=round((n/nrow(avg_dist_by_gender_race))*100,2),
+            Group_weight = round(sum(hh_wt_2019),0),
+            Weighted_percent = (round(Group_weight/sum(avg_dist_by_gender_race$hh_wt_2019),4)*100),
+            Weighted_avg = round(weighted.mean(commute_auto_Distance, hh_wt_2019),2),
+            sd = round(sd(commute_auto_Distance),3),
+            se = round(sd/sqrt(n),3),
+            CI_90 = round(z*(sd/sqrt(n)),3),
+            CI_95 = round(z_95*(sd/sqrt(n)),3))
+
+# plot with race along x-axis
+ggplot(temp_gender_race, aes(x=race_category, y=Weighted_avg, fill=gender)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Race",
+       x ="Race Categories", 
+       y = "Average Commute Distance (miles)",
+       fill = "Gender") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+
+# plot with gender along x-axis
+ggplot(temp_gender_race, aes(x=gender, y=Weighted_avg, fill=race_category)) + 
+  geom_bar(position="dodge", stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1, vjust=1)) +
+  labs(title="Average Auto Commute Distance by Gender",
+       x ="Gender", 
+       y = "Average Commute Distance (miles)",
+       fill = "Race Categories") +
+  geom_errorbar(aes(ymin=Weighted_avg-CI_95, 
+                    ymax=Weighted_avg+CI_95), 
+                width=.2,
+                position=position_dodge(.9))
+```
+\
+\
+\
+
+### <span style="color:#8CC63E">Statistically comparing the differences</span>
+The following section provides a workflow to test if group means are statistically different. In this example, the independent variables, or the ways in which respondents will be grouped is by their identified gender and race. The dependent variable is commute distance by automobile  [(reference)](https://stats.libretexts.org/Bookshelves/Introductory_Statistics/Book%3A_Introductory_Statistics_(Shafer_and_Zhang)/09%3A_Two-Sample_Problems/9.01%3A_Comparison_of_Two_Population_Means-_Large_Independent_Samples).
+\
+\
+
+#### I. [**Two-Way ANOVA test in R**](http://www.sthda.com/english/wiki/two-way-anova-test-in-r)    
+An ANOVA (Analysis of Variance) test is used to evaluate the effect of two grouping variables (or factors) on a response variable.
+\
+\
+
+```{r}
+# set up data frame with independent and dependent variables of interest
+race_gender_test <- not_home_workers %>%
+  dplyr::filter(gender=="Female" | gender=="Male") %>%
+  dplyr::select(gender, race_category, commute_auto_Distance)
+```
+
+```{r}
+# run two-way ANOVA test function
+anova.test <- function(df_name, dependent, var1, var2) {
+  # defining the objects
+  dependent <- df_name[dependent]
+  variable1 <- df_name[var1]
+  variable2 <- df_name[var2]
+  df <- data.frame(dependent=unlist(dependent),
+                   variable1=unlist(variable1),
+                   variable2=unlist(variable2))
+  
+  # generating ANOVA statistics
+  ANOVA.output <<- aov(dependent~variable1+variable2, data=df)
+  ANOVA_summary <- summary(ANOVA.output)
+  # return(ANOVA_summary)
+  
+  # convert output summary into data.frame to get p-values
+  summaries <<- df %>%
+    do(tidy(aov(dependent~variable1+variable2, data=df)))
+  # return(summaries)
+  
+  # generate message about next steps
+  for(i in 1:(nrow(summaries)-1)){
+    if(summaries[i,6] < 0.05){
+      print(paste0("The p-value for ",summaries[i,1], " is statistically significant (p<0.05) and should be tested further using the Tukey HSD."))
+      } else if (summaries[i,6] < 0.10){
+        print(paste0("The p-value for ", summaries[i,1], " is statistically significant (p<0.10) and could be tested further using the Tukey HSD."))
+        } else if (summaries[i,6] > 0.1){
+        print(paste0("The p-value for ",summaries[i,1], " is not statistically significant and does not require further analysis."))
+        } else {NULL}
+    }
+  }
+```
+
+```{r}
+# use function with inputs
+anova.gender.race <- anova.test(race_gender_test,
+                                "commute_auto_Distance", 
+                                "gender", 
+                                "race_category")
+```
+\
+
+##### Tukey HSD   
+The Tukey HSD (Honest Significant Differences) performs multiple pairwise-comparisons between the means of groups. The gender variable doesn't need to be tested because it only has two levels, which have already been proven to be significantly different by ANOVA test. Therefore, the Tukey HSD test will be done only for the race variable.
+```{r}
+# Tukey HSD results
+for(i in 1:(nrow(summaries)-1)){
+  if(summaries[i,6] < 0.10){
+    Tukey_test <- TukeyHSD(ANOVA.output, which=paste0("variable",i))
+    sig_test <- as.data.frame(tidy(Tukey_test)) %>%
+      filter(adj.p.value < 0.10)
+    print(paste0("The Tukey Test results for ", sig_test$term[1]))
+    print(Tukey_test)
+    print(paste0("Based on the output, the difference between '", sig_test$contrast[1], "' is significant."))
+    } else if (summaries[i,6] >= 0.1){
+      print(paste0("The p-value for ",sig_test$contrast, " is not statistically significant and does not require further analysis."))
+    } else {NULL}
+  }
+```
+\
+\
+
+##### Check ANOVA assumptions: test validity   
+Although the ANOVA test reveals significance, it is important to test the two of the main assumptions: homogeneity of variances (homoscedasticity) and normality.
+\
+
+1. Homogeneity of variances (Levene's test)
+```{r}
+# to test homogeneity of variances
+
+levene.check <- function(df_name, dependent, var1, var2){
+  # defining the objects
+  dependent <- df_name[dependent]
+  variable1 <- df_name[var1]
+  variable2 <- df_name[var2]
+  df <- data.frame(dependent=unlist(dependent),
+                   variable1=unlist(variable1),
+                   variable2=unlist(variable2))
+  
+  # generating statistic
+  levene.output <<- leveneTest(dependent~variable1*variable2, data=df)
+  levene.pvalue <- as.data.frame(levene.output$`Pr(>F)`)
+  
+  # results
+  for(i in 1:(nrow(levene.pvalue)-1)){
+    if(levene.pvalue[1,1]< 0.05){
+      print(paste0("The p-value is statistically significant (p<0.05), which means that the variance among the  groups is significantly different (not equal) - Levene’s test rejected the null hypothesis of equal variances."))
+      } else if (levene.pvalue[1,1]>= 0.05){
+        print(paste0("The p-value is not statistically significant, which means that the variance among the groups is equal."))
+        } else {NULL}
+    }
+  }
+```
+
+```{r}
+# use function with inputs
+levene.check(race_gender_test, "commute_auto_Distance", "gender", "race_category")
+```
+\
+
+2. Normally distributed (Shapiro-Wilk test)  
+```{r}
+# to test distribution
+
+shapiro.wilk.check <- function(){
+  # extract the residuals using output from ANOVA
+  anova_residuals <- residuals(object=ANOVA.output)
+  # run Shapiro-Wilk test
+  test <- shapiro.test(x=anova_residuals)
+  shapiro.pvalue <- test$p.value
+  
+  # results
+  if(shapiro.pvalue< 0.05){
+    print(paste0("The p-value is statistically significant (p<0.05), which means that the data are not normally distributed - the null hypothesis that the data are normally distributed is rejected."))
+    } else if (shapiro.pvalue>= 0.05){
+      print(paste0("The p-value is not statistically significant, which means that there is a normal distribution."))
+      } else {NULL}
+  }
+```
+
+```{r}
+# use function, doesn't require input variables because it references the output from the ANOVA test
+shapiro.wilk.check()
+```
+\
+**Because both of these assumptions are violated the results from the ANOVA may be incorrect and the conclusions are not statistically valid.**  
+One way to solve this could be to aggregate the groups and retest them to determine if adjusting sample sizes could satisfy the ANOVA's requirements. For example, the [aggregated race categories](#aggregated_race) from above could be tested.
+\
+\
+\
+
+#### II. [**Unpaired Two-Samples T-test in R**](http://www.sthda.com/english/wiki/wiki.php?id_contents=7600)  
+The analysis described below provides an additional way to determine statistical significant differences between different groups. 
+
+Overall Process:  
+
+1. F-test to test for differences in variances of **two** groups - 
+    + if there is no significant difference, the classic t-test can be used
+    + if the variances of the two groups of samples are different (have unequal variances), the Welch t-test should be used  
+2. T-test or Welch t-test to compare the means of **two** unrelated groups of samples
+\
+\
+
+Because the commute distances were different (although not statistically significant) between 'White Only-Asian' groups, these groups are further analyzed to show another way to analyze differences - to determine if there are significant differences between female- and male-identifying individuals within these race categories.
+\
+\
+
+<span style="color:#F05A28">*White Only* group</span>
+
+1. F-test
+```{r}
+# set up data frame with independent and dependent variables of interest
+comp_gender_white <- not_home_workers %>%
+  # establish grouping variable that results in 2 levels
+  dplyr::filter(gender=="Female" | gender=="Male") %>%
+  dplyr::filter(race_category=="White Only") %>% 
+  dplyr::select(gender, race_category, commute_auto_Distance)
+```
+
+```{r}
+F.test.check <- function(df_name, dependent, var1){
+  # defining the objects
+  dependent <- df_name[dependent]
+  variable1 <- df_name[var1]
+  df <- data.frame(dependent=unlist(dependent),
+                   variable1=unlist(variable1))
+  
+  # generating statistic
+  Fstats <- var.test(dependent~variable1, data=df)
+  print(Fstats)
+  F.pvalue <- Fstats$p.value
+  
+  # generate message about next steps
+  if(F.pvalue< 0.05){
+    print(paste0("The p-value is statistically significant (p<0.05), which means that there is a significant difference between the variances of the two sets of data. This means that we cannot use the classic t-test (which assumes equality of the two variances) and must instead use the Welch t-test (which is an adaptated t-test, used when the two samples have unequal variances)."))
+    } else if (F.pvalue>= 0.05){
+      print(paste0("The p-value is not statistically significant, which means that there is no significant differene between the variances of the two sets of data. This means that we can apply the classic t-test to compare the means of the different groups."))
+    } else {NULL}
+  }
+```
+
+```{r}
+# use function with inputs
+F.test.check(comp_gender_white, "commute_auto_Distance", "gender")
+```
+\
+
+2. Welch t-test
+```{r}
+Welch.test.check <- function(df_name, dependent, var1){
+  # defining the objects
+  dependent <- df_name[dependent]
+  variable1 <- df_name[var1]
+  df <- data.frame(dependent=unlist(dependent),
+                   variable1=unlist(variable1))
+  
+  # generating statistic
+  Welchstats <- t.test(dependent~variable1, data=df)
+  print(Welchstats)
+  Welch.pvalue <- Welchstats$p.value
+  
+  # generate message about next steps
+  if(Welch.pvalue< 0.01){
+    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between the variances of these two groups"))
+    } else if (Welch.pvalue< 0.05){
+      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between the variances of these two groups"))
+    } else if (Welch.pvalue>= 0.05){
+      print(paste0("Based on these results, there is no significant difference between the two groups."))
+    } else {NULL}
+  }
+
+```
+
+```{r}
+# use function with inputs
+Welch.test.check(comp_gender_white, "commute_auto_Distance", "gender")
+```
+\
+\
+<span style="color:#F05A28">*Asian POC* group</span>
+
+1. F-test
+```{r}
+# set up data
+comp_gender_asian <- not_home_workers %>%
+  dplyr::filter(gender=="Female" | gender=="Male") %>%
+  dplyr::filter(race_category=="Asian") %>% 
+  dplyr::select(gender, commute_auto_Distance)
+```
+
+```{r}
+# test variance
+F.test.check(comp_gender_asian, "commute_auto_Distance", "gender")
+```
+\
+
+2. T-test Test
+```{r}
+T.test.check <- function(df_name, dependent, var1){
+  # defining the objects
+  dependent <- df_name[dependent]
+  variable1 <- df_name[var1]
+  df <- data.frame(dependent=unlist(dependent),
+                   variable1=unlist(variable1))
+  
+  # generating statistic
+  Tteststats <- t.test(dependent~variable1, data=df, var.equal=TRUE)
+  print(Tteststats)
+  Ttest.pvalue <- Tteststats$p.value
+  
+  # generate message about next steps
+  if(Ttest.pvalue< 0.01){
+    print(paste0("Based on these results, the p-value is statistically significant (p<0.01), which means that there is a significant difference between the variances of these two groups"))
+    } else if (Ttest.pvalue< 0.05){
+      print(paste0("Based on these results, the p-value is statistically significant (p<0.05), which means that there is a significant difference between the variances of these two groups"))
+    } else if (Ttest.pvalue>= 0.05){
+      print(paste0("Based on these results, there is no significant difference between the two groups."))
+    } else {NULL}
+  }
+```
+
+```{r}
+# use function with inputs
+T.test.check(comp_gender_asian, "commute_auto_Distance", "gender")
+```

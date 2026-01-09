@@ -1,0 +1,132 @@
+---
+title: "Household"
+date: today
+---
+
+```{r}
+#| include: false
+
+source("functions.R")
+tables <- readRDS("analysis_table.RDS")
+```
+
+## Household Info
+
+:::{.panel-tabset}
+
+### Survey Platform
+
+```{r}
+CreateTableOne(data = tables[['hh']],
+               vars = c("signup_platform","diary_platform")
+               )
+```
+
+```{r}
+get_vars_summary("hh", c("hhgroup"))
+```
+
+### Survey Completeness
+```{r}
+get_vars_summary("hh", c("hh_is_complete"))
+```
+
+
+```{r}
+CreateTableOne(data = tables[['hh']],
+               vars = c("num_trips","numdayscomplete","num_days_complete_weekday","num_complete_tue","num_complete_thu","num_days_complete_weekend"),
+               factorVars = c("numdayscomplete","num_days_complete_weekday","num_complete_tue","num_complete_thu","num_days_complete_weekend")
+               )
+```
+:::
+
+## Household Size
+
+::: {.panel-tabset}
+
+### Total
+```{r}
+get_vars_summary("hh", c("hhsize"))
+```
+
+### Number of Participants
+```{r}
+CreateTableOne(data = tables[['hh']],
+               vars = c("num_participants"),
+               factorVars = c("num_participants")
+               )
+```
+
+### Adults/ Children
+```{r}
+get_vars_summary("hh", c("numadults","numchildren"))
+```
+
+### Workers/ Students
+```{r}
+get_vars_summary("hh", c("numworkers","num_students"))
+```
+:::
+
+## Home Location
+
+### In Region
+```{r}
+get_vars_summary("hh", c("home_in_region"),order = FALSE)
+```
+
+### By County
+```{r}
+get_vars_summary("hh", c("home_county"))
+```
+
+
+## Household Income
+```{r}
+get_vars_summary("hh", c("hhincome_broad"))
+```
+
+::: {.callout-note collapse=true}
+
+## detailed household income
+
+```{r}
+get_vars_summary("hh", c("hhincome_followup","hhincome_detailed"))
+```
+
+:::
+
+## Auto Ownership
+```{r}
+get_vars_summary("hh", c("vehicle_count"))
+```
+
+## Housing
+```{r}
+get_vars_summary("hh", c("rent_own","res_type","res_dur"))
+```
+
+### Previous Residence
+
+- all "Missing Response" in `prev_home_notwa_state` (because we don't ask those moved from outside Washington State)
+
+:::{.panel-tabset}
+
+#### Previous Residence Info
+```{r}
+get_vars_summary("hh", c("prev_home_wa","prev_res_type","prev_rent_own"))
+```
+
+#### Decision to Move
+
+- number of responses for `prev_res_factors_specify`: `{r} length(unique(tables[["person"]]$prev_res_factors_specify))`
+```{r}
+get_vars_summary("hh", c("prev_res_factors_housing_cost","prev_res_factors_income_change","prev_res_factors_community_change",
+                         "prev_res_factors_hh_size","prev_res_factors_more_space","prev_res_factors_less_space",
+                         "prev_res_factors_employment","prev_res_factors_amenities","prev_res_factors_telework",
+                         "prev_res_factors_school","prev_res_factors_crime","prev_res_factors_quality",
+                         "prev_res_factors_forced","prev_res_factors_other","prev_res_factors_no_answer"))
+```
+
+:::
+

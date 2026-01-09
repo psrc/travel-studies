@@ -1,0 +1,372 @@
+---
+title: "telework_for_presentation"
+author: "suzanne"
+date: "2024-04-08"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(forcats)
+source('../survey-23-preprocess.R')
+```
+
+
+```{r }
+hh<- get_query(sql= "select  household_id as hh_id, hhincome_broad,home_jurisdiction,survey_year, hhsize, hh_race_category, numchildren,hh_weight
+                from HHSurvey.v_households_labels")
+
+
+person<- get_query(sql= "select household_id as hh_id,race_category, employment,
+person_id, workplace, sexuality, person_weight, gender, age, industry, survey_year
+                from HHSurvey.v_persons_labels")
+                
+#day<- get_query(sql= "select person_id, day_id, household_id as hh_id, telework_time, day_weight , #survey_year from HHSurvey.v_days_labels")
+
+trip<- get_query(sql= "select trip_id, household_id as hh_id, day_id,
+person_id, mode_1, dest_purpose, survey_year, trip_weight 
+                from HHSurvey.v_trips_labels")
+setDT(hh)
+setDT(person)
+
+setDT(trip)
+```
+#race_category needs to be added to the codebook
+
+
+
+## Read in Codebook
+```{r pressure, echo=FALSE}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Set IDs as characters
+TO DO: functionalize convert all ids to characters, or store as characters upfront
+```{r}
+
+hh[, hh_id:=as.character(hh_id)]
+person[, hh_id:=as.character(hh_id)]
+trip[, hh_id := as.character(hh_id)]
+
+person[, person_id := as.character(person_id)]
+
+
+trip[, trip_id := as.character(trip_id)]
+hh <- hh%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
+person <- person%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
+trip <- trip%>%mutate(survey_year=as.character(survey_year))%>%filter(survey_year=='2023')
+
+hh<-order_factors(hh, 'hhincome_broad', value_labels)
+
+
+```
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'sexuality_broad','person')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='sexuality_broad')
+value_labels<-add_values_code(group_name='sexuality_broad')
+person<-grp_to_tbl(tbl=person, ungrouped_name='sexuality', grouped_name='sexuality_broad')
+```
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'gender_grp','person')
+group_labels<-get_grouped_labels(group_id='group_1', group_name='gender_grp')
+value_labels<-add_values_code(group_name='gender_grp')
+```
+
+```{r}
+person<-grp_to_tbl(tbl=person, ungrouped_name='gender', grouped_name='gender_grp')
+```
+
+
+
+```{r}
+variable_list<-add_variable(variable_list, 'age_grp_2','person')
+group_labels<-get_grouped_labels(group_id='group_3', group_name='age_grp_2')
+value_labels<-add_values_code(group_name='age_grp_2')
+```
+
+
+
+check that survey is picking up demographics compare to pums first
+```{r}
+person<-grp_to_tbl(tbl=person, ungrouped_name='age', grouped_name='age_grp_2')
+```
+
+
+
+NOTE THIS HAS NO Non-response filtered- should be everyone
+```{r}
+hts_data = list(hh = hh,
+                person = person,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'age',
+                               summarize_by=NULL,
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+write.csv(summary$summary$wtd, 'age.csv')
+```
+```{r}
+
+```
+
+
+
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'gender',
+                               summarize_by=NULL,
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+write.csv(summary$summary$wtd,'gender.csv')
+```
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'sexuality',
+                               summarize_by=NULL,
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+summary$summary$wtd
+```
+
+
+NOTE FILTERING OUT NONRESPONSE
+```{r}
+person<-person%>%filter(sexuality!='Prefer not to answer')
+```
+
+
+
+```{r}
+hts_data = list(hh = hh,
+                person = person,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+
+```{r}
+hts_data_filter_race = list(hh = hh,
+                person = person,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+Overall
+```{r}
+
+summary_overall = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'sexuality',
+                               summarize_by=NULL,
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
+
+```{r}
+summary_info<-summary_overall$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,-prop))%>%mutate(est=round(est,-4))
+static_bar_chart(summary_info, x='prop', y='sexuality', fill='sexuality')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+```{r}
+summary_info<-summary_overall$summary$wtd%>%mutate(est_moe=est_se*1.645)%>%mutate(sexuality= fct_reorder(sexuality,-prop))%>%mutate(est_total=round(3380000*prop, -4))%>%filter(sexuality!='Heterosexual (straight)')
+static_bar_chart(summary_info, x='est_total', y='sexuality', fill='sexuality')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+
+Gender
+
+
+```{r}
+person_filter_gender<-person%>%filter(gender!='Prefer not to answer')
+```
+
+```{r}
+hts_data_filter_gender = list(hh = hh,
+                person = person_filter_gender,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data_filter_gender,
+                               summarize_var = 'gender_grp',
+                               summarize_by='sexuality_broad',
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
+
+```{r}
+summary_info<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)
+static_column_chart(summary_info, y='prop', x='sexuality_broad', fill='gender_grp', moe='prop_moe')+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+Age
+
+
+
+
+
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'age_grp_2',
+                               summarize_by='sexuality',
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+summary$summary$wtd
+
+```
+
+
+Income
+
+```{r}
+hh_filter_inc<-hh%>%filter(hhincome_broad!='Prefer not to answer')
+hts_data_filter_inc = list(hh = hh_filter_inc,
+                person = person,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data_filter_inc,
+                               summarize_var = 'hhincome_broad',
+                               summarize_by = c('sexuality_broad'),
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
+
+
+
+```{r}
+
+summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)
+
+static_column_chart(summary_w_moe, y='prop', x='sexuality_broad', fill='hhincome_broad', moe='prop_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+
+Children in Household
+
+Gender
+```{r}
+
+summary = summarize_weighted(hts_data= hts_data,
+                               summarize_var = 'numchildren',
+                               summarize_by='sexuality_broad',
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+summary$summary$wtd
+```
+
+Race
+```{r}
+person_filter_race<-person%>%filter(race_category!='Child')%>%filter(race_category!='Missing')%>%drop_na(race_category)%>%filter(sexuality_broad!='Missing')%>%drop_na(sexuality_broad)
+```
+
+
+
+
+
+
+```{r}
+hts_data_filter_race = list(hh = hh,
+                person = person_filter_race,
+                trip = trip)
+id_cols=c('hh_id', 'person_id', 'trip_id')
+wt_cols<- c('hh_weight', 'person_weight', 'trip_weight')
+```
+
+
+```{r}
+summary = summarize_weighted(hts_data= hts_data_filter_race,
+                               summarize_var = 'race_category',
+                               summarize_by = c('sexuality_broad'),
+                               id_cols=id_cols,
+                               wt_cols=wt_cols,
+                               wtname='person_weight'
+                               )
+```
+
+
+
+
+
+```{r}
+summary$summary$wtd
+summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%filter(sexuality_broad!='Heterosexual (straight)')
+
+static_column_chart(summary_w_moe, y='prop', x='sexuality_broad', fill='race_category', moe='prop_moe' )+ theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14),legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+```
+```{r}
+
+summary_w_moe<-summary$summary$wtd%>%mutate(prop_moe=prop_se*1.645)%>%filter(sexuality_broad!='Heterosexual (straight)')
+
+```
+
+Q/C against PUMS
+
+```{r}
+library(psrccensus)
+library(dplyr)
+library(magrittr)
+
+pums5_22 <- get_psrc_pums(5,2022,"p",vars=c("AGEP","HUPAC","BINCOME","BIN_AGE"), 
+  dir="J:/Projects/Census/AmericanCommunitySurvey/Data/PUMS/pums_rds")
+pums5_22 %<>% mutate(
+  child_present=case_when(grepl("^No", as.character(HUPAC)) ~"No",
+                          grepl("^With", as.character(HUPAC)) ~"Yes",
+                          is.na(HUPAC) ~ NA_character_))
+rs <- list()
+rs$"Adults by inc cat" <-
+    psrc_pums_count(filter(pums5_22, AGEP>17), group_vars="BINCOME")
+rs$"Adults by child in hh" <-
+    psrc_pums_count(filter(pums5_22, AGEP>17), group_vars="child_present")
+rs$"Adults by age cat" <-
+    psrc_pums_count(filter(pums5_22, AGEP>17), group_vars="BIN_AGE")
+```
+
+
+
+```
+
+

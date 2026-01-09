@@ -1,0 +1,108 @@
+---
+title: "movers_why_2021"
+author: "suzanne"
+date: "10/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(psrc.travelsurvey)
+library(data.table)
+library(magrittr)
+library(dplyr)
+library(tidyr)
+library(psrcplot)
+library(ggplot2)
+library(psrcslides)
+library(officer)
+install_psrc_fonts()
+```
+
+## Recent Movers in 2021
+
+Differences are generally within MOE across 2019, 2021 surveys. 
+
+
+```{r}
+psrc_pres = read_pptx(system.file('extdata', 'psrc-trends-template.pptx', package='psrcslides'))
+hhs_2019<-get_hhts(survey='2019', level="h", vars=c("res_dur", "prev_home_wa",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+'hh_race_apoc'))%>%filter(hh_race_apoc != 'Missing')%>%drop_na(prev_res_factors_housing_cost)%>%filter(prev_home_wa=="Yes, previous home was in Washington")
+vars_to_summarize<-c(
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_quality",
+"prev_res_factors_forced")
+mover_sum<- list()
+mover_sum_19 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2019,group_vars=c('hh_race_apoc',x)))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost=='Selected')
+
+for(var in vars_to_summarize){
+mover_sum_19_var<- mover_sum_19%>% filter(var_name == var)%>%filter(hh_race_apoc!='Total')
+plt<-create_bar_chart(mover_sum_19_var, x='hh_race_apoc' , y='share', f= 'hh_race_apoc',  moe= 'share_moe')+ ggtitle(var) 
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Reason for Moving from previous residence", 
+                                         p.caption=paste0("2019"), 
+                                         p.chart=plt)
+print(plt)
+}
+```
+
+```{r prev-2021}
+hhs_2021<-get_hhts(survey='2021', level="h", vars=c("res_dur", "prev_home_wa",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_quality",
+"prev_res_factors_forced",
+"prev_res_factors_no_answer",
+'hh_race_apoc'))%>%filter(hh_race_apoc != 'Missing')%>%drop_na(prev_res_factors_housing_cost)%>%filter(prev_home_wa=="Yes, previous home was in Washington")
+vars_to_summarize<-c(
+  "prev_res_factors_displaced",
+"prev_res_factors_housing_cost",
+"prev_res_factors_income_change",
+"prev_res_factors_community_change",
+"prev_res_factors_hh_size",
+"prev_res_factors_more_space",
+"prev_res_factors_less_space",
+"prev_res_factors_employment",
+"prev_res_factors_school",
+"prev_res_factors_crime",
+"prev_res_factors_quality",
+"prev_res_factors_forced")
+mover_sum<- list()
+mover_sum_21 <- lapply(vars_to_summarize, FUN=function(x) hhts_count(df=hhs_2021,group_vars=c('hh_race_apoc',x)))%>%lapply(FUN=function(y){mutate(y, "var_name"=colnames(y)[3])})%>% rbindlist(use.names=FALSE)%>%filter(prev_res_factors_housing_cost=='Selected'))
+for(var in vars_to_summarize){
+mover_sum_21_var<- mover_sum_21%>% filter(var_name == var)%>%filter(hh_race_apoc!='Total')
+plt<-create_bar_chart(mover_sum_19_var, x='hh_race_apoc' , y='share', f= 'hh_race_apoc',  moe= 'share_moe')+ ggtitle(var) 
+psrc_pres <- add_bullet_plus_chart_slide (p=psrc_pres, 
+                                         p.title="Reason for Moving from previous residence", 
+                                         p.caption=paste0("2021"), 
+                                         p.chart=plt)
+print(plt)
+}
+print(psrc_pres, target = "C:/Users/schildress/OneDrive - Puget Sound Regional Council/Documents/mover_reasons_race.pptx")

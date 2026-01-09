@@ -1,0 +1,133 @@
+---
+title: "lowincome"
+author: "weiran"
+date: "August 4, 2016"
+output: html_document
+---
+
+```{r,warning=FALSE, message=FALSE, warning=FALSE}
+library(plyr)
+library(dplyr)
+library(descr)
+library(weights)
+require(gridExtra)
+library(ggmap)
+library(RColorBrewer)
+setwd("C:\\Users\\weiran\\Documents\\HHSurvey\\surveydat")
+# read data of regional survey
+df.person<- read.csv("2014-pr3-M-hhsurvey-persons.csv")
+df.trip <- read.csv("2014-pr3-M-hhsurvey-trips-LINKED.csv")
+df.hh<- read.csv("2014-pr3-M-hhsurvey-households.csv")
+```
+
+```{r,warning=FALSE}
+#686 people didn't have vehicle
+freq(df.hh$vehicle_count,plot = F)
+
+#subset the low income people 
+df.person<- df.person%>%
+  left_join(df.hh,by='hhid')%>%
+  mutate(lowincome = ifelse(hh_income_detailed_imp%in%c(1,2,3),1,ifelse(hh_income_detailed_imp==4&hhsize>=3,1,0)))%>%
+  mutate(LI0V= ifelse(vehicle_count==0&lowincome ==1,"LI_nocar","others"))%>%
+  mutate(personID = personid)
+
+df.v0low<- df.person%>% 
+  filter(vehicle_count==0&lowincome ==1)
+
+#509 people who did not have car are in low income
+nrow(df.v0low)
+
+# subset in trip data
+df.trip<-df.trip%>%
+  left_join(df.person,by ='personID')%>%
+  filter(mode !=-99&mode!=16)%>%
+  mutate(newmode=ifelse(mode%in% c(1,2),'SOV',
+                        ifelse(mode%in% c(3,5),'HOV',
+                               ifelse(mode%in% c(8,9,10,11),'Transit',
+                                      ifelse(mode==6,'Bike',
+                                             ifelse(mode==7,'Walk','Other'))))))%>%
+  mutate(d_purpose = as.factor(d_purpose))%>%
+  mutate(d_purpose= revalue(d_purpose,c("1"="home","2"= "work","3" ="work2","4" ="grocery","5"= "shop","6"="school","7"="medical","8"="personal","9"="drop","10"="exercise","11"="eat","12"="social","13"="recreation","14"="activity","15"="transfer","16"="other")))%>%
+  filter(trip_dur_reported<= 300&trip_dur_reported!=-99,gdist<= 150)
+
+df.v0lowtrip<- df.trip%>%
+  filter(vehicle_count==0&lowincome ==1)
+
+#character of low income zero car people
+freq(df.v0low$age)
+freq(df.v0low$worker)
+freq(df.v0low$benefits_transit, plot = FALSE)
+freq(df.v0low$transit_freq, plot = FALSE)
+freq(df.v0low$walk_freq, plot = FALSE)
+
+#modeshare
+#people who did not have cars are using transit and walking
+round(wpct(df.v0lowtrip$newmode),digits = 3)
+round(wpct(df.trip$newmode),digits = 3)
+
+
+#only few are answeering the question if they are unnable to transport
+freq(df.v0low$unable_notransport,plot = F)
+freq(df.v0low$unable_sick,plot = F)
+freq(df.v0low$unable_other,plot = F)
+freq(df.v0low$no_travel,plot = F)
+
+#trip duration avarage
+aggregate(trip_dur_reported ~ LI0V, df.trip, mean)
+# ggplot(data=df.trip, aes(x=LI0V, y=trip_dur_reported, fill=LI0V)) + geom_boxplot()
+
+#total trip duration perday average 
+detach(package:plyr)
+df.dur<- df.trip%>%
+  group_by(personID,LI0V)%>%
+  summarise(total= sum(trip_dur_reported))
+
+aggregate(total~ LI0V, df.dur, mean)
+boxplot(total~LI0V,df.dur)
+```
+
+```{r, fig.height=6, fig.width=10}
+#trip duration by purpose
+colourCount = length(unique(df.trip$d_purpose))
+getPalette = colorRampPalette(brewer.pal(12, "Paired"))
+ggplot(df.trip[df.trip$trip_dur_reported!=-99,],
+       aes(d_purpose,trip_dur_reported))+
+  geom_boxplot(aes(fill=d_purpose)) +
+  ylim(0,70) + facet_grid(.~LI0V)+
+  scale_fill_manual(values = getPalette(colourCount))+
+  ylab('trip length of lowincome') + xlab('trip purpose')
+
+
+dur<- summarise(group_by(df.trip,d_purpose,LI0V),triplenth = mean(trip_dur_reported))
+ggplot(data.frame(dur))+geom_bar(aes(d_purpose,triplenth,fill = LI0V),stat = "identity", position = "dodge")
+#distance traveled
+aggregate(gdist ~ LI0V, df.trip, mean)
+
+# ggplot(df.trip,aes(d_purpose,gdist))+
+#   geom_boxplot(aes(fill=d_purpose)) +
+#   ylim(0,30) + facet_grid(.~LI0V)+
+#   scale_fill_manual(values = getPalette(colourCount))+
+#   ylab('trip distance of lowincome') + xlab('trip purpose')
+
+#average compare
+dist<-summarise(group_by(df.trip,d_purpose,LI0V),distance = mean(gdist))
+ggplot(data.frame(dist))+geom_bar(aes(d_purpose,distance,fill = LI0V),stat = "identity", position = "dodge")
+
+
+
+#medical trips
+med_trip <-df.trip%>%
+  filter(d_purpose=="medical",LI0V =="LI_nocar")
+#   # group_by(newmode)%>%
+#   # summarise(gdist=mean(gdist),trip_dur_reported=mean(trip_dur_reported))
+
+
+```
+
+```{r,warning=FALSE, fig.height=10, fig.width=10, warning=FALSE}
+
+theme_set(theme_bw(16))
+seattle<-qmap("seattle", zoom = 10, color = "bw", legend = "topleft")
+seattle+geom_point(aes(x= h_lng,y= h_lat,colour = hh_income_detailed_imp),data = df.v0low,size =2)
+
+```

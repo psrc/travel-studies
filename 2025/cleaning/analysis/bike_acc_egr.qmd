@@ -1,0 +1,231 @@
+---
+title: "Bike Share for Transit Access/Egress"
+date: today
+---
+
+```{r}
+#| include: false
+
+source("functions.R")
+# before 10/20/2025 when mode_acc and mode_egr code is wrong and new delivered fixes are incorporated
+# fixes: (fix table in codebook rsg_value_labels_initial_fix.csv)
+# 1. mode_acc_fix
+# 2. mode_egr_fix
+# 3. school_freq_fix
+tables <- readRDS("analysis_table_before_mode_fix.RDS")
+df_loc <- readRDS("df_loc.RDS")
+df_trip_loc <- df_loc[[1]]
+```
+
+
+```{r}
+transit_modes <- c("23","105","108")
+
+survey_type <- tables[["hh"]] %>%
+  select(all_of(c("hhid","diary_platform"))) %>%
+  mutate(hhid = as.character(hhid))
+
+person <- tables[["person"]] %>%
+  select(all_of(c("person_id","relationship","age_detailed","bike_freq","school_freq_fix"))) %>%
+  mutate(person_id = as.character(person_id),
+         use_bike = ifelse(bike_freq<10, 1,0),
+         age_group = case_when(age_detailed<18~ "Under 18",
+                               age_detailed<45~ "18-45",
+                               age_detailed<65~ "45-65",
+                               TRUE~ "Above 65"))
+
+# get all columns in trip table that are related to trip modes
+trip_mode <- tables[["trip_unlinked"]] %>%
+  select(all_of(c("hhid","person_id","day_id","tripid","is_access","is_egress","is_transit",
+                  "mode_1","mode_2","mode_3","mode_4","mode_acc","mode_egr", "mode_type","mode_other_specify",
+                  "has_access","has_egress","has_synthetic_access","has_synthetic_egress",
+                  "o_in_region","d_in_region"))) %>%
+  left_join(df_trip_loc, by = "tripid") %>%
+  left_join(survey_type, by = "hhid") %>%
+  left_join(person, by = "person_id")
+
+transit_modes <- c("23","105","108")
+transit_trips <- trip_mode %>%
+  filter_at(vars(mode_1:mode_4), any_vars(. %in% transit_modes))
+
+walk <- transit_trips %>%
+    filter_at(vars(mode_1:mode_egr), any_vars(. == "1"))
+bike <- transit_trips %>%
+    filter_at(vars(mode_acc:mode_egr), any_vars(. == "2"))
+bike2 <- transit_trips %>%
+    filter_at(vars(mode_1:mode_4), any_vars(. == "103"))
+
+transit_trips <- transit_trips %>%
+  mutate(has_walk = ifelse(tripid %in% walk$tripid,1,0)) %>%
+  mutate(has_bike = ifelse(tripid %in% bike$tripid | tripid %in% bike2$tripid,1,0))
+
+```
+
+
+
+## Basic stats for transit trips
+
+- Data Problem: Bike share in mode_acc/egr too high
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc","mode_egr"), 
+                         factorVars = c("mode_acc","mode_egr"), 
+                         includeNA = TRUE)
+```
+
+## Mentions of walk/bike modes
+
+:::{.callout-warning}
+- only 45.5% of all transit trips mentioned walk mode (considered `mode_1`~`mode_4` and `mode_acc`/`mode_egr`)
+:::
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("has_walk","has_bike"), 
+                         factorVars = c("has_walk","has_bike"), 
+                         includeNA = TRUE)
+```
+
+## Bike usage based on Bike Frequency
+
+:::{.panel-tabset}
+
+### use bike or not
+
+:::{.callout-warning}
+- 2645 trips are made by people who say they never ride bike
+:::
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "use_bike",
+                         includeNA = TRUE)
+```
+
+### `bike_freq`
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "bike_freq",
+                         includeNA = TRUE)
+```
+
+:::
+
+## acc/egr related fields
+
+:::{.panel-tabset}
+
+### `has_synthetic_access`
+
+:::{.callout-warning}
+- How were these access mode inferred? Could this inference process be the reason why we are seeing 
+:::
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "has_synthetic_access",
+                         includeNA = TRUE)
+```
+
+### `is_access`
+
+```{r}
+
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "is_access",
+                         includeNA = TRUE)
+```
+
+
+:::
+
+## other insignificant stratas
+
+:::{.panel-tabset}
+
+### relationship
+
+- Missing response only in children trips
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "relationship",
+                         includeNA = TRUE)
+```
+
+### diary platform
+
+- bike share high in both browser and rMove
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "diary_platform",
+                         includeNA = TRUE)
+```
+
+### age group
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc"), 
+                         factorVars = c("mode_acc"), 
+                         strata = "age_group",
+                         includeNA = TRUE)
+```
+
+:::
+
+## Solution from codebook correction [database not changed yet]
+
+```{r}
+# get all columns in trip table that are related to trip modes
+trip_mode <- tables[["trip_unlinked"]] %>%
+  select(all_of(c("hhid","person_id","day_id","tripid","is_access","is_egress","is_transit",
+                  "mode_1","mode_2","mode_3","mode_4","mode_acc","mode_egr", "mode_type","mode_other_specify",
+                  "has_access","has_egress","has_synthetic_access","has_synthetic_egress",
+                  "o_in_region","d_in_region",
+                  "mode_acc_fix","mode_egr_fix"))) %>%
+  left_join(df_trip_loc, by = "tripid") %>%
+  left_join(survey_type, by = "hhid") %>%
+  left_join(person, by = "person_id")
+
+transit_modes <- c("23","105","108")
+transit_trips <- trip_mode %>%
+  filter_at(vars(mode_1:mode_4), any_vars(. %in% transit_modes))
+```
+
+### New results
+
+```{r}
+CreateTableOne(data = transit_trips,
+                         vars = c("mode_acc_fix","mode_egr_fix"), 
+                         factorVars = c("mode_acc_fix","mode_egr_fix"), 
+                         includeNA = TRUE)
+```
+
+```{r}
+  
+df <- transit_trips %>%
+  mutate(across(all_of(c("mode_acc_fix","mode_egr_fix")), ~get_labels(., varname = cur_column(), "fix", order = TRUE)))
+
+CreateTableOne(data = df,
+                   vars = c("mode_acc_fix","mode_egr_fix"),
+                   includeNA = TRUE
+    )
+```
+
+
