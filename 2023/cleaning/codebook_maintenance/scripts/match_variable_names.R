@@ -2,14 +2,6 @@
 library(tidyverse)
 library(psrcelmer)
 
-# ---- parameters ----
-# list of table names and corresponding view names for each data table
-table_names <- c('hh','person','day','trip','vehicle')
-view_names <- c('v_households_labels','v_persons_labels','v_days_labels','v_trips_labels','v_vehicles_labels')
-# 2025/12/26: lables views not completed yet
-# view_names <- c('v_households','v_persons','v_days','v_trips','v_vehicles')
-names(view_names) <- table_names
-
 
 # ---- load codebook ----
 # analyst version codebook
@@ -49,12 +41,19 @@ all_cb <- list(
 
 
 # ---- read data tables in Elmer views ----
+
+# list of table names and corresponding view names for each data table
+table_names <- c('hh','person','day','trip','vehicle')
+label_view_names <- c('v_households_labels','v_persons_labels','v_days_labels','v_trips_labels','v_vehicles_labels')
+names(label_view_names) <- table_names
+
+
 # import all views
-hh_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['hh']))
-person_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['person']))
-day_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['day']))
-trip_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['trip']))
-vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['vehicle']))
+hh_data <- get_query(sql= paste0("select * from HHSurvey.", label_view_names['hh']))
+person_data <- get_query(sql= paste0("select * from HHSurvey.", label_view_names['person']))
+day_data <- get_query(sql= paste0("select * from HHSurvey.", label_view_names['day']))
+trip_data <- get_query(sql= paste0("select * from HHSurvey.", label_view_names['trip']))
+vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", label_view_names['vehicle']))
 
 # basic summary fr views
 f_view_summary <- function(view_data, view_name){
@@ -64,17 +63,17 @@ f_view_summary <- function(view_data, view_name){
     
     v_values <- view_data[,c("survey_year",var)] %>%
       filter(!is.na(.[[var]])) %>%
-      summarise(year_2017 = sum(survey_year==2017),
-                year_2019 = sum(survey_year==2019),
-                year_2021 = sum(survey_year==2021),
-                year_2023 = sum(survey_year==2023),
-                year_2025 = sum(survey_year==2025)
+      summarise(view_2017 = sum(survey_year==2017),
+                view_2019 = sum(survey_year==2019),
+                view_2021 = sum(survey_year==2021),
+                view_2023 = sum(survey_year==2023),
+                view_2025 = sum(survey_year==2025)
                 ) %>%
       ungroup() %>%
       mutate(vars = var,
              # table = view_name,
              view = "view",
-             .before="year_2017")
+             .before="view_2017")
     t_data_values <- rbind(t_data_values,v_values)
   
   }
@@ -93,20 +92,70 @@ var_view <- f_view_summary(hh_data, "hh") %>%
   ungroup()
 
 
-# ---- match variables from codebooks and views ---
+# ---- 2025/12/26: lables views not completed yet ----
+tmp_view_names <- c('v_households','v_persons','v_days','v_trips','v_vehicles')
+names(tmp_view_names) <- table_names
+
+# import all views
+tmp_hh_data <- get_query(sql= paste0("select * from HHSurvey.", tmp_view_names['hh']))
+tmp_person_data <- get_query(sql= paste0("select * from HHSurvey.", tmp_view_names['person']))
+tmp_day_data <- get_query(sql= paste0("select * from HHSurvey.", tmp_view_names['day']))
+tmp_trip_data <- get_query(sql= paste0("select * from HHSurvey.", tmp_view_names['trip']))
+tmp_vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", tmp_view_names['vehicle']))
+
+
+# basic summary fr views
+tmp_f_view_summary <- function(view_data, view_name){
+  
+  t_data_values <- data.frame()
+  for(var in names(view_data)){
+    
+    v_values <- view_data[,c("survey_year",var)] %>%
+      filter(!is.na(.[[var]])) %>%
+      summarise(tmp_2017 = sum(survey_year==2017),
+                tmp_2019 = sum(survey_year==2019),
+                tmp_2021 = sum(survey_year==2021),
+                tmp_2023 = sum(survey_year==2023),
+                tmp_2025 = sum(survey_year==2025)
+      ) %>%
+      ungroup() %>%
+      mutate(vars = var,
+             `temporary view` = "temporary view",
+             .before="tmp_2017")
+    t_data_values <- rbind(t_data_values,v_values)
+    
+  }
+  
+  return(t_data_values)
+}
+
+# all variables in views plus summary
+tmp_var_view <- tmp_f_view_summary(tmp_hh_data, "hh") %>%
+  add_row(tmp_f_view_summary(tmp_person_data, "person")) %>%
+  add_row(tmp_f_view_summary(tmp_day_data, "day")) %>%
+  add_row(tmp_f_view_summary(tmp_trip_data, "trip")) %>%
+  add_row(tmp_f_view_summary(tmp_vehicle_data, "vehicle")) %>%
+  group_by(vars) %>%
+  summarise_all(~first(.)) %>% # remove duplicate variables in different tables
+  ungroup()
+
+# ---- match variables from codebooks and views ----
+
 var_match <- data.frame(vars = final_cb_2023$variable,
                                              csv = "csv") %>% 
   full_join(data.frame(vars = rsg_var_codebook$variable,
                        rsg_codebook = "rsg_codebook"), by = "vars") %>%
   full_join(var_view, by = "vars") %>%
+  full_join(tmp_var_view, by = "vars") %>%
   distinct() %>%
   arrange(view,
+          `temporary view`,
           csv,
           # codebook,
           vars)
 
 
-# l <- list("all variables" = var_match)
-# openxlsx::write.xlsx(l, file = "manual_changes/var_match2.xlsx")
+l <- list("all variables" = var_match)
+openxlsx::write.xlsx(l, file = "2025_initial_var_match.xlsx")
 
 
