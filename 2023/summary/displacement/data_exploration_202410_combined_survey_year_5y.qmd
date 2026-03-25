@@ -202,16 +202,16 @@ The 2017 survey didn't ask about \[prev_res_factors\], so displacement will be a
 
 ```{r}
 # add new variable
-  variable_list<-add_variable(variable_list, 'sample','hh')
-  variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
-  
-  # data <- list(hh=basics)
-  
+variable_list<-add_variable(variable_list, 'sample','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+# data <- list(hh=basics)
+
 # this function generates numbers for the region - combined survey years and separate
 stats_context <- function(variable_name=NULL){
- 
+
   data <- list(hh=basics)
-  
+
   # Calculate a categorical summary, i.e. count/share - combined data years
   summary = summarize_weighted(hts_data= data,
                                summarize_var = 'sample',
@@ -219,13 +219,13 @@ stats_context <- function(variable_name=NULL){
                                wt_cols='hh_weight',
                                wtname='hh_weight'
   )
-  
+
   wtd_sum_all<-summary$summary$wtd %>%
     mutate(prop_moe=z_score*prop_se,
-           est_moe=z_score*est_se) %>% 
-    dplyr::select(-c(prop_se, est_se)) %>% 
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
     mutate(survey_year="Combined")
-  
+
   # Calculate a categorical summary, i.e. count/share - separate data years
   summary = summarize_weighted(hts_data= data,
                                summarize_var = 'sample',
@@ -234,38 +234,40 @@ stats_context <- function(variable_name=NULL){
                                wt_cols='hh_weight',
                                wtname='hh_weight'
   )
-  
+
   wtd_sum_year<-summary$summary$wtd %>%
     mutate(prop_moe=z_score*prop_se,
-           est_moe=z_score*est_se) %>% 
+           est_moe=z_score*est_se) %>%
     dplyr::select(-c(prop_se, est_se)) %>%
     mutate(survey_year=as.character(survey_year))
-  
+
   # merge
   # put all data frames into list
-  df_list <- list(wtd_sum_all, wtd_sum_year)      
-  
+  df_list <- list(wtd_sum_all, wtd_sum_year)
+
   # merge all data frames together
   if(is.null(variable_name)){
     full_sample <- bind_rows(df_list) %>%
-    pivot_wider(names_from=survey_year, values_from = c(count, est, est_moe, prop, prop_moe),
+    pivot_wider(names_from=survey_year, 
+                values_from = c(count, est, est_moe, prop, prop_moe),
                 names_vary='slowest')
   } else {
     full_sample <- bind_rows(df_list) %>%
-    pivot_wider(names_from=survey_year, values_from = c(count, est, est_moe, prop, prop_moe),
+    pivot_wider(names_from=survey_year, 
+                values_from = c(count, est, est_moe, prop, prop_moe),
                 names_vary='slowest') %>%
     filter(sample==variable_name)
   }
-  
+
   return(full_sample)
-  
+
 }
 
 # this function generates numbers for the four counties - combined survey years and separate
 stats_context_geo <- function(variable_name=NULL){
-  
+
   data <- list(hh=basics)
-  
+
   # Calculate a categorical summary, i.e. count/share - combined data years
   summary = summarize_weighted(hts_data= data,
                                summarize_var = 'sample',
@@ -274,13 +276,13 @@ stats_context_geo <- function(variable_name=NULL){
                                wt_cols='hh_weight',
                                wtname='hh_weight'
   )
-  
+
   wtd_sum_all<-summary$summary$wtd %>%
     mutate(prop_moe=z_score*prop_se,
-           est_moe=z_score*est_se) %>% 
-    dplyr::select(-c(prop_se, est_se)) %>% 
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
     mutate(survey_year="Combined")
-  
+
   # Calculate a categorical summary, i.e. count/share - separate data years
   summary = summarize_weighted(hts_data= data,
                                summarize_var = 'sample',
@@ -289,36 +291,38 @@ stats_context_geo <- function(variable_name=NULL){
                                wt_cols='hh_weight',
                                wtname='hh_weight'
   )
-  
+
   wtd_sum_year<-summary$summary$wtd %>%
     mutate(prop_moe=z_score*prop_se,
-           est_moe=z_score*est_se) %>% 
+           est_moe=z_score*est_se) %>%
     dplyr::select(-c(prop_se, est_se)) %>%
     mutate(survey_year=as.character(survey_year))
-  
+
   # merge
   # put all data frames into list
-  df_list <- list(wtd_sum_all, wtd_sum_year)      
-  
+  df_list <- list(wtd_sum_all, wtd_sum_year)
+
   # merge all data frames together
   if(is.null(variable_name)){
     full_sample <- bind_rows(df_list) %>%
-    pivot_wider(names_from=c(survey_year, home_county), values_from = c(count, est, est_moe, prop, prop_moe),
+    pivot_wider(names_from=c(survey_year, home_county), 
+                values_from = c(count, est, est_moe, prop, prop_moe),
                 names_vary='slowest')
   } else {
     full_sample <- bind_rows(df_list) %>%
-    pivot_wider(names_from=c(survey_year, home_county), values_from = c(count, est, est_moe, prop, prop_moe),
+    pivot_wider(names_from=c(survey_year, home_county), 
+                values_from = c(count, est, est_moe, prop, prop_moe),
                 names_vary='slowest') %>%
     filter(sample==variable_name)
   }
-  
+
 }
 
 # this function generates numbers for the region and any additional grouping variable - combined survey years and separate
 stats_context_group <- function(variable_name=NULL, add_group){
-  
+
   data <- list(hh=basics)
-  
+
   # Calculate a categorical summary, i.e. count/share - combined data years
   summary = summarize_weighted(hts_data= data,
                                summarize_var = 'sample',
@@ -327,13 +331,13 @@ stats_context_group <- function(variable_name=NULL, add_group){
                                wt_cols='hh_weight',
                                wtname='hh_weight'
   )
-  
+
   wtd_sum_all<-summary$summary$wtd %>%
     mutate(prop_moe=z_score*prop_se,
-           est_moe=z_score*est_se) %>% 
-    dplyr::select(-c(prop_se, est_se)) %>% 
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
     mutate(survey_year="Combined")
-  
+
   # Calculate a categorical summary, i.e. count/share - separate data years
   summary = summarize_weighted(hts_data= data,
                                summarize_var = 'sample',
@@ -342,63 +346,214 @@ stats_context_group <- function(variable_name=NULL, add_group){
                                wt_cols='hh_weight',
                                wtname='hh_weight'
   )
-  
+
   wtd_sum_year<-summary$summary$wtd %>%
     mutate(prop_moe=z_score*prop_se,
-           est_moe=z_score*est_se) %>% 
+           est_moe=z_score*est_se) %>%
     dplyr::select(-c(prop_se, est_se)) %>%
     mutate(survey_year=as.character(survey_year))
-  
+
   # merge
   # put all data frames into list
-  df_list <- list(wtd_sum_all, wtd_sum_year)      
-  
+  df_list <- list(wtd_sum_all, wtd_sum_year)
+
   # merge all data frames together
   if(is.null(variable_name)){
     full_sample <- bind_rows(df_list) %>%
-    pivot_wider(names_from=c(survey_year, add_group), values_from = c(count, est, est_moe, prop, prop_moe),
+    pivot_wider(names_from=c(survey_year, add_group), 
+                values_from = c(count, est, est_moe, prop, prop_moe),
                 names_vary='slowest')
   } else {
     full_sample <- bind_rows(df_list) %>%
-    pivot_wider(names_from=c(survey_year, add_group), values_from = c(count, est, est_moe, prop, prop_moe),
+    pivot_wider(names_from=c(survey_year, add_group), 
+                values_from = c(count, est, est_moe, prop, prop_moe),
                 names_vary='slowest') %>%
     filter(sample==variable_name)
   }
-  
+
 }
+```
+
+```{r}
+# # add new variable
+# variable_list<-add_variable(variable_list, 'sample','hh')
+# variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+# 
+# 
+# # this function generates numbers for the region - combined survey years and separate
+# stats_context <- function(variable_name=NULL){
+# 
+#   data <- list(hh=basics)
+# 
+#   # Calculate a categorical summary, i.e. count/share - region, separate years
+#   separate_years <- psrc_hts_stat(data, 
+#                                   analysis_unit="hh", 
+#                                   group_vars="sample", 
+#                                   incl_na=FALSE) %>% 
+#     mutate(survey_year=as.character(survey_year))
+#   
+#   # Calculate a categorical summary, i.e. count/share - region, combined years
+#   hhx <- copy(basics)
+#   
+#   hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+#   hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+#   
+#   data <- list(hh=hhx)
+#   
+#   combined_years <- psrc_hts_stat(data, 
+#                                   analysis_unit="hh", 
+#                                   group_vars="sample", 
+#                                   incl_na=FALSE)
+#   
+#   # merge
+#   # put all data frames into list
+#   df_list <- list(combined_years, separate_years)      
+#   
+#   # merge all data frames together
+#   if(is.null(variable_name)){
+#     full_sample <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=survey_year, 
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest')
+#   } else {
+#     full_sample <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=survey_year, 
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest') %>%
+#       filter(sample==variable_name)
+#   }
+#   
+#   return(full_sample)
+#   
+# }
+# 
+# # this function generates numbers for the four counties - combined survey years and separate
+# stats_context_geo <- function(variable_name=NULL){
+#   
+#   data <- list(hh=basics)
+#   
+#   # Calculate a categorical summary, i.e. count/share - separate counties, separate years
+#   separate_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars=c("sample", "home_county"),
+#                                   incl_na=FALSE) %>%
+#     mutate(survey_year=as.character(survey_year))
+#   
+#   # Calculate a categorical summary, i.e. count/share - separate counties, combined years
+#   hhx <- basics
+#   
+#   hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+#   hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+#   
+#   data <- list(hh=hhx)
+#   
+#   combined_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars=c("sample", "home_county"),
+#                                   incl_na=FALSE)
+#   
+#   # merge
+#   # put all data frames into list
+#   df_list <- list(combined_years, separate_years)      
+#   
+#   # merge all data frames together
+#   if(is.null(variable_name)){
+#     full_sample_geo <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=c(survey_year, home_county), 
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest')
+#     
+#   } else {
+#     full_sample_geo <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=c(survey_year, home_county),
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest') %>%
+#       filter(sample==variable_name)
+#   }
+#   
+#   return(full_sample_geo)
+# }
+# 
+# # this function generates numbers for the region and any additional grouping variable - combined survey years and separate
+# stats_context_group <- function(variable_name=NULL, add_group){
+#   
+#   data <- list(hh=basics)
+#   
+#   # Calculate a categorical summary, i.e. count/share - region, separate years
+#   separate_years <- psrc_hts_stat(data, 
+#                                   analysis_unit="hh", 
+#                                   group_vars=c('sample', add_group), 
+#                                   incl_na=FALSE) %>% 
+#     mutate(survey_year=as.character(survey_year))
+#   
+#   # Calculate a categorical summary, i.e. count/share - region, combined years
+#   hhx <- basics
+#   
+#   hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+#   hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+#   
+#   data <- list(hh=hhx)
+#   
+#   combined_years <- psrc_hts_stat(data, 
+#                                   analysis_unit="hh", 
+#                                   group_vars=c('sample', add_group), 
+#                                   incl_na=FALSE)
+#   
+#   # merge
+#   # put all data frames into list
+#   df_list <- list(combined_years, separate_years)      
+#   
+#   # merge all data frames together
+#   if(is.null(variable_name)){
+#     full_sample <- bind_rows(df_list) %>%
+#     pivot_wider(names_from=c(survey_year, add_group), 
+#                 values_from = c(count, est, est_moe, prop, prop_moe),
+#                 names_vary='slowest')
+#   } else {
+#     full_sample <- bind_rows(df_list) %>%
+#     pivot_wider(names_from=c(survey_year, add_group), 
+#                 values_from = c(count, est, est_moe, prop, prop_moe),
+#                 names_vary='slowest') %>%
+#     filter(sample==variable_name)
+#   }
+#   return(full_sample)
+#   
+# }
 ```
 
 ### Full sample of respondents
 
 ```{r}
 # look at full sample of survey respondents 
-length(unique(hts_data$hh$hh_id))
+# length(unique(hts_data$hh$hh_id)) # 12108
+# length(unique(hts_data$hh$hh_weight)) #9271
+# length(unique(hts_data$hh$hh_weight)) == nrow(hts_data$hh)
 
+# Create variable for grouping
 basics <- mutate(hts_data$hh,
-                      sample= case_when(!is.na(hh_id)~"Full Sample",
-                                        TRUE~"No")) %>% 
-  filter(survey_year!='2017')
+                 sample= case_when(!is.na(hh_weight)~"Full Sample",
+                                   TRUE~"No")) %>% 
+  filter(survey_year!=2017)
 
-table(basics$sample)
-
-full_sample <- stats_context('Full Sample')
-full_sample_geo <- stats_context_geo('Full Sample')
+full_sample <- stats_context()
+full_sample_geo <- stats_context_geo()
 ```
 
 ### Movers
 
 ```{r}
 # Movers
-table(hts_data$hh$res_dur)
-table(hts_data$hh$prev_home_wa)
+# table(hts_data$hh$res_dur)
+# table(hts_data$hh$prev_home_wa)
 
-basics <- hts_data$hh %>% 
-  mutate(sample= case_when(res_dur=="Less than a year" & prev_home_wa=="Yes, previous home was in Washington" |
-                             res_dur=="Between 1 and 2 years" & prev_home_wa=="Yes, previous home was in Washington" |
-                             res_dur=="Between 2 and 3 years" & prev_home_wa=="Yes, previous home was in Washington" |
-                             res_dur=="Between 3 and 5 years" & prev_home_wa=="Yes, previous home was in Washington" ~ "Movers",
-                           TRUE~"No")) %>% 
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(res_dur=="Less than a year" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 1 and 2 years" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 2 and 3 years" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 3 and 5 years" & grepl("Yes", prev_home_wa) ~ "Movers",
+                           TRUE~"No")) %>%
   filter(survey_year!='2017')
+
 
 # table(basics$sample)
 
@@ -779,9 +934,16 @@ list_of_datasets <- list("region" = context_numbers,
                          "pierce" = pierce_values, 
                          "snohomish" = snohomish_values)
 
-wb <- write.xlsx(list_of_datasets, file = file.path(loc, "HTS_Displacement_Context_county.xlsx"),
+wb <- write.xlsx(list_of_datasets, file = file.path(loc, "HTS_Displacement_Context_county - manual.xlsx"),
                  colNames = TRUE,
                  overwrite = TRUE)
+```
+
+#### check against Michael's numbers
+
+```{r}
+# download rds file
+mikes_rds <- readRDS('T:/2025Q1/Mary/HHTS/2023/hts_displaced 1.rds')
 ```
 
 # Demographics
@@ -2718,12 +2880,12 @@ disp10 <- disp10.lyr %>%
   left_join(crosswalk_10_20, by="geoid10")
 
 # join displacement risk data to HTS data: current home tract -----
-# home_loc <- hts_data$hh %>%
-#   st_as_sf(coords = c("home_lng", "home_lat"), 
-#            crs = 4326) %>% 
-#   select(hh_id, geometry) #3343 features
-# 
-# hh <- st_intersection(home_loc, disp10.lyr)
+home_loc <- hts_data$hh %>%
+  st_as_sf(coords = c("home_lng", "home_lat"),
+           crs = 4326) %>%
+  select(hh_id, geometry) #3343 features
+
+hh <- st_intersection(home_loc, disp10.lyr)
 
 home_loc <- hts_data$hh %>%
   mutate(geoid20=as.character(home_tract20)) %>% 
@@ -2778,8 +2940,10 @@ location_data <- home_loc_simp %>%
   left_join(prev_home_loc_simp, by = "hh_id")
 ```
 
-###### Map 2019 and 2021 displacement 
+###### Map 2019 and 2021 displacement
+
 Didn't include the weights for the counts because decided against this for now
+
 ```{r, include=F, eval=F}
 # compare 19 and 21 with displacement risk map - proportion
 # calculate 3 sets of proportions based on prev_risk_level/prev_risk_level_name
@@ -2921,6 +3085,7 @@ displacement_map
 ```
 
 ###### Displacement Risk proportion
+
 ```{r}
 # calculate 3 sets of proportions based on prev_risk_level/prev_risk_level_name
 variable_list<-add_variable(variable_list, 'sample','hh')
@@ -3027,7 +3192,7 @@ output_xlsx(sheet_name = "just_displaced",
 # writeData(wb, "displaced", test_disp)
 # writeData(wb, "displaced", test_disp)
 saveWorkbook(wb,
-             file.path(loc, "HTS_Displacement_Context_county - Copy.xlsx"),
+             file.path(loc, "HTS_Displacement_Context_county - manual.xlsx"),
              overwrite = TRUE)
 # addWorksheet(wb, "displacement risk detail")
 # writeData(wb, "displacement risk detail", displacement_risk_level)
@@ -5117,7 +5282,7 @@ forced.null<-glm(disp_forced~1,family=binomial(link="logit"), data=hh_df)
 summary(forced.null) #intercept value - same log odds for everyone to predict
 coef(forced.null) #log odds (coefficients)
 exp(coef(forced.null)) #odds ratio of displacement: 0.38 to 1
-exp(coef(forced.null))/(1+(exp(coef(disp3.null)))) #probability of being displaced: 0.27
+exp(coef(forced.null))/(1+(exp(coef(forced.null)))) #probability of being displaced: 0.27
 mean(hh_df$disp_forced) #0.06
 ```
 
@@ -5500,7 +5665,7 @@ income.null<-glm(disp_inc_change~1,family=binomial(link="logit"), data=hh_df)
 summary(income.null) #intercept value - same log odds for everyone to predict
 coef(income.null) #log odds (coefficients)
 exp(coef(income.null)) #odds ratio of displacement: 0.38 to 1
-exp(coef(income.null))/(1+(exp(coef(disp3.null)))) #probability of being displaced: 0.27
+exp(coef(income.null))/(1+(exp(coef(income.null)))) #probability of being displaced: 0.27
 mean(hh_df$disp_inc_change) #0.05
 ```
 
@@ -5880,7 +6045,7 @@ housing.null<-glm(disp_housing_cost~1,family=binomial(link="logit"), data=hh_df)
 summary(housing.null) #intercept value - same log odds for everyone to predict
 coef(housing.null) #log odds (coefficients)
 exp(coef(housing.null)) #odds ratio of displacement: 0.38 to 1
-exp(coef(housing.null))/(1+(exp(coef(disp3.null)))) #probability of being displaced: 0.27
+exp(coef(housing.null))/(1+(exp(coef(housing.null)))) #probability of being displaced: 0.27
 mean(hh_df$disp_housing_cost) #0.16
 ```
 
@@ -6258,7 +6423,7 @@ community.null<-glm(disp_community~1,family=binomial(link="logit"), data=hh_df)
 summary(community.null) #intercept value - same log odds for everyone to predict
 coef(community.null) #log odds (coefficients)
 exp(coef(community.null)) #odds ratio of displacement: 0.38 to 1
-exp(coef(community.null))/(1+(exp(coef(disp3.null)))) #probability of being displaced: 0.27
+exp(coef(community.null))/(1+(exp(coef(community.null)))) #probability of being displaced: 0.27
 mean(hh_df$disp_community) #0.05
 ```
 

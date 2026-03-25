@@ -1,0 +1,1051 @@
+---
+title: "Displacement: 5 years"
+author: "Mary Richards"
+format: 
+  html:
+    toc: true
+editor: visual
+execute:
+  warning: false
+---
+
+# General setup
+
+PSRC and RSG have built a new package called travelSurveyTools to work with travel survey data. It is recommended to read through this documentation before you start using the package. <https://rsginc.github.io/travelSurveyTools/>
+
+## Read in Libraries
+
+```{r setup}
+# YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here's how:
+# library(devtools)
+# 
+# devtools::install_github('rsgInc/travelSurveyTools')
+# devtools::install_github('psrc/psrcelmer')
+# devtools::install_github('psrc/psrcplot')
+# devtools::install_github('psrc/psrc.travelsurvey', force=TRUE)
+
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(psrccensus)
+library(psrcplot)
+library(tidyverse)
+library(magrittr)
+library(table1)
+library(psrc.travelsurvey)
+library(openxlsx)
+
+library(sf) #for regional geographies
+library(leaflet)
+library(leafem) #home button
+library(htmlwidgets) #save visuals as html
+sf_use_s2(FALSE)
+library(corrplot) #for correlation analysis
+library(see) #for theme_modern
+
+library(DescTools) #pseudoR2 calculations
+library(summarytools) #freq/ctable functions
+
+source('../survey-23-preprocess.R')
+# source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
+```
+
+## Read in Codebook
+
+```{r}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Read in Data from Elmer
+
+```{r}
+# Specify which variables to retrieve
+# View(psrc.travelsurvey:::init_variable_list)
+
+vars <- c(
+  #household-level variables
+  'household_id', 'res_dur', 'prev_home_wa', 'home_rgcname', 
+  'prev_home_rgcname', 'home_county', 'prev_home_county',
+  'prev_res_factors_amenities', 'prev_res_factors_community_change',
+  'prev_res_factors_crime', 'prev_res_factors_employment', 
+  'prev_res_factors_forced', 'prev_res_factors_hh_size', 
+  'prev_res_factors_housing_cost', 'prev_res_factors_income_change', 
+  'prev_res_factors_less_space', 'prev_res_factors_more_space', 
+  'prev_res_factors_no_answer', 'prev_res_factors_other', 
+  'prev_res_factors_quality', 'prev_res_factors_school', 
+  'prev_res_factors_specify', 'prev_res_factors_telework', 
+  'hh_race_category',
+  "home_jurisdiction","home_lat","home_lng",
+  "prev_home_lat", "prev_home_lng", 
+  "home_tract20", "prev_home_tract20")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars)  # default includes all survey_years
+
+# For calculating moe
+z_score<-1.645
+
+# for output workbook
+loc <- "T:/2025Q1/Mary/HHTS/2023/"
+workbook_name <- "HTS_Displacement_Context_county - 20250306 - manual.xlsx"
+```
+
+The survey instrument is here: J:/Projects/Surveys/HHTravel/Survey2023/Documents/Survey_Instrument/Puget_Sound_HTS_Questionnaire_2023_Final.docx
+
+Open the codebook and review the variable and it's values. J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx
+
+# Research notes
+
+## Who was asked?
+
+### 2017
+
+-   How long have you lived at your current residence?
+-   Was your previous home located in the state of Washington? - If lived in residence \<= 5 years
+
+### 2019
+
+-   \[res_duration\]
+-   \[prev_home_wa\] - if lived in current residence \<= 5 years
+-   \[prev_res_factors\] - if previous home was in Washington (and moved in past 5 years)
+
+### 2021
+
+-   \[RES_DURATION\]
+-   \[PREV_HOME_WA\] - if lived in current residence \<= 5 years
+-   \[PREV_RES_FACTORS\] - if previous home was in Washington (and moved in past 5 years)
+
+### 2023
+
+-   \[RES_DURATION\] - if rMove or (rMove for Web and person 1)
+-   \[PREV_HOME_WA\] - if lived in current residence \<= 5 years
+-   \[PREV_RES_FACTORS\] - if previous home was in Washington
+
+## How were the questions asked?
+
+The 2017 survey didn't ask about \[prev_res_factors\], so displacement will be analyzed for 2019, 2021, and 2023.
+
+*Which of the following were important factors in your decision to move away from your previous residence?* *Select all that apply.*
+
+### 2019
+
+-   Could no longer afford previous residence because of an increase in rent or housing costs
+-   Could no longer afford previous residence because of a change in income or finances
+-   Friends, family, or cultural community were leaving the area
+-   Changes in household size, establish own household
+-   Needed more space
+-   Needed less space
+-   Employment or commuting considerations (e.g., to take new job or shorten commute)
+-   Access to a different K-12 school
+-   Concerns about safety or crime
+-   To upgrade to a better quality home or to stop renting and buy a home
+-   Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)
+-   Other reason
+-   Prefer not to answer
+
+### 2021 (same wording as 2019 with a few additional options)
+
+-   COVID-19 removed need to live in previous residence (e.g., no longer need to attend work or school in-person)
+-   Concerns about COVID-19 health risks
+
+### 2023 (similar options, but some new options and different wording of others)
+
+-   *Increase in rent or housing costs, could no longer afford previous place*
+-   *Change in income or finances, could no longer afford previous place*
+-   *Friends, family, or cultural community left or were leaving the area*
+-   *Change in who you live with (e.g., move out on your own, getting married/divorced)*
+-   Needed more space
+-   Needed less space
+-   *To have better access to work (e.g., better commute or take new job)*
+-   **To have better access to recreation, restaurants, shops, and other amenities**
+-   *Employer’s telework policy removed need to live in previous residence*
+-   Access to a different K-12 school
+-   Concerns about safety or crime
+-   To upgrade to a better-quality home or to stop renting and buy a home
+-   Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)
+-   Other reason
+-   Prefer not to answer
+
+## Topics to explore
+
+-   Demographics (household level)
+    -   race/ethnicity
+    -   lifecycle
+    -   household size
+    -   number of children
+    -   income
+    -   number of vehicles
+    -   education?
+-   Previous and current living:
+    -   housing tenure
+    -   housing type
+-   Spatial patterns (limited for 2023)
+    -   RGCs
+
+# Data setup
+
+```{r, manually calculating}
+# add new variable
+variable_list<-add_variable(variable_list, 'sample','hh')
+variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+
+# data <- list(hh=basics)
+
+# this function generates numbers for the region - combined survey years and separate
+stats_context <- function(variable_name=NULL){
+
+  data <- list(hh=basics)
+
+  # Calculate a categorical summary, i.e. count/share - combined data years
+  summary = summarize_weighted(hts_data= data,
+                               summarize_var = 'sample',
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+  )
+
+  wtd_sum_all<-summary$summary$wtd %>%
+    mutate(prop_moe=z_score*prop_se,
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
+    mutate(survey_year="Combined")
+
+  # Calculate a categorical summary, i.e. count/share - separate data years
+  summary = summarize_weighted(hts_data= data,
+                               summarize_var = 'sample',
+                               summarize_by = c('survey_year'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+  )
+
+  wtd_sum_year<-summary$summary$wtd %>%
+    mutate(prop_moe=z_score*prop_se,
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
+    mutate(survey_year=as.character(survey_year))
+
+  # merge
+  # put all data frames into list
+  df_list <- list(wtd_sum_all, wtd_sum_year)
+
+  # merge all data frames together
+  if(is.null(variable_name)){
+    full_sample <- bind_rows(df_list) %>%
+    pivot_wider(names_from=survey_year,
+                values_from = c(count, est, est_moe, prop, prop_moe),
+                names_vary='slowest')
+  } else {
+    full_sample <- bind_rows(df_list) %>%
+    pivot_wider(names_from=survey_year,
+                values_from = c(count, est, est_moe, prop, prop_moe),
+                names_vary='slowest') %>%
+    filter(sample==variable_name)
+  }
+
+  return(full_sample)
+
+}
+
+# this function generates numbers for the four counties - combined survey years and separate
+stats_context_geo <- function(variable_name=NULL){
+
+  data <- list(hh=basics)
+
+  # Calculate a categorical summary, i.e. count/share - combined data years
+  summary = summarize_weighted(hts_data= data,
+                               summarize_var = 'sample',
+                               summarize_by = c('home_county'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+  )
+
+  wtd_sum_all<-summary$summary$wtd %>%
+    mutate(prop_moe=z_score*prop_se,
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
+    mutate(survey_year="Combined")
+
+  # Calculate a categorical summary, i.e. count/share - separate data years
+  summary = summarize_weighted(hts_data= data,
+                               summarize_var = 'sample',
+                               summarize_by = c('survey_year','home_county'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+  )
+
+  wtd_sum_year<-summary$summary$wtd %>%
+    mutate(prop_moe=z_score*prop_se,
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
+    mutate(survey_year=as.character(survey_year))
+
+  # merge
+  # put all data frames into list
+  df_list <- list(wtd_sum_all, wtd_sum_year)
+
+  # merge all data frames together
+  if(is.null(variable_name)){
+    full_sample <- bind_rows(df_list) %>%
+    pivot_wider(names_from=c(survey_year, home_county),
+                values_from = c(count, est, est_moe, prop, prop_moe),
+                names_vary='slowest')
+  } else {
+    full_sample <- bind_rows(df_list) %>%
+    pivot_wider(names_from=c(survey_year, home_county),
+                values_from = c(count, est, est_moe, prop, prop_moe),
+                names_vary='slowest') %>%
+    filter(sample==variable_name)
+  }
+
+}
+
+# this function generates numbers for the region and any additional grouping variable - combined survey years and separate
+stats_context_group <- function(variable_name=NULL, add_group){
+
+  data <- list(hh=basics)
+
+  # Calculate a categorical summary, i.e. count/share - combined data years
+  summary = summarize_weighted(hts_data= data,
+                               summarize_var = 'sample',
+                               summarize_by = c('add_group'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+  )
+
+  wtd_sum_all<-summary$summary$wtd %>%
+    mutate(prop_moe=z_score*prop_se,
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
+    mutate(survey_year="Combined")
+
+  # Calculate a categorical summary, i.e. count/share - separate data years
+  summary = summarize_weighted(hts_data= data,
+                               summarize_var = 'sample',
+                               summarize_by = c('survey_year','add_group'),
+                               id_cols='hh_id',
+                               wt_cols='hh_weight',
+                               wtname='hh_weight'
+  )
+
+  wtd_sum_year<-summary$summary$wtd %>%
+    mutate(prop_moe=z_score*prop_se,
+           est_moe=z_score*est_se) %>%
+    dplyr::select(-c(prop_se, est_se)) %>%
+    mutate(survey_year=as.character(survey_year))
+
+  # merge
+  # put all data frames into list
+  df_list <- list(wtd_sum_all, wtd_sum_year)
+
+  # merge all data frames together
+  if(is.null(variable_name)){
+    full_sample <- bind_rows(df_list) %>%
+    pivot_wider(names_from=c(survey_year, add_group),
+                values_from = c(count, est, est_moe, prop, prop_moe),
+                names_vary='slowest')
+  } else {
+    full_sample <- bind_rows(df_list) %>%
+    pivot_wider(names_from=c(survey_year, add_group),
+                values_from = c(count, est, est_moe, prop, prop_moe),
+                names_vary='slowest') %>%
+    filter(sample==variable_name)
+  }
+
+}
+```
+
+```{r, psrc_hts_stat() calculation}
+# # add new variable
+# variable_list<-add_variable(variable_list, 'sample','hh')
+# variable_list<-variable_list%>%distinct(variable, .keep_all=TRUE)
+# 
+# 
+# # this function generates numbers for the region - combined survey years and separate
+# stats_context <- function(variable_name=NULL){
+# 
+#   data <- list(hh=basics)
+# 
+#   # Calculate a categorical summary, i.e. count/share - region, separate years
+#   separate_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars="sample",
+#                                   incl_na=FALSE) %>%
+#     mutate(survey_year=as.character(survey_year))
+# 
+#   # Calculate a categorical summary, i.e. count/share - region, combined years
+#   hhx <- copy(basics)
+# 
+#   hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+#   hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+# 
+#   data <- list(hh=hhx)
+# 
+#   combined_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars="sample",
+#                                   incl_na=FALSE)
+# 
+#   # merge
+#   # put all data frames into list
+#   df_list <- list(combined_years, separate_years)
+# 
+#   # merge all data frames together
+#   if(is.null(variable_name)){
+#     full_sample <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=survey_year,
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest')
+#   } else {
+#     full_sample <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=survey_year,
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest') %>%
+#       filter(sample==variable_name)
+#   }
+# 
+#   return(full_sample)
+# 
+# }
+# 
+# # this function generates numbers for the four counties - combined survey years and separate
+# stats_context_geo <- function(variable_name=NULL){
+# 
+#   data <- list(hh=basics)
+# 
+#   # Calculate a categorical summary, i.e. count/share - separate counties, separate years
+#   separate_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars=c("sample", "home_county"),
+#                                   incl_na=FALSE) %>%
+#     mutate(survey_year=as.character(survey_year))
+# 
+#   # Calculate a categorical summary, i.e. count/share - separate counties, combined years
+#   hhx <- basics
+# 
+#   hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+#   hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+# 
+#   data <- list(hh=hhx)
+# 
+#   combined_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars=c("sample", "home_county"),
+#                                   incl_na=FALSE)
+# 
+#   # merge
+#   # put all data frames into list
+#   df_list <- list(combined_years, separate_years)
+# 
+#   # merge all data frames together
+#   if(is.null(variable_name)){
+#     full_sample_geo <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=c(survey_year, home_county),
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest')
+# 
+#   } else {
+#     full_sample_geo <- bind_rows(df_list) %>%
+#       pivot_wider(names_from=c(survey_year, home_county),
+#                   values_from = c(count, est, est_moe, prop, prop_moe),
+#                   names_vary='slowest') %>%
+#       filter(sample==variable_name)
+#   }
+# 
+#   return(full_sample_geo)
+# }
+# 
+# # this function generates numbers for the region and any additional grouping variable - combined survey years and separate
+# stats_context_group <- function(variable_name=NULL, add_group){
+# 
+#   data <- list(hh=basics)
+# 
+#   # Calculate a categorical summary, i.e. count/share - region, separate years
+#   separate_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars=c('sample', add_group),
+#                                   incl_na=FALSE) %>%
+#     mutate(survey_year=as.character(survey_year))
+# 
+#   # Calculate a categorical summary, i.e. count/share - region, combined years
+#   hhx <- basics
+# 
+#   hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+#   hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+# 
+#   data <- list(hh=hhx)
+# 
+#   combined_years <- psrc_hts_stat(data,
+#                                   analysis_unit="hh",
+#                                   group_vars=c('sample', add_group),
+#                                   incl_na=FALSE)
+# 
+#   # merge
+#   # put all data frames into list
+#   df_list <- list(combined_years, separate_years)
+# 
+#   # merge all data frames together
+#   if(is.null(variable_name)){
+#     full_sample <- bind_rows(df_list) %>%
+#     pivot_wider(names_from=c(survey_year, add_group),
+#                 values_from = c(count, est, est_moe, prop, prop_moe),
+#                 names_vary='slowest')
+#   } else {
+#     full_sample <- bind_rows(df_list) %>%
+#     pivot_wider(names_from=c(survey_year, add_group),
+#                 values_from = c(count, est, est_moe, prop, prop_moe),
+#                 names_vary='slowest') %>%
+#     filter(sample==variable_name)
+#   }
+#   return(full_sample)
+# 
+# }
+```
+
+### Full sample of respondents
+
+```{r}
+# look at full sample of survey respondents 
+# length(unique(hts_data$hh$hh_id)) # 12108
+# length(unique(hts_data$hh$hh_weight)) #9271
+# length(unique(hts_data$hh$hh_weight)) == nrow(hts_data$hh)
+
+# Create variable for grouping
+basics <- mutate(hts_data$hh,
+                 sample= case_when(!is.na(hh_weight)~"Full Sample",
+                                   TRUE~"No")) #%>% 
+  # filter(survey_year!=2017)
+
+full_sample <- stats_context()
+full_sample_geo <- stats_context_geo()
+```
+
+### Movers (5 years)
+
+```{r}
+# Movers
+# table(hts_data$hh$res_dur)
+# table(hts_data$hh$prev_home_wa)
+
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(res_dur=="Less than a year" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 1 and 2 years" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 2 and 3 years" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 3 and 5 years" & grepl("Yes", prev_home_wa) ~ "Movers",
+                           TRUE~"No")) #%>%
+  # filter(survey_year!='2017')
+
+
+# table(basics$sample)
+
+movers <- stats_context('Movers')
+movers_geo <- stats_context_geo('Movers')
+
+# # checking without function
+# hts_data$hh <- basics
+# 
+# manual_test <- psrc_hts_stat(hts_data, "hh", c("home_county", "sample"), incl_na=FALSE) |>
+#   rename(geography = home_county)
+# 
+# hhx <- basics
+# 
+# hhx[, survey_year:=if_else(survey_year %in% c(2019,2021,2023), "combined", as.character(survey_year))]
+# hhx[survey_year=="combined", hh_weight:=hh_weight/3]
+# 
+# data <- list(hh=hhx)
+# 
+# combined_years <- psrc_hts_stat(data,
+#                                 analysis_unit="hh",
+#                                 group_vars=c("home_county","sample"),
+#                                 incl_na=FALSE)
+```
+
+#### Movers (2 years)
+To compare to 'Housing Perspectives: Five Ways Residential Mobility Has Changed in the Pandemic Era' article about declining mobility. 
+```{r}
+# Movers
+# table(hts_data$hh$res_dur)
+# table(hts_data$hh$prev_home_wa)
+
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(res_dur=="Less than a year" & grepl("Yes", prev_home_wa) |
+                             res_dur=="Between 1 and 2 years" & grepl("Yes", prev_home_wa) ~ "Movers",
+                           TRUE~"No")) #%>%
+  # filter(survey_year!='2017')
+
+
+# table(basics$sample)
+
+movers2 <- stats_context('Movers')
+movers2_geo <- stats_context_geo('Movers')
+```
+
+```{r}
+# This code only works when 2017 is included in all data or removed from all data (full sample, 5y movers, 2y movers)
+# simplify and transformations
+movers2_df <- movers2 %>% 
+  mutate(sample=case_when(sample=="Movers"~"Movers_2years"))
+movers_df <- movers %>% 
+  mutate(sample=case_when(sample=="Movers"~"Movers_5years"))
+
+movers2_geo_df <- movers2_geo %>% 
+  mutate(sample=case_when(sample=="Movers"~"Movers_2years"))
+movers_geo_df <- movers_geo %>% 
+  mutate(sample=case_when(sample=="Movers"~"Movers_5years"))
+
+# bind rows
+move <- rbind(full_sample,
+              movers2_df, 
+              movers_df) %>% 
+  select(!matches("Combined|count3"))
+
+move_geo <- rbind(full_sample_geo,
+                  movers2_geo_df, 
+                  movers_geo_df) %>% 
+  select(!matches("Combined|count3"))
+
+# separate out by county
+king_values <- move_geo %>% 
+  select(sample, contains("King"))
+kitsap_values <- move_geo %>% 
+  select(sample, contains("Kitsap"))
+pierce_values <- move_geo %>% 
+  select(sample, contains("Pierce"))
+snohomish_values <- move_geo %>% 
+  select(sample, contains("Snohomish"))
+
+
+list_of_datasets <- list("region" = move, 
+                         "king" = king_values,
+                         "kitsap" = kitsap_values,
+                         "pierce" = pierce_values, 
+                         "snohomish" = snohomish_values)
+
+# write to xlsx
+wb <- write.xlsx(list_of_datasets, file = file.path(loc, "hts_mobility_trends_17_23.xlsx"),
+                 colNames = TRUE,
+                 overwrite = TRUE)
+```
+
+## Identify displaced movers
+
+There was a problem with the 2023 HTS data, where the previous home location question was only asked to respondents who moved within the last five years AND moved from OUTSIDE of WA state. Therefore, we are unable to do any useful analyses moves/displacement based on where households had lived within our region.
+
+To identify movers we are choosing those who have moved within the past **five years** and those who previously lived in Washington state.
+
+To identify displacement, respondents were asked about their reasons for moving. 4 of the 14 reasons are linked with displacement:
+
+-   Increase in rent or housing costs, could no longer afford previous place
+-   Change in income or finances, could no longer afford previous place
+-   Friends, family, or cultural community left or were leaving the area
+-   Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)
+
+```{r}
+# unique(hts_data$hh$res_dur)
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(movers=case_when(res_dur=="Less than a year" |
+                            res_dur=="Between 1 and 2 years" | 
+                            res_dur=="Between 2 and 3 years" |
+                            res_dur=="Between 3 and 5 years" ~ 'Did move',
+                          res_dur=="Missing Response" ~ 'No response',
+                          TRUE ~ 'Did not move'),
+         displaced=case_when(prev_res_factors_forced=='Selected'|
+                               prev_res_factors_income_change=='Selected'|
+                               prev_res_factors_housing_cost =='Selected'|
+                               prev_res_factors_community_change=='Selected'~ 'Displaced',
+                             TRUE~'Not displaced'))
+
+table(hts_data$hh$survey_year)
+table(hts_data$hh$movers, hts_data$hh$displaced)
+table(hts_data$hh$survey_year, hts_data$hh$movers)
+
+# There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
+
+hts_data$hh <- hts_data$hh %>%
+  filter(movers == "Did move")
+```
+
+
+### Remove 2017 year from data
+
+The 2017 survey did not ask respondents about why they moved, so they cannot be categorized as displaced or not displaced.
+
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  filter(survey_year!=2017)
+```
+
+# Basics
+
+## Displaced Movers
+
+```{r}
+# Displaced Movers
+basics <- hts_data$hh %>% 
+  mutate(sample= case_when(displaced=="Displaced"~"Displaced",
+                           TRUE~"No")) %>% 
+  filter(survey_year!='2017')
+
+# table(basics$sample)
+
+displaced <- stats_context('Displaced') 
+displaced_geo <- stats_context_geo('Displaced')
+```
+
+## Individual Displacement Reasons
+
+```{r}
+print(dplyr::select(hts_data$hh, starts_with("prev_res_factors_")))
+
+# forced
+# table(hts_data$hh$prev_res_factors_forced)
+basics <- hts_data$hh %>% 
+  mutate(sample= case_when(prev_res_factors_forced=="Selected"~"Forced",
+                           prev_res_factors_forced=="Not Selected"~"No"))
+
+forced <- stats_context('Forced')
+forced_geo <- stats_context_geo('Forced')
+
+# income
+# table(hts_data$hh$prev_res_factors_income_change)
+basics <- hts_data$hh %>% 
+  mutate(sample= case_when(prev_res_factors_income_change=="Selected"~"Income change",
+                           prev_res_factors_income_change=="Not Selected"~"No"))
+
+income <- stats_context('Income change') 
+income_geo <- stats_context_geo('Income change')
+
+# housing
+# table(hts_data$hh$prev_res_factors_housing_cost)
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_housing_cost=="Selected"~"Housing cost",
+                           prev_res_factors_housing_cost=="Not Selected"~"No"))
+
+housing <- stats_context('Housing cost')
+housing_geo <- stats_context_geo('Housing cost')
+
+# community
+# table(hts_data$hh$prev_res_factors_community_change)
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_community_change=="Selected"~"Community change",
+                           prev_res_factors_community_change=="Not Selected"~"No")) %>% 
+  filter(survey_year!='2017')
+
+community <- stats_context('Community change') 
+community_geo <- stats_context_geo('Community change')
+
+
+# amenities
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_amenities=="Selected"~"Amenities",
+                           prev_res_factors_amenities=="Not Selected"~"No"))
+
+amenities <- stats_context('Amenities') 
+amenities_geo <- stats_context_geo('Amenities')
+
+
+# crime
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_crime=="Selected"~"Crime",
+                           prev_res_factors_crime=="Not Selected"~"No"))
+
+crime <- stats_context('Crime') 
+crime_geo <- stats_context_geo('Crime')
+
+
+# employment
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_employment=="Selected"~"Employment",
+                           prev_res_factors_employment=="Not Selected"~"No"))
+
+employment <- stats_context('Employment')
+employment_geo <- stats_context_geo('Employment')
+
+
+# household size
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_hh_size=="Selected"~"Household size",
+                           prev_res_factors_hh_size=="Not Selected"~"No"))
+
+hhsize <- stats_context('Household size') 
+hhsize_geo <- stats_context_geo('Household size')
+
+
+# less space
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_less_space=="Selected"~"Less space",
+                           prev_res_factors_less_space=="Not Selected"~"No"))
+
+lessspace <- stats_context('Less space') 
+lessspace_geo <- stats_context_geo('Less space')
+
+
+# more space
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_more_space=="Selected"~"More space",
+                           prev_res_factors_more_space=="Not Selected"~"No"))
+
+morespace <- stats_context('More space') 
+morespace_geo <- stats_context_geo('More space')
+
+# no answer
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_no_answer=="Selected"~"No answer",
+                           prev_res_factors_no_answer=="Not Selected"~"No")) 
+
+noanswer <- stats_context('No answer') 
+noanswer_geo <- stats_context_geo('No answer')
+
+# other
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_other=="Selected"~"Other",
+                           prev_res_factors_other=="Not Selected"~"No"))
+
+other <- stats_context('Other') 
+other_geo <- stats_context_geo('Other')
+
+# quality
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_quality=="Selected"~"Quality",
+                           prev_res_factors_quality=="Not Selected"~"No")) 
+
+quality <- stats_context('Quality') 
+quality_geo <- stats_context_geo('Quality')
+
+# school
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_school=="Selected"~"School",
+                           prev_res_factors_school=="Not Selected"~"No"))
+
+school <- stats_context('School') 
+school_geo <- stats_context_geo('School')
+
+
+# telework
+basics <- hts_data$hh %>%
+  mutate(sample= case_when(prev_res_factors_telework=="Selected"~"Telework",
+                           prev_res_factors_telework=="Not Selected"~"No"))
+
+telework <- stats_context('Telework')
+telework_geo <- stats_context_geo('Telework')
+```
+
+### Combine all data into table - with count/share of survey, movers, displaced movers, displaced reasons
+
+```{r}
+# put all data frames into list
+df_list <- list(full_sample, movers, displaced,
+                forced, income, housing, community, 
+                amenities, crime, employment, 
+                hhsize, lessspace, morespace, noanswer,
+                other, quality, school, telework)
+
+df_list_geo <- list(full_sample_geo, movers_geo, displaced_geo,
+                    forced_geo, income_geo, housing_geo, community_geo, 
+                    amenities_geo, crime_geo, employment_geo, 
+                    hhsize_geo, lessspace_geo, morespace_geo, noanswer_geo,
+                    other_geo, quality_geo, school_geo, telework_geo)
+
+# merge all data frames together
+# context_numbers <- bind_rows(df_list, .id = "column_label")
+context_numbers <- bind_rows(df_list)
+context_numbers_geo <- bind_rows(df_list_geo)
+
+# separate out by county
+king_values <- context_numbers_geo %>% 
+  select(sample, contains("King"))
+kitsap_values <- context_numbers_geo %>% 
+  select(sample, contains("Kitsap"))
+pierce_values <- context_numbers_geo %>% 
+  select(sample, contains("Pierce"))
+snohomish_values <- context_numbers_geo %>% 
+  select(sample, contains("Snohomish"))
+
+list_of_datasets <- list("region" = context_numbers, 
+                         "king" = king_values,
+                         "kitsap" = kitsap_values,
+                         "pierce" = pierce_values, 
+                         "snohomish" = snohomish_values)
+
+wb <- write.xlsx(list_of_datasets, file = file.path(loc, workbook_name),
+                 colNames = TRUE,
+                 overwrite = TRUE)
+```
+
+#### check against Michael's numbers
+```{r}
+# download rds file
+mikes_rds <- readRDS('T:/2025Q1/Mary/HHTS/2023/hts_displaced 1.rds')
+```
+
+# Displacement Risk
+```{r}
+# check home locations - previous and current
+home_count <- hts_data$hh %>%
+  group_by(survey_year) %>%
+  summarise(n_distinct(home_tract20))
+
+prev_home_count <- hts_data$hh %>%
+  group_by(survey_year) %>%
+  summarise(n_distinct(prev_home_tract20))
+
+# there is one household with a previous home tract, but it appears to be NA
+# test <- hts_data$hh %>% 
+#   filter(survey_year=="2023") %>% 
+#   group_by(prev_home_tract20) %>% 
+#   summarise(first(hh_id))
+```
+
+## Creating dataset
+```{r}
+# displacement risk dataset -----
+arc_service <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services"
+
+disp10.url <- file.path(arc_service, "Displacement_Risk_Data/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson")
+disp10.lyr <- st_read(disp10.url)
+
+# displacement risk is in 2010 geographies, so will need 2010-2020 crosswalk -----
+crosswalk_10_20 <- get_table(schema="census",
+                             tbl_name="v_geo_relationships_tracts") 
+
+# join displacement risk to crosswalk
+disp10 <- disp10.lyr %>% 
+  left_join(crosswalk_10_20, by="geoid10")
+
+# join displacement risk data to HTS data: previous home tract -----
+# create displacement dataset for previous home locations
+prev_disp10 <- disp10 %>% 
+  rename_with(.cols = ElmerGeo_DBO_displacement_risk_:vote_level, function(x){paste0("prev_", x)})
+  
+# need to remove 2023 data because locations not available
+hh_no2023 <- hts_data$hh  %>%
+  filter(survey_year!="2023")
+table(hh_no2023$survey_year)
+
+prev_home_loc <- hh_no2023 %>%
+  mutate(geoid20=as.character(prev_home_tract20)) %>% 
+  left_join(prev_disp10, by="geoid20")
+
+table(prev_home_loc$survey_year)
+```
+
+```{r, include=F, eval=F}
+# # checking prev data - a few records include prev_lat/long but no prev_tract data?
+# prev_simp_df <- prev_home_loc %>% 
+#   select(hh_id, hh_weight, survey_year, prev_home_lat, prev_home_lng, prev_home_tract20, prev_home_wa, res_dur)
+# 
+# filter <- prev_simp_df %>% 
+#   filter(!is.na(prev_home_lat)) #2607 have prev home lat/lng
+# 
+# filter2 <- filter %>% 
+#   filter(is.na(prev_home_tract20)) #78 hh have prev home lat/lng but no prev tract
+# table(filter2$res_dur)
+# sum(filter2$hh_weight) 
+# these households likely moved from within WA state, but not from within the PSRC 4-county region
+```
+
+### Displacement Risk shares
+```{r}
+# calculate 3 sets of proportions based on prev_risk_level/prev_risk_level_name
+prev_home_loc_simp <- prev_home_loc %>% 
+  select(hh_id, survey_year, prev_home_tract20, prev_risk_level, prev_risk_level_name)
+
+# join prev_home_loc data back to hts_data$hh
+basics <- hts_data$hh %>%
+  filter(survey_year!=2023) %>% # want to exclude NA previous location disp risk levels
+  left_join(prev_home_loc_simp, by=c("hh_id", "survey_year", "prev_home_tract20")) %>% 
+  mutate(sample=prev_risk_level_name)
+
+hts_data$hh <- basics
+
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("sample", "displaced"), incl_na=FALSE)
+
+displaced_estimates <- estimates %>% 
+  filter(displaced=="Displaced") %>% 
+  arrange(survey_year, factor(sample, levels = c('lower', 'moderate', 'higher')))
+
+displaced_estimates %>%
+  mutate(sample = factor(sample, levels=c('higher', 'moderate', 'lower'))) %>%
+  static_facet_column_chart(
+                          x = "displaced", y = "prop", fill = "sample",
+                          facet = "survey_year", 
+                          ylabel = "% of respondents", 
+                          title = "Displacement by Previous Tract Risk Level (2019, 2021)",
+                          moe = "prop_moe") + theme_settings
+```
+
+```{r, include=F, eval=F}
+# # manual check ------
+# data <- list(hh=basics)
+# 
+# # Calculate a categorical summary, i.e. count/share - combined data years
+# summary = summarize_weighted(hts_data= data,
+#                              summarize_var = 'displaced',
+#                              summarize_by = c('sample'),
+#                              id_cols='hh_id',
+#                              wt_cols='hh_weight',
+#                              wtname='hh_weight'
+# )
+# 
+# wtd_sum_all<-summary$summary$wtd %>%
+#   mutate(prop_moe=z_score*prop_se,
+#          est_moe=z_score*est_se) %>%
+#   dplyr::select(-c(prop_se, est_se)) %>%
+#   mutate(survey_year="Combined")
+# 
+# # Calculate a categorical summary, i.e. count/share - separate data years
+# summary = summarize_weighted(hts_data= data,
+#                              summarize_var = 'displaced',
+#                              summarize_by = c('survey_year', 'sample'),
+#                              id_cols='hh_id',
+#                              wt_cols='hh_weight',
+#                              wtname='hh_weight'
+# )
+# 
+# wtd_sum_year<-summary$summary$wtd %>%
+#   mutate(prop_moe=z_score*prop_se,
+#          est_moe=z_score*est_se) %>%
+#   dplyr::select(-c(prop_se, est_se)) %>%
+#   mutate(survey_year=as.character(survey_year))
+# 
+# # merge
+# # put all data frames into list
+# df_list <- list(wtd_sum_all, wtd_sum_year)
+# 
+# # merge all data frames together
+# full_sample <- bind_rows(df_list) %>%
+#   pivot_wider(names_from=c(survey_year, displaced),
+#               values_from = c(count, est, est_moe, prop, prop_moe),
+#               names_vary='slowest') %>% 
+#   arrange(factor(sample, levels = c('lower', 'moderate', 'higher')))
+```
+
+```{r}
+saveWorkbook(wb,
+             file.path(loc, workbook_name),
+             overwrite = TRUE)
+
+# print to workbook (line 735)
+addWorksheet(wb, "displacement risk")
+writeData(wb, "displacement risk", displaced)
+saveWorkbook(wb, 
+             file.path(loc, workbook_name),
+             # file.path(loc, "HTS_Displacement_Context_county - Copy.xlsx"),
+             overwrite = TRUE)
+
+# check workbook
+# length(names(wb))
+# names(wb)
+```

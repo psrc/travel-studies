@@ -1,0 +1,2191 @@
+---
+title: "Residential Displacement in Central Puget Sound"
+subtitle: "PSRC's Household Travel Survey (2019, 2021, 2023)"
+author: "Mary Richards"
+date: today
+date-format: long
+format: 
+  html:
+    toc: true
+    toc-location: right-body
+    toc-expand: 2
+    # toc-depth: 6
+    toc-title: "Contents"
+# editor: visual
+execute:
+  echo: false
+  warning: false
+  error: false
+---
+
+This documents the process for modeling residential displacement based on the Puget Sound Regional Council's Household Travel Survey results. Residential displacement is first defined, explored, and then modeled using multivariate GLMs. 
+
+::: panel-tabset
+# General setup
+
+PSRC and RSG have built a new package called travelSurveyTools to work with travel survey data. It is recommended to read through this documentation before you start using the package. <https://rsginc.github.io/travelSurveyTools/>
+
+### Read in Libraries, establish functions
+
+```{r setup, include=FALSE}
+# YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here's how:
+# library(devtools)
+# devtools::install_github('psrc/psrcelmer')
+# devtools::install_github('psrc/psrcplot')
+# devtools::install_github('psrc/psrc.travelsurvey', force=TRUE)
+
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(psrccensus)
+library(psrcplot)
+library(tidyverse)
+library(magrittr)
+library(table1)
+library(psrc.travelsurvey)
+library(openxlsx)
+
+library(sf) #for regional geographies
+library(leaflet)
+library(leafem) #home button
+library(geosphere) #for calculating distance distm()
+library(htmlwidgets) #save visuals as html
+sf_use_s2(FALSE)
+library(corrplot) #for correlation analysis
+library(see) #for theme_modern
+library(sjPlot) #tab_model()
+library(DT) #datatable()
+
+library(DescTools) #pseudoR2 calculations
+library(summarytools) #freq/ctable functions
+
+source('../survey-23-preprocess.R')
+# source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
+```
+
+```{r rounding function}
+# applied to categorical columns 
+my.render.cat <- function(x) {
+    c("", sapply(stats.default(x), function(y) with(y,
+        sprintf("%d (%.0f%%)", FREQ, PCT))))}
+```
+
+### Read in Codebook
+
+```{r}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+### Read in Data from Elmer
+
+```{r}
+# Specify which variables to retrieve
+# View(psrc.travelsurvey:::init_variable_list)
+
+vars <- c(
+  #household-level variables
+  'household_id', 'res_dur', 'prev_home_wa', 'home_rgcname', 
+  'prev_home_rgcname', 'home_county', 'prev_home_county',
+  'home_jurisdiction', 'prev_rent_own', 'rent_own', 
+  'prev_res_type', 'res_type',
+  'hhsize', 'numadults', 'numchildren', 'numworkers', 'vehicle_count', 
+  'hhincome_detailed', 'hhincome_broad',
+  'prev_res_factors_amenities', 'prev_res_factors_community_change',
+  'prev_res_factors_crime', 'prev_res_factors_employment', 
+  'prev_res_factors_forced', 'prev_res_factors_hh_size', 
+  'prev_res_factors_housing_cost', 'prev_res_factors_income_change', 
+  'prev_res_factors_less_space', 'prev_res_factors_more_space', 
+  'prev_res_factors_no_answer', 'prev_res_factors_other', 
+  'prev_res_factors_quality', 'prev_res_factors_school', 
+  'prev_res_factors_specify', 'prev_res_factors_telework', 
+  'hh_race_category',
+  "home_jurisdiction","home_lat","home_lng",
+  "prev_home_lat", "prev_home_lng", 
+  "home_tract20", "prev_home_tract20",
+  
+  #person-level variables
+  'race_category', 'race_afam', 'race_aiak', 'race_asian', 'race_hapi', 
+  'race_noanswer', 'race_other', 'race_other_specify', 'race_white',
+  'ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 
+  'ethnicity_997', 'ethnicity_999', 'ethnicity_other',
+  'person_id', 'gender', 'age',
+  'education', 'employment',
+  'license')
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars)  # default includes all survey_years
+
+# For calculating moe
+z_score<-1.645
+
+# For charts - make text easier to read
+theme_settings <- theme(
+  axis.text.x = element_text(size = 14),
+  axis.text.y = element_text(size = 14),
+  axis.title.y = element_text(size = 20),
+  axis.title.x = element_text(size = 20),
+  plot.title = element_text(size = 24)
+)
+```
+
+The survey instrument is here: J:/Projects/Surveys/HHTravel/Survey2023/Documents/Survey_Instrument/Puget_Sound_HTS_Questionnaire_2023_Final.docx
+
+Open the codebook and review the variable and it's values. J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx
+
+# Research notes
+
+## Who was asked?
+
+### 2017
+
+-   How long have you lived at your current residence?
+-   Was your previous home located in the state of Washington? - If lived in residence \<= 5 years
+
+### 2019
+
+-   \[res_duration\]
+-   \[prev_home_wa\] - if lived in current residence \<= 5 years
+-   \[prev_res_factors\] - if previous home was in Washington (and moved in past 5 years)
+
+### 2021
+
+-   \[RES_DURATION\]
+-   \[PREV_HOME_WA\] - if lived in current residence \<= 5 years
+-   \[PREV_RES_FACTORS\] - if previous home was in Washington (and moved in past 5 years)
+
+### 2023
+
+-   \[RES_DURATION\] - if rMove or (rMove for Web and person 1)
+-   \[PREV_HOME_WA\] - if lived in current residence \<= 5 years
+-   \[PREV_RES_FACTORS\] - if previous home was in Washington
+
+## How were the questions asked?
+
+The 2017 survey didn't ask about \[prev_res_factors\], so displacement will be analyzed for 2019, 2021, and 2023.
+
+*Which of the following were important factors in your decision to move away from your previous residence?* *Select all that apply.*
+
+### 2019
+
+-   Could no longer afford previous residence because of an increase in rent or housing costs
+-   Could no longer afford previous residence because of a change in income or finances
+-   Friends, family, or cultural community were leaving the area
+-   Changes in household size, establish own household
+-   Needed more space
+-   Needed less space
+-   Employment or commuting considerations (e.g., to take new job or shorten commute)
+-   Access to a different K-12 school
+-   Concerns about safety or crime
+-   To upgrade to a better quality home or to stop renting and buy a home
+-   Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)
+-   Other reason
+-   Prefer not to answer
+
+### 2021 (same wording as 2019 with a few additional options)
+
+-   COVID-19 removed need to live in previous residence (e.g., no longer need to attend work or school in-person)
+-   Concerns about COVID-19 health risks
+
+### 2023 (similar options, but one new option - bold - and revised wording of others - italics)
+
+-   *Increase in rent or housing costs, could no longer afford previous place*
+-   *Change in income or finances, could no longer afford previous place*
+-   *Friends, family, or cultural community left or were leaving the area*
+-   *Change in who you live with (e.g., move out on your own, getting married/divorced)*
+-   Needed more space
+-   Needed less space
+-   *To have better access to work (e.g., better commute or take new job)*
+-   **To have better access to recreation, restaurants, shops, and other amenities**
+-   *Employer’s telework policy removed need to live in previous residence*
+-   Access to a different K-12 school
+-   Concerns about safety or crime
+-   To upgrade to a better-quality home or to stop renting and buy a home
+-   Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)
+-   Other reason
+-   Prefer not to answer
+
+## Topics to explore
+
+-   Demographics (household level)
+    -   race/ethnicity
+    -   lifecycle
+    -   household size
+    -   number of children
+    -   income
+    -   number of vehicles
+    -   education?
+-   Previous and current living:
+    -   housing tenure
+    -   housing type
+    -   housing transition (space/density)
+-   Spatial patterns (limited for 2023)
+    -   RGCs
+    -   counties
+    -   regional geographies
+-   COVID
+-   Displacement risk
+    -   previous tract
+    -   current tract
+
+# Data setup
+
+## Identify displaced movers
+
+There was a problem with the 2023 HTS data, where the previous home location question was only asked to respondents who moved within the last five years AND moved from OUTSIDE of WA state. Therefore, we are unable to do any useful analyses into moves/displacement based on where households had previously lived within our region.
+
+To identify movers we are choosing those who have moved within the past **five years** and those who previously lived in Washington state.
+
+To identify displacement, respondents were asked about their reasons for moving. 4 of the \~14 reasons are linked with displacement:
+
+-   Increase in rent or housing costs, could no longer afford previous place
+-   Change in income or finances, could no longer afford previous place
+-   Friends, family, or cultural community left or were leaving the area
+-   Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)
+
+```{r}
+# unique(hts_data$hh$res_dur)
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(movers=case_when(res_dur=="Less than a year" |
+                            res_dur=="Between 1 and 2 years" | 
+                            res_dur=="Between 2 and 3 years" |
+                            res_dur=="Between 3 and 5 years"
+                          ~ 'Did move',
+                          res_dur=="Missing Response" ~ 'No response',
+                          TRUE ~ 'Did not move'),
+         displaced=case_when(prev_res_factors_forced=='Selected'|
+                               prev_res_factors_income_change=='Selected'|
+                               prev_res_factors_housing_cost =='Selected'|
+                               prev_res_factors_community_change=='Selected'~ 'Displaced',
+                             TRUE~'Not displaced'))
+
+# table(hts_data$hh$survey_year)
+table(hts_data$hh$movers, hts_data$hh$survey_year)
+table(hts_data$hh$displaced, hts_data$hh$survey_year)
+```
+
+*Applying a filter* <br>
+We are interested in keeping those that moved - there is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result of this error in logic, we need to filter out the people who did not move within the past 5 years.
+```{r}
+# table(hts_data$hh$survey_year, hts_data$hh$movers)
+
+hts_data$hh <- hts_data$hh %>%
+  filter(movers == "Did move")
+
+# to check
+# table(hts_data$hh$survey_year)
+# table(hts_data$hh$movers)
+table(hts_data$hh$movers, hts_data$hh$survey_year)
+# table(hts_data$hh$movers, hts_data$hh$displaced)
+table(hts_data$hh$displaced, hts_data$hh$survey_year)
+# table(hts_data$hh$movers, hts_data$hh$res_dur)
+# table(hts_data$hh$res_dur, hts_data$hh$displaced)
+
+# breakdown of "other" reasons for moving 
+# other_reasons <- hts_data$hh %>% 
+#   filter(!is.na(prev_res_factors_specify))
+# table(other_reasons$survey_year)
+# 
+# other_reasons_21 <- other_reasons %>% 
+#   filter(survey_year==2021)
+# write.csv(other_reasons_21,
+#           "T:/60day-TEMP/Mary/HHTS/2023/checking2021hh.csv")
+# 
+# hh_check <- hts_data$hh %>% 
+#   filter(hh_id=="21264920")
+```
+*The filter helped to refine the data: 
+
+1) the percentage of displaced households should be calculated out of the households that moved within the past 5 years, instead of all households - this difference can be seen in the two 'Not displaced' data rows in the 2 tables above
+2) in 2023 there were 379 households that were displaced and after the filter there were 373 households - this is a small difference but shows that there are 6 households that were incorrectly categorized
+
+##### Check the number of movers by comparing to ACS 
+
+###### **ACS - U.S.**
+[pdf report](https://www2.census.gov/programs-surveys/demo/visualizations/geographic-mobility/acs-1yr/residence.pdf): U.S. Census Bureau, 2023 American Community Survey, 1-year estimates, Tables B07001 and DP02
+
+Percentage of Population that Moved in the Past Year - population 1 year and over in U.S. <br>
+2019: 13.7 <br>
+2021: 12.8 <br>
+2023: 12.1 <br>
+
+###### **ACS (5y; DP02) - PSRC region**
+"Residence 1 year ago is used to assess the residential stability and the effects of migration in both urban and rural areas. This item provides information on the mobility of our population." -[ACS subject definitions](https://www2.census.gov/programs-surveys/acs/tech_docs/subject_definitions/2023_ACSSubjectDefinitions.pdf)
+
+*all movers (%)* - including from out of state/abroad<br>
+reliability is 'missing or N/A' <br>
+'Region' values are incorrect because of the stat function - so they have been filterd out
+```{r}
+# base_acs_data <- get_acs_recs(geography ='county', 
+#                               table.names = 'S0701', #subject table code
+#                               years = c(2019, 2021, 2023),
+#                               acs.type = 'acs5')
+# 
+# all_movers <- base_acs_data %>% 
+#   filter(grepl(c("S0701_C01_056"),variable)) %>% 
+#   dplyr::select(GEOID, name, estimate, year) %>% 
+#   print()
+
+base_acs_data <- get_acs_recs(geography ='county', 
+                              table.names = 'DP02', #subject table code
+                              years = c(2019, 2021, 2023),
+                              acs.type = 'acs5')
+
+all_movers <- base_acs_data %>% 
+  filter(variable=="DP02_0081P",
+         name!="Region") %>% 
+  dplyr::select(year, name, estimate, moe)
+
+# print in output
+datatable(
+  data.frame(
+    year = all_movers$year,
+    county = all_movers$name,
+    estimate = round(all_movers$estimate, 2),
+    moe = round(all_movers$moe, 2)
+  )
+)
+```
+Based on these general numbers, there are more movers in the PSRC region than nationally. These values provide context but are not directly comparable to our HTS analysis because of 2 main reasons:
+
+1) ACS uses 1 year as their timeframe for defining movers, while we define movers as those who changed residence within the past 5 years - **unable to easily account for this** (based on the definition of displacement that we are using for this analysis)
+2) The tables above represent all movers, regardless of their origin location, while our analysis focuses on movers who previously lived within WA state - an additional filter is included below:
+
+\
+*moving from within same county OR different county, same state* <br>
+We filter the ACS data to include only those who move within the same county or those who move within the same state, but different county, which aligns with our HTS analysis. The values below reflect movers within 1 year. 
+```{r}
+WA_movers <- base_acs_data %>% 
+  filter((variable == "DP02_0082P" & year == 2019 | #Different house in the U.S.!!Same county
+           variable == "DP02_0084P" & year == 2019) | #Different house in the U.S.!!Different county!!Same state
+           (variable == "DP02_0083P" & (year == 2021 | year ==2023) | #Different house in the U.S.!!Same county
+              variable == "DP02_0085P" & (year == 2021 | year ==2023)), #Different house in the U.S.!!Different county!!Same state
+         name!="Region") %>% 
+  dplyr::select(year, name, variable, label, estimate, moe)
+
+WA_movers_psrc <- WA_movers %>% 
+  group_by(year, name) %>% 
+  summarise(estimate=sum(estimate),
+            moe=sum(moe), .groups = "drop") 
+
+# print in output
+datatable(
+  data.frame(
+    year = WA_movers_psrc$year,
+    county = WA_movers_psrc$name,
+    estimate = round(WA_movers_psrc$estimate, 2),
+    moe = round(WA_movers_psrc$moe, 2)
+  )
+)
+```
+All of these numbers vary between 10 and 14%. 
+\
+\
+
+###### **HTS**
+Unfortunately, the ACS data are at the county-level (regional values difficult to calculate with function), but the HTS data are more reliable at the region-level due to large MOEs related to sample size constraints. 
+
+*region-level*
+```{r}
+# movers at the hh level
+# table(hts_data$hh$movers, hts_data$hh$survey_year)
+
+hh_id_movers <- hts_data$hh %>% 
+  select(hh_id, survey_year, res_dur) %>% 
+  mutate(mover_1yr = case_when(res_dur== "Less than a year"~ "one year",
+                               TRUE~"more than one year"))
+
+# movers at the person level
+hh_movers <- hh_id_movers %>% 
+  right_join(hts_data$hh, by = c("hh_id", 
+                                 "survey_year", "res_dur"))
+
+# check estimate/shares
+hts_data$hh <- hh_movers
+
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "mover_1yr"), incl_na=FALSE) %>% 
+  filter(mover_1yr=="one year")
+
+# print in output
+datatable(
+  data.frame(year=estimates$survey_year, 
+             move_timeframe=estimates$mover_1yr, 
+             count=estimates$count,
+             prop = round(estimates$prop, 2),
+             prop_moe = round(estimates$prop_moe, 2),
+             est = round(estimates$est, 2),
+             est_moe = round(estimates$est_moe, 2)
+  )
+)
+```
+Some of these movers came from out of the state or country, but we want to focus on those who have moved within the state, so we next apply a filter to retain households that reported: "Yes, previous home was in Washington"
+\
+\
+```{r}
+# filter to only those who previously lived in WA (wanted to get the total number of respondents who moved/didn't move - if filter had been in previous, those who did not move would not have been included because the prev_home_wa was only asked of people who reported moving within the past 5 years)
+hh_movers <- hh_movers %>% 
+   filter(prev_home_wa=="Yes, previous home was in Washington")
+
+# check estimate/shares
+hts_data$hh <- hh_movers
+
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "mover_1yr"), incl_na=FALSE) %>% 
+  filter(mover_1yr=="one year")
+
+# print in output
+datatable(
+  data.frame(year=estimates$survey_year, 
+             move_timeframe=estimates$mover_1yr, 
+             count=estimates$count,
+             prop = round(estimates$prop, 2),
+             prop_moe = round(estimates$prop_moe, 2),
+             est = round(estimates$est, 2),
+             est_moe = round(estimates$est_moe, 2)
+  )
+)
+```
+This filter reduced our count by about 100 households, but the proportions stayed similar - with the MOE.
+\
+\
+
+Within the subset of movers, we can look at those who were displaced. 
+```{r}
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "mover_1yr","displaced"), incl_na=FALSE) %>% 
+  filter(mover_1yr=="one year")
+
+# print in output
+datatable(
+  data.frame(year=estimates$survey_year,
+             move_timeframe=estimates$mover_1yr,  
+             displaced=estimates$displaced,
+             count=estimates$count,
+             prop = round(estimates$prop, 2),
+             prop_moe = round(estimates$prop_moe, 2),
+             est = round(estimates$est, 2),
+             est_moe = round(estimates$est_moe, 2)
+  )
+)
+```
+**The 2019 displacement estimate seems very high and may be unreliable (relatively large MOE compared to other years).** The 2021 and 2023 displacement values are also high ~30%, but slightly more reasonable. Unfortunately these are difficult to compare to other studies because of varying definitions of displacement
+\
+\
+
+Not just one-year, but all movers who were displaced
+```{r}
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year","displaced"), incl_na=FALSE) %>% 
+  filter(displaced=="Displaced")
+
+# print in output
+datatable(
+  data.frame(year=estimates$survey_year,
+             displaced=estimates$displaced,
+             count=estimates$count,
+             prop = round(estimates$prop, 2),
+             prop_moe = round(estimates$prop_moe, 2),
+             est = round(estimates$est, 2),
+             est_moe = round(estimates$est_moe, 2)
+  )
+)
+```
+\
+\
+
+*county-level* (likely unreliable)
+
+**Values vary widely between counties and the MOEs are large because of the small sample sizes after slicing the data by so many dimensions (year, displacement status, county). Although the estimates are included below, they are likely unreliable.**
+```{r}
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "mover_1yr", "home_county"), incl_na=FALSE) %>% 
+  filter(mover_1yr=="one year")
+
+# print in output
+datatable(
+  data.frame(year=estimates$survey_year, 
+             move_timeframe=estimates$mover_1yr, 
+             county=estimates$home_county,
+             count=estimates$count,
+             prop = round(estimates$prop, 2),
+             prop_moe = round(estimates$prop_moe, 2),
+             est = round(estimates$est, 2),
+             est_moe = round(estimates$est_moe, 2)
+  )
+)
+```
+
+Within the subset of movers, we can look at those who were displaced.
+
+```{r}
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "mover_1yr", "home_county", "displaced"), incl_na=FALSE) %>% 
+  filter(mover_1yr=="one year")
+
+# print in output
+datatable(
+  data.frame(year=estimates$survey_year,
+             move_timeframe=estimates$mover_1yr,  
+             county=estimates$home_county,
+             displaced=estimates$displaced,
+             count=estimates$count,
+             prop = round(estimates$prop, 2),
+             prop_moe = round(estimates$prop_moe, 2),
+             est = round(estimates$est, 2),
+             est_moe = round(estimates$est_moe, 2)
+  )
+)
+```
+
+### Remove 2017 year from data
+
+The 2017 survey did not ask respondents about why they moved, so they cannot be categorized as displaced or not displaced.
+
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  filter(survey_year!=2017)
+```
+
+### Add standard groupings
+
+For more information, see the [PSRC documentation](https://psrc.github.io/psrc.travelsurvey/articles/add-standard-groupings.html), which includes detail about the agency's standard groupings.
+
+```{r}
+hts_data <- hts_data %>% 
+  hts_bin_income() %>% 
+  hts_bin_hhsize() %>% 
+  hts_bin_rent_own() %>% 
+  hts_bin_vehicle_count() %>% 
+  hts_bin_edu() %>% 
+  hts_bin_worker()
+```
+
+# Demographics
+
+## Household Race
+
+### All races
+
+AANHIPI non-Hispanic, Black or African American non-Hispanic, Hispanic, Missing/No response, Some Other Races non-Hispanic, White non-Hispanic
+```{r}
+# unique(hts_data$hh$hh_race_category)
+# table(hts_data$hh$hh_race_category)
+```
+
+### 4 races
+
+AANHPI non-Hispanic, Hispanic, Missing/No response, Other POC non-Hispanic, White non-Hispanic
+
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         hh_race_category_4= case_when(hh_race_category=="Black or African American non-Hispanic"|
+                                         hh_race_category=="Some Other Races non-Hispanic" ~ "Other POC non-Hispanic",
+                                       TRUE~hh_race_category))
+
+# checking numbers
+# unique(hts_data$hh$hh_race_category_4)
+table(hts_data$hh$hh_race_category_4)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hh_race_category_4"), incl_na=FALSE)
+```
+
+### 3 races (A)
+
+AANHPI non-Hispanic, Missing/No response, Non-Asian POC, White non-Hispanic
+
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         hh_race_category_3= case_when(hh_race_category=="Black or African American non-Hispanic"|
+                                         hh_race_category=="Hispanic" ~ "Non-Asian POC",
+                                       hh_race_category=="Some Other Races non-Hispanic" ~ "Non-Asian POC",
+                                       TRUE~hh_race_category))
+
+# checking numbers
+table(hts_data$hh$hh_race_category_3)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hh_race_category_3"), incl_na=FALSE)
+```
+
+### 3 races (B)
+Aggregating Asian and Hispanic because similar model results for AANHPI and Hispanic when using 'hh_race_category_4'
+
+AANHPI and Hispanic, Missing/No response, Non-AANHPI non-Hispanic POC, White non-Hispanic
+
+```{r}
+# table(hts_data$hh$hh_race_category) # original
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         hh_race_category_3b= case_when(hh_race_category=="Black or African American non-Hispanic"|
+                                          hh_race_category=="Some Other Races non-Hispanic" ~ "Non-AANHPI non-Hispanic POC",
+                                        hh_race_category=="AANHPI non-Hispanic" |
+                                          hh_race_category=="Hispanic" ~ "AANHPI and Hispanic POC",
+                                        TRUE~hh_race_category))
+
+# checking numbers
+table(hts_data$hh$hh_race_category_3b)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hh_race_category_3b"), incl_na=FALSE)
+```
+
+### 2 races
+
+People of Color, Missing/No response, White non-Hispanic
+
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         hh_race_category_2= case_when(hh_race_category=="AANHPI non-Hispanic"|
+                                         hh_race_category=="Black or African American non-Hispanic"|
+                                         hh_race_category=="Hispanic"|
+                                         hh_race_category=="Some Other Races non-Hispanic" ~ "POC",
+                                       TRUE~hh_race_category))
+
+# checking numbers
+table(hts_data$hh$hh_race_category_2)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hh_race_category_2"), incl_na=FALSE) 
+```
+
+## Household Size
+
+```{r}
+# checking numbers
+# table(hts_data$hh$hhsize) #13 options
+table(hts_data$hh$hhsize_bin4) #standard groupings: 4 options
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hhsize_bin4"), incl_na=FALSE) %>% 
+  print()
+```
+
+## Number of children
+The number of children in a household is simplified so that any household with 3 or more children are grouped together. 
+```{r}
+# unique(hts_data$hh$numchildren) #original variables
+# table(hts_data$hh$numchildren) #original variables
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         numchildren_simp= factor(
+           fcase(grepl("^(3|4|5|6|7|8|9|10|11|12)", numchildren) ,"3+ children",
+                 !is.na(numchildren), as.character(numchildren))))
+
+# checking numbers
+table(hts_data$hh$numchildren_simp)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "numchildren_simp"), incl_na=FALSE) %>% 
+  print()
+```
+
+## Household Income
+There are 2 different bins - 3 and 5 income groupings
+```{r}
+# checking numbers
+# table(hts_data$hh$hhincome_broad) #original variables
+# table(hts_data$hh$hhincome_bin3) #standard groupings
+table(hts_data$hh$hhincome_bin5) #standard groupings
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hhincome_bin5"), incl_na=FALSE) %>% 
+  print()
+```
+
+### Household Income Flag
+Categorizing the households as making less than or $100k or more. 
+```{r}
+# unique(hts_data$hh$hhincome_bin5) #standard groupings
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(income_flag= case_when(hhincome_bin5=="$100,000 or more"~"$100,000 or more",
+                            TRUE~"Less than $100,000"))
+
+# checking numbers
+table(hts_data$hh$survey_year, hts_data$hh$income_flag)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "income_flag"), incl_na=FALSE)
+```
+
+### Household Income - aggregating (4 bins)
+```{r}
+# unique(hts_data$hh$hhincome_bin5) #standard groupings
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hhincome_bin4= case_when(hhincome_bin5=="Under $25,000"|
+                                    hhincome_bin5=="$25,000-$49,999"~"Under $50,000",
+                                  TRUE~hhincome_bin5))
+
+# checking numbers
+table(hts_data$hh$survey_year, hts_data$hh$hhincome_bin4)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "hhincome_bin4"), incl_na=FALSE)
+```
+
+## Number of vehicles/Number of drivers
+### Number of Vehicles
+```{r}
+# checking numbers
+# table(hts_data$hh$vehicle_count) #original variables
+table(hts_data$hh$vehicle_count_bin4) #standard groupings
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("survey_year", "vehicle_count_bin4"), incl_na=FALSE)
+```
+
+### Number of licenses
+```{r}
+# table(hts_data$person$license) #original variables
+# table(hts_data$person$license, hts_data$person$survey_year) #original variables
+
+license_person <- hts_data$person %>% 
+  select(hh_id, license) %>% 
+  mutate(license_binary= case_when(license=="Yes, drives" |
+                                     license=="Yes, has an intermediate or unrestricted license"~ 1,
+                                   TRUE~0)) %>% 
+  group_by(hh_id) %>% 
+  summarise(license_num = sum(license_binary, na.rm=T))
+
+hts_data$hh <- hts_data$hh %>% 
+  left_join(license_person, by="hh_id")
+
+# checking numbers
+table(hts_data$hh$license_num)
+
+# check estimate/shares
+# estimates <- psrc_hts_stat(hts_data, "hh", 
+#                            c("survey_year", "license_num"), incl_na=FALSE)
+```
+
+### Number of vehicles/licenses
+Vehicle drivers is the number of household vehicles divided by the number of household licenses. The higher the number, the more vehicles that are available for members of the household who are able to drive. 
+```{r}
+# table(hts_data$hh$license_num) #original variables
+# table(hts_data$hh$vehicle_count_bin4) #original variables
+# class(hts_data$hh$vehicle_count_bin4) #original variables
+
+license_hh <- hts_data$hh %>% 
+  select(hh_id, vehicle_count_bin4, license_num) %>% 
+  mutate(vehicles_numeric= case_when(vehicle_count_bin4=="0"~0,
+                                     vehicle_count_bin4=="1"~1,
+                                     vehicle_count_bin4=="2"~2,
+                                     vehicle_count_bin4=="3"~3,
+                                     vehicle_count_bin4=="4+"~4)) %>% 
+  group_by(hh_id) %>% 
+  summarise(veh_num = sum(vehicles_numeric, na.rm=T),
+            veh_drivers = vehicles_numeric/license_num)
+
+# checking numbers
+# table(license_hh$veh_drivers) # 17 Inf values
+# turn Inf into NA
+is.na(license_hh$veh_drivers) <- sapply(license_hh$veh_drivers, is.infinite)
+# table(license_hh$veh_drivers) # No Inf values
+
+
+hts_data$hh <- hts_data$hh %>% 
+  left_join(license_hh, by="hh_id")
+
+# checking numbers
+table(hts_data$hh$veh_drivers) # No Inf values
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "veh_drivers"), incl_na=FALSE)
+```
+
+## Education
+
+```{r}
+# table(hts_data$person$education) #original variables
+# table(hts_data$person$edu_bin2) 
+
+edu_person <- hts_data$person %>% 
+  select(hh_id, edu_bin2) %>% 
+  mutate(edu_num= case_when(edu_bin2=="Less than Bachelors degree"~1,
+                            edu_bin2=="Bachelors or higher"~2,
+                            TRUE~NA)) %>% 
+  group_by(hh_id) %>% 
+  summarise(edu_num_prod = prod(edu_num, na.rm=T)) %>% 
+  mutate(edu_hh_max= case_when(edu_num_prod==1~"Less than Bachelors degree",
+                               edu_num_prod>1~"Bachelors or higher")) 
+# table(edu_person$edu_hh_max)
+
+hts_data$hh <- hts_data$hh %>% 
+  left_join(edu_person, by="hh_id")
+
+# checking numbers
+table(hts_data$hh$edu_hh_max)
+
+# check estimate/shares
+# estimates <- psrc_hts_stat(hts_data, "hh",
+#                            c("survey_year", "displaced", "edu_hh_max"), incl_na=FALSE)
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "edu_hh_max"), incl_na=FALSE) %>% 
+  print()
+
+# static_facet_column_chart(filter(estimates),
+#                           x = "displaced", y = "prop", fill = "edu_hh_max",
+#                           facet = "survey_year",
+#                           ylabel = "% of respondents",
+#                           title = "Educational Attainment (2019, 2021, 2023)",
+#                           moe = "prop_moe") + theme_settings
+```
+
+## Employment
+
+### Number of workers
+
+```{r}
+# unique(hts_data$hh$numworkers) #original variables
+# table(hts_data$hh$numworkers)
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         num_workers_4bin= factor(
+           fcase(grepl("^(3|4|5|6|7|8|9|10|11|12|13)", numworkers) ,"3+ workers",
+                 !is.na(numworkers), as.character(numworkers))))
+
+# checking numbers
+table(hts_data$hh$num_workers_4bin)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "num_workers_4bin"), incl_na=FALSE) %>% 
+  print()
+```
+
+### Relationship between Workers and Adults
+This variable is testing how many workers there are compared to how many adults in the household. If there are more workers than adults, this implies that at least one member has more than one job and if there are fewer workers this implies that there may are some adults without jobs. If they are all workers, this implies that there is the same number of workers and adults.  
+```{r}
+# table(hts_data$person$employment) #original variables
+# table(hts_data$person$worker) #standard grouping
+# table(hts_data$hh$numadults)
+
+worker_person <- hts_data$person %>% 
+  select(hh_id, worker) %>% 
+  mutate(worker_num= case_when(worker=="Not worker"~0,
+                               worker=="Worker"~1,
+                               TRUE~NA)) %>% 
+  group_by(hh_id) %>% 
+  summarise(worker_num_sum = sum(worker_num, na.rm=T)) 
+
+# table(worker_person$worker_num_sum)
+
+hts_data$hh <- hts_data$hh %>%
+  left_join(worker_person, by="hh_id") %>% 
+  mutate(numadults_num= as.numeric(substr(numadults,1,2))) %>% 
+  mutate(adult_workers= case_when(worker_num_sum==numadults_num ~ "All workers",
+                                  worker_num_sum < numadults_num ~ "Fewer workers",
+                                  worker_num_sum > numadults_num ~ "More workers"))
+
+# checking numbers
+# table(hts_data$hh$numadults_num)
+table(hts_data$hh$adult_workers)
+
+#there is one household with more workers than adults
+check <- hts_data$hh %>% 
+  filter(adult_workers=="More workers") #2 adults, 3 children, 3 workers
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "adult_workers"), incl_na=FALSE)
+```
+
+## Previous and Current Living Situations
+For the housing variables we compare between previous and current living situations. 
+
+### Housing Tenure
+
+#### Previous
+
+```{r}
+# table(hts_data$hh$prev_rent_own) #original variables
+
+# need to recreate to match the standard grouping rent_own_bin2 variable
+# based on code: https://github.com/psrc/psrc.travelsurvey/blob/main/R/psrc-hts-recode-hh-vars.R
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         prev_rent_own_bin2= factor(
+           fcase(grepl("^Provided", prev_rent_own) ,"Rent",
+                 grepl("^(Other|Prefer)", as.character(prev_rent_own)), NA_character_,
+                 !is.na(rent_own), as.character(prev_rent_own))))
+
+# checking numbers
+table(hts_data$hh$survey_year, hts_data$hh$prev_rent_own_bin2)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "prev_rent_own_bin2"), incl_na=FALSE)
+```
+
+#### Current
+
+```{r}
+# checking numbers
+# unique(hts_data$hh$rent_own) #original variables
+table(hts_data$hh$survey_year, hts_data$hh$rent_own_bin2)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "rent_own_bin2"), incl_na=FALSE)
+```
+
+#### Transition
+This variable compares the previous housing tenure with the current housing tenure (rent and own). 
+```{r}
+# table(hts_data$hh$prev_rent_own_bin2)
+# table(hts_data$hh$rent_own_bin2)
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         res_tenure_transition= case_when(prev_rent_own_bin2=="Rent" & 
+                                            rent_own_bin2=="Own/paying mortgage" ~ "Rent-Own",
+                                          prev_rent_own_bin2=="Owned/paid mortgage" & 
+                                            rent_own_bin2=="Rent" ~ "Own-Rent",
+                                          TRUE~"No change"))
+# checking numbers
+table(hts_data$hh$survey_year, hts_data$hh$res_tenure_transition)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "res_tenure_transition"), incl_na=FALSE)
+```
+
+### Housing Type
+#### Previous
+```{r}
+# Checking the raw data
+table(hts_data$hh$prev_res_type) #original variables
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "prev_res_type"), incl_na=FALSE) %>% 
+  print()
+```
+
+##### Aggregated housing type
+
+Based on sample size and MOE, it would be best to aggregate certain housing types. There appears to be a statistical difference in displacement rates between families living in buildings with 3 or fewer and 4 or more apartments/condos. Families in townhouses and buildings with 3 or fewer units seem to be displaced at similar rates, so those will be aggregated, although the numbers are still quite small for those two - the majority of people are in single-family houses or in buildings with 4 or more units. All of the remaining options have low sample sizes, so they will be aggregated.
+
+```{r}
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         prev_res_type_simp= case_when(prev_res_type=="Single-family house (detached house)" ~ "Single-family",
+                                       prev_res_type=="Townhouse (attached house)" |
+                                         prev_res_type=="Building with 3 or fewer apartments/condos" ~ "Lower-density shared walls",
+                                       prev_res_type=="Building with 4 or more apartments/condos" ~ "Higher-density shared walls",
+                                       TRUE~"Other"))
+# check numbers
+table(hts_data$hh$prev_res_type_simp) #aggregated variable
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "prev_res_type_simp"), incl_na=FALSE)
+```
+
+
+#### Current
+
+Using the same aggregation categories as with the previous housing type.
+
+```{r}
+# unique(hts_data$hh$res_type) #original variables
+# table(hts_data$hh$res_type)
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         res_type_simp= case_when(res_type=="Single-family house (detached house)" ~ "Single-family",
+                                  res_type=="Townhouse (attached house)" |
+                                    res_type=="Building with 3 or fewer apartments/condos" ~ "Lower-density shared walls",
+                                  res_type=="Building with 4 or more apartments/condos" ~ "Higher-density shared walls",
+                                  TRUE~"Other"))
+
+# checking numbers
+table(hts_data$hh$res_type_simp) #aggregated variable
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "res_type_simp"), incl_na=FALSE)
+```
+
+#### Transition
+
+Using the same aggregation categories as with the previous housing type. "Other" == Dorm or institutional housing; Mobile home/trailer; Other (including boat, RV, van, etc.)
+
+```{r}
+# unique(hts_data$hh$prev_res_type_simp) 
+# unique(hts_data$hh$res_type_simp)
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         prev_res_type_num= case_when(prev_res_type_simp=="Single-family" ~1,
+                                      prev_res_type_simp=="Lower-density shared walls" ~2,
+                                      prev_res_type_simp=="Higher-density shared walls" ~3,
+                                      prev_res_type_simp=="Other" ~4),
+         res_type_num= case_when(res_type_simp== "Single-family" ~1,
+                                 res_type_simp== "Lower-density shared walls" ~2,
+                                 res_type_simp== "Higher-density shared walls" ~3,
+                                 res_type_simp== "Other" ~4),
+         res_type_transition= case_when(prev_res_type_num==res_type_num~"No change",
+                                        prev_res_type_num>res_type_num~"More space, less density",
+                                        prev_res_type_num<res_type_num~"Less space, higher density"))
+
+# checking numbers
+table(hts_data$hh$res_type_transition)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "res_type_transition"), incl_na=FALSE)
+```
+
+## Spatial Patterns
+
+### RGCs
+
+There is no 2023 data for previous home location, so this will be based on current home location.
+
+```{r}
+# table(hts_data$hh$prev_home_rgcname, hts_data$hh$survey_year) #original variables
+# table(hts_data$hh$home_rgcname, hts_data$hh$survey_year) #original variables
+
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         prev_RGC= case_when(prev_home_rgcname=="Not RGC" ~ "Not RGC",
+                             TRUE~"RGC"),
+         RGC= case_when(home_rgcname== "Not RGC" ~ "Not RGC",
+                        TRUE~"RGC"))
+
+# checking numbers
+# table(hts_data$hh$prev_RGC, hts_data$hh$survey_year)
+# table(hts_data$hh$RGC, hts_data$hh$survey_year)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "RGC"), incl_na=FALSE)
+```
+
+### Counties
+
+```{r}
+# table(hts_data$hh$home_county) #original variables
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "home_county"), incl_na=FALSE)
+```
+
+### Regional Geographies
+
+#### All
+
+Regional Growth Strategies 6 categories: Metro cities, HCTs, Rural, etc.
+
+```{r, include=F}
+arc_service <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services"
+
+# regional geography layer
+region_geo.url <- file.path(arc_service,"Regional_Geographies/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson")
+region_geo <- st_read(region_geo.url)
+
+home_loc <- hts_data$hh %>%
+  st_as_sf(coords = c("home_lng", "home_lat"), 
+           crs = 4326) %>% 
+  select(hh_id, geometry) #3343
+
+hh <- st_intersection(home_loc, region_geo) %>%
+  select(hh_id, cnty_name, feat_type, juris, class_desc) #3195
+
+# add geography data to hts_data$hh
+hts_data$hh <- hts_data$hh %>% 
+  left_join(hh, by="hh_id")
+
+# check numbers
+# table(hts_data$hh$survey_year, hts_data$hh$class_desc)
+```
+
+#### Simplified: 2 categories
+```{r}
+# table(hts_data$hh$survey_year, hts_data$hh$class_desc)
+
+# aggregate categories
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         class_desc_bin2= case_when(class_desc=="HCT"  |
+                                      class_desc=="Metro" ~ "Metro/HCT",
+                                    TRUE~"Other"))
+
+# checking numbers
+table(hts_data$hh$survey_year, hts_data$hh$class_desc_bin2)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "class_desc_bin2"), incl_na=FALSE)
+```
+
+## Moving during COVID
+
+Using the survey year and subtracting the range of years to define the period of COVID. 
+
+```{r}
+# we are loosely defining the time periods of COVID and the moratorium as 2020-2021
+# table(hts_data$hh$res_dur)
+
+time <- hts_data$hh %>% 
+  mutate(covid_moving= case_when(survey_year==2019 |
+                                   survey_year==2021 & res_dur !="Less than a year" | 
+                                   #remove respondents who moved after 2020
+                                   survey_year==2023 & res_dur =="Between 3 and 5 years" ~ "before",
+                                   #keep respondents who moved before 2020 (3-5 years before 2023)
+                                 survey_year==2021 & res_dur =="Less than a year" |
+                                   survey_year==2023 & res_dur !="Between 3 and 5 years" ~ "after",
+                                 TRUE~"other"),
+         moratorium= case_when(survey_year==2019 | 
+                                 survey_year==2021 & res_dur!="Less than a year" |
+                                 survey_year==2023 & res_dur=="Between 3 and 5 years" ~ "before",
+                               survey_year==2021 & res_dur=="Less than a year" |
+                                 survey_year==2023 & res_dur=="Between 1 and 2 years" |
+                                 survey_year==2023 & res_dur=="Between 2 and 3 years" ~ "during",
+                               survey_year==2023 & res_dur=="Less than a year" ~ "after",
+                               TRUE~ "other"),
+         moratorium_binary= case_when(moratorium=="before" |
+                                        moratorium=="after"~ "not during",
+                                      moratorium=="during"~ "during",
+                                      TRUE~ "other"))
+
+time$covid_moving <- factor(time$covid_moving, levels=c('before', 'after'))
+time$moratorium <- factor(time$moratorium, levels=c('before', 'during', 'after'))
+
+# checking numbers
+# table(time$survey_year, time$res_dur)
+# table(time$survey_year, time$movers)
+# table(time$survey_year, time$covid_moving)
+# table(time$displaced, time$covid_moving)  
+# table(time$survey_year, time$moratorium)
+# table(time$survey_year, time$moratorium_binary)
+
+
+# join to hts_data$hh - for modeling
+time_join <- time %>% 
+  select(hh_id, covid_moving, moratorium, moratorium_binary)
+hts_data$hh <- hts_data$hh %>% 
+  left_join(time_join, by="hh_id")
+```
+
+### COVID
+
+```{r}
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("covid_moving","displaced"), incl_na=FALSE)
+
+# static_facet_column_chart(filter(estimates,
+#                                  displaced=="Displaced"),
+#                           x = "displaced", y = "prop", fill = "covid_moving",
+#                           facet = "survey_year",
+#                           ylabel = "% of respondents",
+#                           title = "Displacement by COVID (2019, 2021, 2023)",
+#                           moe = "prop_moe") + theme_settings
+```
+
+### Moratorium
+Defining those who moved before, during, and after the eviction moratoriums. 
+```{r}
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("moratorium","displaced"), incl_na=FALSE)
+estimates 
+
+# static_facet_column_chart(filter(estimates,
+#                                  displaced=="Displaced"),
+#                           x = "displaced", y = "prop", fill = "moratorium",
+#                           facet = "survey_year",
+#                           ylabel = "% of respondents",
+#                           title = "Displacement by COVID Moratorium (2019, 2021, 2023)",
+#                           moe = "prop_moe") + theme_settings
+```
+
+#### Moratorium by income
+
+```{r}
+# unique(time$income_flag)
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("income_flag","displaced"), incl_na=FALSE)
+estimates
+
+# static_facet_column_chart(filter(estimates,
+#                                  displaced=="Displaced"),
+#                           x = "displaced", y = "prop", fill = "income_flag",
+#                           facet = "survey_year",
+#                           ylabel = "% of respondents",
+#                           title = "Displacement by COVID Moratorium (2019, 2021, 2023)",
+#                           moe = "prop_moe") + theme_settings
+```
+
+### Moratorium - binary
+
+```{r}
+estimates <- psrc_hts_stat(hts_data, "hh", 
+                           c("moratorium_binary","displaced"), incl_na=FALSE)
+estimates
+
+# static_facet_column_chart(filter(estimates,
+#                                  displaced=="Displaced"),
+#                           x = "displaced", y = "prop", fill = "moratorium_binary",
+#                           facet = "survey_year",
+#                           ylabel = "% of respondents",
+#                           title = "Displacement by COVID Moratorium (2019, 2021, 2023)",
+#                           moe = "prop_moe") + theme_settings
+```
+
+## Displacement Risk
+
+```{r}
+# check home locations - previous and current
+home_count <- hts_data$hh %>%
+  group_by(survey_year) %>%
+  summarise(n_distinct(home_tract20))
+
+prev_home_count <- hts_data$hh %>%
+  group_by(survey_year) %>%
+  summarise(n_distinct(prev_home_tract20))
+
+# there is one household with a previous home tract, but it appears to be NA
+# test <- hts_data$hh %>% 
+#   filter(survey_year=="2023") %>% 
+#   group_by(prev_home_tract20) %>% 
+#   summarise(first(hh_id))
+```
+
+### Creating dataset
+Using the 2019 displacement risk data set (in 2010 geographies)
+```{r, include=F}
+# displacement risk dataset -----
+disp10.url <- file.path(arc_service, "Displacement_Risk_Data/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson")
+disp10.lyr <- st_read(disp10.url)
+
+# displacement risk is in 2010 geographies, so will need 2010-2020 crosswalk -----
+crosswalk_10_20 <- get_table(schema="census",
+                             tbl_name="v_geo_relationships_tracts") 
+
+# join displacement risk to crosswalk
+disp10 <- disp10.lyr %>% 
+  left_join(crosswalk_10_20, by="geoid10")
+
+# join displacement risk data to HTS data: current home tract -----
+home_loc <- hts_data$hh %>%
+  st_as_sf(coords = c("home_lng", "home_lat"),
+           crs = 4326) %>%
+  select(hh_id, geometry) #3343 features
+
+hh <- st_intersection(home_loc, disp10.lyr)
+
+home_loc <- hts_data$hh %>%
+  mutate(geoid20=as.character(home_tract20)) %>% 
+  left_join(disp10, by="geoid20")
+
+# create displacement dataset for previous home locations
+prev_disp10 <- disp10 %>% 
+  rename_with(.cols = ElmerGeo_DBO_displacement_risk_:vote_level, function(x){paste0("prev_", x)})
+
+# join displacement risk data to HTS data: previous home tract -----
+# need to remove 2023 data because locations not available
+hh_no2023 <- hts_data$hh  %>%
+  filter(survey_year!="2023")
+# table(hh_no2023$survey_year)
+
+prev_home_loc <- hh_no2023 %>%
+  mutate(geoid20=as.character(home_tract20)) %>% 
+  left_join(prev_disp10, by="geoid20")
+```
+
+### Simplify data set: current and previous locations
+
+#### Current home location
+
+```{r}
+home_loc_simp <- home_loc %>% 
+  select(hh_id, displaced, risk_score:vote_level) %>% 
+  mutate(disp_num=case_when(displaced=="Displaced"~1,
+                            displaced=="Not displaced"~0)) %>%
+  select(-c(displaced, risk_level_name, ends_with(c("_room","_level"))))
+```
+
+#### Previous home location
+
+```{r}
+prev_home_loc_simp <- prev_home_loc %>% 
+  select(hh_id, prev_risk_score:prev_vote_level) %>%
+  select(-c(prev_risk_level_name, , ends_with(c("_room","_level"))))
+```
+
+Join current and previous home location
+```{r}
+location_data <- home_loc_simp %>% 
+  left_join(prev_home_loc_simp, by = "hh_id")
+```
+
+#### Map 2019 and 2021 displacement
+
+```{r, include=F}
+# compare 19 and 21 with displacement risk map - proportion
+# calculate 3 sets of proportions based on prev_risk_level/prev_risk_level_name
+
+data <- list(hh=hts_data$hh)
+
+# using psrc_hts_stat() function
+estimates <- psrc_hts_stat(data, "hh", 
+                           c("prev_home_tract20","survey_year","displaced"), incl_na=FALSE)
+
+estimate_edit <- estimates %>% 
+  group_by(prev_home_tract20,survey_year) %>% 
+  summarise(total_count=sum(count),
+            total_est=sum(est),
+            .groups='drop') %>% 
+  left_join(estimates, by =c("prev_home_tract20", "survey_year")) %>% 
+  mutate(prop=prop*100)
+
+est_disp <- estimate_edit %>% 
+  filter(displaced=="Displaced") %>% 
+  mutate(prev_home_tract20=as.character(prev_home_tract20))
+# sum(est_2019_disp$count) #354 households
+# sum(est_2019_disp$est) #163,408.4 population
+# length(unique(est_2019_disp$prev_home_tract20)) #214 unique tracts
+
+# join to spatial layer
+# 2020 tracts -----
+tracts20.url <- file.path(arc_service, "Census_Tracts_2020/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson")
+tracts20.lyr <- st_read(tracts20.url)
+
+# previous home tract displacement shares
+prevhome_tract20_2019 <- tracts20.lyr %>% 
+  left_join((filter(est_disp, survey_year==2019)), 
+            by=c("geoid20"="prev_home_tract20"))
+
+prevhome_tract20_2021 <- tracts20.lyr %>% 
+  left_join((filter(est_disp, survey_year==2021)), 
+            by=c("geoid20"="prev_home_tract20"))
+```
+
+```{r}
+# set map extent
+map.lat<- 47.615
+map.lon<- -122.257
+map.zoom<- 8
+
+# set up palettes
+psrc_purple_plus<-c("#FFFFFF", "#FFFFFF", "#F6CEFC", psrc_colors$purples_inc)
+psrc_blue<-psrc_colors$blues_inc
+
+psrc_pal19 <- leaflet::colorNumeric(palette = psrc_blue,
+                                      domain = c(min(prevhome_tract20_2019$prop,na.rm = TRUE),100, NA)) # this is the value field
+psrc_pal21 <- leaflet::colorNumeric(palette = psrc_blue,
+                                      domain = c(min(prevhome_tract20_2021$prop,na.rm = TRUE),100, NA)) # this is the value field
+
+label_19 <- sprintf(
+  "Census tract: <em>%s</em><br/><body>%s</body><br/><body>%s</body><br/><body>%s</body><br/><body>%s</bodyD>", prevhome_tract20_2019$geoid20, # the code in <> makes the geoid value italic 
+  paste("Households that moved (estimate): ", formatC(prevhome_tract20_2019$total_est, big.mark = ",", format = "d")),
+  paste("Households that were displaced (estimate): ", formatC(prevhome_tract20_2019$est, big.mark = ",", format = "d")),
+  paste("Share of displaced hh (%): ", prettyNum((round(prevhome_tract20_2019$prop, digits=0))), " %"),
+  paste("Displaced/moved hh: ", prevhome_tract20_2019$count, "/", prevhome_tract20_2019$total_count)) %>% 
+  lapply(htmltools::HTML)
+
+label_21 <- sprintf(
+  "Census tract: <em>%s</em><br/><body>%s</body><br/><body>%s</body><br/><strong>%s</strong><br/><body>%s</bodyD>", prevhome_tract20_2021$geoid20, # the code in <> makes the geoid value italic 
+  paste("Households that moved (estimate): ", formatC(prevhome_tract20_2021$total_est, big.mark = ",", format = "d")),
+  paste("Households that were displaced (estimate): ", formatC(prevhome_tract20_2021$est, big.mark = ",", format = "d")),
+  paste("Share of displaced hh (%): ", prettyNum((round(prevhome_tract20_2021$prop, digits=0))), " %"),
+  paste("Displaced/moved hh: ", prevhome_tract20_2021$count, "/", prevhome_tract20_2021$total_count)) %>% 
+  lapply(htmltools::HTML)
+
+
+# map settings
+displacement_map <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addLayersControl(#baseGroups = "Displaced (2019)",
+    overlayGroups = c("Displaced (2021)",
+                      "Displaced (2019)"
+                      ),
+    options = layersControlOptions(collapsed = FALSE)) %>%
+  
+  # polygon layers 
+  addPolygons(data=prevhome_tract20_2019,
+              fillColor = psrc_pal19(prevhome_tract20_2019$prop),
+              stroke=FALSE, 
+              smoothFactor = 0.2,
+              fillOpacity = 1.0,
+              group = "Displaced (2019)",
+              label = label_19) %>%
+  addPolygons(data=prevhome_tract20_2021,
+              fillColor = psrc_pal21(prevhome_tract20_2021$prop),
+              stroke=FALSE, 
+              smoothFactor = 0.2,
+              fillOpacity = 1.0,
+              group = "Displaced (2021)",
+              label = label_21) %>% 
+
+  # legends
+  leaflet::addLegend(pal = psrc_pal19,
+                     values = prevhome_tract20_2019$prop,
+                     position = "bottomleft",
+                     title = "Displaced (2019)",
+                     group="Displaced (2019)",
+                     labFormat = labelFormat(suffix = "%"),
+                     opacity = 0.8) %>% 
+  leaflet::addLegend(pal = psrc_pal21,
+                     values = prevhome_tract20_2021$prop,
+                     position = "bottomleft",
+                     title = "Displaced (2021)",
+                     group="Displaced (2021)",
+                     labFormat = labelFormat(suffix = "%"),
+                     opacity = 0.8) %>%
+  
+  # set view extent
+  leaflet::setView(lng=map.lon, lat=map.lat, zoom=map.zoom) %>% 
+  addEasyButton(easyButton(
+    icon="fa-globe", title="Region",
+    onClick=JS("function(btn, map){map.setView([47.615,-122.257],8); }")))
+
+# fixing the legend NA placement (https://github.com/rstudio/leaflet/issues/615)
+css_fix <- "div.info.legend.leaflet-control br {clear: both;} html * {font-family: Poppins !important;}" # CSS to correct spacing and font family
+html_fix <- htmltools::tags$style(type = "text/css", css_fix) # Convert CSS to HTML
+displacement_map %<>% htmlwidgets::prependContent(html_fix) # Insert into leaflet HTML code
+
+
+# print map
+displacement_map
+```
+
+## Moving Patterns
+### Distance
+```{r}
+loc_df <- hts_data$hh %>% 
+  select(hh_id, hh_weight, survey_year, movers, displaced, contains(c("tract", "lat", "lng", "home_county")))
+
+# calculate distance between prev and current home locations
+distance_df <- loc_df %>%
+  rowwise() %>%
+  mutate(moving_dist_m = distm(c(prev_home_lng, prev_home_lat), 
+                             c(home_lng, home_lat),
+                             fun=distVincentyEllipsoid)) %>% 
+  mutate(moving_dist_mi = moving_dist_m*0.00062137)
+
+# summary stats by year
+dist_2019 <- summary((distance_df[distance_df$survey_year==2019,])$moving_dist_mi)
+dist_2021 <- summary((distance_df[distance_df$survey_year==2021,])$moving_dist_mi)
+
+# combining year and displacement status
+dist_summary <- distance_df %>% 
+  filter(survey_year!=2023) %>% 
+  group_by(survey_year,displaced) %>% 
+  summarise(avg_dist_mi = mean(moving_dist_mi),
+            median_dist_mi = median(moving_dist_mi),
+            min_dist_mi = min(moving_dist_mi),
+            max_dist_mi = max(moving_dist_mi),
+            hh_n = length(hh_id),
+            .groups="drop") %>% 
+  left_join((distance_df %>% 
+          filter(survey_year!=2023) %>% 
+          group_by(survey_year) %>% 
+          summarise(all_mover_avg_dist = mean(moving_dist_mi),
+                    all_mover_median_dist = median(moving_dist_mi))), by="survey_year")
+
+
+# # join hh distance to hts_data$hh
+# hts_data$hh <- hts_data$hh %>%
+#   left_join(distance_df[, c("hh_id", "survey_year", "moving_dist_m", "moving_dist_mi")], by=c("hh_id", "survey_year"))
+```
+
+### Tracts
+```{r}
+# aggregate categories
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         same_tract = case_when(prev_home_tract20==home_tract20~"same",
+                                TRUE~"different"))
+
+# checking numbers
+# table(hts_data$hh$survey_year, hts_data$hh$same_tract)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "displaced", "same_tract"), incl_na=FALSE)
+estimates
+
+static_facet_column_chart(filter(estimates,
+                                 survey_year!=2023),
+                          x = "displaced", y = "prop", fill = "same_tract",
+                          facet = "survey_year",
+                          ylabel = "% of respondents",
+                          title = "Moving by Tract (2019, 2021)",
+                          moe = "prop_moe") + theme_settings
+```
+
+### County
+```{r}
+# aggregate categories
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hts_data$hh,
+         same_county = case_when(prev_home_county==home_county~"same",
+                                TRUE~"different"))
+
+# checking numbers
+# table(hts_data$hh$survey_year, hts_data$hh$same_county)
+
+# check estimate/shares
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "displaced", "same_county"), incl_na=FALSE)
+estimates
+
+static_facet_column_chart(filter(estimates,
+                                 survey_year!=2023),
+                          x = "displaced", y = "prop", fill = "same_county",
+                          facet = "survey_year",
+                          ylabel = "% of respondents",
+                          title = "Moving by County (2019, 2021)",
+                          moe = "prop_moe") + theme_settings
+```
+
+## Exploring other variables
+
+### Temp lifecycle variables (HTS)
+
+Draft logic for creating lifecycle variable - interested in single persons, single-parent households, all household members over 65, all household member under 30. This is one variable and households are assigned sequentially: single-person hh, family with child, all under 35 hh, all over 65 hh, at least one older adult. 
+
+```{r}
+# table(hts_data$person$age) #get all possible age ranges
+
+# recategorize/simplify age categories
+categorization <- hts_data$person %>% 
+  mutate(age_group= case_when(age=="Under 5 years old" |
+                                age=="5-11 years"|
+                                age=="12-15 years"|
+                                age=="16-17 years" ~ "Child",
+                              age=="18-24 years" |
+                                age=="25-34 years" ~ "Adult under 35",
+                              age=="65-74 years" |
+                                age=="75-84 years" |
+                                age=="85 years or older" ~ "Adult over 65",
+                              TRUE~"Adult 35-64")) %>% 
+  group_by(hh_id) %>% 
+  mutate(num_adults=sum(grepl("Adult", age_group))) %>%
+  ungroup() %>% 
+  select(hh_id, person_id, age, age_group, num_adults)
+
+# add household size and simplified age categories to person table
+lifecycle_prep <- hts_data$person %>% 
+  group_by(hh_id) %>% 
+  summarize(hh_sz=n_distinct(person_id), .groups = 'drop') %>%  
+  right_join(categorization, by="hh_id")
+
+# first pass at lifecycle
+lifecycle_groups <- lifecycle_prep %>% 
+  group_by(hh_id,hh_sz) %>% 
+  reframe(lifecycle_draft = case_when(hh_sz==1~"Single-person hh",
+                                      hh_sz>=2 & any(age_group=="Child") ~ "Family with child",
+                                      hh_sz>=2 & all(age_group=="Adult under 35") ~ "All under 35 hh",
+                                      hh_sz>=2 & all(age_group=="Adult over 65") ~ "All over 65 hh",
+                                      hh_sz>=2 & any(age_group=="Adult over 65") ~ "At least one older adult",
+                                      TRUE ~ "Other hh")) %>% 
+  select(hh_id, lifecycle_draft) %>% 
+  distinct(hh_id, .keep_all=TRUE) %>% 
+  left_join(lifecycle_prep, by="hh_id")
+
+# checking numbers
+table(lifecycle_groups$lifecycle_draft)
+```
+
+There are two tables below:
+
+1. families with children are one group
+2. families with children are split into two subgroups - one adult member in the household ('Single-parent hh') OR more than one adult member in the household ('Mutliple-parent hh'). 
+```{r}
+# identify single/multiple-parent households within the 'family with child' category
+family <- lifecycle_groups %>% 
+  filter(lifecycle_draft=="Family with child") %>% 
+  group_by(hh_id) %>% 
+  # mutate(num_adults=sum(grepl("Adult", age_group))) %>% 
+  mutate(family_parent= case_when(num_adults==1 ~ "Single-parent hh",
+                                  num_adults>1 ~ "Multiple-parent hh")) %>% 
+  dplyr::select(hh_id, family_parent) %>% 
+  distinct(hh_id, .keep_all = TRUE)
+  
+# join general lifecycle with parent-type hh
+lifecycle_data <- lifecycle_groups %>% 
+  left_join(family, by="hh_id") %>% 
+  mutate(lifecycle_final=case_when(lifecycle_draft=="Family with child" ~ family_parent,
+                                   TRUE~lifecycle_draft)) %>% 
+  dplyr::select(hh_id, lifecycle_draft, lifecycle_final) %>% 
+  distinct()
+                       
+# join to hts_data$hh
+hts_data$hh <- hts_data$hh %>% 
+  left_join(lifecycle_data, by="hh_id")
+
+# check estimate/shares - lifecycle draft
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "lifecycle_draft"), incl_na=FALSE)
+
+# check estimate/shares - lifecycle final
+estimates <- psrc_hts_stat(hts_data, "hh",
+                           c("survey_year", "lifecycle_final"), incl_na=FALSE)
+```
+
+
+### Additional, cleaner dimensions (added April 2025)
+* children vs. no children: all hh with anyone under 18: should not find any hh that are 1 person (that would indicate data problem) vs. other hh - single or not
+* single-person hh vs all other hh
+* older adult hh: hh with only people 65+ vs not; any hh with at least one person 65+
+* younger adult hh: hh with only adults less than 35 (but no children); hh with ALL people under 35
+```{r}
+lifecycle_dummyvar <- lifecycle_prep %>% 
+  group_by(hh_id) %>%
+  mutate(
+    # Single-person hh vs all other hh
+    single_person= case_when(hh_sz==1~ "Single-person hh",
+                             TRUE~"Not single-person hh"),
+    # Single-parent hh vs all other hh
+    single_parent= case_when(any(age_group=="Child") &
+                               num_adults==1 ~ "Single-parent hh",
+                             TRUE~"Not single-parent hh"),
+    # Families with children vs all other hh
+    children= case_when(any(age_group=="Child")~"Family with child",
+                        TRUE~"Family without child"),
+    # all adults over 65 vs. all other hh - irrespective of size
+    all_older_adults= case_when(all(age_group=="Adult over 65")~ "All over 65 hh",
+                                TRUE~"Not all over 65 hh"),
+    # any adult over 65 vs. all other hh - irrespective of size
+    any_older_adults= case_when(any(age_group=="Adult over 65")~ "At least one older adult",
+                                TRUE~"No older adults"),
+    # only adults under 35 vs. all other hh (includes young families) - irrespective of size
+    all_young_adults= case_when(all(age_group=="Adult under 35")~ "All adults under 35 hh",
+                                TRUE~"Not all adults under 35 hh"),
+    # all people under 35 (includes children) vs. all other hh - irrespective of size
+    all_young_people= case_when(all(age_group=="Adult under 35"| age_group=="Child")~ "All people under 35 hh",
+                                TRUE~"Not all people under 35 hh") 
+  ) %>% 
+  dplyr::select(-c(person_id, age, age_group)) %>% 
+  distinct()
+
+# check data set
+# nrow(lifecycle_dummyvar) #12108
+# length(unique(lifecycle_dummyvar$hh_id)) #12108
+
+# join to hts_data$hh
+hts_data$hh <- hts_data$hh %>% 
+  left_join(lifecycle_dummyvar, by="hh_id")
+# table(hts_data$hh$survey_year)
+# nrow(hts_data$hh) #3549
+
+# check children and single person hh to make sure no data issues
+# table(hts_data$hh$single_person, hts_data$hh$children)
+```
+
+
+### Income diversity (ACS)
+
+A ratio of households making over 200K compared to less than 50K - the higher the ratio, the higher the number of households making over $200k
+
+```{r}
+# getting data by tract - number of households in each income category
+base_acs_data <- get_acs_recs(geography ='tract', 
+                              table.names = 'S1901', #subject table code
+                              years = 2022,
+                              acs.type = 'acs5')
+
+income <- base_acs_data %>% 
+  filter(variable == "S1901_C01_002"| #less than 10k
+           variable == "S1901_C01_003"| #10-15k
+           variable == "S1901_C01_004"| #15-25k
+           variable =="S1901_C01_005"| #25k-35k
+           variable =="S1901_C01_006"| #35-50k
+           variable =="S1901_C01_011") %>% #200k+
+  mutate(var_simp= case_when(variable =="S1901_C01_011"~"inc_$200k+",
+                             TRUE~"inc_<$50k"))
+
+# check reliability
+# table(income$reliability)  
+
+income_comb <- income %>%
+  group_by(GEOID, var_simp) %>% 
+  summarize(total_estimate=sum(estimate, na.rm=TRUE), .groups = 'drop') %>% 
+  pivot_wider(names_from = var_simp, 
+              values_from = total_estimate) %>% 
+  mutate(ratio_200_50=`inc_$200k+`/`inc_<$50k`) #higher the ratio, more above $200k
+
+
+# how diverse within the tract, but also how diverse relative to the region
+summary(income_comb$ratio_200_50)
+hist(income_comb$ratio_200_50)
+```
+
+Share of households making low middle incomes (something like 50K-100K)
+
+```{r}
+income_lowmid <- base_acs_data %>% 
+  filter(variable == "S1901_C01_007"| #50-75k
+           variable == "S1901_C01_008") #75-100k
+
+#check reliability
+# table(income_lowmid$reliability)  
+
+income_lowmid_comb <- income_lowmid %>%
+  group_by(GEOID) %>% 
+  summarize(total_estimate=sum(estimate, na.rm=TRUE), .groups = 'drop') %>% 
+  rename(inc_50_100k=total_estimate) 
+
+summary(income_lowmid_comb$inc_50_100k)
+hist(income_lowmid_comb$inc_50_100k)
+```
+
+Join two income variables
+
+```{r}
+# income_comb
+# income_lowmid_comb
+
+income_vars <- income_comb %>% 
+  left_join(income_lowmid_comb, by="GEOID")
+```
+
+Join income variables (by tract) to household ids based on previous home location (2019 and 2021)
+
+```{r}
+hts_data$hh <- hts_data$hh %>%
+  mutate(prev_geoid20=as.character(prev_home_tract20)) %>% 
+  left_join(income_vars, by=join_by("prev_geoid20"=="GEOID")) 
+```
+
+# Modeling background
+
+## 1. Decide on variables of interest
+
+```{r}
+# dataset with hts variables and displacement risk variables (related to current home tract)
+hh_df <- hts_data$hh %>%
+  mutate(geoid20=as.character(home_tract20)) %>% 
+  left_join(location_data, by="hh_id")
+
+# nrow(hh_df) #3343
+# table(hh_df$survey_year)
+```
+
+For the binomial model, we are interested in whether people are displaced or not. This requires a more refined dataset - only the households who have moved in the past 5 years. Earlier in the code, the households were filtered based on move status (\~line 250) and those who moved from within the state (\~line 430). In addition, it only applies to 2019-2023 survey data because the reasons for moving question was not asked of survey respondents in 2017, so all 2017 responses were filtered out (\~line 530).
+
+### Set up dependent variables
+We specify the 6 different dependent variable options, based on household reasons for moving - the first two combine and the last four are the displacement-related reasons separated out:
+
+1. Displacement (at least one of the 4 reasons)
+2. Displacement (at least one of the 3 reasons, excluding 'community change' reason for moving)
+3. Forced to move
+4. Income change
+5. Housing costs
+6. Community change
+```{r}
+# get column names for fields that are numeric
+# print(select_if(hh_df, is.numeric))
+hh_df <- hh_df %>% 
+  mutate(disp_binary = case_when(displaced=="Not displaced"~0,
+                                 displaced=="Displaced"~1),
+         disp3_binary=case_when(prev_res_factors_forced=='Selected'|
+                                  prev_res_factors_income_change=='Selected'|
+                                  prev_res_factors_housing_cost =='Selected' ~ 1,
+                                TRUE~0),
+         disp_forced=case_when(prev_res_factors_forced=='Selected'~1,
+                               TRUE~0),
+         disp_inc_change=case_when(prev_res_factors_income_change=='Selected'~1,
+                                   TRUE~0),
+         disp_housing_cost=case_when(prev_res_factors_housing_cost =='Selected'~1,
+                                     TRUE~0),
+         disp_community=case_when(prev_res_factors_community_change=='Selected'~ 1,
+                                  TRUE~0))
+```
+
+### Set up independent variables
+Assign the reference groups for each of the independent variables - generally based on sample sizes of the categories. 
+```{r}
+# metadata for displacement risk data: https://www.arcgis.com/sharing/rest/content/items/a517de2494274f9cb2b047a9c2e7873f/info/metadata/metadata.xml?format=default&output=html
+
+# risk_score: Composite index risk score (number between 0 and 60)
+# poc_pct: Population of People of Color (percent)
+# linguistic_pct: Population 5 years and over who do not speak English very well (percent)
+# education_pct: Population 25 years and over without bachelors degree (percent)
+# renter_pct: Renter households (percent)
+# cost_burdened_pct: Cost burdened households (percent)
+# rent_ratio_weight: Median Gross Rent weight used to aggregate across all room sizes
+# sev_cost_burdened_pct: Severely cost burdened households (percent)
+# poverty_pct: Population below 200% of poverty level (percent)
+# park: Weighted average distance to park (mile)
+# transit_now_pct: Population within quarter-mile of existing High Capacity Transit (percent)
+# dev_potential_pct: Existing housing units potentially demolished for new development (percent)
+# median rent (comared to average?) - housing cost
+
+# get column names for fields that are categorical
+# print(select_if(hh_df, is.character))
+
+# change variables to factor
+# table(hh_df$lifecycle_final, hh_df$survey_year) #to view the different levels for each field
+
+hh_df$f1hh_race_category <- relevel(as.factor(hh_df$hh_race_category), ref = "White non-Hispanic")
+hh_df$f1hh_race_category_4 <- relevel(as.factor(hh_df$hh_race_category_4), ref = "White non-Hispanic") 
+hh_df$f1hh_race_category_3b <- relevel(as.factor(hh_df$hh_race_category_3b), ref = "White non-Hispanic") #aggregating for model
+hh_df$f1hhincome_bin5 <- relevel(as.factor(hh_df$hhincome_bin5), ref = "$100,000 or more")
+hh_df$f1hhincome_bin3 <- relevel(as.factor(hh_df$hhincome_bin3), ref = "$100,000 or more") #aggregating for model
+hh_df$f1hhincome_bin4 <- relevel(as.factor(hh_df$hhincome_bin4), ref = "$100,000 or more") #aggregating for model 
+hh_df$f1prev_res_type_simp <- relevel(as.factor(hh_df$prev_res_type_simp), ref = "Single-family")
+hh_df$f1prev_rent_own_bin2 <- relevel(as.factor(hh_df$prev_rent_own_bin2), ref = "Owned/paid mortgage")
+# hh_df$f1adult_workers <- relevel(as.factor(hh_df$adult_workers), ref = "All workers")
+hh_df$f1res_type_transition <- relevel(as.factor(hh_df$res_type_transition), ref = "No change")
+# hh_df$f1prev_RGC <- relevel(as.factor(hh_df$prev_RGC), ref = "Not RGC") #prev location not available for 2023 data
+hh_df$f1_RGC <- relevel(as.factor(hh_df$RGC), ref = "Not RGC")
+hh_df$f1lifecycle_draft <- relevel(as.factor(hh_df$lifecycle_draft), ref = "Single-person hh") #slightly higher occurrence of displacement based on count
+hh_df$f1lifecycle_final <- relevel(as.factor(hh_df$lifecycle_final), ref = "Single-person hh") #slightly higher occurrence of displacement based on count
+hh_df$f1covid_moving <- relevel(as.factor(hh_df$covid_moving), ref = "before")
+hh_df$f1moratorium <- relevel(as.factor(hh_df$moratorium), ref = "before")
+hh_df$f1moratorium_binary <- relevel(as.factor(hh_df$moratorium_binary), ref = "not during")
+# hh_df$f1veh_drivers<- as.factor(hh_df$veh_drivers)
+hh_df$f1edu_hh_max <- relevel(as.factor(hh_df$edu_hh_max), ref = "Bachelors or higher")
+hh_df$f1single_person <- relevel(as.factor(hh_df$single_person), ref = "Not single-person hh")
+hh_df$f1single_parent <- relevel(as.factor(hh_df$single_parent), ref = "Not single-parent hh")
+hh_df$f1children <- relevel(as.factor(hh_df$children), ref = "Family without child")
+hh_df$f1all_older_adults <- relevel(as.factor(hh_df$all_older_adults), ref = "Not all over 65 hh")
+hh_df$f1any_older_adults <- relevel(as.factor(hh_df$any_older_adults), ref = "No older adults")
+hh_df$f1all_young_adults <- relevel(as.factor(hh_df$all_young_adults), ref = "Not all adults under 35 hh")
+hh_df$f1all_young_people <- relevel(as.factor(hh_df$all_young_people), ref = "Not all people under 35 hh")
+
+# view data
+# str(hh_df)
+```
+
+### Set income and race variables for modeling
+There are multiple options for the way that variables can be grouped. For example, household race can be categorized into 2, 3, or 4 bins. Similarly, the household income variable can be categorized into 3, 4, or 5 bins. 
+```{r}
+# set variables for race and income that are easily changeable in all following models
+
+hh_df$race_var <- hh_df$f1hh_race_category_4 
+# race_var <- hh_df$f1hh_race_category_3b #aggregated race categories (AANHPI + Hispanic)
+hh_df$income_var <- hh_df$f1hhincome_bin5
+# income_var <- hh_df$f1hhincome_bin3 #aggregated income categories
+# income_var <- hh_df$f1hhincome_bin4 #aggregated income bottom two income categories from `hhincome_bin5`
+```
+
+### Notes
+This only includes the multivariate analyses. All of the work leading up to these models, such as bivariate analyses, is saved elsewhere (data_exploration_202410_combined_survey_year_5y.qmd). 
+
+# Model 1: Displacement (4 reasons)
+## Displacement (4 reasons)
+### 7. Multivariate analyses - Displacement (4 reasons)
+
+The displacement risk factors attached to previous home tract location have been removed so that the full sample (2019, 2021, and 2023) is included. Previously, when the previous tract locations had been included in the models, the 2023 sample was removed because of the issue with the survey logic.
+
+In this set of models we start with all of the non-displacement risk variables and refine based on significance, using the full set.
+
+All of the non-displacement risk variables that were significant in the bivariate analyses and continued to be significant in the previous model (7b) are included in this model. In addition, trying out all adults younger than 35 or not. 
+
+We're adding this additional test because of the colinearity between some of the lifecycle variables.
+
+```{r, echo=T}
+disp.hts.2_add<-glm(disp_binary~1 + 
+                      income_var + race_var + f1prev_rent_own_bin2 +
+                      f1prev_res_type_simp + f1res_type_transition + 
+                      f1any_older_adults +
+                      f1all_young_adults, 
+                    family = binomial(link = "logit"), 
+                    data = hh_df)
+summary(disp.hts.2_add)
+
+# to get frequency/proportion for each variable 
+Hmisc::describe(as.factor(disp_binary)~1 + #disp_binary needs to be factor otherwise summary stats are numeric
+                  income_var + race_var + f1prev_rent_own_bin2 +
+                  f1prev_res_type_simp + f1res_type_transition + 
+                  f1any_older_adults +
+                  f1all_young_adults, 
+                family = binomial(link = "logit"), 
+                data = hh_df,
+                na.action=na.omit)
+
+arm::coefplot(disp.hts.2_add)
+
+confint(disp.hts.2_add) #confidence intervals
+coef(disp.hts.2_add) #log odds
+exp(coef(disp.hts.2_add)) #exponentiate to get predicted odds- odds ratio coefficients
+```
+
+```{r, echo=T}
+BIC(disp.hts.2_add)
+
+# extract residual and null deviances
+# objects(disp.sig.2)
+
+# calculate the pseudo-R2 value:
+pseudoR2_hts.2_add <- (disp.hts.2_add$null.deviance - disp.hts.2_add$deviance) / disp.hts.2_add$null.deviance
+# pseudoR2_hts.2_add
+```
+The model explains `r pseudoR2_hts.2_add` of the variability in the data.
+
+# Model 2: Forced
+## Displacement - Forced
+### 3cc. Multivariate analyses refined - Forced
+
+This model includes all of the variables that were significant in the bivariate analyses and then refined to those significant in the multivariate model (3c). Including education back into model refined model (3c), not including any of the tested lifecycle variables (3c1 or 3c2) because they weren't significant when they were added.  Also adding back moratorium variable
+
+We're adding this additional test because of the colinearity between some of the lifecycle variables
+```{r, echo=T}
+forced.hts.2_add<-glm(disp_forced~1 +
+                        race_var + f1prev_rent_own_bin2 +
+                        f1prev_res_type_simp + f1res_type_transition +
+                        f1all_young_adults +
+                        f1edu_hh_max + f1moratorium,
+                      family = binomial(link = "logit"), 
+                      data = hh_df)
+summary(forced.hts.2_add)
+
+
+# to get frequency/proportion for each variable 
+Hmisc::describe(as.factor(disp_forced)~1 + #disp_binary needs to be factor otherwise summary stats are numeric
+                  race_var + f1prev_rent_own_bin2 +
+                  f1prev_res_type_simp + f1res_type_transition +
+                  f1all_young_adults +
+                  f1edu_hh_max + f1moratorium, 
+                family = binomial(link = "logit"), 
+                data = hh_df,
+                na.action=na.omit)
+
+arm::coefplot(forced.hts.2_add)
+
+confint(forced.hts.2_add) #confidence intervals
+# coef(forced.hts.2_add) #log odds
+exp(coef(forced.hts.2_add)) #exponentiate to get predicted odds- odds ratio coefficients
+```
+
+```{r, echo=T}
+BIC(forced.hts.2_add)
+
+# extract residual and null deviances
+# objects(forced.hts.2_add)
+
+# calculate the pseudo-R2 value:
+pseudoR2_forced.2_add <- (forced.hts.2_add$null.deviance - forced.hts.2_add$deviance) / forced.hts.2_add$null.deviance
+# pseudoR2_forced.2_add
+```
+The model explains `r pseudoR2_forced.2_add` of the variability in the data.
+
+
+# Model 3: Income Change
+## Displacement - Income Change
+### 3c2. Multivariate analyses refined - Income Change
+
+This model includes all of the variables that were significant in the bivariate analyses and then refined to those significant in the multivariate model (3b). In addition, trying out all adults younger than 35 or not. 
+
+We're adding this additional test because of the colinearity between some of the lifecycle variables
+
+```{r, echo=T}
+income.hts.2_add<-glm(disp_inc_change~1 +
+                    income_var + race_var +
+                    f1any_older_adults +
+                    f1all_young_people,
+                 family = binomial(link = "logit"), 
+                 data = hh_df)
+summary(income.hts.2_add)
+
+# to get frequency/proportion for each variable 
+Hmisc::describe(as.factor(disp_inc_change)~1 + #disp_binary needs to be factor otherwise summary stats are numeric
+                  income_var + race_var +
+                  f1any_older_adults +
+                  f1all_young_people,
+                family = binomial(link = "logit"), 
+                data = hh_df,
+                na.action=na.omit)
+
+arm::coefplot(income.hts.2_add)
+
+confint(income.hts.2_add) #confidence intervals
+# coef(income.hts.2_add) #log odds
+exp(coef(income.hts.2_add)) #exponentiate to get predicted odds- odds ratio coefficients
+```
+
+```{r, echo=T}
+BIC(income.hts.2_add)
+
+# extract residual and null deviances
+# objects(income.hts.2_add)
+
+# calculate the pseudo-R2 value:
+pseudoR2_income.2_add <- (income.hts.2_add$null.deviance - income.hts.2_add$deviance) / income.hts.2_add$null.deviance
+# pseudoR2_income.2_add
+```
+The model explains `r pseudoR2_income.2_add` of the variability in the data.
+
+
+# Model 4: Housing Cost
+## Displacement - Housing Cost
+### 3c. Multivariate analyses refined - Housing Cost
+
+This model includes all of the variables that were significant in the bivariate analyses and then refined to those significant in the multivariate model (3b).
+
+```{r, echo=T}
+housing.hts.2<-glm(disp_housing_cost~1 +
+                     income_var + f1prev_rent_own_bin2 +
+                     f1prev_res_type_simp + f1res_type_transition +
+                     f1moratorium,
+                 family = binomial(link = "logit"), 
+                 data = hh_df)
+summary(housing.hts.2)
+
+# to get frequency/proportion for each variable 
+Hmisc::describe(as.factor(disp_housing_cost)~1 + #disp_binary needs to be factor otherwise summary stats are numeric
+                  income_var + f1prev_rent_own_bin2 +
+                  f1prev_res_type_simp + f1res_type_transition +
+                  f1moratorium,
+                family = binomial(link = "logit"), 
+                data = hh_df,
+                na.action=na.omit)
+
+arm::coefplot(housing.hts.2)
+
+confint(housing.hts.2) #confidence intervals
+# coef(housing.hts.2) #log odds
+exp(coef(housing.hts.2)) #exponentiate to get predicted odds- odds ratio coefficients
+```
+
+```{r, echo=T}
+BIC(housing.hts.2)
+
+# extract residual and null deviances
+# objects(housing.hts.2)
+
+# calculate the pseudo-R2 value:
+pseudoR2_housing.2 <- (housing.hts.2$null.deviance - housing.hts.2$deviance) / housing.hts.2$null.deviance
+# pseudoR2_housing.2
+```
+The model explains `r pseudoR2_housing.2` of the variability in the data.
+
+# Model 5: Community change
+## Displacement - Community Change
+### 3c1d. Multivariate analyses refined - Community Change
+
+This model includes all of the variables that were significant in the bivariate analyses and then refined to those significant in the multivariate model (3c), including residential transition. And also trying any older adults. 
+
+```{r, echo=T}
+community.hts.2_add<-glm(disp_community~1 +
+                           income_var + f1res_type_transition +
+                           f1_RGC +
+                           f1any_older_adults,
+                         family = binomial(link = "logit"), 
+                         data = hh_df)
+summary(community.hts.2_add)
+
+# to get frequency/proportion for each variable 
+Hmisc::describe(as.factor(disp_community)~1 + #disp_binary needs to be factor otherwise summary stats are numeric
+                  income_var + f1res_type_transition + 
+                  f1_RGC+
+                  f1any_older_adults,
+                family = binomial(link = "logit"), 
+                data = hh_df,
+                na.action=na.omit)
+
+arm::coefplot(community.hts.2_add)
+
+confint(community.hts.2_add) #confidence intervals
+# coef(community.hts.2_add) #log odds
+exp(coef(community.hts.2_add)) #exponentiate to get predicted odds- odds ratio coefficients
+```
+
+```{r, echo=T}
+BIC(community.hts.2_add)
+
+# extract residual and null deviances
+# objects(community.hts.2_add)
+
+# calculate the pseudo-R2 value:
+pseudoR2_community.2_add <- (community.hts.2_add$null.deviance - community.hts.2_add$deviance) / community.hts.2_add$null.deviance
+# pseudoR2_community.2_add
+```
+The model explains `r pseudoR2_community.2_add` of the variability in the data.
+
+# Reference Tables
+## Dependent variables: descriptive stats
+```{r}
+hh_df$disp_factor <- recode(as.factor(hh_df$disp_binary), 
+                            '0' = 'Not displaced', 
+                            '1' = 'Displaced')
+hh_df$disp_forced_factor <- recode(hh_df$disp_forced, 
+                                   '0' = 'Not displaced', 
+                                   '1' = 'Displaced')
+hh_df$disp_inc_change_factor <- recode(hh_df$disp_inc_change, 
+                                       '0' = 'Not displaced', 
+                                       '1' = 'Displaced')
+hh_df$disp_housing_cost_factor <- recode(hh_df$disp_housing_cost, 
+                                         '0' = 'Not displaced', 
+                                         '1' = 'Displaced')
+hh_df$disp_community_factor <- recode(hh_df$disp_community, 
+                                      '0' = 'Not displaced', 
+                                      '1' = 'Displaced')
+
+
+table1(~ disp_factor + 
+         disp_forced_factor + 
+         disp_inc_change_factor + 
+         disp_housing_cost_factor + 
+         disp_community_factor |
+         survey_year, data=hh_df,
+       render.categorical=my.render.cat)
+```
+
+## Explanatory variables: descriptive Stats
+This table includes the descriptive stats for all of the variables included in the final 5 models. The sample includes all households that moved within the previous 5 years from within WA state. 
+```{r}
+table1(~ race_var +
+         income_var +
+         f1prev_rent_own_bin2 + 
+         f1prev_res_type_simp +
+         f1res_type_transition + 
+         f1_RGC + 
+         f1moratorium + 
+         f1any_older_adults + 
+         f1all_young_adults + 
+         f1all_young_people |
+         survey_year, data=hh_df,
+       render.categorical=my.render.cat)
+```
+
+## Model outputs (combined)
+```{r}
+tab_model(disp.hts.2_add, forced.hts.2_add, 
+          income.hts.2_add, housing.hts.2, community.hts.2_add,
+          show.reflvl=TRUE, 
+          show.r2 = FALSE, 
+          # auto.label = FALSE,
+          # pred.labels = TRUE,
+          # string.ci = "Conf. Int (95%)",
+          string.p = "P-Value",
+          dv.labels = c("displacement", "forced", "income change",
+                        "housing cost", "community change"))
+```
