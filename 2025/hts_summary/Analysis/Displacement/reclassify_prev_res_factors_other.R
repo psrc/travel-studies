@@ -1,5 +1,5 @@
 #  Displacement - reclassifying'prev_res_factors_other' responses  
-#  This script is meant to pull the HTS data for the most recent survey year in order to reclassify the open-ended responses. It generates an excel workbook that can be used by 2 or more reviewers to separately and collaboratively. The resulting excel file will need some manual formatting - easier to format the original tab and then copy for reviewer and difference tabs. The formula for checking differences is available in the previous survey year network project folder.  
+#  This script is meant to pull the HTS data for the most recent survey year in order to reclassify the open-ended responses. It generates an excel workbook that can be used by 2 or more reviewers to separately and collaboratively. The resulting excel file will need some manual formatting - easier to format the original tab and then copy for reviewer and difference tabs. For the reviewer tabs, a Comment column will be added and for the difference tab there is a formula, which is available in the previous survey year network project folder.  
 
 # Libraries
 library(travelSurveyTools)
@@ -72,7 +72,7 @@ wa_movers_other_2025 <- wa_movers_other %>%
 
 # Save the data to the network project folder (J:\Projects\Surveys\HHTravel\Survey2025\Data)
 # create list of tabs in workbook
-list_of_datasets <- list("original" = wa_movers_other_2025, 
+list_of_datasets <- list("original" = wa_movers_other_2025
                          # "reviewer_1" = wa_movers_other_2025,
                          # "reviewer_2" = wa_movers_other_2025,
                          # "differences" = wa_movers_other_2025
