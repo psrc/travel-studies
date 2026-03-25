@@ -1,0 +1,205 @@
+---
+title: "Person"
+date: today
+---
+
+```{r}
+#| include: false
+
+source("functions.R")
+tables <- readRDS("analysis_table.RDS")
+```
+
+## Person Info
+```{r}
+get_vars_summary("person", c("surveyable","is_participant","relationship","smartphone_type"))
+```
+
+### Person Stats
+```{r}
+CreateTableOne(data = tables[['person']] %>% mutate(num_trips = as.numeric(num_trips)),
+               vars = c("numdayscomplete","num_trips")
+               )
+```
+
+
+### Age
+```{r}
+CreateTableOne(data = tables[['person']],
+               vars = c("age_detailed")
+               )
+```
+
+### Gender and Sexuality
+```{r}
+get_vars_summary("person", c("gender","sexuality"))
+```
+
+### Race
+
+- number of responses for `race_other_specify`: `{r} length(unique(tables[["person"]]$race_other_specify))`
+```{r}
+get_vars_summary("person", c("race_afam","race_aiak","race_asian","race_hapi","race_white","race_other","race_noanswer"))
+```
+
+### Ethnicity
+
+- number of responses for `ethnicity_other`: `{r} length(unique(tables[["person"]]$ethnicity_other))`
+```{r}
+get_vars_summary("person", c("ethnicity_1","ethnicity_2","ethnicity_3","ethnicity_4","ethnicity_997","ethnicity_999"))
+```
+
+### Educational Attainment
+
+```{r}
+get_vars_summary("person", c("education"))
+```
+
+### Drive
+
+- `can_drive` variable is not listed in the codebook value_label page
+```{r}
+CreateTableOne(data = tables[['person']],
+               vars = c("can_drive")
+               )
+```
+
+
+## Work 
+
+```{r}
+get_vars_summary("person", c("paid_work","hours_work"))
+```
+
+### Employment
+```{r}
+get_vars_summary("person", c("employment","employment_followup","drive_for_work"))
+```
+
+### Industry
+
+- number of responses for `industry_other`: `{r} length(unique(tables[["person"]]$industry_other))`
+```{r}
+get_vars_summary("person", c("industry"))
+```
+
+
+### Work From Home
+```{r}
+get_vars_summary("person", c("work_from_home","office_available","telecommute_freq"))
+```
+
+### Travel to Work
+```{r}
+get_vars_summary("person", c("work_mode","commute_freq"))
+```
+
+### Work Location
+
+#### In Region
+```{r}
+get_vars_summary("person", c("work_in_region"))
+
+```
+
+#### By County
+```{r}
+CreateTableOne(data = tables[['person']],
+               vars = c("work_county")
+               )
+```
+
+### Commute Benefits
+
+:::{.panel-tabset}
+
+#### Commute Benefits Provided
+```{r}
+get_vars_summary("person", c("commute_subsidy_1","commute_subsidy_2",
+                             "commute_subsidy_3","commute_subsidy_4",
+                             "commute_subsidy_5","commute_subsidy_6",
+                             "commute_subsidy_7","commute_subsidy_996",
+                             "commute_subsidy_998"))
+```
+
+#### Commute Benefits Used
+```{r}
+get_vars_summary("person", c("commute_subsidy_use_1","commute_subsidy_use_2",
+                             "commute_subsidy_use_3","commute_subsidy_use_4",
+                             "commute_subsidy_use_5","commute_subsidy_use_6",
+                             "commute_subsidy_use_7","commute_subsidy_use_996"))
+```
+
+:::
+
+## Study
+```{r}
+get_vars_summary("person", c("student","schooltype"))
+```
+
+### Travels to School
+```{r}
+get_vars_summary("person", c("school_mode_typical","school_freq","remote_class_freq"))
+```
+
+### School Location
+```{r}
+# TODO: add county
+get_vars_summary("person", c("school_in_region"))
+```
+
+## Second Home
+```{r}
+get_vars_summary("person", c("second_home","second_home_in_region"))
+```
+
+
+## Disability
+```{r}
+get_vars_summary("person", c("disability_person","mobility_aides"))
+```
+
+
+## Transportation Questions
+
+### Typical Travel Methods
+```{r}
+get_vars_summary("person", c("share_1","share_2","share_3","share_4","share_5","share_996"))
+```
+
+### Frequencies
+```{r}
+get_vars_summary("person", c("walk_freq","bike_freq","transit_freq","tnc_freq","carshare_freq"))
+```
+
+::: {.callout-note collapse=true}
+
+#### Typical travel methods -- Transit (e.g., bus, rail, ferry) vs How often the person used transit (e.g., bus, rail, ferry) in the past 30 days
+
+```{r}
+CreateTableOne(data = tables[['person']],
+               vars = c("transit_freq"),
+               factorVars = c("transit_freq"),
+               strata = "share_3"
+               )
+```
+
+:::
+
+### Attitudes
+```{r}
+get_vars_summary("person", c("transportation_statement_walk","transportation_statement_travel",
+                             "transportation_statement_transit","transportation_statement_telework",
+                             "transportation_statement_retail","transportation_statement_environ",
+                             "transportation_statement_car"))
+```
+
+## EV Charging
+```{r}
+get_vars_summary("person", c("ev_typical_charge_1","ev_typical_charge_2",
+                             "ev_typical_charge_3","ev_typical_charge_4",
+                             "ev_typical_charge_5","ev_typical_charge_6",
+                             "ev_typical_charge_997"))
+```
+
+

@@ -1,0 +1,573 @@
+---
+title: "Centers monitoring: 2023 data update"
+date: today
+format: 
+  html:
+    mainfont: Poppins
+    theme: [cosmo, custom.scss]
+    toc: true
+    df-print: kable
+    fig-asp: .7
+    fig-width: 4
+    warning: false
+    echo: false
+---
+
+```{r}
+source("get_rgc_update_data.R")
+install_psrc_fonts()
+```
+
+## Travel Behaviors by home location
+
+### mode share
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+
+
+df_plot <- psrc_hts_stat(df_hts_data_17_19, "trip", c("home_in_UGA_mu", "mode_class_simple"), incl_na = FALSE) %>%
+  add_row(psrc_hts_stat(df_hts_data, "trip", c("home_in_UGA_mu", "mode_class_simple"), incl_na = FALSE))
+
+dodge <- position_dodge(width=0.9)
+ggplot(df_plot, aes(x=mode_class_simple, y=prop, fill=survey_year)) +
+  geom_bar(position="dodge", stat="identity") +
+  scale_y_continuous(labels = scales::label_percent()) +
+  geom_errorbar(aes(ymin = prop-prop_moe, ymax = prop+prop_moe, group=survey_year), position = dodge, width = 0.15) +
+  facet_wrap(~home_in_UGA_mu) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$purples_inc[2:6])
+```
+
+```{r}
+df_plot %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("home_in_UGA_mu", "mode_class_simple"), names_from="survey_year", values_from = "prop")
+```
+
+
+:::{.panel-tabset}
+
+```{r}
+plot_mode_share <- function(df, survey_year){
+  ggplot(df, aes(x=fct_rev(home_in_UGA_mu), y=prop, fill=mode_class_simple)) +
+    geom_bar(position=position_stack(reverse = TRUE), stat="identity") +
+    scale_y_continuous(labels = scales::label_percent()) +
+    psrc_style() +
+    scale_fill_manual(values = psrc_colors$pognbgy_5) +
+    coord_flip()+
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(color="#cbcbcb")
+    ) +
+    labs(x="",y="")
+}
+```
+
+#### 2017
+
+```{r}
+df_plot2 <- df_plot %>% filter(survey_year=="2017")
+plot_mode_share(df_plot2,"2017")
+```
+
+#### 2017/2019
+
+```{r}
+df_plot2 <- df_plot %>% filter(survey_year=="2017/2019")
+plot_mode_share(df_plot2,"2017/2019")
+```
+
+#### 2019
+
+```{r}
+df_plot2 <- df_plot %>% filter(survey_year=="2019")
+plot_mode_share(df_plot2,"2019")
+```
+
+#### 2021
+
+```{r}
+df_plot2 <- df_plot %>% filter(survey_year=="2021")
+plot_mode_share(df_plot2,2021)
+```
+
+#### 2023
+```{r}
+df_plot2 <- df_plot %>% filter(survey_year=="2023")
+plot_mode_share(df_plot2,2023)
+```
+
+:::
+
+### change in mode share
+
+```{r}
+df_plot <- psrc_hts_stat(df_hts_data_17_19, "trip", c("home_in_UGA_center", "mode_class_simple"), incl_na = FALSE) %>%
+  add_row(psrc_hts_stat(df_hts_data, "trip", c("home_in_UGA_center", "mode_class_simple"), incl_na = FALSE))
+
+mode_share_change <- df_plot %>%
+  filter(survey_year%in% c("2021","2023")) %>%
+  left_join(df_plot %>% filter(survey_year=="2017/2019") %>%
+              rename(prop_2017_2019 = prop) %>%
+              select(home_in_UGA_center,mode_class_simple,prop_2017_2019), by=c("home_in_UGA_center","mode_class_simple")) %>%
+  mutate(change = (prop-prop_2017_2019)/prop_2017_2019)
+
+ggplot(mode_share_change, aes(x=fct_rev(home_in_UGA_center), y=change, fill=mode_class_simple)) +
+    geom_col(position = "dodge")+
+  facet_wrap(~survey_year) +
+    scale_y_continuous(labels=scales::percent) +
+    scale_fill_discrete_psrc ("pognbgy_10")+
+    psrc_style() +
+    coord_flip()+
+    theme(
+      panel.grid.major.y = element_blank(),
+      panel.grid.major.x = element_line(color="#cbcbcb")
+    )
+```
+
+```{r}
+mode_share_change %>%
+  mutate(change = scales::percent(change, 0.01)) %>%
+  pivot_wider(id_cols = c("home_in_UGA_center", "mode_class_simple"), names_from="survey_year", values_from = "change")
+```
+
+
+### transit frequency
+
+- only includes adults 18+
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+
+df_plot <- psrc_hts_stat(df_hts_data, "person", c("home_in_UGA_mu", "transit_freq_simple"), incl_na = FALSE) 
+df_plot2 <- psrc_hts_stat(df_hts_data_17_19, "person", c("home_in_UGA_mu", "transit_freq_simple"), incl_na = FALSE) %>% add_row(df_plot)
+
+ggplot(df_plot2, aes(x=transit_freq_simple, y=prop, fill=survey_year)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=prop-prop_moe, 
+                    ymax=prop+prop_moe),
+                width=0.2, position = position_dodge(0.9))+
+  facet_wrap(~home_in_UGA_mu) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_fill_manual(values = psrc_colors$purples_inc[1:5]) +
+  psrc_style() + 
+  theme(plot.title = element_blank())
+```
+
+```{r}
+df_plot2 %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("home_in_UGA_mu", "transit_freq_simple"), names_from="survey_year", values_from = "prop")
+```
+
+### walk frequency
+
+- only includes adults 18+
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+
+df_plot <- psrc_hts_stat(df_hts_data, "person", c("home_in_UGA_mu", "walk_freq_simple"), incl_na = FALSE)
+df_plot2 <- psrc_hts_stat(df_hts_data_17_19, "person", c("home_in_UGA_mu", "walk_freq_simple"), incl_na = FALSE) %>% add_row(df_plot)
+
+ggplot(df_plot2, aes(x=walk_freq_simple, y=prop, fill=survey_year)) +
+  geom_col(position = "dodge")+
+  geom_errorbar(aes(ymin=prop-prop_moe,
+                    ymax=prop+prop_moe),
+                width=0.2, position = position_dodge(0.9))+
+  facet_wrap(~home_in_UGA_mu) +
+  scale_y_continuous(labels=scales::percent) +
+  scale_fill_manual(values = psrc_colors$purples_inc[1:5]) +
+  psrc_style() +
+  theme(plot.title = element_blank())
+```
+
+```{r}
+df_plot2 %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("home_in_UGA_mu", "walk_freq_simple"), names_from="survey_year", values_from = "prop")
+```
+
+### VMT
+
+:::{.panel-tabset}
+
+#### Own calculation: Suzanne's code
+
+- assumptions:
+  1. 5+ travelers is replaced with 7
+  2. removed trips with distance longer than 200 miles
+
+```{r}
+
+# vmt by centers
+total_vmt_mu <- df_hts_data$trip %>%
+  add_row(df_hts_data_17_19$trip) %>%
+  left_join(df_hts_data$hh %>% select(hh_id,home_in_UGA_mu), by="hh_id") %>%
+  group_by(survey_year, home_in_UGA_mu) %>%
+  summarize(total_vmt = sum(weighted_vmt), 
+            total_vmt_7 = sum(weighted_vmt_7)) %>%
+  ungroup()
+
+people_mu <- df_hts_data$person %>%
+  add_row(df_hts_data_17_19$person) %>%
+  left_join(df_hts_data$hh %>% select(hh_id,home_in_UGA_mu), by="hh_id") %>%
+  group_by(survey_year, home_in_UGA_mu) %>%
+  summarise(people = sum(person_weight))
+
+df_vmt_mu <- total_vmt_mu %>%
+  left_join(people_mu, by=c("survey_year", "home_in_UGA_mu"))  %>%
+  mutate(vmt_per_person = total_vmt/people,
+         vmt_per_person_7 = total_vmt_7/people)
+
+# region vmt
+total_vmt <- df_hts_data$trip %>%
+  add_row(df_hts_data_17_19$trip) %>%
+  group_by(survey_year) %>%
+  summarize(total_vmt = sum(weighted_vmt), 
+            total_vmt_7 = sum(weighted_vmt_7)) %>%
+  ungroup()
+
+people <- df_hts_data$person %>%
+  add_row(df_hts_data_17_19$person) %>%
+  group_by(survey_year) %>%
+  summarise(people = sum(person_weight))
+
+df_vmt <- df_vmt_mu %>%
+  add_row(total_vmt %>%
+  left_join(people, by="survey_year") %>%
+  mutate(vmt_per_person = total_vmt/people,
+         vmt_per_person_7 = total_vmt_7/people) %>%
+  mutate(home_in_UGA_mu = "Region", .after="survey_year")) %>%
+  mutate(vmt_per_person = ifelse(survey_year=="2017/2019",vmt_per_person/2,vmt_per_person),
+         vmt_per_person_7 = ifelse(survey_year=="2017/2019",vmt_per_person_7/2,vmt_per_person_7))
+
+
+df_vmt %>%
+  mutate(vmt_per_person_7 = scales::number(vmt_per_person_7, 0.01)) %>%
+  pivot_wider(id_cols = "home_in_UGA_mu", names_from="survey_year", values_from = "vmt_per_person_7")
+```
+
+```{r}
+
+# vmt by centers
+total_vmt_mu <- df_hts_data$trip %>%
+  add_row(df_hts_data_17_19$trip) %>%
+  left_join(df_hts_data$hh %>% select(hh_id,home_regional_geog), by="hh_id") %>%
+  group_by(survey_year, home_regional_geog) %>%
+  summarize(total_vmt = sum(weighted_vmt), 
+            total_vmt_7 = sum(weighted_vmt_7)) %>%
+  ungroup()
+
+people_mu <- df_hts_data$person %>%
+  add_row(df_hts_data_17_19$person) %>%
+  left_join(df_hts_data$hh %>% select(hh_id,home_regional_geog), by="hh_id") %>%
+  group_by(survey_year, home_regional_geog) %>%
+  summarise(people = sum(person_weight))
+
+df_vmt_mu <- total_vmt_mu %>%
+  left_join(people_mu, by=c("survey_year", "home_regional_geog"))  %>%
+  mutate(vmt_per_person = total_vmt/people,
+         vmt_per_person_7 = total_vmt_7/people)
+
+# region vmt
+total_vmt <- df_hts_data$trip %>%
+  add_row(df_hts_data_17_19$trip) %>%
+  group_by(survey_year) %>%
+  summarize(total_vmt = sum(weighted_vmt), 
+            total_vmt_7 = sum(weighted_vmt_7)) %>%
+  ungroup()
+
+people <- df_hts_data$person %>%
+  add_row(df_hts_data_17_19$person) %>%
+  group_by(survey_year) %>%
+  summarise(people = sum(person_weight))
+
+df_vmt <- df_vmt_mu %>%
+  add_row(total_vmt %>%
+  left_join(people, by="survey_year") %>%
+  mutate(vmt_per_person = total_vmt/people,
+         vmt_per_person_7 = total_vmt_7/people) %>%
+  mutate(home_regional_geog = "Region", .after="survey_year")) %>%
+  mutate(vmt_per_person = ifelse(survey_year=="2017/2019",vmt_per_person/2,vmt_per_person),
+         vmt_per_person_7 = ifelse(survey_year=="2017/2019",vmt_per_person_7/2,vmt_per_person_7)) %>%
+  mutate(home_regional_geog = factor(home_regional_geog, levels=c("Metro","Core","HCT","CitiesTowns","UU","Rural","Region")))
+
+
+df_vmt %>%
+  arrange(home_regional_geog) %>%
+  mutate(vmt_per_person_7 = scales::number(vmt_per_person_7, 0.01)) %>%
+  pivot_wider(id_cols = "home_regional_geog", names_from="survey_year", values_from = "vmt_per_person_7")
+```
+
+- sample count
+```{r}
+df_hts_data$hh %>%
+  add_row(df_hts_data_17_19$hh) %>%
+  mutate(home_regional_geog = factor(home_regional_geog, levels=c("Metro","Core","HCT","CitiesTowns","UU","Rural","Region"))) %>%
+  group_by(survey_year,home_regional_geog) %>%
+  summarise(count=n()) %>%
+  arrange(home_regional_geog) %>%
+  pivot_wider(id_cols = "home_regional_geog", names_from="survey_year", values_from = "count")
+```
+
+
+#### package
+
+```{r}
+# TODO: don't know why 2017/2019 not showing: look into if needed
+df_plot <- psrc_hts_vmtrate(df_hts_data, "home_in_UGA_mu") %>%
+  add_row(psrc_hts_vmtrate(df_hts_data) %>%
+            mutate(home_in_UGA_mu = "Region", .after="survey_year"))
+df_plot_region <- psrc_hts_vmtrate(df_hts_data) %>%
+  mutate(home_in_UGA_mu = "Region", .after="survey_year")
+
+
+df_plot %>%
+  mutate(mean = scales::number(mean, 0.01)) %>%
+  pivot_wider(id_cols = "survey_year", names_from="home_in_UGA_mu", values_from = "mean")
+```
+
+:::
+
+
+### average trip distance & travel time
+
+:::{.panel-tabset}
+
+#### trip distance
+```{r}
+#| layout-ncol: 2
+
+rs1 <- psrc_hts_stat(df_hts_data, 
+                     analysis_unit="trip", 
+                     group_vars="home_category", 
+                     stat_var="distance_miles")
+rs3 <- psrc_hts_stat(df_hts_data_17_19, 
+                     analysis_unit="trip", 
+                     group_vars="home_category", 
+                     stat_var="distance_miles") %>% add_row(rs1)
+
+ggplot(rs3, aes(x=home_category, y=mean, fill=survey_year)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=mean-mean_moe, 
+                    ymax=mean+mean_moe),
+                width=0.2, position = position_dodge(0.9))+
+  scale_fill_manual(values = psrc_colors$purples_inc[1:5]) +
+  # facet_wrap(~home_category, scales = "free_y") +
+  psrc_style() + 
+  theme(plot.title = element_blank())
+
+rs1 <- psrc_hts_stat(df_hts_data, 
+                     analysis_unit="trip", 
+                     group_vars="home_in_UGA_mu", 
+                     stat_var="distance_miles")
+rs3 <- psrc_hts_stat(df_hts_data_17_19, 
+                     analysis_unit="trip", 
+                     group_vars="home_in_UGA_mu", 
+                     stat_var="distance_miles") %>% add_row(rs1)
+
+ggplot(rs3, aes(x=home_in_UGA_mu, y=mean, fill=survey_year)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=mean-mean_moe, 
+                    ymax=mean+mean_moe),
+                width=0.2, position = position_dodge(0.9))+
+  scale_fill_manual(values = psrc_colors$purples_inc[1:5]) +
+  # facet_wrap(~home_category, scales = "free_y") +
+  psrc_style() + 
+  theme(plot.title = element_blank())
+```
+
+#### travel time
+
+```{r}
+#| layout-ncol: 2
+
+rs2 <- psrc_hts_stat(df_hts_data, 
+                     analysis_unit="trip", 
+                     group_vars="home_category", 
+                     stat_var="duration_minutes")
+rs3 <- psrc_hts_stat(df_hts_data_17_19, 
+                     analysis_unit="trip", 
+                     group_vars="home_category", 
+                     stat_var="duration_minutes") %>% add_row(rs2)
+
+ggplot(rs3, aes(x=home_category, y=mean, fill=survey_year)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=mean-mean_moe, 
+                    ymax=mean+mean_moe),
+                width=0.2, position = position_dodge(0.9))+
+  scale_fill_manual(values = psrc_colors$purples_inc[1:5]) +
+  psrc_style() + 
+  theme(plot.title = element_blank())
+
+rs2 <- psrc_hts_stat(df_hts_data, 
+                     analysis_unit="trip", 
+                     group_vars="home_in_UGA_mu", 
+                     stat_var="duration_minutes")
+rs3 <- psrc_hts_stat(df_hts_data_17_19, 
+                     analysis_unit="trip", 
+                     group_vars="home_in_UGA_mu", 
+                     stat_var="duration_minutes") %>% add_row(rs2)
+
+ggplot(rs3, aes(x=home_in_UGA_mu, y=mean, fill=survey_year)) +
+  geom_col(position = "dodge")+  
+  geom_errorbar(aes(ymin=mean-mean_moe, 
+                    ymax=mean+mean_moe),
+                width=0.2, position = position_dodge(0.9))+
+  scale_fill_manual(values = psrc_colors$purples_inc[1:5]) +
+  psrc_style() + 
+  theme(plot.title = element_blank())
+```
+
+:::
+
+## Travel Behavior by destination location
+
+### mode share
+
+:::{.panel-tabset}
+
+#### mode share with walk/bike/micromobility
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+
+df_plot <- psrc_hts_stat(df_hts_data_17_19, "trip", c("dest_in_UGA_mu", "mode_class_simple"), incl_na = FALSE) %>%
+  add_row(psrc_hts_stat(df_hts_data, "trip", c("dest_in_UGA_mu", "mode_class_simple"), incl_na = FALSE))
+
+dodge <- position_dodge(width=0.9)
+ggplot(df_plot, aes(x=mode_class_simple, y=prop, fill=dest_in_UGA_mu)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label=scales::percent(prop,accuracy = 1), y=prop, group=dest_in_UGA_mu),vjust=-1.2, position= dodge)+
+  geom_errorbar(aes(ymin = prop-prop_moe, ymax = prop+prop_moe, group=dest_in_UGA_mu), position = dodge, width = 0.15) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  facet_wrap(~survey_year) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$pognbgy_5)
+```
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+ggplot(df_plot, aes(x=mode_class_simple, y=prop, fill=survey_year)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label=scales::percent(prop,accuracy = 1), y=prop, group=survey_year),vjust=-0.6, position= dodge)+
+  scale_y_continuous(labels = scales::label_percent()) +
+  geom_errorbar(aes(ymin = prop-prop_moe, ymax = prop+prop_moe, group=survey_year), position = dodge, width = 0.15) +
+  facet_wrap(~dest_in_UGA_mu) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$purples_inc)
+```
+
+```{r}
+df_plot %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("dest_in_UGA_mu", "mode_class_simple"), names_from="survey_year", values_from = "prop")
+```
+
+
+#### mode_class_5
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+
+df_plot <- psrc_hts_stat(df_hts_data_17_19, "trip", c("dest_in_UGA_mu", "mode_class_5"), incl_na = FALSE) %>%
+  add_row(psrc_hts_stat(df_hts_data, "trip", c("dest_in_UGA_mu", "mode_class_5"), incl_na = FALSE))
+
+dodge <- position_dodge(width=0.9)
+ggplot(df_plot, aes(x=mode_class_5, y=prop, fill=dest_in_UGA_mu)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label=scales::percent(prop,accuracy = 1), y=prop, group=dest_in_UGA_mu),vjust=-1.2, position= dodge)+
+  geom_errorbar(aes(ymin = prop-prop_moe, ymax = prop+prop_moe, group=dest_in_UGA_mu), position = dodge, width = 0.15) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  facet_wrap(~survey_year) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$pognbgy_5)
+```
+
+```{r}
+#| fig-asp: 0.6
+#| fig-width: 9
+ggplot(df_plot, aes(x=mode_class_5, y=prop, fill=survey_year)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label=scales::percent(prop,accuracy = 1), y=prop, group=survey_year),vjust=-0.6, position= dodge)+
+  scale_y_continuous(labels = scales::label_percent()) +
+  geom_errorbar(aes(ymin = prop-prop_moe, ymax = prop+prop_moe, group=survey_year), position = dodge, width = 0.15) +
+  facet_wrap(~dest_in_UGA_mu) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$purples_inc)
+```
+
+```{r}
+df_plot %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("dest_in_UGA_mu", "mode_class_5"), names_from="survey_year", values_from = "prop")
+```
+
+:::
+
+### number of trips per acre
+
+- work trip includes `"Work","Work-related","School","School-related"`
+
+:::{.panel-tabset}
+
+#### Metro/Urban centers
+
+```{r}
+df_plot <- psrc_hts_stat(df_hts_data_17_19, "trip", c("dest_in_UGA_mu","dest_purpose_work"), incl_na = FALSE) %>%
+  add_row(psrc_hts_stat(df_hts_data, "trip", c("dest_in_UGA_mu","dest_purpose_work"), incl_na = FALSE)) %>%
+  left_join(df_metro_urban_area, by=c("dest_in_UGA_mu"="category")) %>%
+  mutate(`trip/acre` = est/acres,
+         dest_in_UGA_mu = factor(dest_in_UGA_mu,levels=c("Metro","Urban","Rest of UGA","not UGA")))
+
+dodge <- position_dodge(width=0.9)
+ggplot(df_plot, aes(x=dest_purpose_work, y=`trip/acre`, fill=dest_in_UGA_mu)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label=scales::number(`trip/acre`,accuracy = 0.1), y=`trip/acre`, group=dest_in_UGA_mu),vjust=-0.8, position= dodge)+
+  facet_wrap(~survey_year) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$pognbgy_5)
+```
+
+```{r}
+df_plot %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("dest_in_UGA_mu", "dest_purpose_work"), names_from="survey_year", values_from = `trip/acre`)
+```
+
+#### RGC
+
+```{r}
+df_plot <- psrc_hts_stat(df_hts_data_17_19, "trip", c("dest_in_UGA_center","dest_purpose_work"), incl_na = FALSE) %>%
+  add_row(psrc_hts_stat(df_hts_data, "trip", c("dest_in_UGA_center","dest_purpose_work"), incl_na = FALSE)) %>%
+  left_join(df_center_area, by=c("dest_in_UGA_center"="rgcname")) %>%
+  mutate(`trip/acre` = est/acres,
+         dest_in_UGA_center = factor(dest_in_UGA_center,levels=c("RGC","Rest of UGA","not UGA")))
+
+dodge <- position_dodge(width=0.9)
+ggplot(df_plot %>% filter(dest_in_UGA_center!="not UGA"), aes(x=dest_purpose_work, y=`trip/acre`, fill=dest_in_UGA_center)) +
+  geom_bar(position="dodge", stat="identity") +
+  geom_text(aes(label=scales::number(`trip/acre`,accuracy = 1), y=`trip/acre`, group=dest_in_UGA_center),vjust=-0.8, position= dodge)+
+  facet_wrap(~survey_year) +
+  psrc_style() +
+  scale_fill_manual(values = psrc_colors$pognbgy_5[c(1,2,5)])
+```
+
+```{r}
+df_plot %>%
+  mutate(prop = scales::percent(prop, 0.01)) %>%
+  pivot_wider(id_cols = c("dest_in_UGA_center", "dest_purpose_work"), names_from="survey_year", values_from = `trip/acre`)
+```
+
+
+:::
+
+

@@ -1,0 +1,45 @@
+---
+title: "Students with 995"
+date: today
+---
+
+```{r}
+#| include: false
+
+source("functions.R")
+tables <- readRDS("analysis_table.RDS")
+
+```
+
+```{r}
+person <- tables[["person"]] %>%
+  select(all_of(c("person_id","age_detailed","student",
+                  "school_freq","school_in_region","school_mode_typical","schooltype",
+                  "school_loc_lat","school_loc_lng"))) %>%
+  mutate(person_id = as.character(person_id),
+         has_school_loc = ifelse(!is.na(school_loc_lat),1,0))
+```
+
+- data problem: students have 995 values in the `student` field
+
+## Persons with school locations
+
+```{r}
+CreateTableOne(data = person,
+               vars = c("student"), 
+               factorVars = c("student"), 
+               strata = "has_school_loc",
+               includeNA = TRUE)
+```
+
+
+## Persons with school types
+
+```{r}
+CreateTableOne(data = person,
+               vars = c("student"), 
+               factorVars = c("student"), 
+               strata = "schooltype",
+               includeNA = TRUE)
+```
+
