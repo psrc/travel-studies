@@ -1,0 +1,322 @@
+﻿variable,hh,person,day,trip,vehicle,data_type,description,logic,added,view,csv
+adult_student,0,1,0,0,0,integer/categorical,Student status (only inlcudes students age 18+),if age 18+,2023,view,csv
+age,0,1,0,0,0,integer/categorical,Age,,2023,view,csv
+age_detailed,0,1,0,0,0,integer/categorical,Age of person,,2025,view,csv
+arrival_time_hour,0,0,0,1,0,numeric,Arrival time hour,,2023,view,csv
+arrival_time_minute,0,0,0,1,0,numeric,Arrival time minute,,2023,view,csv
+arrival_time_second,0,0,0,1,0,numeric,Arrival time second,,2023,view,csv
+arrive_date,0,0,0,1,0,date,Date of arrival,,2023,view,csv
+arrive_dow,0,0,0,1,0,integer/categorical,Arrival day of week,,2023,view,csv
+attend_school_1,0,0,1,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to school","if child attends in-person school or daycare at least some of the time and school was not selected as a purpose on travel day for child's roster (until 2023); if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day (2025)",2023,view,csv
+attend_school_2,0,0,1,0,0,integer/categorical,"Did child travel to school -- Yes, traveled to another location for school","if child attends in-person school or daycare at least some of the time and school was not selected as a purpose on travel day for child's roster (until 2023); if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day (2025)",2023,view,csv
+attend_school_3,0,0,1,0,0,integer/categorical,"Did child travel to school -- No, did not travel for school","if child attends in-person school or daycare at least some of the time and school was not selected as a purpose on travel day for child's roster (until 2023); if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day (2025)",2023,view,csv
+attend_school_998,0,0,1,0,0,integer/categorical,Did child travel to school -- Don't know,"if child attends in-person school or daycare at least some of the time and school was not selected as a purpose on travel day for child's roster (until 2023); if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day (2025)",2023,view,csv
+attend_school_999,0,0,1,0,0,integer/categorical,Did child travel to school -- Prefer not to answer,"if child attends in-person school or daycare at least some of the time and school was not selected as a purpose on travel day for child's roster (until 2023); if age <18 child with school_type NOT = ""cared for at home"" or ""home school"" and purpose NOT = ""attend school/class"" for a trip same travel day (2025)",2023,view,csv
+bike_freq,0,1,0,0,0,integer/categorical,How often the person has ridden a bike outside for 15 or more minutes in the past 30 days,if age ≥ 18 and bikes (share_2 = 1),2025,view,csv
+broadband,1,0,0,0,0,integer/categorical,Broadband internet service at current residence,,2023,view,csv
+can_drive,0,1,0,0,0,integer/categorical,"Answers yes to ""Do you/household person drive?""",If age ≥ 15,2025,view,csv
+carshare_freq,0,1,0,0,0,integer/categorical,"How often the person has used carshare (e.g., Turo, ZipCar, Getaround, GIG) in the past 30 days",if age ≥ 18 and uses carshare (share_5 = 1),2025,view,csv
+commute_freq,0,1,0,0,0,integer/categorical,How often commuted to workplace last week,"if workplace = fixed, varied, telecommutes some days (2017-2021); if employment = full/part/self/volunteer and job_type IS NOT ""work only from home"" or “drive/bike/travel for work” (2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and work_from_home is not ""all of the time"" OR drive_for_work = ""yes"" (2025)",2023,view,csv
+commute_subsidy_1,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) transit passes or fares,"If employed full/part/furloughed/volunteer (2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and employment = full- or part-time (2025)",2023,view,csv
+commute_subsidy_2,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) transit passes or fares,If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_3,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Free (fully subsidized) parking at work,If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_4,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Discounted (partially subsidized) parking at work,If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_5,0,1,0,0,0,integer/categorical,"Commute benefits provided by employer -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)",If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_6,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Flextime (can adjust schedule as long as work the right number of total hours),If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_7,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Ability to work from home,If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_996,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- None of the above,If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_998,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Don't know,If employed full/part/furloughed/volunteer,2023,view,csv
+commute_subsidy_transit,0,1,0,0,0,integer/categorical,"Worker offered transit pass through work (this is a calculated variable from commute_subsidy_1, commute_subsidy_2 and benefits_3 in 2017-2021)",,2023,view,csv
+commute_subsidy_parking,0,1,0,0,0,integer/categorical,"Worker offered subsidized parking through work (this is a calculated variable from commute_subsidy_3, commute_subsidy_4 and workpass in 2017,2019)",,,,
+commute_subsidy_use_1,0,1,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) transit passes or fares,"if employer offers free transit passes (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""free (fully subsidized) transit passes or fares"" (commute_subsidy_1 = ""selected"") (2025)",2023,view,csv
+commute_subsidy_use_2,0,1,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,"if employer offers discounted transit passes (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""discounted (partially subsidized) transit passes or fares"" (commute_subsidy_2 = ""selected"") (2025)",2023,view,csv
+commute_subsidy_use_3,0,1,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) parking at work,"if employer offers free parking at work (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""free (fully subsidized) parking at work"" (commute_subsidy_3 = ""selected"") (2025)",2023,view,csv
+commute_subsidy_use_4,0,1,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) parking at work,"if employer offers discounted parking at work (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""dicounted (partially subsidized) parking at work"" (commute_subsidy_4 = ""selected"") (2025)",2023,view,csv
+commute_subsidy_use_5,0,1,0,0,0,integer/categorical,"Commute benefit used -- Compressed work week (e.g., four 10-hour days, 9 days/80 hours)","if employer offers a compressed work week (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""compressed work week (e.g., four 10-hour days, 9 days/80 hours)"" (commute_subsidy_5 = ""selected"") (2025)",2023,view,csv
+commute_subsidy_use_6,0,1,0,0,0,integer/categorical,Commute benefit used -- Flextime (can adjust schedule as long as work the right number of total hours),"if employer offers flextime (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""flextime (can adjust schedule as long as work the right number of total hours)"" (commute_subsidy_6 = ""selected"") (2025)",2023,view,csv
+commute_subsidy_use_7,0,1,0,0,0,integer/categorical,Commute benefit used -- Ability to work from home,"if employer offers ability to work from home (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""ability to work from home"" (commute_subsidy_7 = ""selected) (2025)",2023,view,csv
+commute_subsidy_use_996,0,1,0,0,0,integer/categorical,Commute benefit used -- None of the above,"if employer offers any commute benefits (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") (2025)",2023,view,csv
+copied_trip,0,0,0,1,0,integer/categorical,Trip was copied from another HH member,,2023,view,csv
+d_bg,0,0,0,1,0,character,Trip destination census block group (derived by PSRC),,2025,view,csv
+d_in_region,0,0,0,1,0,integer/categorical,Trip destination is in PSRC MPO area,,2023,view,csv
+d_puma10,0,0,0,1,0,character,Trip destination PUMA (Public Use Microdata Area) 2010 (derived by PSRC),,2025,view,csv
+day_id,0,0,1,1,0,numeric,Unique identifier for each person day,,2023,view,csv
+day_weight,0,0,1,0,0,numeric,Person-day-level weight,,2023,view,csv
+daynum,0,0,1,1,0,numeric,Diary day sequence,,2023,view,csv
+deliver_elsewhere,0,0,1,0,0,integer/categorical,Deliveries and home services -- Packages delivered elsewhere,if rMove or (rMove for Web and person 1) (2025),2023,view,csv
+deliver_food,0,0,1,0,0,integer/categorical,Deliveries and home services -- Food/meal prep delivered,"if hhgroup = rMove (2017, 2019); if rMove or (rMove for Web and person 1) (2025)",2023,view,csv
+deliver_grocery,0,0,1,0,0,integer/categorical,Deliveries and home services -- Groceries delivered,"if hhgroup = rMove (2017, 2019); if rMove or (rMove for Web and person 1) (2025)",2023,view,csv
+deliver_none,0,0,1,0,0,integer/categorical,Deliveries and home services -- None,if rMove or (rMove for Web and person 1) (2025),2023,view,csv
+deliver_office,0,0,1,0,0,integer/categorical,Deliveries and home services -- Packages delivered at work,if rMove or (rMove for Web and person 1) (2025),2023,view,csv
+deliver_other,0,0,1,0,0,integer/categorical,Deliveries and home services -- Other deliveries,if rMove or (rMove for Web and person 1) (2025),2023,view,csv
+deliver_package,0,0,1,0,0,integer/categorical,Deliveries and home services -- Packages delivered at home,"if hhgroup = rMove (2017, 2019); if rMove or (rMove for Web and person 1) (2025)",2023,view,csv
+deliver_work,0,0,1,0,0,integer/categorical,Deliveries and home services -- Services delivered,"if hhgroup = rMove (2017, 2019); if rMove or (rMove for Web and person 1) (2025)",2023,view,csv
+depart_date,0,0,0,1,0,date,Date of departure,,2023,view,csv
+depart_dow,0,0,0,1,0,integer/categorical,Departure day of week,,2023,view,csv
+depart_time_hour,0,0,0,1,0,numeric,Departure time hour,,2023,view,csv
+depart_time_minute,0,0,0,1,0,numeric,Departure time minute,,2023,view,csv
+depart_time_second,0,0,0,1,0,numeric,Departure time second,,2023,view,csv
+dest_city,0,0,0,1,0,integer/categorical,Trip Destination City,,,view,
+dest_county,0,0,0,1,0,integer/categorical,Trip Destination County,,2023,view,csv
+dest_geom,,,,,,,,,,view,
+dest_jurisdiction,0,0,0,1,0,integer/categorical,Trip Destination Jurisdiction,,2023,view,csv
+dest_lat,0,0,0,1,0,numeric,Destination latitude,,2023,view,csv
+dest_lng,0,0,0,1,0,numeric,Destination longitude,,2023,view,csv
+dest_purpose,0,0,0,1,0,integer/categorical,Destination purpose,,2023,view,csv
+dest_purpose_cat,0,0,0,1,0,integer/categorical,Destination purpose category,,2023,view,csv
+dest_purpose_cat_5,0,0,0,1,0,integer/categorical,Destination purpose category (5 categories),,2023,view,csv
+dest_purpose_other,0,0,0,1,0,character,Other trip destination textbox answer,"if purpose ""other"" selected",2023,view,csv
+dest_rgcname,0,0,0,1,0,integer/categorical,Destination location: Regional Growth Center,,2023,view,csv
+dest_tract_2010,0,0,0,1,0,character,Destination Census Tract 2010,,,view,
+dest_tract_2020,0,0,0,1,0,character,Destination Census Tract 2020,,,view,
+dest_x_coord,0,0,0,1,0,numeric,Destination: X coordinate,,2023,view,csv
+dest_y_coord,0,0,0,1,0,numeric,Destination: Y coordinate,,2023,view,csv
+diary_platform,1,0,0,0,0,character,Platform used by participant for part two (travel diary/preference survey),,2025,view,csv
+disability_person,0,1,0,0,0,integer/categorical,Person has a disability or illness that affects ability to travel,if age ≥ 18,2025,view,csv
+displaced,1,0,0,0,0,integer/categorical,Household experienced residential displacement,,2023,view,csv
+distance_meters,0,0,0,1,0,numeric,Distance (meters). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,,2023,view,csv
+distance_miles,0,0,0,1,0,numeric,Distance (miles). Trips recorded in online survey are straight-line distances between origin and destination. Trips recorded in rMove are path distances via all points recorded by the app.,,2023,view,csv
+drive_for_work,0,1,0,0,0,integer/categorical,Person has to commute somewhere each workday to pick up a variable.,"If age ≥ 16 and job_type = ""drive/bike/travel for work (e.g., delivery driver, rideshare driver""",2025,view,csv
+driver,0,0,0,1,0,integer/categorical,"Driver or passenger on auto trip, non-taxi","if mode = auto (non-taxi) and travel party > 1 (until 2023); if mode = auto (non-taxi), hhlicenses = ""yes"", and travel party has more than 1 passenger older than 15 (2025)",2023,view,csv
+duration_minutes,0,0,0,1,0,numeric,Duration (in minutes). Calculated as the difference between start and stop time of the trip.,,2023,view,csv
+duration_seconds,0,0,0,1,0,numeric,Duration (in seconds). Calculated as the difference between start and stop time of the trip.,,2023,view,csv
+dwell_mins,0,0,0,1,0,numeric,"Dwell minutes.  Minutes spent at destination location, calculated as the time elapsed between the trip arrive time and the depart time of the next trip. Zero if the trip is the last trip made by the person.",,2023,view,csv
+education,0,1,0,0,0,integer/categorical,Educational attainment,if age ≥18,2025,view,csv
+employment,0,1,0,0,0,integer/categorical,Employment status,if age 18+ (2017 - 2021); If age > 16 (2023 and 2025),2023,view,csv
+ethnicity_1,0,1,0,0,0,integer/categorical,"Ethnicity -- Not of Hispanic, Latino, or Spanish origin",if age ≥18,2025,view,csv
+ethnicity_2,0,1,0,0,0,integer/categorical,"Ethnicity -- Mexican, Mexican American, Chicano",if age ≥18,2025,view,csv
+ethnicity_3,0,1,0,0,0,integer/categorical,Ethnicity -- Puerto Rican,if age ≥18,2025,view,csv
+ethnicity_4,0,1,0,0,0,integer/categorical,Ethnicity -- Cuban,if age ≥18,2025,view,csv
+ethnicity_997,0,1,0,0,0,integer/categorical,"Ethnicity -- Another Hispanic, Latino, or Spanish origin",if age ≥18,2025,view,csv
+ethnicity_999,0,1,0,0,0,integer/categorical,Ethnicity -- Prefer not to answer,if age ≥18,2025,view,csv
+ethnicity_other,0,1,0,0,0,character,Other ethnicity textbox answer,if ethnicity = other,2023,view,csv
+ev_typical_charge_1,0,1,0,0,0,integer/categorical,Typical charge location for EV -- At home,"if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+ev_typical_charge_2,0,1,0,0,0,integer/categorical,Typical charge location for EV -- At work,"if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+ev_typical_charge_3,0,1,0,0,0,integer/categorical,"Typical charge location for EV -- At a commute location (e.g., Park and Ride lot, parking garage)","if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+ev_typical_charge_4,0,1,0,0,0,integer/categorical,"Typical charge location for EV -- At a shopping location (e.g., grocery store, shopping mall)","if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+ev_typical_charge_5,0,1,0,0,0,integer/categorical,"Typical charge location for EV -- At a public location (e.g., hospital, library, government building)","if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+ev_typical_charge_6,0,1,0,0,0,integer/categorical,Typical charge location for EV -- At a hotel/inn,"if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+ev_typical_charge_997,0,1,0,0,0,integer/categorical,Typical charge location for EV -- Other,"if fuel type of primary vehicle driven is electric (until 2023); if rMove or (rMove for Web and person 1) and household has at least one vehicle with fuel_type = ""electric (EV)"" (2025)",2023,view,csv
+flag_teleport,0,0,0,1,0,integer/categorical,>=250m gap occurs after trip,if hhgroup = rMove,2023,view,csv
+fuel,0,0,0,0,1,integer/categorical,Fuel type,if num_vehicles > 0 (2025),2025,view,csv
+gender,0,1,0,0,0,integer/categorical,Gender,,2023,view,csv
+has_access,0,0,0,1,0,integer/categorical,Has access,,2025,view,csv
+has_egress,0,0,0,1,0,integer/categorical,Has egress,,2025,view,csv
+has_synthetic_access,0,0,0,1,0,integer/categorical,Has synthetic access,,2025,view,csv
+has_synthetic_egress,0,0,0,1,0,integer/categorical,Has synthetic egress,,2025,view,csv
+hh_race_category,1,0,0,0,0,integer/categorical,Household Race Category,,2023,view,csv
+hhgroup,1,0,0,0,0,integer/categorical,Travel Diary (Part 2) participation group,,2023,view,csv
+hhid,1,1,1,1,1,character,Unique identifier for each household,,2025,,csv
+hhincome_broad,1,0,0,0,0,integer/categorical,"Last year's household income broad categories, all respondents",,2025,view,csv
+hhincome_detailed,1,0,0,0,0,integer/categorical,Last year's household income detailed categories,,2025,view,csv
+hhincome_followup,1,0,0,0,0,integer/categorical,Last year's household income broad follow-up categories,if hhincome_detailed = prefer not to answer,2025,view,csv
+hhsize,1,0,0,0,0,integer/categorical,Household size,,2023,view,csv
+home_bg_2010,1,0,0,0,0,character,Home location-- 2010 Block group,,2025,view,csv
+home_bg_2020,1,0,0,0,0,character,Home location-- 2020 Block group,,2025,view,csv
+home_county,1,0,0,0,0,integer/categorical,Final home address: County,,2023,view,csv
+home_county,1,0,0,0,0,character,Home location-- County,,2025,view,csv
+home_geom,,,,,,,,,,view,
+home_in_region,1,0,0,0,0,integer/categorical,Home is in PSRC MPO area,,2025,view,csv
+home_jurisdiction,1,0,0,0,0,integer/categorical,Home Location Jurisdiction,,2023,view,csv
+home_lat,1,0,0,0,0,numeric,Final home address latitude,,2023,view,csv
+home_lng,1,0,0,0,0,numeric,Final home address longitude,,2023,view,csv
+home_puma_2012,1,0,0,0,0,character,Home location-- 2012 Public Use Microdata Area,,2025,view,csv
+home_puma_2022,1,0,0,0,0,character,Home location-- 2022 Public Use Microdata Area,,2025,view,csv
+home_rgcname,1,0,0,0,0,integer/categorical,Final home address: Regional growth center,,2023,view,csv
+home_state,1,0,0,0,0,character,Home location-- State,,2025,view,csv
+home_tract_2020,1,0,0,0,0,character,Final home address: Census Tract,,,view,
+hours_work,0,1,0,0,0,integer/categorical,Number of hours typically worked last week,"if full/part/self employed (until 2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" (2025)",2023,view,csv
+household_weight,1,0,0,0,0,numeric,Household-level weight,,,view,
+industry,0,1,0,0,0,integer/categorical,Current employment industry,"if full/part/self employed (until 2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" (2025)",2023,view,csv
+industry_other,0,1,0,0,0,character,Other job industry textbox answer,if industry = 'Other',2025,view,csv
+is_access,0,0,0,1,0,integer/categorical,Trip is access leg of linked trip,if linked trip,2025,view,csv
+is_egress,0,0,0,1,0,integer/categorical,Trip is egress leg of linked trip,if linked trip,2025,view,csv
+is_participant,0,1,1,0,0,integer/categorical,"Person is participant (rMove: over 17, has smartphone, is surveyable; online: over 17 and is surveyable)",,2023,view,csv
+is_transit,0,0,0,1,0,integer/categorical,Trip is transit leg of linked trip.,if linked trip,2025,view,csv
+lifecycle_class,1,0,0,0,0,integer/categorical,Presence of persons of various age groups within the household,Order of precedence: Children > older adults > adults 18-34 > adults 35-64,2023,view,csv
+make,0,0,0,0,1,character,Vehicle make,if num_vehicles > 0 (2025),2025,view,csv
+mobility_aides,0,1,0,0,0,integer/categorical,"Person uses mobility aides (wheelchairs, walkers, crutches, canes, braces, etc.)",If disability = yes,2023,view,csv
+mode_1,0,0,0,1,0,integer/categorical,Primary mode,,2023,view,csv
+mode_2,0,0,0,1,0,integer/categorical,Second mode chosen,,2025,view,csv
+mode_3,0,0,0,1,0,integer/categorical,Third mode chosen,,2025,view,csv
+mode_4,0,0,0,1,0,integer/categorical,Fourth mode chosen,,2025,view,csv
+mode_acc,0,0,0,1,0,integer/categorical,Travel mode to transit,"if transit trip (bus, rail, streetcar, ferry) (until 2023); if mode_1, mode_2, mode_3, or mode_4 = ""Regular bus (public transit)"", ""other bus, shuttle, or vanpool (private services or shuttles for older adults and people with disabilities)"", ""rail (e.g., train, light rail, streetcar)"", and/or ""ferry or water taxi"" (2025)",2025,view,csv
+mode_class,0,0,0,1,0,integer/categorical,Primary Trip Mode (derived from mode_1~mode_4),,2023,view,csv
+mode_class_5,0,0,0,1,0,integer/categorical,Primary Trip Mode (5 categories),,2023,view,csv
+mode_egr,0,0,0,1,0,integer/categorical,Travel mode from transit,"if transit trip (bus, rail, streetcar, ferry) (until 2023); if mode_1, mode_2, mode_3, or mode_4 = ""Regular bus (public transit)"", ""other bus, shuttle, or vanpool (private services or shuttles for older adults and people with disabilities)"", ""rail (e.g., train, light rail, streetcar)"", and/or ""ferry or water taxi"" (2025)",2025,view,csv
+mode_other_specify,0,0,0,1,0,character,Other mode specified in textbox,"if mode = ""Other""",2023,view,csv
+model,0,0,0,0,1,character,Vehicle model,if num_vehicles > 0 (2025),2025,view,csv
+model_other,0,0,0,0,1,character,Other vehicle model textbox answer,"if num_vehicles > 0 and model = ""Other"" (2025)",2025,view,csv
+no_school_closed,0,0,1,0,0,integer/categorical,Didn't travel to school -- School was closed or adjusted due to weather event,if child didn't travel to school on travel day,2023,,csv
+no_school_dont_know,0,0,1,0,0,integer/categorical,Didn't travel to school -- Don't know,if child didn't travel to school on travel day,2023,,csv
+no_school_no_answer,0,0,1,0,0,integer/categorical,Didn't travel to school -- Prefer not to answer,if child didn't travel to school on travel day,2023,,csv
+no_school_online_home,0,0,1,0,0,integer/categorical,Didn't travel to school -- Attended class online from home,if child didn't travel to school on travel day,2023,,csv
+no_school_online_other,0,0,1,0,0,integer/categorical,Didn't travel to school -- Attended class online from another location,if child didn't travel to school on travel day,2023,,csv
+no_school_other,0,0,1,0,0,integer/categorical,Didn't travel to school -- Other reason,if child didn't travel to school on travel day,2023,,csv
+no_school_sick,0,0,1,0,0,integer/categorical,Didn't travel to school -- Sick or quarantining,if child didn't travel to school on travel day,2023,,csv
+no_school_vacation,0,0,1,0,0,integer/categorical,Didn't travel to school -- School was scheduled to be closed,if child didn't travel to school on travel day,2023,,csv
+no_travel,0,0,1,0,0,integer/categorical,Person traveled on travel date,If made zero trips and used rMove,2025,view,csv
+notravel_delivery,0,0,1,0,0,integer/categorical,Didn't travel -- Was waiting for a delivery or visitor,if no trips on travel day,2023,,csv
+notravel_housework,0,0,1,0,0,integer/categorical,Didn't travel -- Worked around home (not for pay),if no trips on travel day,2023,,csv
+notravel_kidsbreak,0,0,1,0,0,integer/categorical,Didn't travel -- Kids were on school vacation / break,if no trips on travel day,2023,,csv
+notravel_kidshomeschool,0,0,1,0,0,integer/categorical,Didn't travel -- Kids were home schooled,if no trips on travel day,2023,,csv
+notravel_madetrips,0,0,1,0,0,integer/categorical,Didn't travel -- Made trips that day (erroneously recorded no trips),if no trips on travel day,2023,,csv
+notravel_not_sure,0,0,1,0,0,integer/categorical,"Didn't travel -- Person may have traveled, but not sure when or where",if no trips on travel day and age < 18,2023,,csv
+notravel_notransport,0,0,1,0,0,integer/categorical,Didn't travel -- Had no available transportation,if no trips on travel day,2023,,csv
+notravel_other,0,0,1,0,0,integer/categorical,Didn't travel -- Other reason,if no trips on travel day,2023,,csv
+notravel_sick,0,0,1,0,0,integer/categorical,Didn't travel -- Was sick or caring for another person at home,if no trips on travel day,2023,,csv
+notravel_telecommute,0,0,1,0,0,integer/categorical,Didn't travel -- Worked from home for pay,if no trips on travel day and employment = full/part/self/volunteer,2023,,csv
+notravel_vacation,0,0,1,0,0,integer/categorical,"Didn't travel -- Not scheduled to work, vacation/personal day",if no trips on travel day and employment = full/part/self/volunteer,2023,,csv
+notravel_weather,0,0,1,0,0,integer/categorical,Didn't travel -- Weather conditions,if no trips on travel day,2023,,csv
+num_students,1,0,0,0,0,integer/categorical,Number of students in household,,2023,view,csv
+num_trips,1,1,1,0,0,numeric,"Household, person, or person-day number of trips",,2023,view,csv
+numadults,1,0,0,0,0,integer/categorical,Number of adults in household,,2023,view,csv
+numchildren,1,0,0,0,0,integer/categorical,Number of children in household,,2023,view,csv
+numworkers,1,0,0,0,0,integer/categorical,Number of workers in household,,2023,view,csv
+o_bg,0,0,0,1,0,character,Trip origin census block group (derived by PSRC),,2025,view,csv
+o_in_region,0,0,0,1,0,integer/categorical,Trip origin is in PSRC MPO area,,2023,view,csv
+o_puma10,0,0,0,1,0,character,Trip origin PUMA (Public Use Microdata Area) 2010 (derived by PSRC),,2025,view,csv
+office_available,0,1,0,0,0,integer/categorical,Availability of private work space outside the home,"if employment = full/part/self/volunteer and job_type is ""work only from home"" (until 2023); if empif paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and work_from_home = ""yes, all of the time (100% of the time)"" (2025)",2023,view,csv
+origin_county,0,0,0,1,0,integer/categorical,Origin county,,2023,view,csv
+origin_geom,,,,,,,,,,view,
+origin_jurisdiction,0,0,0,1,0,integer/categorical,Trip Origin Jurisdiction,,2023,view,csv
+origin_lat,0,0,0,1,0,numeric,Origin latitude,,2023,view,csv
+origin_lng,0,0,0,1,0,numeric,Origin longitude,,2023,view,csv
+origin_purpose,0,0,0,1,0,integer/categorical,Origin purpose,,2023,view,csv
+origin_purpose_cat,0,0,0,1,0,integer/categorical,Origin purpose category (derived),,2023,view,csv
+origin_purpose_cat_5,0,0,0,1,0,integer/categorical,Origin purpose category (5 categories),,2023,view,csv
+origin_rgcname,0,0,0,1,0,integer/categorical,Origin location: Regional Growth Center,,2023,view,csv
+origin_tract_2010,0,0,0,1,0,character,Origin Census Tract 2010,,,view,
+origin_tract_2020,0,0,0,1,0,character,Origin Census Tract 2020,,,view,
+origin_x_coord,0,0,0,1,0,numeric,Origin: X coordinate,,2023,view,csv
+origin_y_coord,0,0,0,1,0,numeric,Origin: Y coordinate,,2023,view,csv
+paid_work,0,1,0,0,0,integer/categorical,Person worked for pay or profit last week,If age ≥ 16 or older,2025,view,csv
+participate,0,1,0,0,0,integer/categorical,Respondent is willing to be recontacted for future transportation research,if ABS respondent and pernum = 1,2023,view,csv
+pernum,0,1,1,1,0,numeric,Person number in household,,2023,view,csv
+person_id,0,1,1,1,0,character,Person unique identifier,,2023,view,csv
+person_weight,0,1,0,0,0,numeric,Person-level weight,,2023,view,csv
+prev_home_county,1,0,0,0,0,integer/categorical,Previous home address: County,,2023,view,csv
+prev_home_jurisdiction,1,0,0,0,0,integer/categorical,Previous home address: Jurisdiction,,2023,view,csv
+prev_home_lat,1,0,0,0,0,numeric,Previous home address latitude,"if moved in last 5 years (2017-2021); if moved in last 5 years from outside WA (2023); if prev_home_wa = ""no, previous home was in another state"" (2025)",2023,view,csv
+prev_home_lng,1,0,0,0,0,numeric,Previous home address longitude,"if moved in last 5 years (2017-2021); if moved in last 5 years from outside WA (2023); if prev_home_wa = ""no, previous home was in another state"" (2025)",2023,view,csv
+prev_home_notwa_state,1,0,0,0,0,integer/categorical,Previous home address state,"if moved in last 5 years (2017-2021); if moved in last 5 years from outside WA (2023); if prev_home_wa = ""no, previous home was in another state"" (2025)",2023,view,csv
+prev_home_notwa_zip,1,0,0,0,0,character,Previous home address zip,"if moved in last 5 years (2017-2021); if moved in last 5 years from outside WA (2023); if prev_home_wa = ""no, previous home was in another state"" (2025)",2023,view,csv
+prev_home_rgcname,1,0,0,0,0,integer/categorical,Previous home address Regional Growth Center name,"if moved in last 5 years (2017-2021); if moved in last 5 years from outside WA (2023); if prev_home_wa = ""no, previous home was in another state"" (2025)",2023,view,csv
+prev_home_tract_2020,1,0,0,0,0,character,Previous home address: Census tract,"if moved in last 5 years (2017-2021); if moved in last 5 years from outside WA (2023); if prev_home_wa = ""no, previous home was in another state"" (2025)",,view,
+prev_home_wa,1,0,0,0,0,integer/categorical,Previous home in State of Washington (WA),if moved in last 5 years (until 2023); if rMove or rMove for web and person 1 and residence_duration ≤ 5 years (2025),2023,view,csv
+prev_rent_own,1,0,0,0,0,integer/categorical,Previous home tenure status,if moved in last 5 years (until 2023); if rMove or rMove for web and person 1 and residence_duration ≤ 5 years (2025),2023,view,csv
+prev_res_factors_amenities,1,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- To have better access to recreation, restaurants, shops, and other amenities","if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_community_change,1,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Friends, family, or cultural community were leaving the area","if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_crime,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Concerns about safety or crime,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_employment,1,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Employment or commuting considerations (e.g., to take new job or shorten commute)","if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_forced,1,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Forced to move out (e.g., building demolished or renovated, asked to leave by landlord, foreclosure)","if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_hh_size,1,0,0,0,0,integer/categorical,"Important factor in decision to move away from prior residence -- Changes in household size, establish own household","if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_housing_cost,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of an increase in rent or housing costs,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_income_change,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Could no longer afford previous residence because of a change in income or finances,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_less_space,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed less space,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_more_space,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Needed more space,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_no_answer,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Prefer not to answer,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_other,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Other,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_quality,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- To upgrade to a better quality home or to stop renting and buy a home,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_school,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Access to a different K-12 school,"if moved in last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_factors_specify,1,0,0,0,0,character,"Other factor in decision to move away from prior residence, write-in text","if selected ""other"" factor in decision to move (until 2023); if prev_res_factors_other = ""selected"" (selected ""other"" factor in decision to move) (2025)",2023,view,csv
+prev_res_factors_telework,1,0,0,0,0,integer/categorical,Important factor in decision to move away from prior residence -- Employer's telework policy removed need to live in previous residence,"if moved in the last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+prev_res_type,1,0,0,0,0,integer/categorical,Previous home residence type,"if moved in the last 5 years (until 2023); if prev_home_wa = ""yes, previous home was in Washington"" (2025)",2023,view,csv
+proxy,0,1,0,0,0,integer/categorical,Survey respondent/proxy,if ABS or (online panel and pernum = 1),2025,view,csv
+proxy_complete,0,0,1,0,0,integer/categorical,Proxy completion status,,2023,view,csv
+proxy_parent,0,1,0,0,0,integer/categorical,Person is proxy reporter for children in household,if hhgroup = rMove,2023,view,csv
+race_afam,0,1,0,0,0,integer/categorical,Race -- African American or Black,if age 18+,2023,view,csv
+race_aiak,0,1,0,0,0,integer/categorical,Race -- American Indian or Alaska Native,if age 18+,2023,view,csv
+race_asian,0,1,0,0,0,integer/categorical,Race -- Asian,if age 18+,2023,view,csv
+race_category,0,1,0,0,0,integer/categorical,Race Group,,2023,view,csv
+race_hapi,0,1,0,0,0,integer/categorical,Race -- Native Hawaiian or Pacific Islander,if age 18+,2023,view,csv
+race_hisp,0,1,0,0,0,integer/categorical,Race -- Hispanic,if age 18+,2023,view,csv
+race_noanswer,0,1,0,0,0,integer/categorical,Race -- Prefer not to answer,if age 18+,2023,view,csv
+race_other,0,1,0,0,0,integer/categorical,Race -- Other,if age 18+,2023,view,csv
+race_other_specify,0,1,0,0,0,character,Other race textbox answer,"if selected ""other"" race",2023,view,csv
+race_white,0,1,0,0,0,integer/categorical,Race -- White,if age 18+,2023,view,csv
+relationship,0,1,0,0,0,integer/categorical,Relationship to primary respondent,if num_people > 1 (2025),2025,view,csv
+remote_class_freq,0,1,0,0,0,integer/categorical,"How often the person attends classes online from a location that is not school (e.g., home, library, coffee shop)","if adult student or if child who is not cared for at home or attending daycare (2023); if age < 18 and school_type NOT = ""cared for at home"" or ""preschool or dayccare outside home"" (2025)",2023,view,csv
+rent_own,1,0,0,0,0,integer/categorical,Residence tenure status,if age 18+ and rMove or (rMove for web and person 1) (2025),2025,view,csv
+reported_lat,1,0,0,0,0,numeric,Reported home latitude,,2025,view,csv
+reported_lng,1,0,0,0,0,numeric,Reported home longitude,,2025,view,csv
+res_dur,1,0,0,0,0,integer/categorical,How long lived in current residence,if age 18+ and rMove or (rMove for web and person 1) (2025),2025,view,csv
+res_type,1,0,0,0,0,integer/categorical,Type of residence,if age 18+ and rMove or (rMove for web and person 1) (2025),2025,view,csv
+return_from_leave,0,1,0,0,0,integer/categorical,Person expects to travel to a workplace outside of home after returning from leave,"if paid_work = ""on leave (e.g., medical, paretnal)""",2025,view,csv
+sample_geom,,,,,,,,,,view,
+sample_home_bg,1,0,0,0,0,character,Sample home location-- Block group,,2025,view,csv
+sample_lat,1,0,0,0,0,numeric,Sample home latitude,,2025,view,csv
+sample_lng,1,0,0,0,0,numeric,Sample home longitude,,2025,view,csv
+sample_segment,1,0,0,0,0,integer/categorical,Sample segment,,2023,view,csv
+school_bg,0,1,0,0,0,character,School address census block group,if travels to school,2025,view,csv
+school_county,0,1,0,0,0,integer/categorical,School address: County,,2023,view,csv
+school_freq,0,1,0,0,0,integer/categorical,How often travels to school,"if student (2023); if age < 18 and school_type NOT = ""cared for at home"" or ""home school"" (2025)",2023,view,csv
+school_geom,,,,,,,,,,view,
+school_in_region,0,1,0,0,0,integer/categorical,School is in PSRC MPO area,,2023,view,csv
+school_jurisdiction,0,1,0,0,0,integer/categorical,School address Jurisdiction,,2023,view,csv
+school_loc_lat,0,1,0,0,0,numeric,School address latitude,"if traveled to school last week (2023); if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"" (2025)",2023,view,csv
+school_loc_lng,0,1,0,0,0,numeric,School address longitude,"if traveled to school last week (2023); if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"" (2025)",2023,view,csv
+school_mode_typical,0,1,0,0,0,integer/categorical,How does child/adult student typically travel to/from school or daycare,"if adult student or child who attends schoool or daycare in person fully or partially (2023); if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"" (2025)",2023,view,csv
+school_puma10,0,1,0,0,0,character,School address PUMA (Public Use Microdata Area) 2010,"if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school""",2025,view,csv
+school_rgcname,0,1,0,0,0,integer/categorical,School address Regional Growth Center name,if travels to school,2023,view,csv
+school_tract_2020,0,1,0,0,0,character,School address: Census Tract,,,view,
+schooltype,0,1,0,0,0,integer/categorical,Type of school attended,"if household has 1 or more related children age 0-17 or 1 or more participating adult students (2023); if hh has 1+ age ≥ 18 and adult_student NOT = ""not a student"" or 1+ age < 18 (2025)",2023,view,csv
+second_home,0,1,0,0,0,integer/categorical,"Person regularly spends the night at a second home (e.g., another parent or grandparent's house, partner or spouses' home, vacation home)",,2023,view,csv
+second_home_geom,,,,,,,,,,view,
+second_home_in_region,0,1,0,0,0,integer/categorical,Second home is in PSRC MPO area,,2023,view,csv
+second_home_lat,0,1,0,0,0,numeric,Second home latitude,"if second_home = ""regularly spends night at second home""",2025,view,csv
+second_home_lon,0,1,0,0,0,numeric,Second home longitude,"if second_home = ""regularly spends night at second home""",2025,view,csv
+sexuality,0,1,0,0,0,integer/categorical,Sexuality,if age ≥ 18,2025,view,csv
+share_1,0,1,0,0,0,integer/categorical,Typical travel methods -- Walk (outside for 15-minutes or more),if age ≥ 18,2025,view,csv
+share_2,0,1,0,0,0,integer/categorical,Typical travel methods -- Bike (outside for 15-minutes or more),if age ≥ 18,2025,view,csv
+share_3,0,1,0,0,0,integer/categorical,"Typical travel methods -- Transit (e.g., bus, rail, ferry)",if age ≥ 18,2025,view,csv
+share_4,0,1,0,0,0,integer/categorical,"Typical travel methods -- Rideshare (Uber, Lyft, other smartphone-app car service)",if age ≥ 18,2025,view,csv
+share_5,0,1,0,0,0,integer/categorical,"Typical travel methods -- Carshare (e.g., Turo, ZipCar, Getaround, GIG)",if age ≥ 18,2025,view,csv
+share_996,0,1,0,0,0,integer/categorical,Typical travel methods -- None of the above,if age ≥ 18,2025,view,csv
+signup_platform,1,0,0,0,0,character,Platform used by participant for part one (signup survey),,2025,view,csv
+smartphone_type,0,1,0,0,0,integer/categorical,Smartphone type,if rMove for Web or (recruiting in rMove and hh has 2+ person age ≥ 18),2025,view,csv
+speed_flag,0,0,0,1,0,integer/categorical,Unusually high speed given mode,,2023,view,csv
+speed_mph,0,0,0,1,0,numeric,Trip speed in miles per hour (derived),,2023,view,csv
+survey_year,1,1,1,1,1,integer/categorical,Survey data collection year,,2023,view,csv
+telecommute_freq,0,1,0,0,0,integer/categorical,How many days typically working from home,"if commute frequency is not 6-7 days a week (2023); if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental) (2025)",2023,view,csv
+telework_time,0,0,1,0,0,integer/categorical,Telework time on travel day,"if age 18+ and full/part/self employed (2017-2021); if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental) (2025)",2023,view,csv
+tnc_freq,0,1,0,0,0,integer/categorical,"How often the person has used Uber, Lyft, or other smartphone-app car services in the past 30 days","if age ≥ 18 and share = ""Rideshare (Uber, Lyft, other smartphone-app car service)"" (share_4 = ""selected"")",2025,view,csv
+transit_freq,0,1,0,0,0,integer/categorical,"How often the person used transit (e.g., bus, rail, ferry) in the past 30 days","if age ≥ 18 and share = ""Transit (e.g., bus, rail, ferry)"" (share_3 = ""selected"")",2025,view,csv
+transit_quality_flag,0,0,0,1,0,character,Transit quality flag,,2025,view,csv
+transportation_statement_car,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""I want to own a car.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+transportation_statement_environ,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""Environmental issues are emphasized too much in this country.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+transportation_statement_retail,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""I like the idea of having stores, restaurants, and offices mixed among the homes in my neighborhood.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+transportation_statement_telework,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""It is important that my job allows me to telework.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+transportation_statement_transit,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement  ""I like the idea of public transit as a means of travel for me personally.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+transportation_statement_travel,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""I generally enjoy the act of traveling itself.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+transportation_statement_walk,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""I try to make as many of my trips as possible by walking or bicycling.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self),2025,view,csv
+travel_date,0,0,1,1,0,date,Travel date,,2023,view,csv
+travel_day,0,0,1,1,0,integer/categorical,Is travel day,,2023,view,csv
+travel_dow,0,0,1,1,0,integer/categorical,Travel day of week,,2023,view,csv
+traveldate,,,,,,,,,,view,
+traveldate_end,1,0,0,1,0,date,Last travel date,2019: if hhgroup = rMove; 2023: all households,2025,view,csv
+traveldate_start,1,0,0,1,0,date,First travel date,2019: if hhgroup = rMove; 2023: all households,2025,view,csv
+travelers_hh,0,0,0,1,0,numeric,Number of household members on trip (including self),,2023,view,csv
+travelers_nonhh,0,0,0,1,0,integer/categorical,Number of non-household members on trip,,2023,view,csv
+travelers_total,0,0,0,1,0,integer/categorical,Number of total travelers on trip (including self),,2023,view,csv
+trip_id,0,0,0,1,0,character,Trip ID (unique),,2023,view,csv
+trip_weight,0,0,0,1,0,numeric,Trip-level weight,,2023,view,csv
+tripnum,0,0,0,1,0,numeric,Trip sequence number,,2023,view,csv
+vehicle_count,1,0,0,0,0,integer/categorical,Number of vehicles,,2023,view,csv
+vehicle_id,0,0,0,0,1,numeric,Vehicle ID,,2023,view,csv
+vehnum,0,0,0,0,1,numeric,Vehicle number,,2023,view,csv
+walk_freq,0,1,0,0,0,integer/categorical,How often the person has walked outside for 15 or more minutes in the past 30 days,"if if age ≥ 18 and share = ""walk (outside for 15-minutes or more) (share_1 = ""selected"")",2025,view,csv
+work_bg,0,1,0,0,0,character,Work address census block group,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time""",2025,view,csv
+work_county,0,1,0,0,0,integer/categorical,Work address county,if workplace = fixed,2023,view,csv
+work_from_home,0,1,0,0,0,integer/categorical,Person works from home,"if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental)",2025,view,csv
+work_geom,,,,,,,,,,view,
+work_in_region,0,1,0,0,0,integer/categorical,Work is in PSRC MPO area,,2023,view,csv
+work_jurisdiction,0,1,0,0,0,integer/categorical,Work address Jurisdiction,,2023,view,csv
+work_lat,0,1,0,0,0,numeric,Work address latitude,"if workplace = fixed (2023); if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"" (2025)",2023,view,csv
+work_lng,0,1,0,0,0,numeric,Work address longitude,"if workplace = fixed (2023); if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"" (2025)",2023,view,csv
+work_mode,0,1,0,0,0,integer/categorical,Typical means of travel to work,"if employment = full/part/self/volunteer (2023); if commute_freq NOT = ""never"" (2025)",2023,view,csv
+work_puma10,0,1,0,0,0,character,Work address PUMA (Public Use Microdata Area) 2010,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time""",2025,view,csv
+work_rgcname,0,1,0,0,0,integer/categorical,Work address Regional Growth Center name,if workplace = fixed,2023,view,csv
+work_tract_2020,0,1,0,0,0,character,Work address: Census Tract,,,view,
+workplace,0,1,0,0,0,integer/categorical,Current work location,"if full/part/self employed (2023); if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"" (2025)",2023,view,csv
+year,0,0,0,0,1,integer/categorical,Vehicle model year,,2023,view,csv

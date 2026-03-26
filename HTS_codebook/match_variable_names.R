@@ -5,11 +5,11 @@ library(psrcelmer)
 
 # ---- load codebook ----
 # analyst version codebook
-analyst_cb_2023 <- "2023_codebook/2023_01_HTS_Codebook_variable_list.csv"
+analyst_cb_2023 <- "../2023/cleaning/codebook_maintenance/2023_codebook/2023_01_HTS_Codebook_variable_list.csv"
 final_cb_2023 <- read_csv(analyst_cb_2023) %>%
   select(-c("is_checkbox", "location", "shared_name"))
 # RSG delivered codebook for data cleaning
-rsg_cb_path <- "../../../2025/2025_codebook/rsg_variable_description.csv"
+rsg_cb_path <- "../2025/2025_codebook/rsg_variable_description.csv"
 rsg_var_codebook <- read_csv(rsg_cb_path) %>%
   filter(table!="trip_linked") # ignore trip_linked
 
