@@ -37,10 +37,6 @@ table_names <- c('hh','person','day','trip','vehicle')
 view_names <- c('v_households','v_persons','v_days','v_trips','v_vehicles')
 names(view_names) <- table_names
 
-# df_view_name <- data.frame(table = table_names,
-#                            Elmer.view.name = view_names,
-#                            row.names = NULL)
-
 # import all views
 hh_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['hh']))
 person_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['person']))
@@ -48,14 +44,10 @@ day_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['day']))
 trip_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['trip']))
 vehicle_data <- get_query(sql= paste0("select * from HHSurvey.", view_names['vehicle']))
 
-# find all variables to be included in value labels
-# geography_variables <- variable_list %>% filter(grepl("county|jurisdiction|rgcname|state",variable))
-
 get_categorical_variables <- function(.data){
   .data %>%
       filter(data_type == "integer/categorical",
              !grepl("hhmember",variable)
-             # !variable %in% geography_variables$variable # no geography names
              )
 
 } 
@@ -128,3 +120,56 @@ if(generate_spreadsheet){
   openxlsx::write.xlsx(l, file = "2025_value_summary.xlsx")
 }
 
+# final check: variable_list ----
+
+check_var_list <- function(view_data, t_name){
+  data.frame(variable=names(view_data)) %>%
+    mutate(in_view = 1) %>%
+    full_join( data.frame(variable=variable_list[variable_list[t_name]==1,]$variable) %>%
+                 mutate(in_variable_list = 1), 
+               by = "variable" ) %>%
+    arrange(variable)
+}
+hh_view_vars <- check_var_list(hh_data,"hh")
+person_view_vars <- check_var_list(person_data,'person')
+day_view_vars <- check_var_list(day_data,'day')
+trip_view_vars <- check_var_list(trip_data,'trip')
+vehicle_view_vars <- check_var_list(vehicle_data,'vehicle')
+
+
+# final check: value labels ----
+
+# get all vars in view from codebook
+check_value_labels <- function(view_data, t_name){
+  include_variable <- value_labels %>%
+    filter(variable %in% variable_list[variable_list[t_name]==1,]$variable) %>%
+    select(c("variable", "label")) %>%
+    mutate(codebook = "codebook")
+  # select included vars from view
+  view_vals <- view_data %>%
+    select(include_variable$variable)
+  labels <- data.frame()
+  for(var in names(view_vals)){
+    
+    v_values <- data.frame(unique(view_vals[var])) %>%
+      mutate(variable = var) %>%
+      select(2,1) %>%
+      filter(!is.na(.[[var]]))
+    names(v_values) <- c("variable", "label")
+    
+    labels <- rbind(labels,v_values)
+    
+  }
+  match_value <- labels %>%
+    mutate(view = "view") %>%
+    full_join(include_variable, by = c("variable", "label")) %>%
+    filter(is.na(view) | is.na(codebook))
+  
+  return(match_value)
+}
+
+hh_match_value <- check_value_labels(hh_data,"hh")
+person_match_value <- check_value_labels(person_data,'person')
+day_match_value <- check_value_labels(day_data,'day')
+trip_match_value <- check_value_labels(trip_data,'trip')
+vehicle_match_value <- check_value_labels(vehicle_data,'vehicle')

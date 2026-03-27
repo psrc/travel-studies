@@ -104,8 +104,8 @@ has_egress,0,0,0,1,0,integer/categorical,Has egress,
 has_synthetic_access,0,0,0,1,0,integer/categorical,Has synthetic access,
 has_synthetic_egress,0,0,0,1,0,integer/categorical,Has synthetic egress,
 hh_race_category,1,0,0,0,0,integer/categorical,Household Race Category,
+hh_weight,1,0,0,0,0,numeric,Household-level weight,
 hhgroup,1,0,0,0,0,integer/categorical,Travel Diary (Part 2) participation group,
-hhid,1,1,1,1,1,character,Unique identifier for each household,
 hhincome_broad,1,0,0,0,0,integer/categorical,"Last year's household income broad categories, all respondents",
 hhincome_detailed,1,0,0,0,0,integer/categorical,Last year's household income detailed categories,
 hhincome_followup,1,0,0,0,0,integer/categorical,Last year's household income broad follow-up categories,if hhincome_detailed = prefer not to answer
@@ -124,7 +124,7 @@ home_rgcname,1,0,0,0,0,integer/categorical,Final home address: Regional growth c
 home_state,1,0,0,0,0,character,Home location-- State,
 home_tract_2020,1,0,0,0,0,character,Final home address: Census Tract,
 hours_work,0,1,0,0,0,integer/categorical,Number of hours typically worked last week,"if full/part/self employed (until 2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" (2025)"
-household_weight,1,0,0,0,0,numeric,Household-level weight,
+household_id,1,1,1,1,1,character,Unique identifier for each household,
 industry,0,1,0,0,0,integer/categorical,Current employment industry,"if full/part/self employed (until 2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" (2025)"
 industry_other,0,1,0,0,0,character,Other job industry textbox answer,if industry = 'Other'
 is_access,0,0,0,1,0,integer/categorical,Trip is access leg of linked trip,if linked trip
@@ -285,9 +285,8 @@ transportation_statement_transit,0,1,0,0,0,integer/categorical,"Transportation a
 transportation_statement_travel,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""I generally enjoy the act of traveling itself.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
 transportation_statement_walk,0,1,0,0,0,integer/categorical,"Transportation attitudes -- Agreement with the statement ""I try to make as many of my trips as possible by walking or bicycling.""",If age ≥ 18 and rMove or (rMove for Web and web_proxy = self)
 travel_date,0,0,1,1,0,date,Travel date,
-travel_day,0,0,1,1,0,integer/categorical,Is travel day,
+travel_day,0,0,1,0,0,integer/categorical,Is travel day,
 travel_dow,0,0,1,1,0,integer/categorical,Travel day of week,
-traveldate,,,,,,,,
 traveldate_end,1,0,0,1,0,date,Last travel date,2019: if hhgroup = rMove; 2023: all households
 traveldate_start,1,0,0,1,0,date,First travel date,2019: if hhgroup = rMove; 2023: all households
 travelers_hh,0,0,0,1,0,numeric,Number of household members on trip (including self),
