@@ -11,7 +11,9 @@ book:
 
   chapters:
     - index.qmd # this is a required file for Quarto Book
+    - Analysis/Topsheet/topsheet_summary.qmd
     - Analysis/Delivery/delivery_analysis.qmd
+    - Analysis/care-giving/care-giving.qmd
 
 format:
   html:
@@ -19,6 +21,9 @@ format:
     theme: [cosmo, custom.scss]  # custom formatting
     echo: false
     code-tools: true
+    df-print: kable
+    fig-asp: .7
+    fig-width: 4
     
 execute:
   freeze: auto  # re-render only when source changes
