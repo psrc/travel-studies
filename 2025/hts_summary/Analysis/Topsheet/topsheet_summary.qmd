@@ -1,0 +1,122 @@
+---
+title: Topsheet Summary
+date: today
+---
+
+```{r}
+#| include: false
+
+library(psrcplot)
+install_psrc_fonts()
+# get data and load standard data processing
+source("../data_processing.R")  
+
+# topic_vars <- c("dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
+#                 "hhincome_broad", "home_county", "vehicle_count",
+#                 "age","telecommute_freq","race_category","disability_person","workplace",
+#                 "fuel")
+
+percent_format <- function(.col, accuracy=0.01){
+  scales::percent(.col, accuracy=accuracy)
+}
+
+```
+
+## trips
+
+### mode share
+
+```{r}
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_sum <- psrc_hts_stat(df_hts_analysis, "trip", c("mode_class_5"), incl_na = FALSE) %>%
+  get_percent_format()
+
+# plot single variable by year: needs prop formatting from get_percent_format()
+plot_single_var(df_sum,mode_class_5)
+```
+
+```{r}
+df_sum %>%
+  pivot_wider(id_cols = c(mode_class_5), names_from = survey_year, values_from = c(prop_pct,prop_moe_pct))
+```
+
+### trip purpose
+
+```{r}
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_sum <- psrc_hts_stat(df_hts_analysis, "trip", c("dest_purpose_cat_5"), incl_na = FALSE) %>%
+  get_percent_format()
+
+plot_single_var(df_sum,dest_purpose_cat_5)
+```
+
+```{r}
+df_sum %>%
+  pivot_wider(id_cols = c(dest_purpose_cat_5), names_from = survey_year, values_from = c(prop_pct,prop_moe_pct))
+```
+
+## persons
+
+### work location
+
+```{r}
+#| out-width: "60%"
+#| fig-align: "center"
+
+df_sum <- psrc_hts_stat(df_hts_analysis, "person", c("telecommute_status"), incl_na = FALSE) %>%
+  get_percent_format() %>%
+  group_by(survey_year) %>%
+  mutate(label_ypos=cumsum(prop))
+
+ggplot(df_sum, aes(x=factor(survey_year), y=prop, fill=fct_rev(telecommute_status))) +
+  geom_bar(stat="identity",width = 0.8) +
+  geom_text(aes(y=label_ypos,label=prop_label), 
+            vjust = 1.5,
+            color="white") +
+  scale_fill_manual(values = c("Fully At Home"="#F05A28",
+                               "Hybrid"="#91268F",
+                               "Fully In Person"="#76787A"))+
+  scale_y_continuous(labels = scales::percent) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank())
+
+```
+
+
+```{r}
+df_sum %>%
+  pivot_wider(id_cols = c(telecommute_status), 
+              names_from = survey_year, values_from = c(prop_pct,prop_moe_pct))
+```
+## households
+
+
+### household income
+
+```{r}
+#| out-width: "75%"
+#| fig-align: "center"
+#| fig-asp: .8
+#| fig-width: 6
+
+df_sum <- psrc_hts_stat(df_hts_analysis, "hh", c("hhincome_broad"), incl_na = FALSE) %>%
+  get_percent_format() %>%
+  group_by(survey_year) %>%
+  mutate(label_ypos=cumsum(prop))
+
+ggplot(df_sum, aes(x=factor(survey_year), y=prop, fill=fct_rev(hhincome_broad))) +
+  geom_bar(stat="identity",width = 0.8) +
+  geom_text(aes(y=label_ypos,label=prop_label), 
+            vjust = 1.5,
+            color="white") +
+  scale_y_continuous(labels = scales::percent) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank())
+
+```
