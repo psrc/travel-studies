@@ -11,7 +11,7 @@
 
 1.  create a topic folder in [travel-studies/2025/hts_summary/Analysis](https://github.com/psrc/travel-studies/tree/master/2025/hts_summary/Analysis)
 2.  within your topic folder: develop your scripts and analysis using a combination of R scripts and Quarto markdown (Jupyter Notebooks if you prefer using Python)
-3.  to render your analysis scripts into a [Quarto Book](https://quarto.org/docs/books/) locally
+3.  to render your analysis scripts into a [Quarto Book](https://quarto.org/docs/books/) in your topic folder
     -   you will need at least two files: [\_quarto.yml](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/Topsheet/_quarto.yml) and [index.qmd](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/Topsheet/index.qmd), plus any other analysis scripts you'd like to include
     -   render by running `quarto render` at your folder location in terminal
 4.  to render the full summary report along with everyone's work
