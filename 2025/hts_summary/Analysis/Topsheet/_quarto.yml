@@ -1,13 +1,10 @@
 project:
   type: book
-  output-dir: "topsheet-notebook"
+  output-dir: "topsheet-notebook" # specify folder name for your individual book
   
 book:
-  title: "2025 HTS Summary - Topsheet"
-  repo-url: https://github.com/psrc/travel-studies/tree/master/2025
+  title: "Topsheet"
   search: false
-  sidebar:
-    logo: ../../PSRClogo2016path.png
 
   chapters:
     - index.qmd # this is a required file for Quarto Book
@@ -16,7 +13,7 @@ book:
 format:
   html:
     mainfont: Poppins
-    theme: [cosmo, custom.scss]  # custom formatting
+    theme: [cosmo, ../../custom.scss]  # custom formatting
     echo: false
     code-tools: true
     df-print: kable
