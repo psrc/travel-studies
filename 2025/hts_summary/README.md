@@ -3,6 +3,7 @@
 ## resources
 
 -   HTS codebook: [variable list](https://github.com/psrc/travel-studies/blob/master/HTS_codebook/2025_codebook/final_variable_list_2025.csv) and [value labels](https://github.com/psrc/travel-studies/blob/master/HTS_codebook/2025_codebook/final_value_labels_2025.csv)
+-   2025 HTS questionnaire: "\\FILE\datateam\Projects\Surveys\HHTravel\Survey2025\Planning\Questionnaire\Puget_Sound_HTS_Questionnaire_2025_v8.0.pdf"
 -   psrc.travelsurvey R package: [installation](https://psrc.github.io/psrc.travelsurvey/index.html) and [user guide for retrieving and summarizing data in R](https://psrc.github.io/psrc.travelsurvey/articles/retrieve-and-summarize-data.html)
 -   [Quarto](https://quarto.org/): publishing system that offers tools to create analysis documents
     -   [install Quarto](https://quarto.org/docs/get-started/)
