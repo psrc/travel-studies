@@ -2,13 +2,12 @@ library(magrittr)
 library(dplyr)
 library(stringr)
 library(psrc.travelsurvey)
-library(travelSurveyTools)
 library(data.table)
 library(psrcplot)
 library(ggplot2)
 library(extrafont)
 
-hts_survey_year <- 2023
+hts_survey_year <- 2025
 
 sn_vars <- c("age", "vehicle_count", "hhincome_broad", "disability_person","hh_race_category") # Special needs dimensions
 travel_dims <- c("dest_purpose", "duration_minutes", "mode_class")                             # Travel behavior variables
@@ -44,7 +43,7 @@ add_hts_cv <- function(table){
 battery <- function(sn_var){                                                                   # Statistical summaries for each SN dimension
   hts_data2 <- copy(hts_data)
   if(sn_var=="disability_person"){
-    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year==hts_survey_year))                 # -- disability is new to the survey
+    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year==hts_survey_year))      # -- disability is new to the survey
   }
   sn_stat <- purrr::partial(psrc_hts_stat, hts_data=hts_data2, analysis_unit="trip",
                             ... = , incl_na=FALSE) %>% add_hts_cv()                            # exclude NA from share denominator
@@ -72,55 +71,61 @@ battery <- function(sn_var){                                                    
   return(rs)
 }
 
-# Get data ----------------------------------------
-
-hts_data <- get_psrc_hts(survey_vars=c(sn_vars, travel_dims, demog_dims))
-
 # Add grouping variables --------------------------
 
-hts_data %<>% hts_bin_age() %>% hts_bin_income %>% hts_bin_dest_purpose() %>% hts_bin_worker() # Add standard recodes
-hts_data$hh %<>% mutate(
-  veh_yn=factor(
-    case_when(vehicle_count=="0 (no vehicles)" ~"No vehicle",
-              !is.na(vehicle_count) ~ "1+ vehicle"),
-    levels= c("No vehicle","1+ vehicle")),
-  hhincome_bin3=factor(
-    case_when(str_detect(as.character(hhincome_bin5),"\\$25") ~ "Less than $50,000",
-              str_detect(as.character(hhincome_bin5),"\\$7") ~ "$50,000-$99,999",
-              !is.na(hhincome_bin5) ~ hhincome_bin5),
-    levels= c("Less than $50,000","$50,000-$99,999","$100,000 or more")),
-  hh_race_category=factor(
-    case_when(hh_race_category=="AANHPI non-Hispanic" ~"Asian American, Native Hawaiian or Pacific Islander",
-              hh_race_category=="Black or African American non-Hispanic" ~"Black or African American",
-              hh_race_category=="White non-Hispanic" ~"White",
-              hh_race_category=="Some Other Races non-Hispanic" ~ NA_character_,
-              !is.na(hh_race_category) ~as.character(hh_race_category)),
-    levels= c("Black or African American", "Asian American, Native Hawaiian or Pacific Islander",
-              "Hispanic", "White")))
+add_sn_grpvars <- function(input_data){
+  output_data <- hts_bin_age(input_data) %>% hts_bin_income %>% hts_bin_dest_purpose() %>% hts_bin_worker() # Add standard recodes
+  output_data$hh %<>% mutate(
+    veh_yn=factor(
+      case_when(vehicle_count=="0 (no vehicles)" ~"No vehicle",
+                !is.na(vehicle_count) ~ "1+ vehicle"),
+      levels= c("No vehicle","1+ vehicle")),
+    hhincome_bin3=factor(
+      case_when(str_detect(as.character(hhincome_bin5),"\\$25") ~ "Less than $50,000",
+                str_detect(as.character(hhincome_bin5),"\\$7") ~ "$50,000-$99,999",
+                !is.na(hhincome_bin5) ~ hhincome_bin5),
+      levels= c("Less than $50,000","$50,000-$99,999","$100,000 or more")),
+    hh_race_category=factor(
+      case_when(hh_race_category=="AANHPI non-Hispanic" ~"Asian American, Native Hawaiian or Pacific Islander",
+                hh_race_category=="Black or African American non-Hispanic" ~"Black or African American",
+                hh_race_category=="White non-Hispanic" ~"White",
+                hh_race_category=="Some Other Races non-Hispanic" ~ NA_character_,
+                !is.na(hh_race_category) ~as.character(hh_race_category)),
+      levels= c("Black or African American", "Asian American, Native Hawaiian or Pacific Islander",
+                "Hispanic", "White")))
 
-hts_data$person %<>% mutate(
-  adult=case_when(substr(age_bin3, 1L, 2L) %in% c("18","65") ~"Adult", TRUE ~ NA),             # Restricting stats to adult trips
-  age_bin3=forcats::fct_rev(age_bin3),
-  disability_person=factor(disability_person, levels=c("Yes","No","Prefer not to answer")))
-hts_data$trip %<>% mutate(
-  mode_basic = case_when(mode_class %in% c("Drive HOV2","Drive HOV3+") ~"Drive HOV",
-                         mode_class %in% c("Drive SOV","Transit") ~ mode_class,
-                         !is.na(mode_class) ~ "Walk/Bike/Other"),
-  dest_purpose_bin4 = case_when(dest_purpose_bin4=="Home" ~NA, TRUE ~dest_purpose_bin4),       # Using purposes besides return home
-  purpose_medical = case_when(str_detect(dest_purpose,"[mM]edical") ~ "Medical",
-                              !is.na(dest_purpose) ~ NA),
-  purpose_grocery = case_when(str_detect(dest_purpose,"[gG]rocery") ~ "Grocery",
-                             !is.na(dest_purpose) ~ NA),
-  purpose_work =    case_when(dest_purpose_bin4=="Work" ~ "Work",
-                              !is.na(dest_purpose_bin4) ~ NA),
-  purpose_social =  case_when(str_detect(dest_purpose,"([sS]ocial|[vV]olunteer)") ~ "Social/Volunteer",
-                              !is.na(dest_purpose) ~ NA)
-  )
+  output_data$person %<>% mutate(
+    adult=case_when(substr(age_bin3, 1L, 2L) %in% c("18","65") ~"Adult", TRUE ~ NA),             # Restricting stats to adult trips
+    age_bin3=forcats::fct_rev(age_bin3),
+    disability_person=factor(disability_person, levels=c("Yes","No","Prefer not to answer")))
 
-sn_vars %<>% case_match("age" ~ "age_bin3",
-                        "hhincome_broad" ~ "hhincome_bin5",
-                        "vehicle_count" ~ "veh_yn",
-                        "mode_class" ~ "mode_basic", .default=sn_vars)                          # Sub desired sn vars for source vars
+  output_data$trip %<>% mutate(
+    mode_basic = case_when(mode_class %in% c("Drive HOV2","Drive HOV3+") ~"Drive HOV",
+                           mode_class %in% c("Drive SOV","Transit") ~ mode_class,
+                           !is.na(mode_class) ~ "Walk/Bike/Other"),
+    dest_purpose_bin4 = case_when(dest_purpose_bin4=="Home" ~NA, TRUE ~dest_purpose_bin4),       # Using purposes besides return home
+    purpose_medical = case_when(str_detect(dest_purpose,"[mM]edical") ~ "Medical",
+                                !is.na(dest_purpose) ~ NA),
+    purpose_grocery = case_when(str_detect(dest_purpose,"[gG]rocery") ~ "Grocery",
+                               !is.na(dest_purpose) ~ NA),
+    purpose_work =    case_when(dest_purpose_bin4=="Work" ~ "Work",
+                                !is.na(dest_purpose_bin4) ~ NA),
+    purpose_social =  case_when(str_detect(dest_purpose,"([sS]ocial|[vV]olunteer)") ~ "Social/Volunteer",
+                                !is.na(dest_purpose) ~ NA)
+    )
+  return(output_data)
+}
+
+
+# Get data ----------------------------------------
+
+  hts_data <- get_psrc_hts(survey_years = c(2023,2025), 
+                           survey_vars=c(sn_vars, travel_dims, demog_dims))
+  hts_data %<>% add_sn_grpvars()
+
+  sn_remap <- c(age = "age_bin3", hhincome_broad = "hhincome_bin5",
+                vehicle_count = "veh_yn", mode_class = "mode_basic")
+  sn_vars <- ifelse(sn_vars %in% names(sn_remap), sn_remap[sn_vars], sn_vars)                    # Sub desired sn vars for source vars
 
 # Summarize -------------------------------------
 rs_master <- sapply(sn_vars, battery, simplify=FALSE, USE.NAMES=TRUE) #suppressWarnings()         # Run the analysis batches for all trips
@@ -218,20 +223,20 @@ purpose_plots$p_inc_purpose <- psrcplot::static_bar_chart(                      
 
 
 # Census comparisons ------------------
-library(psrccensus)
-library(magrittr)
-
-acs2022_5 <- get_psrc_pums(span=1, dyear=2022, level="p",vars=c("DIS","ESR","PRACE","AGEP"))
-
-acs2022_5 %<>% mutate(
-  employment_status=case_when(grepl("^(Civilian|Armed) ", as.character(ESR)) ~"Employed",
-                              !is.na(ESR)~"Unemployed"),
-  adult=case_when(AGEP>17 ~ "Adult", TRUE ~NA_character_))
-rs_race_emp <- psrc_pums_count(acs2022_5,                                                      # hh_race_category results are low for Black & Hispanic employment rate
-                               group_vars =c("adult","PRACE","employment_status"),             # -- issue with sample size (only 169 Black respondents)
-                               incl_na=FALSE)
-rs_dis <- psrc_pums_count(acs2022_5,                                                           # ACS disability reports higher regional share than HTS
-                          group_vars =c("adult","DIS"),                                        # -- Wider definition and no "prefer not to answer" option
-                          incl_na=FALSE)
+# library(psrccensus)
+# library(magrittr)
+#
+# acs2022_5 <- get_psrc_pums(span=1, dyear=2022, level="p",vars=c("DIS","ESR","PRACE","AGEP"))
+#
+# acs2022_5 %<>% mutate(
+#   employment_status=case_when(grepl("^(Civilian|Armed) ", as.character(ESR)) ~"Employed",
+#                               !is.na(ESR)~"Unemployed"),
+#   adult=case_when(AGEP>17 ~ "Adult", TRUE ~NA_character_))
+# rs_race_emp <- psrc_pums_count(acs2022_5,                                                      # hh_race_category results are low for Black & Hispanic employment rate
+#                                group_vars =c("adult","PRACE","employment_status"),             # -- issue with sample size (only 169 Black respondents)
+#                                incl_na=FALSE)
+# rs_dis <- psrc_pums_count(acs2022_5,                                                           # ACS disability reports higher regional share than HTS
+#                           group_vars =c("adult","DIS"),                                        # -- Wider definition and no "prefer not to answer" option
+#                           incl_na=FALSE)
 
 
