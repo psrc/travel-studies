@@ -1065,6 +1065,7 @@ static_line_chart(filter(disp_edu,
 ## Employment
 
 ### Number of workers
+
 ```{r}
 # unique(hts_data$hh$numworkers) #original variables
 # table(hts_data$hh$numworkers)
@@ -1789,7 +1790,9 @@ static_line_chart(filter(disp_county,
 ```
 
 ## Regional Geographies
+
 ### All
+
 ```{r}
 # regional geography layer
 region_geo.url <- "https://services6.arcgis.com/GWxg6t7KXELn1thE/arcgis/rest/services/Regional_Geographies/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson"
@@ -1847,6 +1850,7 @@ static_line_chart(filter(disp_reggeo,
 ```
 
 ### Simplified: 2 categories
+
 ```{r}
 # unique(hts_data$hh$class_desc) #original variables
 # table(hts_data$hh$survey_year, hts_data$hh$class_desc)
