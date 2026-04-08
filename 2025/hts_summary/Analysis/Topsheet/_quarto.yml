@@ -1,0 +1,28 @@
+project:
+  type: book
+  output-dir: "topsheet-notebook" # specify folder name for your individual book
+  
+book:
+  title: "Topsheet"
+  search: false
+
+  chapters:
+    - index.qmd # this is a required file for Quarto Book
+    - topsheet_summary.qmd
+
+format:
+  html:
+    mainfont: Poppins
+    theme: [cosmo, ../../custom.scss]  # custom formatting
+    echo: false
+    code-tools: true
+    df-print: kable
+    fig-asp: .7
+    fig-width: 4
+    
+execute:
+  freeze: auto  # re-render only when source changes
+
+
+toc: true
+warnings: false

@@ -1,0 +1,280 @@
+---
+title: "2023 HTS data: KCM/ MIT data check"
+date: today
+format: 
+  html:
+    mainfont: Poppins
+    theme: [cosmo, ../custom.scss]
+    toc: true
+    df-print: kable
+    fig-asp: .7
+    fig-width: 4
+    warning: false
+    echo: false
+---
+
+- I think the slides are using weighted shares
+
+```{r}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+install_psrc_fonts()
+
+percent_format <- function(.col){
+  scales::percent(.col, accuracy=0.01)
+}
+
+
+# read hts data
+vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
+          "age","license","gender",
+          "hhincome_broad","home_county")
+hts_data <- get_psrc_hts(survey_vars = vars,survey_years = 2023)
+```
+  
+```{r}
+care_purpose_cat <- c(
+  "Escort", "Shopping", "Meal", "Personal Business/Errand/Appointment"
+)
+work_cat <- c("Work","Work-related")
+other_cat <- c("Other","Change mode","Overnight")
+school_cat <- c("School","School-related")
+```
+
+
+```{r}
+trip_mutate <- hts_data[["trip"]] %>%
+  mutate(# remove home purpose: the pie chart doesn't include HOME trips
+         dest_purpose_cat_no_home = case_when(dest_purpose_cat == "Home"~ NA,
+                                              TRUE~dest_purpose_cat),
+         # use dest_purpose: too complicated skip for now
+         # care_purpose = case_when(dest_purpose %in% care_purpose~"Care",
+         #                          TRUE~dest_purpose_cat),
+         # care_purpose_no_home = case_when(dest_purpose_cat == "Home"~ NA,
+         #                                  TRUE~care_purpose),
+         care_purpose_cat = factor(
+           case_when(dest_purpose_cat %in% care_purpose_cat~"Care",
+                     dest_purpose_cat %in% work_cat~"Work",
+                     dest_purpose_cat %in% other_cat~"Other",
+                     dest_purpose_cat %in% school_cat~"School",
+                     dest_purpose_cat == "Home"~ NA,
+                     TRUE~dest_purpose_cat_5),
+           levels = c("Care","Work","School","Social/Recreation","Other")))
+
+low_50 <- c("Under $25,000","$25,000-$49,999")
+high_50 <- c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,999","$200,000 or more")
+low_75 <- c("Under $25,000","$25,000-$49,999","$50,000-$74,999")
+high_75 <- c("$75,000-$99,999","$100,000-$199,999","$200,000 or more")
+low_100 <- c("Under $25,000","$25,000-$49,999","$50,000-$74,999","$75,000-$99,999")
+high_100 <- c("$100,000-$199,999","$200,000 or more")
+
+hh_mutate <- hts_data[["hh"]] %>%
+  mutate(
+    income_50 = factor(
+      case_when(hhincome_broad %in% low_50~"Under $50,000",
+                hhincome_broad %in% high_50~"$50,000 or more",
+                TRUE~NA),
+      levels=c("Under $50,000","$50,000 or more")),
+    income_75 = factor(
+      case_when(hhincome_broad %in% low_75~"Under $75,000",
+                hhincome_broad %in% high_75~"$75,000 or more",
+                TRUE~NA),
+      levels=c("Under $75,000","$75,000 or more")),
+    income_100 = factor(
+      case_when(hhincome_broad %in% low_100~"Under $100,000",
+                hhincome_broad %in% high_100~"$100,000 or more",
+                TRUE~NA),
+      levels=c("Under $100,000","$100,000 or more"))
+  )
+
+person_mutate <- hts_data[["person"]] %>%
+  mutate(
+    gender2 = factor(
+      case_when(gender == "Boy/Man (cisgender or transgender)"~"Male",
+                gender == "Girl/Woman (cisgender or transgender)"~"Female",
+                TRUE~NA),
+      levels=c("Male","Female"))
+  )
+
+# final HTS data
+df_hts <- hts_data
+df_hts[["trip"]] <- trip_mutate
+df_hts[["hh"]] <- hh_mutate
+df_hts[["person"]] <- person_mutate
+```
+
+## trip purpose
+
+### PSRC destination purpose assignment
+
+- only include trips with destination in King County
+  
+```{r}
+rs1 <- psrc_hts_stat(df_hts, 
+                     analysis_unit="trip", 
+                     group_vars=c("dest_county","dest_purpose_cat"),
+                     incl_na = FALSE) %>%
+  mutate(type="Include HOME")
+
+rs1_no_home <- psrc_hts_stat(df_hts, 
+                     analysis_unit="trip", 
+                     group_vars=c("dest_county","dest_purpose_cat_no_home"),
+                     incl_na = FALSE) %>%
+  mutate(type="Exclude HOME") %>%
+  rename(dest_purpose_cat = dest_purpose_cat_no_home)
+
+rs <- rs1 %>% 
+  add_row(rs1_no_home) %>% 
+  filter(dest_county == "King County")
+
+rs_kc <- rs %>% filter(dest_county == "King County") %>%
+  mutate(unweighted = percent_format(count/sum(count)),
+         weighted = percent_format(prop),
+         .by="type")
+
+per_group <- c("survey_year","dest_county","dest_purpose_cat")
+per_unweighted <- rs_kc %>%
+  pivot_wider(id_cols = per_group, 
+              names_from = "type", 
+              values_from = "unweighted",
+              names_prefix = "unweighted- ")
+per_weighted <- rs_kc %>%
+  pivot_wider(id_cols = per_group, 
+              names_from = "type", 
+              values_from = "weighted",
+              names_prefix = "weighted- ")
+
+per_unweighted %>%
+  left_join(per_weighted, by=per_group)
+```
+
+### care purpose
+
+- care purpose assignment
+  - all HOME trips are excluded
+- work and social trip share are close, but care share is higher than expected
+  - (suspecting school and overnight trips are in care)
+  
+```{r}
+#| echo: TRUE
+
+care_purpose_cat <- c(
+  "Escort", "Shopping", "Meal", "Personal Business/Errand/Appointment"
+)
+work_cat <- c("Work","Work-related")
+other_cat <- c("Other","Change mode","Overnight")
+school_cat <- c("School","School-related")
+```
+
+```{r}
+rs_kc <- psrc_hts_stat(df_hts, 
+                     analysis_unit="trip", 
+                     group_vars=c("dest_county","care_purpose_cat"),
+                     incl_na = FALSE) %>%
+  mutate(type="percent") %>% 
+  filter(dest_county == "King County") %>%
+  mutate(unweighted = percent_format(count/sum(count)),
+         weighted = percent_format(prop),
+         moe = percent_format(prop_moe),
+         .by="type")
+
+rs_kc %>% select(all_of(c("dest_county","care_purpose_cat","unweighted","weighted","moe")))
+```
+
+## care trips in king county by mode and income
+
+- dividing lower/higher income with $50,000 is closest to pie charts
+
+:::{.panel-tabset}
+
+### $50,000
+
+```{r}
+mode_share_income <- function(income){
+  rs_kc <- psrc_hts_stat(df_hts, 
+                       analysis_unit="trip", 
+                       group_vars=c("dest_county","care_purpose_cat",income, "mode_class_5"),
+                       incl_na = FALSE) %>%
+    filter(dest_county == "King County", care_purpose_cat == "Care") %>%
+    mutate(type="percent") %>%
+    mutate(unweighted = percent_format(count/sum(count)),
+           weighted = percent_format(prop),
+           moe = percent_format(prop_moe),
+           .by=c("type",income))
+  
+  rs_kc %>% select(all_of(c("dest_county","care_purpose_cat",income,"mode_class_5","unweighted","weighted","moe")))
+}
+
+mode_share_income("income_50")
+```
+
+### $75,000
+
+```{r}
+mode_share_income("income_75")
+```
+
+### $100,000
+
+```{r}
+mode_share_income("income_100")
+```
+
+:::
+
+## license by age
+
+- only king county residents are included
+- weighted numbers are closer
+
+```{r}
+rs1 <- psrc_hts_stat(df_hts, 
+                     analysis_unit="person", 
+                     group_vars=c("home_county","age","license"),
+                     incl_na = FALSE) %>%
+  filter(home_county == "King County") %>%
+  mutate(unweighted = percent_format(count/sum(count)),
+         weighted = percent_format(prop),
+         moe = percent_format(prop_moe),
+         .by="age") %>%
+  filter(license == "No, does not drive")
+
+rs1 %>% select(all_of(c("home_county","age","unweighted","weighted","moe")))
+```
+
+
+## license by age and gender
+
+- only king county residents are included
+- weighted numbers are closer
+
+```{r}
+rs1 <- psrc_hts_stat(df_hts, 
+                     analysis_unit="person", 
+                     group_vars=c("home_county","age","gender2","license"),
+                     incl_na = FALSE) %>%
+  filter(home_county == "King County") %>%
+  mutate(unweighted = percent_format(count/sum(count)),
+         weighted = percent_format(prop),
+         moe = percent_format(prop_moe),
+         .by=c("age","gender2")) %>%
+  filter(license == "No, does not drive")
+
+per_group <- c("home_county","age")
+per_unweighted <- rs1 %>%
+  pivot_wider(id_cols = per_group, 
+              names_from = "gender2", 
+              values_from = "unweighted",
+              names_prefix = "unweighted- ")
+per_weighted <- rs1 %>%
+  pivot_wider(id_cols = per_group, 
+              names_from = "gender2", 
+              values_from = "weighted",
+              names_prefix = "weighted- ")
+
+per_unweighted %>%
+  left_join(per_weighted, by=per_group)
+
+```
+
