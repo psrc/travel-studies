@@ -19,87 +19,38 @@ install_psrc_fonts()
 ```
 
 ```{r}
-source(here::here("Analysis", "care-giving", "scratch.R"))
+source(here::here("Analysis", "care-giving", "data.R"))
+source(here::here("Analysis", "care-giving", "functions.R"))
+
 ```
 
 ## Trip Purpose
 
-### PSRC destination purpose assignment
+### PSRC Destination Purpose Assignment
 
-- Trips with destination in the Region: King, Kitsap, Pierce, and Snohomish Counties
+Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for survey years 2023 and 2025
 
 ```{r}
 
 # This section prints a table with weighted/unweighted x Home/Exclude Home x trip purpose
 
-rs1 <- psrc_hts_stat(df_hts,
-                     analysis_unit = "trip",
-                     group_vars = c("dest_region","dest_purpose_cat"),
-                     incl_na = FALSE) |>
-  mutate(type = "Include HOME")
+trip_purp_a <- create_trip_purpose_tbl(df_hts)
 
-rs1_no_home <- psrc_hts_stat(df_hts,
-                             analysis_unit = "trip",
-                             group_vars=c("dest_region","dest_purpose_cat_no_home"),
-                             incl_na = FALSE)  |>
-  mutate(type = "Exclude HOME") |>
-  rename(dest_purpose_cat = dest_purpose_cat_no_home)
-
-# Region
-
-rs <- rs1 |>  
-  add_row(rs1_no_home)
-
-rs_reg <- rs |>
-  mutate(unweighted = percent(count/sum(count)),
-         weighted = percent(prop),
-         .by = "type")
-
-per_group <- c("survey_year", "dest_purpose_cat")
-
-per_unweighted <- rs_reg |> 
-  pivot_wider(id_cols = all_of(per_group), 
-              names_from = "type", 
-              values_from = "unweighted",
-              names_prefix = "unweighted- ")
-
-per_weighted <- rs_reg |> 
-  pivot_wider(id_cols = all_of(per_group), 
-              names_from = "type", 
-              values_from = "weighted",
-              names_prefix = "weighted- ")
-
-per_unweighted %>%
-  left_join(per_weighted, by = per_group) |> 
-  gt() |> 
-  tab_spanner(
-    label = "Weighted",
-    columns = starts_with("weighted")
-  ) |> 
-  tab_spanner(
-    label = "Unweighted",
-    columns = starts_with("Unweighted")
-  ) |> 
-  cols_label(
-    ends_with("Include HOME") ~ "Include Home",
-    ends_with("Exclude HOME") ~ "Exclude Home",
-    dest_purpose_cat ~ "Destination Purpose Category"
-  ) |> 
-   cols_align(
+trip_purp_a |>
+  gt() |>
+  cols_align(
     align = "left",
     columns = dest_purpose_cat
-  ) |> 
-  cols_hide(survey_year) |> 
-  tab_caption(caption = paste("Survey Year:", survey_year))
+  ) |>
+  tab_spanner_delim(delim = ".")
 
 
 ```
 
-### Care purpose
+### Care Purpose
 
-- Care is defined as the following purposes: Escort, Shopping, Meal, Personal Business/Errand/Appointment
-  - all HOME trips are excluded
-  
+Care is defined as the following purposes: Escort, Shopping, Meal, Personal Business/Errand/Appointment. All `HOME` trips are excluded.
+
 Care: `r care_purpose_cat`
 
 Work: `r work_cat`
@@ -107,12 +58,12 @@ Work: `r work_cat`
 Other: `r other_cat`
 
 School: `r school_cat`
-  
+
 ```{r}
 rs_care_purp <- psrc_hts_stat(df_hts, 
-                       analysis_unit = "trip", 
-                       group_vars = c("dest_region", "care_purpose_cat"),
-                       incl_na = FALSE) %>%
+                              analysis_unit = "trip", 
+                              group_vars = c("dest_region", "care_purpose_cat"),
+                              incl_na = FALSE) %>%
   mutate(type = "percent") |>  
   mutate(unweighted = percent(count/sum(count)),
          weighted = percent(prop),
@@ -122,14 +73,58 @@ rs_care_purp <- psrc_hts_stat(df_hts,
 rs_care_purp |> 
   select(all_of(c("care_purpose_cat","unweighted","weighted","moe"))) |> 
   gt() |> 
-  cols_label_with(fn = ~str_to_title(.)) |> 
-  cols_label(
-    care_purpose_cat ~ "Care Purpose Categories",
-    moe ~ "MOE"
-  ) |> 
-   cols_align(
-    align = "left",
-    columns = 1
+  cols_align(align = "left",
+             columns = 1
   )
 ```
-## Care trips by mode and income
+
+## Care Trips by Mode and Income
+
+::: panel-tabset
+```{r}
+mode_share_income <- function(income, geog){
+  geo_col <- case_when(geog == "Region" ~ "dest_region",
+                       geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county"
+                    )
+  
+  rs <- psrc_hts_stat(df_hts, 
+                       analysis_unit = "trip", 
+                       group_vars = c(geo_col, "care_purpose_cat", income, "mode_class_5"),
+                       incl_na = FALSE) |> 
+    rename(dest_loc = sym(geo_col)) |>
+    filter(dest_loc == geog,
+           care_purpose_cat == "Care") |> 
+    mutate(type = "percent") |>
+    mutate(unweighted = percent(count/sum(count)),
+           weighted = percent(prop),
+           moe = percent(prop_moe),
+           .by = c("type", income))
+
+  v <- c("dest_loc", "care_purpose_cat", income, "mode_class_5", "unweighted", "weighted", "moe")
+  rs |> select(all_of(v))
+}
+```
+
+### \$50,000
+
+```{r}
+mode_share_income(income = "income_50", geog = "Region") #|> 
+  # gt() #|> 
+  # cols_hide(c(dest_loc, care_purpose_cat)) |> 
+  # cols_align(align = "left",
+  #            columns = c(3,4)
+  # )
+```
+
+### \$75,000
+
+```{r}
+mode_share_income("income_75", geog = "Region")
+```
+
+### \$100,000
+
+```{r}
+mode_share_income("income_100", geog = "Region")
+```
+:::

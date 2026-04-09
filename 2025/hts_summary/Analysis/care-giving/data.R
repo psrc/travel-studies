@@ -6,7 +6,10 @@ install_psrc_fonts()
 # Data collection ----
 
 ## vars and categories ----
-survey_year <- 2023
+
+# survey_year <- c(2023)
+survey_year <- c(2023, 2025)
+
 vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
           "age","license","gender",
           "hhincome_broad","home_county")
