@@ -1,0 +1,75 @@
+---
+title: "Mode and Income"
+editor: visual
+format: 
+  html:
+    mainfont: Poppins
+    toc: true
+    warning: false
+    echo: false
+---
+
+```{r setup}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+install_psrc_fonts()
+```
+
+```{r}
+
+files <- c("data.R", "functions.R")
+
+invisible(
+lapply(files, function(f) {
+  source(here::here("Analysis", "care-giving", f))
+})
+)
+
+```
+
+## Care Trips by Mode and Income
+
+::: panel-tabset
+```{r}
+```
+
+### \$50,000
+
+```{r}
+mode_share_income(income = "income_50", geog = "Region") |> 
+  gt() |>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3)
+  )
+```
+
+### \$75,000
+
+```{r}
+mode_share_income("income_75", geog = "Region")|> 
+  gt() |>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3)
+  )
+```
+
+### \$100,000
+
+```{r}
+mode_share_income("income_100", geog = "Region")|> 
+  gt() |>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3)
+  )
+```
+:::
+

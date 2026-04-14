@@ -1,0 +1,30 @@
+project:
+  type: book
+  output-dir: "care-giving-notebook" # specify folder name for your individual book
+  
+book:
+  title: "Care Giving"
+  search: false
+
+  chapters:
+    - index.qmd # this is a required file for Quarto Book. Contains "Notes" section. 
+    - care-giving.qmd
+    - care-giving-mode-income.qmd
+    - care-giving-licensing.qmd
+
+format:
+  html:
+    mainfont: Poppins
+    theme: [cosmo, ../../custom.scss]  # custom formatting
+    echo: false
+    code-tools: true
+    df-print: kable
+    fig-asp: .7
+    fig-width: 4
+    
+execute:
+  freeze: auto  # re-render only when source changes
+
+
+toc: true
+warnings: false
