@@ -7,6 +7,7 @@
 -   psrc.travelsurvey R package: [installation](https://psrc.github.io/psrc.travelsurvey/index.html) and [user guide for retrieving and summarizing data in R](https://psrc.github.io/psrc.travelsurvey/articles/retrieve-and-summarize-data.html)
 -   [Quarto](https://quarto.org/): publishing system that offers tools to create analysis documents
     -   [install Quarto](https://quarto.org/docs/get-started/)
+- HTS data in Elmer: the multi-year data is stored in Elmer as views ('HHSurvey.v_households','HHSurvey.v_persons','HHSurvey.v_days','HHSurvey.v_trips','HHSurvey.v_vehicles')
 
 ## example workflow (see [Topsheet folder](https://github.com/psrc/travel-studies/tree/master/2025/hts_summary/Analysis/Topsheet))
 
