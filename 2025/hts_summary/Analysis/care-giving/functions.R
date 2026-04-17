@@ -101,8 +101,8 @@ mode_share_income_set_b <- function(geog){
            .by = c("survey_year", "type", "income_comp"))
 
   v <- c("survey_year", "dest_loc", "care_purpose_cat", "income_comp", "mode_class_5", "weighted", "moe")
-# browser()
-  test <- rs |>
+
+  df <- rs |>
     select(all_of(v)) |>
     pivot_wider(id_cols = c("dest_loc", "care_purpose_cat", "mode_class_5"),
                 names_from = c("income_comp", "survey_year"),
@@ -111,10 +111,11 @@ mode_share_income_set_b <- function(geog){
                 ) |>
     relocate("dest_loc","care_purpose_cat","mode_class_5", contains("Under"), contains("$50,000"), contains("or more")) 
   
-  ind01 <- grep("weighted", colnames(test))
-  ind02 <- grep("moe", colnames(test))
+  ind01 <- grep("weighted", colnames(df))
+  ind02 <- grep("moe", colnames(df))
   
-  test2 <- test |> 
+  df_reorder <- df |> 
     select("dest_loc","care_purpose_cat","mode_class_5", unlist(map2(ind01, ind02, c)))
 
+  return(list(long = rs, wide = df_reorder))
 }

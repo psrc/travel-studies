@@ -7,6 +7,9 @@ format:
     toc: true
     warning: false
     echo: false
+    fig-width: 8
+    fig-asp: .7
+  
 ---
 
 ```{r setup}
@@ -77,7 +80,7 @@ mode_share_income("income_100", geog = "Region")|>
 
 ```{r}
 
-mode_share_income_set_b(geog = "Region")|>
+mode_share_income_set_b(geog = "Region")$wide|>
   gt() |>
   tab_spanner_delim(delim = ".") |>
   cols_hide(c(dest_loc, care_purpose_cat)) |>
@@ -85,3 +88,30 @@ mode_share_income_set_b(geog = "Region")|>
              columns = c(3)
 )
 ```
+### Chart
+```{r}
+msi_df <- mode_share_income_set_b(geog = "Region")$long  |> 
+  mutate(income_comp = factor(income_comp, levels = c("Under $50,000", "$50,000-$99,999", "$100,000 or more")))
+
+```
+
+```{r}
+
+msi_df |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = mode_class_5)) +
+  facet_wrap(~income_comp, strip.position = "bottom") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL)
+
+```
+
