@@ -73,3 +73,15 @@ mode_share_income("income_100", geog = "Region")|>
 ```
 :::
 
+### Under \$50k, \$50k-\$100k, \$100k or more
+
+```{r}
+
+mode_share_income_set_b(geog = "Region")|>
+  gt() |>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3)
+)
+```

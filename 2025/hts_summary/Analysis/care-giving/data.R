@@ -7,7 +7,6 @@ install_psrc_fonts()
 
 ## vars and categories ----
 
-# survey_year <- c(2023)
 survey_year <- c(2023, 2025)
 
 vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
@@ -40,7 +39,7 @@ trip_mutate <- hts_data[["trip"]] |>
                           !is.na(dest_county) ~ NA_character_))
 
 hhinc_list <- list(
-  low_50 = c("Under $25,000","$25,000-$49,999"),
+  low_50 = c("Under $25,000", "$25,000-$49,999"),
   high_50 = c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,999","$200,000 or more"),
   levels_50 = c("Under $50,000","$50,000 or more"),
   
@@ -50,7 +49,11 @@ hhinc_list <- list(
   
   low_100 = c("Under $25,000","$25,000-$49,999","$50,000-$74,999","$75,000-$99,999"),
   high_100 = c("$100,000-$199,999","$200,000 or more"),
-  levels_100 = c("Under $100,000","$100,000 or more")
+  levels_100 = c("Under $100,000","$100,000 or more"),
+  
+  low_comp = c("Under $25,000", "$25,000-$49,999"),
+  med_comp = c("$50,000-$74,999","$75,000-$99,999"),
+  high_comp = c("$100,000-$199,999","$200,000 or more")
 )
 
 ## households ----
@@ -68,6 +71,12 @@ hh_mutate <- hts_data[["hh"]] |>
                                        hhincome_broad %in% hhinc_list$high_100 ~ hhinc_list$levels_100[2],
                                        TRUE ~ NA),
                              levels = hhinc_list$levels_100)
+  ) |> 
+  mutate(income_comp = factor(
+    case_when(hhincome_broad %in% hhinc_list$low_comp ~ "Under $50,000",
+              hhincome_broad %in% hhinc_list$med_comp ~ "$50,000-$99,999",
+              hhincome_broad %in% hhinc_list$high_comp ~ "$100,000 or more")
+  )
   )
 
 ## person ----
