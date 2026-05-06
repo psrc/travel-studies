@@ -10,8 +10,9 @@ install_psrc_fonts()
 survey_year <- c(2023, 2025)
 
 vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
-          "age","license","gender",
-          "hhincome_broad","home_county")
+          "age","can_drive","gender",
+          "hhincome_broad","home_county",
+          "numchildren")
 
 care_purpose_cat <- c("Escort", "Shopping", "Meal", "Personal Business/Errand/Appointment")
 work_cat <- c("Work","Work-related")
@@ -36,7 +37,7 @@ trip_mutate <- hts_data[["trip"]] |>
                                              TRUE ~ dest_purpose_cat_5),
                                    levels = c("Care","Work","School","Social/Recreation","Other"))) |> 
   mutate(dest_region = case_when(dest_county %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "Region",
-                          !is.na(dest_county) ~ NA_character_))
+                          !is.na(dest_county) ~ NA_character_)) 
 
 hhinc_list <- list(
   low_50 = c("Under $25,000", "$25,000-$49,999"),
@@ -75,9 +76,12 @@ hh_mutate <- hts_data[["hh"]] |>
   mutate(income_comp = factor(
     case_when(hhincome_broad %in% hhinc_list$low_comp ~ "Under $50,000",
               hhincome_broad %in% hhinc_list$med_comp ~ "$50,000-$99,999",
-              hhincome_broad %in% hhinc_list$high_comp ~ "$100,000 or more")
-  )
-  )
+              hhincome_broad %in% hhinc_list$high_comp ~ "$100,000 or more"))
+    )|> 
+  mutate(home_region = case_when(home_county %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "Region",
+                                 !is.na(home_county) ~ NA_character_)) |> 
+  mutate(home_children = case_when(numchildren != "0 children" ~ "Yes",
+                                   .default = "No"))
 
 ## person ----
 
@@ -88,7 +92,9 @@ person_mutate <- hts_data[["person"]] |>
                 gender == "Girl/Woman (cisgender or transgender)" ~ "Female",
                 TRUE~NA),
       levels = c("Male","Female"))
-  )
+  ) |> 
+  mutate(home_elder = case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ "Yes",
+                                .default = "No"))
 
 # final HTS data ----
 

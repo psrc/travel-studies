@@ -1,0 +1,41 @@
+---
+title: "Household Structure"
+editor: visual
+format: 
+  html:
+    mainfont: Poppins
+    toc: true
+    warning: false
+    echo: false
+    fig-width: 4.5
+    fig-asp: .618
+---
+```{r setup}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+install_psrc_fonts()
+```
+
+```{r}
+
+files <- c("data.R", "functions.R")
+
+invisible(
+lapply(files, function(f) {
+  source(here::here("Analysis", "care-giving", f))
+})
+)
+```
+
+The table shows the share of 
+
+`home_children` refer to households where there are 1 or more children in the household
+`home_elder` refer to households where there is someone 65 years or older in the household
+```{r}
+create_hhstr_tbl(geog = "Region") |> 
+  gt()
+```
+

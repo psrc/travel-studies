@@ -1,0 +1,112 @@
+---
+title: "Gender"
+editor: visual
+format: 
+  html:
+    mainfont: Poppins
+    toc: true
+    warning: false
+    echo: false
+    fig-width: 4.5
+    fig-asp: .618
+---
+
+```{r setup}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+install_psrc_fonts()
+```
+
+```{r}
+
+files <- c("data.R", "functions.R")
+
+invisible(
+lapply(files, function(f) {
+  source(here::here("Analysis", "care-giving", f))
+})
+)
+
+```
+
+## Gender
+
+Across survey years, a higher percentage of females are taking care trips compared to males.
+
+```{r}
+gender_df <- create_trips_gender_tbl(geog = "Region")
+
+gender_df$wide |> 
+  gt()|>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3))
+```
+
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+gender_df$long |> 
+  ggplot(aes(x = as.character(survey_year), y = prop, fill = gender2)) +
+  geom_col() +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                orientation = "x") +
+  facet_wrap(~gender2, strip.position = "bottom") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL)
+
+```
+
+## Gender by Trip Mode
+
+Driving was the primary mode of transportation for care-related trips in 2023, with a higher share among females than males. By 2025, this pattern becomes more balanced, with approximately 89% of both males and females using driving for care trips. Transit and walking account for a larger proportion of non-driving trips and are more commonly used by males than females.
+
+```{r}
+gender_mode_df <- create_mode_gender_tbl(geog = "Region")
+```
+
+```{r}
+gender_mode_df$wide |> 
+  gt()|> 
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3))
+```
+
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+gender_mode_df$long |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = mode_class_5)) +
+  facet_wrap(~gender2, strip.position = "bottom") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL)
+
+```
