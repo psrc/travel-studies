@@ -10,6 +10,7 @@ format:
     fig-width: 4.5
     fig-asp: .618
 ---
+
 ```{r setup}
 library(tidyverse)
 library(psrc.travelsurvey)
@@ -30,12 +31,26 @@ lapply(files, function(f) {
 )
 ```
 
-The table shows the share of 
+## Children and Elders
 
-`home_children` refer to households where there are 1 or more children in the household
-`home_elder` refer to households where there is someone 65 years or older in the household
+Elder is defined as a person 65 years or over. 
+
+Of those who have taken care purpose trips, does their household have children and/or elders?
+
+`has_children` refer to households where there are 1 or more children in the household based on var `numchildren`.
+
+`has_elders` refer to households where there is someone 65 years or older in the household.
+
 ```{r}
 create_hhstr_tbl(geog = "Region") |> 
   gt()
+```
+
+The table below shows households where care trips were taken the share of households that have both children and elders.
+
+```{r}
+create_hhstr_tbl_b(geog = "Region") |> 
+  gt()
+
 ```
 

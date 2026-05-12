@@ -1,5 +1,5 @@
 ---
-title: "Licensing"
+title: "Can Drive"
 editor: visual
 format: 
   html:
@@ -7,22 +7,171 @@ format:
     toc: true
     warning: false
     echo: false
+    fig-width: 4.5
+    fig-asp: .618
 ---
+
+```{r setup}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+install_psrc_fonts()
+```
 
 ```{r}
 
-# files <- c("data.R", "functions.R")
-# 
-# invisible(
-# lapply(files, function(f) {
-#   source(here::here("Analysis", "care-giving", f))
-# })
-# )
+files <- c("data.R", "functions.R")
+
+invisible(
+lapply(files, function(f) {
+  source(here::here("Analysis", "care-giving", f))
+})
+)
 
 ```
 
-## Licenses
+## Can Drive by Age
 
-### Licenses by Age
+The table below shows of those who have taken care trips, the share of those who can or can't drive. Most drivers are between the ages of 16-84 years.A consistent share across survey years is between 25-84 years. There is increase drivers 85 years and older in 2025 than in 2023. For those between 18-24 years, there are less drivers compared to the previous survey year.
 
-### Licenses by Age and Gender
+```{r}
+df <- create_candrive_tbl(geog = "Region")
+
+# make Age col wider or as row name, factor years.
+
+df$wide |> 
+  gt(rowname_col = "age")|>
+  cols_width(
+    stub() ~ px(500)
+  ) |> 
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc)) |>
+  cols_align(align = "left",
+             columns = c(3))
+```
+
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+df$long |> 
+  ggplot(aes(x = age, y = prop, fill = as.character(survey_year))) +
+  geom_col(position = "dodge") + 
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                orientation = "x",
+                position = position_dodge(width = 0.9)
+                ) +
+  facet_wrap(~can_drive2, ncol = 1, strip.position = "right") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(1, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 45, vjust = 0.7)) + #, hjust=1
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL)
+```
+
+## Can Drive by Age and Gender
+
+```{r}
+# Age and Gender as row names
+
+df_ag <- create_candrive_tbl_b(geog = "Region")
+
+```
+
+```{r}
+
+# make Age col wider or as row name, factor years.
+
+df_ag$wide |> 
+  gt(rowname_col = "age")|>
+  cols_width(
+    stub() ~ px(500)
+  ) |> 
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc)) |>
+  cols_align(align = "left",
+             columns = c(3))
+```
+
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+df_ag$long |> 
+  ggplot(aes(x = age, y = prop, fill = as.character(survey_year))) +
+  geom_col(position = "dodge") + 
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                orientation = "x",
+                position = position_dodge(width = 0.9)
+                ) +
+  facet_grid(cols = vars(can_drive2), rows = vars(gender2)) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(1, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold"),
+        axis.text.x = element_text(angle = 90, vjust = 0.7)) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL)
+```
+
+### Cannot Drive
+
+A larger share of Females between 35-54 years who took care trips cannot not drive in 2023 compared to Males. In 2025, the share is not as high as compared to the previous survey year.
+
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+df_ag$long |> 
+  filter(survey_year == 2023 & can_drive2 == "No") |> 
+  ggplot(aes(x = age, y = prop, fill = gender2)) +
+  geom_col() + 
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, vjust = 0.7)) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "2023 Cannot Drive")
+```
+
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+df_ag$long |> 
+  filter(survey_year == 2025 & can_drive2 == "No") |> 
+  ggplot(aes(x = age, y = prop, fill = gender2)) +
+  geom_col() + 
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        legend.position = "bottom",
+        axis.text.x = element_text(angle = 45, vjust = 0.7)) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "2025 Cannot Drive")
+```

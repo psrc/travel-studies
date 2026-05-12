@@ -80,8 +80,8 @@ hh_mutate <- hts_data[["hh"]] |>
     )|> 
   mutate(home_region = case_when(home_county %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "Region",
                                  !is.na(home_county) ~ NA_character_)) |> 
-  mutate(home_children = case_when(numchildren != "0 children" ~ "Yes",
-                                   .default = "No"))
+  mutate(has_children = factor(case_when(numchildren != "0 children" ~ 1,
+                                   .default = 0), levels = c(0, 1)))
 
 ## person ----
 
@@ -93,8 +93,30 @@ person_mutate <- hts_data[["person"]] |>
                 TRUE~NA),
       levels = c("Male","Female"))
   ) |> 
-  mutate(home_elder = case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ "Yes",
-                                .default = "No"))
+  mutate(over_64 = factor(case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ 1,
+                                .default = 0), levels = c(1, 0)))
+
+# Household universe ----
+
+# Find unique household ids based on those 65 years and older
+hhs_elder <- person_mutate |> 
+  filter(over_64 == 1) |>
+  distinct(hh_id)
+
+# Find unique household ids based on care trips where the destination is in the region
+hhs_care <- trip_mutate |> 
+  filter(care_purpose_cat == "Care" & dest_region == "Region") |> 
+  distinct(hh_id)
+
+hh_mutate <- hh_mutate |>
+  mutate(care_trip_taken = factor(case_when(hh_id %in% hhs_care$hh_id ~ 1,
+                                     .default = 0), levels = c(0, 1))) |>
+  mutate(has_elders = factor(case_when(hh_id %in% hhs_elder$hh_id ~ 1,
+                                   .default = 0), levels = c(0, 1))) |>
+  mutate(children_elders = factor(case_when(has_children == 1 & has_elders == 1 ~ 1,
+                                   .default = 0), levels = c(0, 1))) |>
+  mutate(children_or_elders = factor(case_when(has_children == 1 | has_elders == 1 ~ 1,
+                                            .default = 0), levels = c(0, 1)))
 
 # final HTS data ----
 

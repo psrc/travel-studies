@@ -328,16 +328,27 @@ create_candrive_tbl_b <- function(geog) {
 }
 
 create_hhstr_tbl <- function(geog) {
-  # care trips, hh with children < 18 and 85 +
-  
-  geo_col <- case_when(geog == "Region" ~ "dest_region",
-                       geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
+  # Every combo: care trips/non-care trips, hh with/without children < 18 and 85 +
   
   rs <- psrc_hts_stat(df_hts,
-                      analysis_unit = "trip",
-                      group_vars = c(geo_col, "care_purpose_cat", "home_children", "home_elder"),
-                      incl_na = FALSE) |>
-    rename(dest_loc = sym(geo_col)) |>
-    filter(dest_loc == geog,
-           care_purpose_cat == "Care") 
+                      analysis_unit = "hh",
+                      group_vars = c("care_trip_taken", "has_children", "has_elders"),
+                      incl_na = FALSE) |> 
+    filter(care_trip_taken == 1) |>
+    mutate(weighted = percent(prop),
+           moe = percent(prop_moe),
+           .by = c("survey_year"))
+}
+
+create_hhstr_tbl_b <- function(geog) {
+  # only care trips, hh with children < 18 AND 85 +
+  
+  rs <- psrc_hts_stat(df_hts,
+                      analysis_unit = "hh",
+                      group_vars = c("care_trip_taken", "children_elders"),
+                      incl_na = FALSE) |> 
+    filter(care_trip_taken == 1) |>
+    mutate(weighted = percent(prop),
+           moe = percent(prop_moe),
+           .by = c("survey_year"))
 }
