@@ -337,18 +337,64 @@ create_hhstr_tbl <- function(geog) {
     filter(care_trip_taken == 1) |>
     mutate(weighted = percent(prop),
            moe = percent(prop_moe),
-           .by = c("survey_year"))
+           .by = c("survey_year")) |>
+    mutate(household_members = case_when(has_children == 0 & has_elders == 0 ~ "No Children or Elders",
+                                         has_children == 0 & has_elders == 1 ~ "No Children, Has Elders",
+                                         has_children == 1 & has_elders == 0 ~ "Has Children, no Elders",
+                                         has_children == 1 & has_elders == 1 ~ "Has Children and Elders"))  
+  
+  v <- c("survey_year", "household_members", "has_children", "has_elders", "weighted", "moe", "count")
+  
+  df <- rs |>
+    select(all_of(v)) |>
+    pivot_wider(id_cols = c("household_members", "has_children", "has_elders"),
+                names_from = c("survey_year"),
+                values_from = c("weighted", "moe", "count"),
+                names_glue = "{survey_year}.{.value}"
+    ) |> 
+    relocate("household_members", "has_children", "has_elders", contains("2023"), contains("2025"))
+  
+  ind01 <- grep("weighted", colnames(df))
+  ind02 <- grep("moe", colnames(df))
+  ind03 <- grep("count", colnames(df))
+  
+  df_reorder <- df |> 
+    select("household_members", "has_children", "has_elders", unlist(pmap(list(ind01, ind02, ind03), c)))
+  
+  return(list(long = rs, wide = df_reorder))
 }
 
 create_hhstr_tbl_b <- function(geog) {
-  # only care trips, hh with children < 18 AND 85 +
+  # only care trips, hh with children < 18 AND/OR 85 +
   
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "hh",
-                      group_vars = c("care_trip_taken", "children_elders"),
+                      group_vars = c("care_trip_taken", "children_or_elders"),
                       incl_na = FALSE) |> 
     filter(care_trip_taken == 1) |>
     mutate(weighted = percent(prop),
            moe = percent(prop_moe),
-           .by = c("survey_year"))
+           .by = c("survey_year")) |> 
+    mutate(household_members = case_when(children_or_elders == 0 ~ "No Children or Elders",
+                                         children_or_elders == 1 ~ "Has Children and/or Elders"))
+  
+  v <- c("survey_year", "household_members", "children_or_elders", "weighted", "moe", "count")
+  
+  df <- rs |>
+    select(all_of(v)) |>
+    pivot_wider(id_cols = c("household_members", "children_or_elders"),
+                names_from = c("survey_year"),
+                values_from = c("weighted", "moe", "count"),
+                names_glue = "{survey_year}.{.value}"
+    ) |>
+    relocate("household_members", "children_or_elders", contains("2023"), contains("2025"))
+  
+  ind01 <- grep("weighted", colnames(df))
+  ind02 <- grep("moe", colnames(df))
+  ind03 <- grep("count", colnames(df))
+  
+  df_reorder <- df |> 
+    select("household_members", "children_or_elders", unlist(pmap(list(ind01, ind02, ind03), c)))
+  
+  return(list(long = rs, wide = df_reorder))
 }

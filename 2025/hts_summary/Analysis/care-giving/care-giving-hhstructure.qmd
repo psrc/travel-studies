@@ -33,7 +33,7 @@ lapply(files, function(f) {
 
 ## Children and Elders
 
-Elder is defined as a person 65 years or over. 
+Elder is defined as a person 65 years or over.
 
 Of those who have taken care purpose trips, does their household have children and/or elders?
 
@@ -42,15 +42,65 @@ Of those who have taken care purpose trips, does their household have children a
 `has_elders` refer to households where there is someone 65 years or older in the household.
 
 ```{r}
-create_hhstr_tbl(geog = "Region") |> 
-  gt()
+create_hhstr_tbl(geog = "Region")$wide |>
+  gt(rowname_col = "household_members") |> 
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(has_children, has_elders)) |>
+  cols_align(align = "left",
+             columns = c(2))
+```
+
+```{r}
+create_hhstr_tbl(geog = "Region")$long |>
+  ggplot(aes(x = as.character(survey_year), y = prop, fill = household_members)) +
+  geom_col() +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                orientation = "x") +
+  facet_grid(rows = vars(has_children), cols = vars(has_elders)) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(.5, "cm"),
+        legend.position = "right",
+        strip.text = element_blank()) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL)
 ```
 
 The table below shows households where care trips were taken the share of households that have both children and elders.
 
 ```{r}
-create_hhstr_tbl_b(geog = "Region") |> 
-  gt()
+create_hhstr_tbl_b(geog = "Region")$wide |> 
+  gt(rowname_col = "household_members") |> 
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(children_or_elders)) |>
+  cols_align(align = "left",
+             columns = c(2))
 
+```
+```{r}
+create_hhstr_tbl_b(geog = "Region")$long |>
+  ggplot(aes(fill = as.character(survey_year), y = prop, x = household_members)) +
+  geom_col(position = "dodge") +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                orientation = "x",
+                position = position_dodge(width = 0.9)) +
+  # facet_grid(rows = vars(), cols = vars()) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(.5, "cm"),
+        legend.position = "right",
+        strip.text = element_blank()) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL)
 ```
 
