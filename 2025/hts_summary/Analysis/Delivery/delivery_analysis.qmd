@@ -1,18 +1,595 @@
 ---
-title: Delivery
+title: Delivery Data Dump
 date: today
 ---
 
-This is a testing page
-
 ```{r}
-source("../util.R")  # load shared libraries and functions
+#| include: false
 
-topic_vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
-                "age","license","gender",
-                "hhincome_broad","home_county")
-topic_years <- c(2017, 2019, 2021, 2023)
+# get data and load standard data processing
+source("delivery_processing.R")  
 
-source("../data_processing.R")  # load standard data processing
+hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
 
 ```
+
+## delivery trends
+
+- a third of regional households got a package on an average weekday in 2023
+- about 1 out of 25 households get food delivery on an average weekday.
+- food delivery became more popular since 2021
+
+:::{.panel-tabset}
+
+```{r}
+stat_delivery <- function(delivery_var, title){
+  
+  res <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
+    filter(.[[delivery_var]]=="Yes") %>%
+    select(all_of(c("survey_year",delivery_var,"prop","prop_moe","count")))
+  
+  # result table
+  df_plot <- res %>%
+    mutate(prop = scales::percent(prop, accuracy = 0.1),
+           prop_moe = scales::percent(prop_moe, accuracy = 0.01))
+  
+  # print ggplot
+  print(
+    ggplot(res, 
+           aes(x=factor(survey_year), y=prop), fill=psrc_colors$pgnobgy_5[1]) +
+      geom_col() +
+      geom_text(aes(label=scales::percent(prop, accuracy = 0.1)),
+                vjust = -0.3) +
+      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.4) +
+      scale_y_continuous(labels = scales::percent) +
+      psrc_style() +
+      theme(panel.grid.major.y = element_blank(),
+            axis.title = element_blank())+
+      labs(caption = hts_source, title = title)
+  )
+  
+  return(df_plot)
+  
+}
+```
+
+### package
+
+```{r}
+#| out-width: "37%"
+#| fig-width: 3
+df_plot <- stat_delivery("deliver_package", "package delivery")
+```
+
+```{r}
+df_plot
+```
+
+### service work
+
+```{r}
+#| out-width: "37%"
+#| fig-width: 3
+df_plot <- stat_delivery("deliver_work", "service work")
+```
+
+```{r}
+df_plot
+```
+
+### food delivery
+
+```{r}
+#| out-width: "37%"
+#| fig-width: 3
+df_plot <- stat_delivery("deliver_food", "food delivery")
+```
+
+```{r}
+df_plot
+```
+
+### grocery delivery
+
+```{r}
+#| out-width: "37%"
+#| fig-width: 3
+df_plot <- stat_delivery("deliver_grocery", "grocery delivery")
+```
+
+```{r}
+df_plot
+```
+
+### delivery outside home
+
+```{r}
+#| out-width: "37%"
+#| fig-width: 3
+df_plot <- stat_delivery("deliver_elsewhere", "delivery outside home")
+```
+
+```{r}
+df_plot
+```
+### delivery at office
+
+```{r}
+#| out-width: "37%"
+#| fig-width: 3
+df_plot <- stat_delivery("deliver_office", "delivery at office")
+```
+
+```{r}
+df_plot
+```
+:::
+
+
+## delivery by demographic characteristics
+
+```{r}
+
+stat_delivery_type <- function(delivery_var, group_var, title){
+  
+  res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>% 
+    filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer") %>%
+    select(all_of(c("survey_year",group_var,delivery_var,"prop","prop_moe","count") ))
+  
+  df_plot <- res %>%
+    mutate(prop = scales::percent(prop, accuracy = 0.1),
+           prop_moe = scales::percent(prop_moe, accuracy = 0.01))
+  
+  print(
+    ggplot(res, 
+           aes(x=delivery_var, y=prop, fill=!!sym(group_var))) +
+      geom_col(position = position_dodge(),width = 0.8) +
+      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                    position = position_dodge(0.8),
+                    width = 0.4) +
+      facet_wrap(~ survey_year, ncol=5)+
+      scale_fill_manual(values = psrc_colors$pgnobgy_5)+
+      scale_y_continuous(labels = scales::percent) +
+      psrc_style() +
+      theme(panel.grid.major.y = element_blank(),
+            axis.title = element_blank(),
+            axis.text.x = element_blank())+
+      labs(caption = hts_source,
+           title = title)
+  )
+  
+  print(
+    ggplot(res, 
+           aes(x=delivery_var, y=prop, fill=factor(survey_year))) +
+      geom_col(position = position_dodge(),width = 0.8) +
+      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                    position = position_dodge(0.8),
+                    width = 0.4) +
+      facet_wrap(as.formula(paste("~", group_var)), ncol=5)+
+      scale_fill_manual(values = psrc_colors$pgnobgy_5)+
+      scale_y_continuous(labels = scales::percent) +
+      psrc_style() +
+      theme(panel.grid.major.y = element_blank(),
+            axis.title = element_blank(),
+            axis.text.x = element_blank())+
+      labs(caption = hts_source,
+           title = title)
+  )
+  
+  return(df_plot)
+}
+```
+
+
+### household income
+
+- households with higher income have been consistently receiving more packages than others
+- no noticeable trends
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","income_3group", 
+                              "package delivery by income")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","income_3group", 
+                              "grocery delivery by income")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","income_3group", 
+                              "food delivery by income")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+
+### number of workers
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","numworkers_3cap", 
+                              "package delivery by number of workers")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","numworkers_3cap", 
+                              "grocery delivery by number of workers")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","numworkers_3cap", 
+                              "food delivery by number of workers")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+### vehicle availability
+
+Households with no cars have more grocery deliveries -> grocery deliveries are accessible for households without cars
+
+Households with enough cars have more food deliveries -> food deliveries serve households with higher income
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","auto_availabilty", 
+                              "package delivery by auto availability")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","auto_availabilty", 
+                              "grocery delivery by auto availability")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","auto_availabilty", 
+                              "food delivery by auto availability")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+
+### household race categories
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","hh_race_category", 
+                              "package delivery by household race")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","hh_race_category", 
+                              "grocery delivery by household race")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","hh_race_category", 
+                              "food delivery by household race")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+### household composition
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","lifecycle_class", 
+                              "package delivery by household composition")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","lifecycle_class", 
+                              "grocery delivery by household composition")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","lifecycle_class", 
+                              "food delivery by household composition")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+## delivery by home location and type
+
+
+### home county
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","home_county", 
+                              "package delivery by home location - County")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","home_county", 
+                              "grocery delivery by home location - County")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","home_county", 
+                              "food delivery by home location - County")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+### home in centers
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","home_rgc", 
+                              "package delivery by home location - Center")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","home_rgc", 
+                              "grocery delivery by home location - Center")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","home_rgc", 
+                              "food delivery by home location - Center")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+
+### residence type
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_package","res_type_group", 
+                              "package delivery by residence type")
+```
+
+```{r}
+df_plot
+```
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_grocery","res_type_group", 
+                              "grocery delivery by residence type")
+```
+
+```{r}
+df_plot
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_food","res_type_group", 
+                              "food delivery by residence type")
+```
+
+```{r}
+df_plot
+```
+
+#### service work
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+df_plot <- stat_delivery_type("deliver_work","res_type_group", 
+                              "service work by residence type")
+```
+
+```{r}
+df_plot
+```
+
+:::
+
+
