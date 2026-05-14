@@ -13,7 +13,7 @@
 
 ```
 #| out-width: "50%"
-#| fig-width: 7
+#| fig-width: 4
 ```
 - see Quarto website for more figure settings: https://quarto.org/docs/computations/execution-options.html#figure-options
 
