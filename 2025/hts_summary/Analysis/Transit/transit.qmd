@@ -1,0 +1,249 @@
+---
+title: "Transit Analysis"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+```{r message=FALSE, warning=FALSE}
+
+library(psrc.travelsurvey)
+library(magrittr)
+library(data.table)
+library(dplyr)
+library(stringr)
+library(psrcplot)
+library(tidyverse)
+library(openxlsx)
+
+```
+
+```{r}
+#| echo: false
+
+# Specify which variables to retrieve
+vars <- c("mode_class", "mode_class_5", "transit_freq", "mode_acc", "commute_mode", "dest_purpose")
+
+survey_year <- c(
+  "2017", "2019", "2021", "2023", 
+  "2025")
+
+# Retrieve the data
+hts_data <- get_psrc_hts(survey_vars = vars, survey_year=survey_year)  # default includes all survey_years
+  
+# Calculate a numeric summary, i.e. min/max/median/mean
+# rs1 <- psrc_hts_stat(hts_data,
+#                      analysis_unit = "trip",
+#                      group_vars = "hhsize",
+#                      stat_var = "distance_miles",
+#                      incl_na = FALSE)
+# 
+# head(dplyr::select(rs1, -c(survey_year, min, max)))
+
+# Calculate a categorical summary, i.e. count/share
+df <- psrc_hts_stat(hts_data, "trip", c("mode_class_5"), incl_na=FALSE) 
+
+#write.xlsx(df, 'mode_class.xlsx')
+
+df2 <- df %>% filter(mode_class_5=="Transit")
+df2$survey_year<-as.character(df2$survey_year)
+
+df$survey_year<-as.character(df$survey_year)
+
+
+
+mode_chart <- static_column_chart(df, x='survey_year', y='prop', fill='mode_class_5',
+                                     ylabel= 'Share',
+                                     #xlabel='Mode',
+                                     moe='prop_moe',
+                                     title='Mode Share'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20)) 
+
+mode_chart
+```
+
+```{r}
+
+df_filtered <- df %>% filter(mode_class_5 != "Drive")
+
+mode_chart_nodrive <- static_column_chart(df_filtered, x='survey_year', y='prop', fill='mode_class_5',
+                                     ylabel= 'Share',
+                                     #xlabel='Mode',
+                                     moe='prop_moe',
+                                     title='Mode Share without Drive'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20)) 
+
+mode_chart_nodrive
+```
+
+Transit Share
+
+```{r}
+#| echo: false
+
+transit_chart <- static_column_chart(df2, x='survey_year', y='prop', fill='mode_class_5',
+                                     ylabel= 'Share',
+                                         #xlabel='Mode', 
+                                         moe='prop_moe',
+                                     title='Share of Transit Trips'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_chart
+
+```
+
+Transit Frequency
+
+```{r}
+#| echo: false
+
+#add bucket frequency
+
+hts_data$person <- mutate(
+  hts_data$person,
+  transit_freq_bucket=case_when(
+    transit_freq=='6-7 days a week' ~ '6-7 days a week',
+    transit_freq=='5 days a week' ~ '5 days a week',
+    transit_freq==c('2 days a week', '3 days a week', '4 days a week', '2-4 days a week') 
+    ~ '2-4 days a week',
+    transit_freq=='1 day a week'~ '1 day a week',
+    transit_freq=='1-3 days in the past month'~ '1-3 days in the past month',
+    transit_freq=='Never in the past 30 days'~ 'Never in the past 30 days'
+    ))
+
+df3 <- psrc_hts_stat(hts_data, "trip", c("transit_freq_bucket"), incl_na=FALSE)
+
+df3$survey_year<-as.character(df3$survey_year)
+
+df3$transit_freq_bucket <-
+  factor(df3$transit_freq_bucket,
+         levels = c("6-7 days a week", "5 days a week", "2-4 days a week",
+                    "1 day a week", "1-3 days in the past month", 
+                    "Never in the past 30 days"))
+
+transit_freq_chart <- static_column_chart(df3, x='transit_freq_bucket', y='prop', fill='survey_year',ylabel= 'Share',
+                                  #xlabel='Mode',
+                                  title='Transit Frequency',
+                                  moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14),
+        legend.text = element_text(size=14), 
+        axis.title.y=element_text(size=20), 
+        axis.title.x=element_text(size=20))
+
+transit_freq_chart
+
+```
+
+```{r}
+#| echo: false
+
+# mode_acc to transit
+df3.5 <- psrc_hts_stat(hts_data, "trip", c("mode_acc"), incl_na=FALSE)
+
+df3.5$survey_year<-as.character(df3.5$survey_year)
+
+#write.xlsx(df3.5, 'transit_mode2.xlsx')
+
+transit_acc_chart_detail <- static_column_chart(df3.5, x='survey_year', y='prop', fill='mode_acc',ylabel= 'Share',
+                                         #xlabel='Mode', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_acc_chart_detail
+
+```
+
+```{r}
+
+hts_data$trip <- mutate(
+  hts_data$trip,
+ transit_mode_bucket=case_when(
+    mode_acc==c('Rode a bike', 'Bicycle or e-bicycle', 'Scooter, moped, skateboard') ~ 'Bike/Micromobility',
+    mode_acc==c('Got dropped off', 'Got dropped off in another vehicle (or motorcycle)', "Got dropped off in my own household's vehicle (or motorcycle)") ~ 'Dropped off',
+    mode_acc==c('Drove and parked a car (e.g., a vehicle in my household)', "Drove and parked my own household's vehicle (or motorcycle)", 'Drove and parked a carshare vehicle (e.g., ZipCar, Car2Go)', 'Drove and parked', 'Drove onto ferry') ~ 'Drove',
+    mode_acc=='Other' ~ 'Other',
+    mode_acc==c("Uber/Lyft, taxi, or car service", 'Took ride-share/other hired car service (e.g., Lyft, Uber)') ~ 'Rideshare',
+    mode_acc==c('Transferred from another bus, shuttle, or vanpool', 'Transferred from another mode', 'Transferred from other rail', 'Transferred from other transit (e.g., ferry, air)') ~ 'Transferred',
+    mode_acc=='Walked or jogged' ~ 'Walked or jogged'
+    ))
+
+df3.6 <- psrc_hts_stat(hts_data, "trip", c("transit_mode_bucket"), incl_na=FALSE) #%>% filter(survey_year=="2025")
+
+df3.6$survey_year<-as.character(df3.6$survey_year)
+
+#write.xlsx(df3.6, 'transit_mode_bucket3.xlsx')
+
+transit_acc_chart_detail <- static_column_chart(df3.6, x='survey_year', y='prop', fill='transit_mode_bucket',ylabel= 'Share',
+                                         #xlabel='Mode', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_acc_chart_detail
+```
+
+```{r}
+#| echo: false
+hts_data2 <-  
+  hts_bin_transit_mode_acc(hts_data)
+
+df4 <- psrc_hts_stat(hts_data2, "trip", c("transit_mode_acc"), incl_na=FALSE) 
+
+df4$survey_year<-as.character(df4$survey_year)
+
+transit_acc_chart <- static_column_chart(df4, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+                                         title='Access to Transit Trips - Share', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_acc_chart
+
+```
+
+```{r}
+#| echo: false
+## access to transit trips without walk
+df5 <- df4 %>%
+  filter(transit_mode_acc!="Walked or jogged")
+
+df5$survey_year<-as.character(df5$survey_year)
+
+transit_acc_chart_wo_walk <- static_column_chart(df5, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+                                         title='Access to Transit Trips - Share (no walk)', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_acc_chart_wo_walk
+
+```
