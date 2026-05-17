@@ -26,8 +26,8 @@ commute_subsidy_6,0,1,0,0,0,integer/categorical,Commute benefits provided by emp
 commute_subsidy_7,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Ability to work from home,If employed full/part/furloughed/volunteer
 commute_subsidy_996,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- None of the above,If employed full/part/furloughed/volunteer
 commute_subsidy_998,0,1,0,0,0,integer/categorical,Commute benefits provided by employer -- Don't know,If employed full/part/furloughed/volunteer
-commute_subsidy_transit,0,1,0,0,0,integer/categorical,"Worker offered transit pass through work (this is a calculated variable from commute_subsidy_1, commute_subsidy_2 and benefits_3 in 2017-2021)",
 commute_subsidy_parking,0,1,0,0,0,integer/categorical,"Worker offered subsidized parking through work (this is a calculated variable from commute_subsidy_3, commute_subsidy_4 and workpass in 2017,2019)",
+commute_subsidy_transit,0,1,0,0,0,integer/categorical,"Worker offered transit pass through work (this is a calculated variable from commute_subsidy_1, commute_subsidy_2 and benefits_3 in 2017-2021)",
 commute_subsidy_use_1,0,1,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) transit passes or fares,"if employer offers free transit passes (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""free (fully subsidized) transit passes or fares"" (commute_subsidy_1 = ""selected"") (2025)"
 commute_subsidy_use_2,0,1,0,0,0,integer/categorical,Commute benefit used -- Discounted (partially subsidized) transit passes or fares,"if employer offers discounted transit passes (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""discounted (partially subsidized) transit passes or fares"" (commute_subsidy_2 = ""selected"") (2025)"
 commute_subsidy_use_3,0,1,0,0,0,integer/categorical,Commute benefit used -- Free (fully subsidized) parking at work,"if employer offers free parking at work (2023); if commute_subsidy NOT ""don't know"" or ""none of the above"" (commute_subsidy_996 and commute_subsidy_998 = ""not selected"") and commute_subsidy = ""free (fully subsidized) parking at work"" (commute_subsidy_3 = ""selected"") (2025)"
@@ -57,9 +57,19 @@ depart_time_hour,0,0,0,1,0,numeric,Departure time hour,
 depart_time_minute,0,0,0,1,0,numeric,Departure time minute,
 depart_time_second,0,0,0,1,0,numeric,Departure time second,
 dest_county,0,0,0,1,0,integer/categorical,Trip Destination County,
+dest_emptot_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered trip destination parcel (quarter-mile buffer),
+dest_emptot_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered trip destination parcel (half-mile buffer),
+dest_hh_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of households residing in buffered trip destination parcel (quarter-mile buffer),
+dest_hh_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of households residing in buffered trip destination parcel (half-mile buffer),
 dest_jurisdiction,0,0,0,1,0,integer/categorical,Trip Destination Jurisdiction,
 dest_lat,0,0,0,1,0,numeric,Destination latitude,
 dest_lng,0,0,0,1,0,numeric,Destination longitude,
+dest_nodes1_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered trip destination parcel  (quarter-mile buffer),
+dest_nodes1_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered trip destination parcel (half-mile buffer),
+dest_nodes3_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered trip destination parcel  (quarter-mile buffer),
+dest_nodes3_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered trip destination parcel (half-mile buffer),
+dest_nodes4_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in buffered trip destination parcel  (quarter-mile buffer),
+dest_nodes4_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in trip destination home parcel (half-mile buffer),
 dest_purpose,0,0,0,1,0,integer/categorical,Destination purpose,
 dest_purpose_cat,0,0,0,1,0,integer/categorical,Destination purpose category,
 dest_purpose_cat_5,0,0,0,1,0,integer/categorical,Destination purpose category (5 categories),
@@ -109,18 +119,30 @@ hhincome_broad,1,0,0,0,0,integer/categorical,"Last year's household income broad
 hhincome_detailed,1,0,0,0,0,integer/categorical,Last year's household income detailed categories,
 hhincome_followup,1,0,0,0,0,integer/categorical,Last year's household income broad follow-up categories,if hhincome_detailed = prefer not to answer
 hhsize,1,0,0,0,0,integer/categorical,Household size,
+home_auto_jobs_access,1,0,0,0,0,numeric,Soundcast landuse outputs - The total number of jobs accessible from home location by car within 30 minutes,
 home_bg_2010,1,0,0,0,0,character,Home location-- 2010 Block group,
 home_bg_2020,1,0,0,0,0,character,Home location-- 2020 Block group,
 home_county,1,0,0,0,0,integer/categorical,Home location-- County,
+home_emptot_1,1,0,0,0,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered home parcel (quarter-mile buffer),
+home_emptot_2,1,0,0,0,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered home parcel (half-mile buffer),
+home_hh_1,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of households residing in buffered home parcel (quarter-mile buffer),
+home_hh_2,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of households residing in buffered home parcel (half-mile buffer),
 home_in_region,1,0,0,0,0,integer/categorical,Home is in PSRC MPO area,
 home_jurisdiction,1,0,0,0,0,integer/categorical,Home Location Jurisdiction,
 home_lat,1,0,0,0,0,numeric,Final home address latitude,
 home_lng,1,0,0,0,0,numeric,Final home address longitude,
+home_nodes1_1,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered home parcel  (quarter-mile buffer),
+home_nodes1_2,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered home parcel (half-mile buffer),
+home_nodes3_1,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered home parcel  (quarter-mile buffer),
+home_nodes3_2,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered home parcel (half-mile buffer),
+home_nodes4_1,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in buffered home parcel  (quarter-mile buffer),
+home_nodes4_2,1,0,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in buffered home parcel (half-mile buffer),
 home_puma_2012,1,0,0,0,0,character,Home location-- 2012 Public Use Microdata Area,
 home_puma_2022,1,0,0,0,0,character,Home location-- 2022 Public Use Microdata Area,
 home_rgcname,1,0,0,0,0,integer/categorical,Final home address: Regional growth center,
 home_state,1,0,0,0,0,character,Home location-- State,
 home_tract_2020,1,0,0,0,0,character,Final home address: Census Tract,
+home_transit_jobs_access,1,0,0,0,0,numeric,Soundcast landuse outputs - The total number of jobs accessible from home location by transit within 45 minutes,
 hours_work,0,1,0,0,0,integer/categorical,Number of hours typically worked last week,"if full/part/self employed (until 2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" (2025)"
 household_id,1,1,1,1,1,character,Unique identifier for each household,
 industry,0,1,0,0,0,integer/categorical,Current employment industry,"if full/part/self employed (until 2023); if paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" (2025)"
@@ -174,9 +196,19 @@ o_in_region,0,0,0,1,0,integer/categorical,Trip origin is in PSRC MPO area,
 o_puma10,0,0,0,1,0,character,Trip origin PUMA (Public Use Microdata Area) 2010 (derived by PSRC),
 office_available,0,1,0,0,0,integer/categorical,Availability of private work space outside the home,"if employment = full/part/self/volunteer and job_type is ""work only from home"" (until 2023); if empif paid_work = ""yes"" or ""on leave (e.g., medical, parental)"" and work_from_home = ""yes, all of the time (100% of the time)"" (2025)"
 origin_county,0,0,0,1,0,integer/categorical,Origin county,
+origin_emptot_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered trip origin parcel (quarter-mile buffer),
+origin_emptot_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered trip origin parcel (half-mile buffer),
+origin_hh_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of households residing in buffered trip origin parcel (quarter-mile buffer),
+origin_hh_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of households residing in buffered trip origin parcel (half-mile buffer),
 origin_jurisdiction,0,0,0,1,0,integer/categorical,Trip Origin Jurisdiction,
 origin_lat,0,0,0,1,0,numeric,Origin latitude,
 origin_lng,0,0,0,1,0,numeric,Origin longitude,
+origin_nodes1_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered trip origin parcel  (quarter-mile buffer),
+origin_nodes1_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered trip origin parcel (half-mile buffer),
+origin_nodes3_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered trip origin parcel  (quarter-mile buffer),
+origin_nodes3_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered trip origin parcel (half-mile buffer),
+origin_nodes4_1,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in buffered trip origin parcel  (quarter-mile buffer),
+origin_nodes4_2,0,0,0,1,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in trip origin home parcel (half-mile buffer),
 origin_purpose,0,0,0,1,0,integer/categorical,Origin purpose,
 origin_purpose_cat,0,0,0,1,0,integer/categorical,Origin purpose category (derived),
 origin_purpose_cat_5,0,0,0,1,0,integer/categorical,Origin purpose category (5 categories),
@@ -245,12 +277,22 @@ sample_lng,1,0,0,0,0,numeric,Sample home longitude,
 sample_segment,1,0,0,0,0,integer/categorical,Sample segment,
 school_bg,0,1,0,0,0,character,School address census block group,if travels to school
 school_county,0,1,0,0,0,integer/categorical,School address: County,
+school_emptot_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered school parcel (quarter-mile buffer),
+school_emptot_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered school parcel (half-mile buffer),
 school_freq,0,1,0,0,0,integer/categorical,How often travels to school,"if student (2023); if age < 18 and school_type NOT = ""cared for at home"" or ""home school"" (2025)"
+school_hh_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of households residing in buffered school parcel (quarter-mile buffer),
+school_hh_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of households residing in buffered school parcel (half-mile buffer),
 school_in_region,0,1,0,0,0,integer/categorical,School is in PSRC MPO area,
 school_jurisdiction,0,1,0,0,0,integer/categorical,School address Jurisdiction,
 school_loc_lat,0,1,0,0,0,numeric,School address latitude,"if traveled to school last week (2023); if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"" (2025)"
 school_loc_lng,0,1,0,0,0,numeric,School address longitude,"if traveled to school last week (2023); if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"" (2025)"
 school_mode_typical,0,1,0,0,0,integer/categorical,How does child/adult student typically travel to/from school or daycare,"if adult student or child who attends schoool or daycare in person fully or partially (2023); if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"" (2025)"
+school_nodes1_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered school parcel  (quarter-mile buffer),
+school_nodes1_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered school parcel (half-mile buffer),
+school_nodes3_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered school parcel  (quarter-mile buffer),
+school_nodes3_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered school parcel (half-mile buffer),
+school_nodes4_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in buffered school parcel  (quarter-mile buffer),
+school_nodes4_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in school home parcel (half-mile buffer),
 school_puma10,0,1,0,0,0,character,School address PUMA (Public Use Microdata Area) 2010,"if hh has 1+ adult_student = part/full-time student, currently attending some or all classes in person and/or 1+ age <18 child with school_type NOT = ""cared for at home"" or ""home school"""
 school_rgcname,0,1,0,0,0,integer/categorical,School address Regional Growth Center name,if travels to school
 school_tract_2020,0,1,0,0,0,character,School address: Census Tract,
@@ -300,12 +342,22 @@ vehnum,0,0,0,0,1,numeric,Vehicle number,
 walk_freq,0,1,0,0,0,integer/categorical,How often the person has walked outside for 15 or more minutes in the past 30 days,"if if age ≥ 18 and share = ""walk (outside for 15-minutes or more) (share_1 = ""selected"")"
 work_bg,0,1,0,0,0,character,Work address census block group,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
 work_county,0,1,0,0,0,integer/categorical,Work address county,if workplace = fixed
+work_emptot_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered work parcel (quarter-mile buffer),
+work_emptot_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The total number of employees working in buffered work parcel (half-mile buffer),
 work_from_home,0,1,0,0,0,integer/categorical,Person works from home,"if age ≥ 18 and paid_work = ""yes"" or ""on leave (e.g., medical, parental)"
+work_hh_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of households residing in buffered work parcel (quarter-mile buffer),
+work_hh_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of households residing in buffered work parcel (half-mile buffer),
 work_in_region,0,1,0,0,0,integer/categorical,Work is in PSRC MPO area,
 work_jurisdiction,0,1,0,0,0,integer/categorical,Work address Jurisdiction,
 work_lat,0,1,0,0,0,numeric,Work address latitude,"if workplace = fixed (2023); if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"" (2025)"
 work_lng,0,1,0,0,0,numeric,Work address longitude,"if workplace = fixed (2023); if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"" (2025)"
 work_mode,0,1,0,0,0,integer/categorical,Typical means of travel to work,"if employment = full/part/self/volunteer (2023); if commute_freq NOT = ""never"" (2025)"
+work_nodes1_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered work parcel  (quarter-mile buffer),
+work_nodes1_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 1 connecting link in buffered work parcel (half-mile buffer),
+work_nodes3_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered work parcel  (quarter-mile buffer),
+work_nodes3_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 3 connecting links in buffered work parcel (half-mile buffer),
+work_nodes4_1,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in buffered work parcel  (quarter-mile buffer),
+work_nodes4_2,0,1,0,0,0,numeric,Soundcast landuse outputs - The number of intersections with 4 or more connecting links in work home parcel (half-mile buffer),
 work_puma10,0,1,0,0,0,character,Work address PUMA (Public Use Microdata Area) 2010,"if any hh member work_from_home = ""no"", ""some of the time"", or ""most of the time"""
 work_rgcname,0,1,0,0,0,integer/categorical,Work address Regional Growth Center name,if workplace = fixed
 work_tract_2020,0,1,0,0,0,character,Work address: Census Tract,

@@ -6,6 +6,7 @@ library(logger)
 library(psrc.travelsurvey)
 library(psrccensus)
 library(psrcplot)
+install_psrc_fonts()
 
 log_add_group_var <- function(var_name, table){
   

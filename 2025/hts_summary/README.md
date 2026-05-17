@@ -1,5 +1,22 @@
 # 2025 PSRC Household Travel Survey Data Analysis
 
+## size and formatting recommendations for ggplot figures on Quarto documents
+
+1. simple barchart:
+
+```
+#| out-width: "37%"
+#| fig-width: 3
+```
+
+2. faceted barcharts
+
+```
+#| out-width: "50%"
+#| fig-width: 4
+```
+- see Quarto website for more figure settings: https://quarto.org/docs/computations/execution-options.html#figure-options
+
 ## resources
 
 -   HTS codebook: [variable list](https://github.com/psrc/travel-studies/blob/master/HTS_codebook/2025_codebook/final_variable_list_2025.csv) and [value labels](https://github.com/psrc/travel-studies/blob/master/HTS_codebook/2025_codebook/final_value_labels_2025.csv)
