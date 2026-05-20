@@ -122,20 +122,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>df_filtered <span class="ot">&lt;-</span> df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(mode_class_5 <span class="sc">!=</span> <span class="st">"Drive"</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>mode_chart_nodrive <span class="ot">&lt;-</span> <span class="fu">static_column_chart</span>(df_filtered, <span class="at">x=</span><span class="st">'survey_year'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'mode_class_5'</span>,</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">ylabel=</span> <span class="st">'Share'</span>,</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                                     <span class="co">#xlabel='Mode',</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">moe=</span><span class="st">'prop_moe'</span>,</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">title=</span><span class="st">'Mode Share without Drive'</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), </span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), </span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>)) </span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>mode_chart_nodrive</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -144,7 +130,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Transit Share</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -154,7 +139,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Transit Frequency</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -173,42 +157,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
+<p>Transit Share</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>hts_data<span class="sc">$</span>trip <span class="ot">&lt;-</span> <span class="fu">mutate</span>(</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  hts_data<span class="sc">$</span>trip,</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a> <span class="at">transit_mode_bucket=</span><span class="fu">case_when</span>(</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="fu">c</span>(<span class="st">'Rode a bike'</span>, <span class="st">'Bicycle or e-bicycle'</span>, <span class="st">'Scooter, moped, skateboard'</span>) <span class="sc">~</span> <span class="st">'Bike/Micromobility'</span>,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="fu">c</span>(<span class="st">'Got dropped off'</span>, <span class="st">'Got dropped off in another vehicle (or motorcycle)'</span>, <span class="st">"Got dropped off in my own household's vehicle (or motorcycle)"</span>) <span class="sc">~</span> <span class="st">'Dropped off'</span>,</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="fu">c</span>(<span class="st">'Drove and parked a car (e.g., a vehicle in my household)'</span>, <span class="st">"Drove and parked my own household's vehicle (or motorcycle)"</span>, <span class="st">'Drove and parked a carshare vehicle (e.g., ZipCar, Car2Go)'</span>, <span class="st">'Drove and parked'</span>, <span class="st">'Drove onto ferry'</span>) <span class="sc">~</span> <span class="st">'Drove'</span>,</span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="st">'Other'</span> <span class="sc">~</span> <span class="st">'Other'</span>,</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="fu">c</span>(<span class="st">"Uber/Lyft, taxi, or car service"</span>, <span class="st">'Took ride-share/other hired car service (e.g., Lyft, Uber)'</span>) <span class="sc">~</span> <span class="st">'Rideshare'</span>,</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="fu">c</span>(<span class="st">'Transferred from another bus, shuttle, or vanpool'</span>, <span class="st">'Transferred from another mode'</span>, <span class="st">'Transferred from other rail'</span>, <span class="st">'Transferred from other transit (e.g., ferry, air)'</span>) <span class="sc">~</span> <span class="st">'Transferred'</span>,</span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    mode_acc<span class="sc">==</span><span class="st">'Walked or jogged'</span> <span class="sc">~</span> <span class="st">'Walked or jogged'</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    ))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>Warning: There were 6 warnings in `mutate()`.
-The first warning was:
-ℹ In argument: `transit_mode_bucket = case_when(...)`.
-Caused by warning in `==.default`:
-! longer object length is not a multiple of shorter object length
-ℹ Run `dplyr::last_dplyr_warnings()` to see the 5 remaining warnings.</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df3<span class="fl">.6</span> <span class="ot">&lt;-</span> <span class="fu">psrc_hts_stat</span>(hts_data, <span class="st">"trip"</span>, <span class="fu">c</span>(<span class="st">"transit_mode_bucket"</span>), <span class="at">incl_na=</span><span class="cn">FALSE</span>) <span class="co">#%&gt;% filter(survey_year=="2025")</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>df3<span class="fl">.6</span><span class="sc">$</span>survey_year<span class="ot">&lt;-</span><span class="fu">as.character</span>(df3<span class="fl">.6</span><span class="sc">$</span>survey_year)</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="co">#write.xlsx(df3.6, 'transit_mode_bucket3.xlsx')</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>transit_acc_chart_detail <span class="ot">&lt;-</span> <span class="fu">static_column_chart</span>(df3<span class="fl">.6</span>, <span class="at">x=</span><span class="st">'survey_year'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'transit_mode_bucket'</span>,<span class="at">ylabel=</span> <span class="st">'Share'</span>,</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>                                         <span class="co">#xlabel='Mode', </span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>                                         <span class="at">moe=</span><span class="st">'prop_moe'</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), </span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), </span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>))</span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>transit_acc_chart_detail</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -217,6 +167,7 @@ Caused by warning in `==.default`:
 </div>
 </div>
 </div>
+<p>Transit Frequency</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -230,7 +181,16 @@ Caused by warning in `==.default`:
 <div class="cell-output-display">
 <div>
 <figure class="figure">
-<p><img src="transit_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+<p><img src="transit_files/figure-html/unnamed-chunk-12-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
