@@ -1,0 +1,242 @@
+---
+title: "Explore Landuse"
+date: today
+---
+
+```{r}
+#| include: false
+
+# get data and load standard data processing
+source("delivery_processing.R")  
+
+hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
+sc_source <- "Soundcast RTP 2023 baseyear outputs"
+
+```
+
+```{r}
+landuse_vars <- c("home_hh_1", "home_hh_2", "home_emptot_1", "home_emptot_2", 
+         "home_auto_jobs_access", "home_transit_jobs_access")
+
+df_landuse <- df_hts_data$hh %>%
+  select(hh_id, home_rgcname, home_lat, home_lng, any_of(landuse_vars)) %>%
+  mutate(home_actunit_1 = home_hh_1 + home_emptot_1,
+         home_actunit_2 = home_hh_2 + home_emptot_2)
+day_landuse <- df_hts_data$day %>%
+  left_join(df_landuse, by="hh_id") %>%
+  filter(survey_year==2025, !is.na(deliver_package)) %>%
+  mutate(deliver_package_bi = case_when(deliver_package=="Yes"~1,
+                                        deliver_package=="No"~0),
+         home_rgcname_bi = case_when(home_rgcname=="Not RGC" | is.na(home_rgcname)~0,
+                                     TRUE~1))
+```
+
+::: {.callout-note}
+These are 2025 unweighted results. The 19 households with missing delivery values are excluded
+
+- value counts for household that received a package on an average weekday
+
+```{r}
+df <- data.frame(table(day_landuse$deliver_package, useNA = "always"))
+colnames(df) <- c("deliver_package","value count")
+df
+```
+
+:::
+
+
+
+
+## correlation matrix for landuse variables
+
+the landuse variables are highly correlated 
+
+```{r}
+#| out-width: "60%"
+res <- cor(day_landuse %>% select(any_of(landuse_vars),home_rgcname_bi))
+
+library(corrplot)
+corrplot(res, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45)
+```
+
+
+## histograms
+
+```{r}
+#| layout-ncol: 3
+#| out-width: "33%"
+for (var in landuse_vars){
+  
+  print(
+    ggplot(day_landuse %>% filter(!is.na(deliver_package)), 
+           aes(x=!!sym(var), fill = deliver_package, color = deliver_package)) + 
+      geom_histogram(alpha=0.5,bins = 20)+
+      geom_density(alpha=.2) +
+      psrc_style() +
+      theme(axis.title = element_blank(),
+            axis.text.x = element_blank())+
+      labs(caption = paste(hts_source, "and", sc_source),
+           title = paste("histogram for", var))
+  )
+  
+}
+
+```
+
+## density histograms
+
+```{r}
+#| layout-ncol: 3
+#| out-width: "33%"
+for (var in landuse_vars){
+  
+  print(
+    ggplot(day_landuse %>% filter(!is.na(deliver_package)), 
+           aes(x=!!sym(var), fill = deliver_package, color = deliver_package)) + 
+      geom_histogram(aes(y=after_stat(density)), alpha=0.5,bins = 20)+
+      geom_density(alpha=.2) +
+      psrc_style() +
+      theme(axis.title = element_blank(),
+            axis.text.x = element_blank())+
+      labs(caption = paste(hts_source, "and", sc_source),
+           title = paste("density histogram for", var, "by package delivery"))
+  )
+  
+}
+
+```
+
+
+```{r}
+#| out-width: "45%"
+ggplot(day_landuse, aes(home_hh_1, fill = factor(home_rgcname_bi))) +
+  geom_histogram(aes(y=after_stat(density)), position="identity", alpha=0.5,bins = 20)+
+  geom_density(alpha=0.6) +
+      psrc_style() +
+      theme(axis.title = element_blank(),
+            axis.text.x = element_blank())+
+      labs(caption = paste(hts_source, "and", sc_source),
+           title = paste("histogram for home_hh_1 by home in centers"))
+```
+
+## mapping
+
+```{r}
+library(psrcelmer)
+library(leaflet)
+library(sf)
+# 2. Convert to an sf object (assuming WGS84, EPSG: 4326)
+sf_points <- day_landuse %>%
+  st_as_sf(coords = c("home_lat", "home_lng"), crs = 4326) %>%
+  st_transform(sf_points, crs = 2285)
+
+region_center_plot <- st_read_elmergeo('urban_centers_evw')
+
+pal <- colorFactor(c("navy", "red"), domain = day_landuse$deliver_package)
+pal_home_hh_1 <- colorNumeric("YlOrRd", domain = day_landuse$home_hh_1)
+pal_access <- colorNumeric("YlOrRd", domain = day_landuse$home_transit_jobs_access)
+pal_access_auto <- colorNumeric("YlOrRd", domain = day_landuse$home_auto_jobs_access)
+
+leaflet(region_center_plot) %>%
+  addPolygons(
+    stroke = FALSE) %>%  
+  addProviderTiles(providers$CartoDB.Positron, group = "Positron (minimal)") %>%
+  addCircleMarkers(day_landuse$home_lng,day_landuse$home_lat,
+                   group = "deliver_package",
+                   color = pal(day_landuse$deliver_package),
+                   stroke = FALSE,
+                   fillOpacity = 0.5) %>%
+  addLegend("bottomleft", pal = pal, values = ~day_landuse$deliver_package,
+            group = "deliver_package",
+            opacity = 1
+  ) %>%
+  addCircleMarkers(day_landuse$home_lng,day_landuse$home_lat,
+                   group = "home_hh_1",
+                   color = pal_home_hh_1(day_landuse$home_hh_1),
+                   stroke = FALSE,
+                   fillOpacity = 0.5) %>%
+  addLegend("bottomleft", pal = pal_home_hh_1, values = ~day_landuse$home_hh_1,
+            group = "home_hh_1",
+            opacity = 1
+  ) %>%
+  addCircleMarkers(day_landuse$home_lng,day_landuse$home_lat,
+                   group = "home_transit_jobs_access",
+                   color = pal_access(day_landuse$home_transit_jobs_access),
+                   stroke = FALSE, 
+                   fillOpacity = 0.5) %>%
+  addLegend("bottomleft", pal = pal_access, values = ~day_landuse$home_transit_jobs_access,
+            group = "home_transit_jobs_access",
+            opacity = 1
+  ) %>%
+  addCircleMarkers(day_landuse$home_lng,day_landuse$home_lat,
+                   group = "home_auto_jobs_access",
+                   color = pal_access_auto(day_landuse$home_auto_jobs_access),
+                   stroke = FALSE, 
+                   fillOpacity = 0.5) %>%
+  addLegend("bottomleft", pal = pal_access_auto, values = ~day_landuse$home_auto_jobs_access,
+            group = "home_auto_jobs_access",
+            opacity = 1
+  ) %>%
+  # Layers control
+  addLayersControl(
+    baseGroups = c(
+      "Positron (minimal)"
+    ),
+    overlayGroups = c("deliver_package","home_hh_1", "home_auto_jobs_access","home_transit_jobs_access"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
+
+
+## binary logit models
+
+:::{.panel-tabset}
+
+### full model
+
+```{r}
+model <- glm(deliver_package_bi ~ home_hh_1 + home_auto_jobs_access + home_transit_jobs_access + home_rgcname_bi, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+### home_hh_1
+
+```{r}
+model <- glm(deliver_package_bi ~ home_hh_1, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+### home_transit_jobs_access
+
+```{r}
+model <- glm(deliver_package_bi ~ home_transit_jobs_access, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+### home_auto_jobs_access
+
+```{r}
+model <- glm(deliver_package_bi ~ home_auto_jobs_access, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+### home_rgcname_bi
+
+```{r}
+model <- glm(deliver_package_bi ~ home_rgcname_bi, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+:::

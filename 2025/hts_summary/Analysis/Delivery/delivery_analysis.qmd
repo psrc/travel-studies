@@ -166,7 +166,7 @@ stat_delivery_type <- function(delivery_var, group_var, title){
                     position = position_dodge(0.8),
                     width = 0.4) +
       facet_wrap(as.formula(paste("~", group_var)), ncol=5)+
-      scale_fill_manual(values = psrc_colors$pgnobgy_5)+
+      scale_fill_manual(values = psrc_colors$blues_inc)+
       scale_y_continuous(labels = scales::percent) +
       psrc_style() +
       theme(panel.grid.major.y = element_blank(),
@@ -295,7 +295,7 @@ Households with enough cars have more food deliveries -> food deliveries serve h
 #| layout-ncol: 2
 #| out-width: "50%"
 
-df_plot <- stat_delivery_type("deliver_package","auto_availabilty", 
+df_plot <- stat_delivery_type("deliver_package","have_cars", 
                               "package delivery by auto availability")
 ```
 
@@ -309,7 +309,7 @@ df_plot
 #| layout-ncol: 2
 #| out-width: "50%"
 
-df_plot <- stat_delivery_type("deliver_grocery","auto_availabilty", 
+df_plot <- stat_delivery_type("deliver_grocery","have_cars", 
                               "grocery delivery by auto availability")
 ```
 
@@ -323,7 +323,7 @@ df_plot
 #| layout-ncol: 2
 #| out-width: "50%"
 
-df_plot <- stat_delivery_type("deliver_food","auto_availabilty", 
+df_plot <- stat_delivery_type("deliver_food","have_cars", 
                               "food delivery by auto availability")
 ```
 
@@ -392,7 +392,7 @@ df_plot
 #| layout-ncol: 2
 #| out-width: "50%"
 
-df_plot <- stat_delivery_type("deliver_package","lifecycle_class", 
+df_plot <- stat_delivery_type("deliver_package","lifecycle_2group", 
                               "package delivery by household composition")
 ```
 
@@ -406,7 +406,7 @@ df_plot
 #| layout-ncol: 2
 #| out-width: "50%"
 
-df_plot <- stat_delivery_type("deliver_grocery","lifecycle_class", 
+df_plot <- stat_delivery_type("deliver_grocery","lifecycle_2group", 
                               "grocery delivery by household composition")
 ```
 
@@ -420,7 +420,7 @@ df_plot
 #| layout-ncol: 2
 #| out-width: "50%"
 
-df_plot <- stat_delivery_type("deliver_food","lifecycle_class", 
+df_plot <- stat_delivery_type("deliver_food","lifecycle_2group", 
                               "food delivery by household composition")
 ```
 
