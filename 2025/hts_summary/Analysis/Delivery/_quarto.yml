@@ -12,19 +12,23 @@ book:
   chapters:
     - index.qmd # this is a required file for Quarto Book
     - delivery_analysis.qmd
+    - delivery_landuse.qmd
 
 format:
   html:
     mainfont: Poppins
     theme: [cosmo, ../../custom.scss]  # reading custom formatting from parent directory
-    echo: false
-    code-tools: true
+    code-tools: true    
+    df-print: kable
+    fig-asp: .7
+    fig-width: 4
     
 execute:
-  freeze: auto  # re-render only when source changes
+  echo: false
+  warning: false
 
 
 toc: true
-warnings: false
+toc-depth: 4
 comments:  # enable commenting
   hypothesis: true

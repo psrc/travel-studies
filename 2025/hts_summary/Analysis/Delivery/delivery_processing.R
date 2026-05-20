@@ -14,13 +14,17 @@ log_info("Data processing script starting up...")
 delivery_vars <- c("deliver_food", "deliver_grocery", "deliver_package", "deliver_work", "deliver_other",
                    "deliver_none", "deliver_elsewhere", "deliver_office")
 topic_vars <- c(delivery_vars, "daynum","travel_dow","travel_date",
+                # trip info
                 "dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
+                # household demographics
                 "hhincome_broad", "home_county", "numworkers",
                 "hh_race_category","vehicle_count","hhsize","numadults",
                 "home_rgcname","lifecycle_class","res_type",
-                "displaced","res_dur",
-                "prev_res_factors_forced","prev_res_factors_income_change",
-                "prev_res_factors_housing_cost","prev_res_factors_community_change"
+                # landuse
+                "home_hh_1","home_emptot_1","home_hh_2","home_emptot_2",
+                "home_auto_jobs_access","home_transit_jobs_access","home_nodes4_1",
+                # lon/lat
+                "home_lat", "home_lng"
                 )
 
 # survey years as topic_years
@@ -117,6 +121,15 @@ df_hts_analysis$hh <- hts_data$hh %>%
       levels = c("no cars","fewer cars than adults","enough cars")
       ),
     
+    # auto availabilty
+    have_cars = factor(
+      case_when(
+        vehicle_num == 0~ "no cars",
+        vehicle_num > 0~ "own cars",
+        TRUE~ "other"),
+      levels = c("no cars","own cars","other")
+    ),
+    
     home_rgc = factor(
       case_when(
         is.na(home_rgcname) | home_rgcname == "Not RGC"~ "Not RGC",
@@ -128,14 +141,23 @@ df_hts_analysis$hh <- hts_data$hh %>%
     res_type_group = factor(
       case_when(
         res_type %in% c("Mobile home/trailer","Other (including boat, RV, van, etc.)",
-                        "Dorm or institutional housing")~ "Other",
+                        "Dorm or institutional housing")~ NA,
         res_type %in% c("Building with 4 or more apartments/condos",
                         "Building with 3 or fewer apartments/condos")~ "Apartments/Condos",
-        res_type == "Single-family house (detached house)"~ "Single-family house",
-        res_type == "Townhouse (attached house)"~ "Townhouse",
+        res_type == "Single-family house (detached house)"~ "Single-family/Townhouse",
+        res_type == "Townhouse (attached house)"~ "Single-family/Townhouse",
         TRUE~ res_type),
-      levels = c("Single-family house","Townhouse",
+      levels = c("Single-family/Townhouse",
                  "Apartments/Condos","Other")
+    ),
+    
+    lifecycle_2group = factor(
+      case_when(
+        lifecycle_class %in% c("Household with older adults", "Household includes children")~ "Household with children and/or elders",
+        lifecycle_class %in% c("Household with adults 35-64", "Household with adults 18-34")~ "Household with adults 18-64",
+        TRUE~ "other"),
+      levels = c("Household with children and/or elders","Household with adults 18-64",
+                 "other")
     ),
   )
 
@@ -198,9 +220,12 @@ df_hts_data <- df_hts_analysis
 test <- df_hts_analysis$day %>%
   select(any_of(names(pretend_day_table))) %>%
   mutate(type = "original",
-         deliver_home_any = NA) %>% 
+         deliver_home_any = NA) %>%
   add_row(pretend_day_table %>% select(any_of(names(.)))) %>%
-  filter(is.na(type)) 
+  filter(is.na(type))  %>% 
+  mutate_at(vars(deliver_food, deliver_grocery, deliver_package, deliver_work, deliver_other,
+                 deliver_none, deliver_elsewhere, deliver_office),
+            ~factor(.,levels=c("Yes","No")))
 
 df_hts_data$day <- test
 
