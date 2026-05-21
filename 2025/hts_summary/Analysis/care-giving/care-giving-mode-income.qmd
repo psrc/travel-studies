@@ -33,9 +33,6 @@ lapply(files, function(f) {
 ```
 
 ::: panel-tabset
-```{r}
-```
-
 ## \$50,000
 
 ```{r}
@@ -75,8 +72,7 @@ mode_share_income("income_100", geog = "Region")|>
 
 ## Under \$50k, \$50k-\$100k, \$100k or more
 
-Driving is the predominant mode of transportation for care trips. Those who earn under $50,000 are using 
-transit more than those who earn over $50,000 across survey years.
+Driving is the predominant mode of transportation for care trips. Those who earn under \$50,000 are using transit more than those who earn over \$50,000 across survey years.
 
 ```{r}
 
@@ -138,6 +134,7 @@ msi50bin_df <- mode_share_income_set_c(geog = "Region")$long |>
 ```
 
 ### Chart
+
 ```{r}
 #| out-width: "100%"
 #| fig-align: "center"
@@ -159,4 +156,3 @@ msi50bin_df |>
        y = NULL)
 
 ```
-

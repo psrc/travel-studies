@@ -34,7 +34,7 @@ lapply(files, function(f) {
 
 ## Gender
 
-Across survey years, a higher percentage of females are taking care trips compared to males.
+Across survey years, a higher percentage of females are taking care trips compared to males of care trips that were taken.
 
 ```{r}
 gender_df <- create_trips_gender_tbl(geog = "Region")
@@ -68,13 +68,14 @@ gender_df$long |>
         strip.text = element_text(face = "bold")) +
   labs(x = NULL,
        y = NULL,
-       fill = NULL)
+       fill = NULL,
+       subtitle = "Care trips taken")
 
 ```
 
 ## Gender by Trip Mode
 
-Driving was the primary mode of transportation for care-related trips in 2023, with a higher share among females than males. By 2025, this pattern becomes more balanced, with approximately 89% of both males and females using driving for care trips. Transit and walking account for a larger proportion of non-driving trips and are more commonly used by males than females.
+Of care trips taken, driving was the primary mode of transportation for care-related trips.
 
 ```{r}
 gender_mode_df <- create_mode_gender_tbl(geog = "Region")

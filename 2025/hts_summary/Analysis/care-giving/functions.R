@@ -166,7 +166,7 @@ mode_share_income_set_c <- function(geog){
 create_trips_gender_tbl <- function(geog) {
   geo_col <- case_when(geog == "Region" ~ "dest_region",
                        geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
-  
+
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
                       group_vars = c(geo_col, "care_purpose_cat", "gender2"),
@@ -188,7 +188,7 @@ create_trips_gender_tbl <- function(geog) {
                 values_from = c("weighted", "moe", "count"),
                 names_glue = "{survey_year}.{gender2}.{.value}"
     ) |>
-    relocate("dest_loc","care_purpose_cat", contains("2023"), contains("2025"))
+    relocate("dest_loc","care_purpose_cat",  all_of(unlist(map(survey_year, ~grep(.x, names(.), value = TRUE)))))
  
   ind01 <- grep("weighted", colnames(df))
   ind02 <- grep("moe", colnames(df))
@@ -227,7 +227,7 @@ create_mode_gender_tbl <- function(geog) {
                 values_from = c("weighted", "moe", "count"),
                 names_glue = "{survey_year}.{gender2}.{.value}"
     ) |>
-    relocate("dest_loc","care_purpose_cat","mode_class_5", contains("2023"), contains("2025"))
+    relocate("dest_loc","care_purpose_cat","mode_class_5",  all_of(unlist(map(survey_year, ~grep(.x, names(.), value = TRUE)))))
 
   ind01 <- grep("weighted", colnames(df))
   ind02 <- grep("moe", colnames(df))
@@ -247,7 +247,7 @@ create_candrive_tbl <- function(geog) {
   
   geo_col <- case_when(geog == "Region" ~ "dest_region",
                        geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
-  
+
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
                       group_vars = c(geo_col, "care_purpose_cat", "age", "can_drive"),
@@ -258,7 +258,7 @@ create_candrive_tbl <- function(geog) {
     mutate(can_drive2 = str_extract(can_drive, "^[^,]+")) |>
     mutate(weighted = percent(prop),
            moe = percent(prop_moe),
-           .by = c("survey_year", "can_drive2", "age")) |> 
+           .by = c("survey_year", "can_drive2")) |> 
     mutate(age = factor(age, levels = age_groups)) |> 
     arrange(age)
 
@@ -271,7 +271,7 @@ create_candrive_tbl <- function(geog) {
                 values_from = c("weighted", "moe", "count"),
                 names_glue = "{survey_year}.{can_drive2}.{.value}"
     ) |>
-    relocate("dest_loc", "age", contains("2023"), contains("2025"))
+    relocate("dest_loc", "age", all_of(unlist(map(survey_year, ~grep(.x, names(.), value = TRUE)))))
  
   ind01 <- grep("weighted", colnames(df))
   ind02 <- grep("moe", colnames(df))
@@ -283,118 +283,72 @@ create_candrive_tbl <- function(geog) {
   return(list(long = rs, wide = df_reorder))
 }
 
-create_candrive_tbl_b <- function(geog) {
-  # care trips, age, gender
-  
-  age_groups <- c("12-15 years", "16-17 years", "18-24 years", "25-34 years", "35-44 years", "45-54 years",
-                  "55-64 years", "65-74 years", "75-84 years", "85 years or older")
+create_candrive_tbl_gender <- function(geog) {
+  # care trips, can drive, gender
   
   geo_col <- case_when(geog == "Region" ~ "dest_region",
                        geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
   
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
-                      group_vars = c(geo_col, "care_purpose_cat", "age", "can_drive", "gender2"),
+                      group_vars = c(geo_col, "care_purpose_cat", "can_drive2", "gender2"),
                       incl_na = FALSE) |>
     rename(dest_loc = sym(geo_col)) |>
     filter(dest_loc == geog,
            care_purpose_cat == "Care") |>
-    mutate(can_drive2 = str_extract(can_drive, "^[^,]+")) |>
     mutate(weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = c("survey_year", "can_drive2", "age", "gender2")) |> 
-    mutate(age = factor(age, levels = age_groups)) |> 
-    arrange(age)
+           moe = percent(prop_moe))
   
-  v <- c("survey_year", "dest_loc", "care_purpose_cat", "age", "can_drive2", "gender2", "weighted", "moe", "count")
+  v <- c("survey_year", "dest_loc", "care_purpose_cat", "can_drive2", "gender2", "weighted", "moe", "count")
   
   df <- rs |>
     select(all_of(v)) |>
-    pivot_wider(id_cols = c("dest_loc", "age", "gender2"),
+    pivot_wider(id_cols = c("dest_loc", "gender2"),
                 names_from = c("survey_year","can_drive2"),
                 values_from = c("weighted", "moe", "count"),
                 names_glue = "{survey_year}.{can_drive2}.{.value}"
     ) |>
-    relocate("dest_loc", "age", "gender2", contains("2023"), contains("2025"))
+    relocate("dest_loc", "gender2", all_of(unlist(map(survey_year, ~grep(.x, names(.), value = TRUE)))))
   
   ind01 <- grep("weighted", colnames(df))
   ind02 <- grep("moe", colnames(df))
   ind03 <- grep("count", colnames(df))
   
   df_reorder <- df |> 
-    select("dest_loc", "age", "gender2", unlist(pmap(list(ind01, ind02, ind03), c)))
+    select("dest_loc", "gender2", unlist(pmap(list(ind01, ind02, ind03), c)))
   
   return(list(long = rs, wide = df_reorder))
 }
 
 create_hhstr_tbl <- function(geog) {
-  # Every combo: care trips/non-care trips, hh with/without children < 18 and 85 +
+  # same as create_hhstr_tbl_comp but care trip taken is its own column
+  # with or without care trips, hh with children < 18 AND/OR 85 +
   
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "hh",
-                      group_vars = c("care_trip_taken", "has_children", "has_elders"),
+                      group_vars = c("care_trip_taken", "hh_composition"),
                       incl_na = FALSE) |> 
-    filter(care_trip_taken == 1) |>
     mutate(weighted = percent(prop),
            moe = percent(prop_moe),
-           .by = c("survey_year")) |>
-    mutate(household_members = case_when(has_children == 0 & has_elders == 0 ~ "No Children or Elders",
-                                         has_children == 0 & has_elders == 1 ~ "No Children, Has Elders",
-                                         has_children == 1 & has_elders == 0 ~ "Has Children, no Elders",
-                                         has_children == 1 & has_elders == 1 ~ "Has Children and Elders"))  
+           .by = c("survey_year"))
   
-  v <- c("survey_year", "household_members", "has_children", "has_elders", "weighted", "moe", "count")
+  v <- c("survey_year", "care_trip_taken", "hh_composition", "weighted", "moe", "count")
   
   df <- rs |>
     select(all_of(v)) |>
-    pivot_wider(id_cols = c("household_members", "has_children", "has_elders"),
-                names_from = c("survey_year"),
-                values_from = c("weighted", "moe", "count"),
-                names_glue = "{survey_year}.{.value}"
-    ) |> 
-    relocate("household_members", "has_children", "has_elders", contains("2023"), contains("2025"))
-  
-  ind01 <- grep("weighted", colnames(df))
-  ind02 <- grep("moe", colnames(df))
-  ind03 <- grep("count", colnames(df))
-  
-  df_reorder <- df |> 
-    select("household_members", "has_children", "has_elders", unlist(pmap(list(ind01, ind02, ind03), c)))
-  
-  return(list(long = rs, wide = df_reorder))
-}
-
-create_hhstr_tbl_b <- function(geog) {
-  # only care trips, hh with children < 18 AND/OR 85 +
-  
-  rs <- psrc_hts_stat(df_hts,
-                      analysis_unit = "hh",
-                      group_vars = c("care_trip_taken", "children_or_elders"),
-                      incl_na = FALSE) |> 
-    filter(care_trip_taken == 1) |>
-    mutate(weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = c("survey_year")) |> 
-    mutate(household_members = case_when(children_or_elders == 0 ~ "No Children or Elders",
-                                         children_or_elders == 1 ~ "Has Children and/or Elders"))
-  
-  v <- c("survey_year", "household_members", "children_or_elders", "weighted", "moe", "count")
-  
-  df <- rs |>
-    select(all_of(v)) |>
-    pivot_wider(id_cols = c("household_members", "children_or_elders"),
+    pivot_wider(id_cols = c("care_trip_taken", "hh_composition"),
                 names_from = c("survey_year"),
                 values_from = c("weighted", "moe", "count"),
                 names_glue = "{survey_year}.{.value}"
     ) |>
-    relocate("household_members", "children_or_elders", contains("2023"), contains("2025"))
+    relocate("care_trip_taken", "hh_composition", all_of(unlist(map(survey_year, ~grep(.x, names(.), value = TRUE)))))
   
   ind01 <- grep("weighted", colnames(df))
   ind02 <- grep("moe", colnames(df))
   ind03 <- grep("count", colnames(df))
   
   df_reorder <- df |> 
-    select("household_members", "children_or_elders", unlist(pmap(list(ind01, ind02, ind03), c)))
+    select("care_trip_taken", "hh_composition", unlist(pmap(list(ind01, ind02, ind03), c)))
   
   return(list(long = rs, wide = df_reorder))
 }

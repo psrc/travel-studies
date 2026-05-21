@@ -31,76 +31,198 @@ lapply(files, function(f) {
 )
 ```
 
-## Children and Elders
+## Children and Elders Definition
 
 Elder is defined as a person 65 years or over.
 
-Of those who have taken care purpose trips, does their household have children and/or elders?
+Children is based on var `numchildren`.
 
-`has_children` refer to households where there are 1 or more children in the household based on var `numchildren`.
+## Overall Household Composition
 
-`has_elders` refer to households where there is someone 65 years or older in the household.
+- Generally there are predominately more households without children or elders that households with both children and elders.
 
+- In 2017/19 and 2021, there has been relatively more households with only children and no elders than only elders. In 2023 and 2025, it is undetermined if there are more or less.
 ```{r}
-create_hhstr_tbl(geog = "Region")$wide |>
-  gt(rowname_col = "household_members") |> 
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(has_children, has_elders)) |>
-  cols_align(align = "left",
-             columns = c(2))
+hhs_comp <- psrc_hts_stat(df_hts,
+                     analysis_unit = "hh",
+                     group_vars = "hh_composition",
+                     incl_na = FALSE)
 ```
 
 ```{r}
-create_hhstr_tbl(geog = "Region")$long |>
-  ggplot(aes(x = as.character(survey_year), y = prop, fill = household_members)) +
-  geom_col() +
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                orientation = "x") +
-  facet_grid(rows = vars(has_children), cols = vars(has_elders)) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        strip.placement = "outside",
-        panel.spacing = unit(.5, "cm"),
-        legend.position = "right",
-        strip.text = element_blank()) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL)
-```
+#| layout-ncol: 2
+#| out-width: "50%"
 
-The table below shows households where care trips were taken the share of households that have both children and elders.
-
-```{r}
-create_hhstr_tbl_b(geog = "Region")$wide |> 
-  gt(rowname_col = "household_members") |> 
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(children_or_elders)) |>
-  cols_align(align = "left",
-             columns = c(2))
-
-```
-```{r}
-create_hhstr_tbl_b(geog = "Region")$long |>
-  ggplot(aes(fill = as.character(survey_year), y = prop, x = household_members)) +
+hhs_comp |> 
+ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
   geom_col(position = "dodge") +
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                orientation = "x",
-                position = position_dodge(width = 0.9)) +
-  # facet_grid(rows = vars(), cols = vars()) +
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)) +
+  facet_wrap(~survey_year, ncol = 4, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        strip.placement = "outside",
-        panel.spacing = unit(.5, "cm"),
-        legend.position = "right",
-        strip.text = element_blank()) +
+  scale_fill_manual(values = psrc_colors$pognbgy_10) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "none") +
   labs(x = NULL,
        y = NULL,
-       fill = NULL)
+       fill = NULL,
+       title = "Household Composition")
+
+hhs_comp |> 
+mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
+         hh_composition_label = str_to_title(hh_composition_label)) |> 
+  ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
+  geom_col(position = "dodge") +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)) +
+  facet_wrap(~hh_composition_label, ncol = 4, nrow = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$blues_inc) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "none") +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "Household Composition")
 ```
 
+```{r}
+hhs_comp
+```
+
+```{r, eval=FALSE}
+test <- psrc_hts_stat(df_hts,
+                      analysis_unit = "hh",
+                      group_vars = c("care_trip_taken", "hh_composition"),
+                      incl_na = FALSE)
+
+test_sum_prop <- test |> 
+  group_by(survey_year, care_trip_taken) |> 
+  summarize(sum(prop))
+
+test_sum_c_e <- test |> 
+  group_by(survey_year) |> 
+  summarize(sum(count), sum(est))
+```
+
+```{r, eval=FALSE}
+test_sum_prop
+```
+
+```{r, eval=FALSE}
+test_sum_c_e
+```
+
+```{r, eval=FALSE}
+hhc <- psrc_hts_stat(df_hts,
+                     analysis_unit = "hh",
+                     group_vars = c("hh_composition"),
+                     incl_na = FALSE) 
+hhc_sum <- hhc |> 
+   mutate(survey_year = as.character(survey_year)) |>
+  group_by(survey_year) |> 
+  summarize(sum_prop = sum(prop), sum_est = sum(est), sum_count = sum(count))
+
+```
+
+
+
+### Care Trips Taken 
+
+#### Household Composition
+
+- Where care trips were taken, there is a higher share of households with no children or elders followed by households that have children but no elders.
+
+- There are few households that are multi-generational with both children and elders of households that took care trips.
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+create_hhstr_tbl(geog = "Region")$long |>
+  filter(care_trip_taken == 1) |> 
+  ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
+  geom_col(position = "dodge") +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)) +
+  facet_wrap(~survey_year, ncol = 4, nrow = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_10) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "none") +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "Households that Made Care Trips")
+
+create_hhstr_tbl(geog = "Region")$long |>
+  filter(care_trip_taken == 1) |> 
+  mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
+         hh_composition_label = str_to_title(hh_composition_label)) |> 
+  ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
+  geom_col(position = "dodge") +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)) +
+  facet_wrap(~hh_composition_label, ncol = 4, nrow = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$blues_inc) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "none") +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "Households that Made Care Trips")
+```
+```{r, eval=FALSE}
+#| out-width: "100%"
+#| fig-align: "center"
+
+create_hhstr_tbl(geog = "Region")$long |>
+  filter(care_trip_taken == 1) |> 
+  ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
+  geom_col(position = "dodge") +
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)) +
+  facet_wrap(~hh_composition, ncol = 4, nrow = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$blues_inc) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "none") +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "Households that Made Care Trips")
+```
+
+```{r}
+
+create_hhstr_tbl(geog = "Region")$long
+
+# create_hhstr_tbl_b(geog = "Region")$wide |> 
+#   filter(care_trip_taken == 1) |> 
+#   gt() |> 
+#   tab_spanner_delim(delim = ".") |>
+#   cols_align(align = "left",
+#              columns = c(1,2))
+
+```

@@ -7,7 +7,7 @@ install_psrc_fonts()
 
 ## vars and categories ----
 
-survey_year <- c(2023, 2025)
+survey_year <- c("1719", "2021", "2023", "2025")
 
 vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
           "age","can_drive","gender",
@@ -79,22 +79,21 @@ hh_mutate <- hts_data[["hh"]] |>
               hhincome_broad %in% hhinc_list$high_comp ~ "$100,000 or more"))
     )|> 
   mutate(home_region = case_when(home_county %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "Region",
-                                 !is.na(home_county) ~ NA_character_)) |> 
-  mutate(has_children = factor(case_when(numchildren != "0 children" ~ 1,
-                                   .default = 0), levels = c(0, 1)))
+                                 !is.na(home_county) ~ NA_character_))
 
 ## person ----
 
 person_mutate <- hts_data[["person"]] |> 
   mutate(
     gender2 = factor(
-      case_when(gender == "Boy/Man (cisgender or transgender)" ~ "Male",
-                gender == "Girl/Woman (cisgender or transgender)" ~ "Female",
-                TRUE~NA),
+      case_when(gender %in% c("Boy/Man (cisgender or transgender)", "Male") ~ "Male", 
+                gender %in% c("Girl/Woman (cisgender or transgender)", "Female") ~ "Female", 
+                TRUE ~ NA),
       levels = c("Male","Female"))
   ) |> 
   mutate(over_64 = factor(case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ 1,
-                                .default = 0), levels = c(1, 0)))
+                                .default = 0), levels = c(1, 0))) |> 
+  mutate(can_drive2 = str_extract(can_drive, "^[^,]+"))
 
 # Household universe ----
 
@@ -112,11 +111,24 @@ hh_mutate <- hh_mutate |>
   mutate(care_trip_taken = factor(case_when(hh_id %in% hhs_care$hh_id ~ 1,
                                      .default = 0), levels = c(0, 1))) |>
   mutate(has_elders = factor(case_when(hh_id %in% hhs_elder$hh_id ~ 1,
-                                   .default = 0), levels = c(0, 1))) |>
-  mutate(children_elders = factor(case_when(has_children == 1 & has_elders == 1 ~ 1,
-                                   .default = 0), levels = c(0, 1))) |>
-  mutate(children_or_elders = factor(case_when(has_children == 1 | has_elders == 1 ~ 1,
-                                            .default = 0), levels = c(0, 1)))
+                                   .default = 0), levels = c(0, 1))) 
+
+hh_mutate <- hh_mutate |>
+  mutate(hh_composition = factor(case_when(has_elders == 1 & numchildren != "0 children" ~ "Has children, has elders",
+                                           has_elders == 0 & numchildren != "0 children" ~ "Has children, no elders",
+                                           has_elders == 0 & numchildren == "0 children" ~ "No children, no elders",
+                                           has_elders == 1 & numchildren == "0 children" ~ "No children, has elders")))
+  # mutate(hh_composition_comp = factor(case_when(care_trip_taken == 1 & has_elders == 1 & numchildren != "0 children" ~ "Care trip taken, Has children, has elders",
+  #                                               care_trip_taken == 1 & has_elders == 0 & numchildren != "0 children" ~ "Care trip taken, Has children, no elders",
+  #                                               care_trip_taken == 1 & has_elders == 0 & numchildren == "0 children" ~ "Care trip taken, No children, no elders",
+  #                                               care_trip_taken == 1 & has_elders == 1 & numchildren == "0 children" ~ "Care trip taken, No children, has elders",
+  #                                               care_trip_taken == 0 & has_elders == 1 & numchildren != "0 children" ~ "No Care trip taken, Has children, has elders",
+  #                                               care_trip_taken == 0 & has_elders == 0 & numchildren != "0 children" ~ "No Care trip taken, Has children, no elders",
+  #                                               care_trip_taken == 0 & has_elders == 0 & numchildren == "0 children" ~ "No Care trip taken, No children, no elders",
+  #                                               care_trip_taken == 0 & has_elders == 1 & numchildren == "0 children" ~ "No Care trip taken, No children, has elders"
+  # ))) |>
+  
+  
 
 # final HTS data ----
 
