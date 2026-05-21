@@ -19,7 +19,13 @@ landuse_vars <- c("home_hh_1", "home_hh_2", "home_emptot_1", "home_emptot_2",
          "home_auto_jobs_access", "home_transit_jobs_access")
 
 df_landuse <- df_hts_data$hh %>%
-  select(hh_id, home_rgcname, home_lat, home_lng, any_of(landuse_vars)) %>%
+  select(hh_id,
+         # categorical vars
+         hhincome_num, have_cars, home_rgcname,
+         # locations
+         home_lat, home_lng, 
+         # landuse vars
+         any_of(landuse_vars)) %>%
   mutate(home_actunit_1 = home_hh_1 + home_emptot_1,
          home_actunit_2 = home_hh_2 + home_emptot_2)
 day_landuse <- df_hts_data$day %>%
@@ -28,7 +34,10 @@ day_landuse <- df_hts_data$day %>%
   mutate(deliver_package_bi = case_when(deliver_package=="Yes"~1,
                                         deliver_package=="No"~0),
          home_rgcname_bi = case_when(home_rgcname=="Not RGC" | is.na(home_rgcname)~0,
-                                     TRUE~1))
+                                     TRUE~1),
+         have_cars_bi = case_when(have_cars=="no cars"~0,
+                                  have_cars=="own cars"~1,
+                                     TRUE~NA))
 ```
 
 ::: {.callout-note}
@@ -53,7 +62,11 @@ the landuse variables are highly correlated
 
 ```{r}
 #| out-width: "60%"
-res <- cor(day_landuse %>% select(any_of(landuse_vars),home_rgcname_bi))
+res <- cor(
+  day_landuse %>% 
+    select(any_of(landuse_vars),home_rgcname_bi,hhincome_num,have_cars_bi) %>%
+    filter(!is.na(hhincome_num))
+  )
 
 library(corrplot)
 corrplot(res, type = "upper", order = "hclust", 
@@ -192,18 +205,56 @@ leaflet(region_center_plot) %>%
 
 ## binary logit models
 
-:::{.panel-tabset}
-
-### full model
+### current model
 
 ```{r}
-model <- glm(deliver_package_bi ~ home_hh_1 + home_auto_jobs_access + home_transit_jobs_access + home_rgcname_bi, 
+model <- glm(deliver_package_bi ~ home_auto_jobs_access + home_rgcname_bi + hhincome_num, 
              data = day_landuse, 
              family = "binomial")
 summary(model)
 ```
 
-### home_hh_1
+### other testing models
+
+:::{.panel-tabset}
+
+#### full model
+
+```{r}
+model <- glm(deliver_package_bi ~ home_actunit_1 + home_auto_jobs_access + home_rgcname_bi + hhincome_num + have_cars_bi, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+#### hhincome_num
+
+```{r}
+model <- glm(deliver_package_bi ~ hhincome_num, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+#### have_cars_bi
+
+```{r}
+model <- glm(deliver_package_bi ~ have_cars_bi, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+#### home_emptot_1
+
+```{r}
+model <- glm(deliver_package_bi ~ home_emptot_1, 
+             data = day_landuse, 
+             family = "binomial")
+summary(model)
+```
+
+#### home_hh_1
 
 ```{r}
 model <- glm(deliver_package_bi ~ home_hh_1, 
@@ -212,7 +263,7 @@ model <- glm(deliver_package_bi ~ home_hh_1,
 summary(model)
 ```
 
-### home_transit_jobs_access
+#### home_transit_jobs_access
 
 ```{r}
 model <- glm(deliver_package_bi ~ home_transit_jobs_access, 
@@ -221,7 +272,7 @@ model <- glm(deliver_package_bi ~ home_transit_jobs_access,
 summary(model)
 ```
 
-### home_auto_jobs_access
+#### home_auto_jobs_access
 
 ```{r}
 model <- glm(deliver_package_bi ~ home_auto_jobs_access, 
@@ -230,7 +281,7 @@ model <- glm(deliver_package_bi ~ home_auto_jobs_access,
 summary(model)
 ```
 
-### home_rgcname_bi
+#### home_rgcname_bi
 
 ```{r}
 model <- glm(deliver_package_bi ~ home_rgcname_bi, 

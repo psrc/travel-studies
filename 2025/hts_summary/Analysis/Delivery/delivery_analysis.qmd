@@ -101,28 +101,36 @@ df_plot <- stat_delivery("deliver_grocery", "grocery delivery")
 df_plot
 ```
 
-### delivery outside home
+### delivery outside home + at office
 
 ```{r}
 #| out-width: "37%"
 #| fig-width: 3
+df_plot <- stat_delivery("deliver_outside_any", "delivery outside home (inc. at office)")
+```
+
+```{r}
+df_plot
+```
+
+- delivery outside home and at office separated
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "37%"
+#| fig-width: 3
+
 df_plot <- stat_delivery("deliver_elsewhere", "delivery outside home")
+df_plot2 <- stat_delivery("deliver_office", "delivery at office")
 ```
 
 ```{r}
+#| layout-ncol: 2
 df_plot
-```
-### delivery at office
-
-```{r}
-#| out-width: "37%"
-#| fig-width: 3
-df_plot <- stat_delivery("deliver_office", "delivery at office")
+df_plot2
 ```
 
-```{r}
-df_plot
-```
+
 :::
 
 
@@ -591,5 +599,54 @@ df_plot
 ```
 
 :::
+
+## shopping trip rates over the years
+
+```{r}
+#| echo: true
+#| out-width: "50%"
+
+# number of shopping trips
+shopping_trip <- hts_data$trip %>%
+  filter(dest_purpose_cat=="Shopping") %>%
+  summarise(trip_est = sum(trip_weight), .by = c(dest_purpose_cat, survey_year))
+
+person_count <- hts_data$person %>%
+  summarise(person_est = sum(person_weight), .by = survey_year)
+
+test <- shopping_trip %>%
+  left_join(person_count, by="survey_year") %>%
+  mutate(trip_rate = trip_est/person_est,
+         survey_year = factor(survey_year))
+
+ggplot(test, 
+       aes(x=factor(survey_year), y=trip_rate), fill=psrc_colors$pgnobgy_5[1]) +
+  geom_col() +
+  geom_text(aes(label=scales::number(trip_rate, accuracy = 0.01)),
+            vjust = -0.3) +
+  scale_y_continuous(labels = scales::number) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank()) +
+  labs(title = "shopping trip rates over years",
+       caption = hts_source)
+```
+
+```{r}
+rs_2years <- psrc_hts_triprate(hts_data, group_vars=c("dest_purpose_cat")) %>%
+  filter(dest_purpose_cat=="Shopping")
+# 
+# ggplot(rs1 %>% filter(dest_purpose_cat=="Shopping"), 
+#        aes(x=factor(survey_year), y=mean), fill=psrc_colors$pgnobgy_5[1]) +
+#   geom_col() +
+#   geom_text(aes(label=scales::number(mean, accuracy = 0.01)),
+#             vjust = -0.3) +
+#   scale_y_continuous(labels = scales::number) +
+#   psrc_style() +
+#   theme(panel.grid.major.y = element_blank(),
+#         axis.title = element_blank())
+
+travelSurveyTools::hts_prep_triprate()
+```
 
 

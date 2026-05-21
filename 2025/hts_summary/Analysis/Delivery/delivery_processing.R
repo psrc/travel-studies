@@ -17,9 +17,9 @@ topic_vars <- c(delivery_vars, "daynum","travel_dow","travel_date",
                 # trip info
                 "dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
                 # household demographics
-                "hhincome_broad", "home_county", "numworkers",
+                "hhincome_broad", "hhincome_detailed", "numworkers",
                 "hh_race_category","vehicle_count","hhsize","numadults",
-                "home_rgcname","lifecycle_class","res_type",
+                "home_county","home_rgcname","lifecycle_class","res_type",
                 # landuse
                 "home_hh_1","home_emptot_1","home_hh_2","home_emptot_2",
                 "home_auto_jobs_access","home_transit_jobs_access","home_nodes4_1",
@@ -80,6 +80,31 @@ df_hts_analysis$hh <- hts_data$hh %>%
       ),
       levels = c("Under $25,000","$25,000-$49,999", "$50,000-$74,999",
                  "$75,000-$99,999","$100,000 or more", "Prefer not to answer")
+    ),
+    
+    # income with $100,000 or more combined
+    hhincome_num = case_when(
+        
+        hhincome_detailed == "Under $10,000"~5000,
+        hhincome_detailed == "$10,000-$24,999"~17500,
+        hhincome_detailed == "$25,000-$34,999"~30000,
+        hhincome_detailed == "$35,000-$49,999"~42500,
+        hhincome_detailed == "$50,000-$74,999"~62500,
+        hhincome_detailed == "$75,000-$99,999"~87500,
+        hhincome_detailed == "$100,000-$149,999"~125000,
+        hhincome_detailed == "$150,000-$199,999"~175000,
+        hhincome_detailed == "$200,000-$249,999"~225000,
+        hhincome_detailed == "$250,000 or more"~250000,
+        hhincome_broad == "Under $25,000"~12500,
+        hhincome_broad == "$25,000-$49,999"~37500,
+        hhincome_broad == "$50,000-$74,999"~62500,
+        hhincome_broad == "$75,000-$99,999"~87500,
+        hhincome_broad == "$100,000-$199,999"~150000,
+        hhincome_broad == "$100,000 or more"~100000,
+        hhincome_broad == "$200,000 or more"~200000,
+        hhincome_broad == "Prefer not to answer"~NA,
+        TRUE~NA
+        
     ),
     
     # number of workers combined
@@ -193,7 +218,9 @@ if(file.exists("hh_day_delivery_day_format.rds")){
     
     mutate(deliver_home_any= case_when( deliver_food=="Yes" | deliver_grocery=="Yes" | 
                                           deliver_package=="Yes" | deliver_work=="Yes" | deliver_other=="Yes"~ "Yes", 
-                                        TRUE~"No")) %>%
+                                        TRUE~"No"),
+           deliver_outside_any = case_when( deliver_elsewhere=="Yes" | deliver_office=="Yes"~ "Yes", 
+                                            TRUE~"No")) %>%
     
     left_join(hh_day_weight, by=c('survey_year','hh_id', 'daynum'))
   
@@ -220,11 +247,13 @@ df_hts_data <- df_hts_analysis
 test <- df_hts_analysis$day %>%
   select(any_of(names(pretend_day_table))) %>%
   mutate(type = "original",
-         deliver_home_any = NA) %>%
+         deliver_home_any = NA,
+         deliver_outside_any = NA) %>%
   add_row(pretend_day_table %>% select(any_of(names(.)))) %>%
   filter(is.na(type))  %>% 
   mutate_at(vars(deliver_food, deliver_grocery, deliver_package, deliver_work, deliver_other,
-                 deliver_none, deliver_elsewhere, deliver_office),
+                 deliver_none, deliver_elsewhere, deliver_office,
+                 deliver_outside_any,deliver_home_any),
             ~factor(.,levels=c("Yes","No")))
 
 df_hts_data$day <- test
