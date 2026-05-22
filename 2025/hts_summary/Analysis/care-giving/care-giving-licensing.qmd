@@ -34,144 +34,144 @@ lapply(files, function(f) {
 
 ## Can Drive by Age
 
-The table below shows of those who have taken care trips, the share of those who can or can't drive. Most drivers are between the ages of 16-84 years.A consistent share across survey years is between 25-84 years. There is increase drivers 85 years and older in 2025 than in 2023. For those between 18-24 years, there are less drivers compared to the previous survey year.
+-   There were fewer 18-24 year olds who could drive in 2017/19 than those who couldn't. By 2023, there were significantly less who were driving.
+
+-   There were more 25-34 year olds who could drive compared to those who couldn't in 2021, but it's hard to determine in other years.
+
+-   Between 35-64 years in 2017/19 and 2025, there are more who could drive than couldn't. In 2023, there are more people who can drive than those who cannot in the 35-54 age range.
+
+-   Those who are between 16-24 years of age have a higher share who cannot drive. The earliest a person can obtain a learner's permit is 15 in addition to people who delay learning how to drive.
 
 ```{r}
-df <- create_candrive_tbl(geog = "Region")
+per_cda <- psrc_hts_stat(df_hts,
+                    analysis_unit = "person",
+                    group_vars = c("can_drive2", "age"),
+                    incl_na = FALSE)
 
-# make Age col wider or as row name, factor years.
-
-df$wide |> 
-  gt(rowname_col = "age")|>
-  cols_width(
-    stub() ~ px(500)
-  ) |> 
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc)) |>
-  cols_align(align = "left",
-             columns = c(3))
 ```
 
 ```{r}
 #| out-width: "100%"
 #| fig-align: "center"
 
-df$long |> 
-  ggplot(aes(x = age, y = prop, fill = as.character(survey_year))) +
+per_cda |> 
+  ggplot(aes(x = age, y = prop, fill = as.character(can_drive2))) +
   geom_col(position = "dodge") + 
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                orientation = "x",
-                position = position_dodge(width = 0.9)
-                ) +
-  facet_wrap(~can_drive2, ncol = 1, strip.position = "right") +
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)
+  ) +
+  facet_wrap(~survey_year, ncol = 4, nrow = 1, strip.position = "top") +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        strip.placement = "outside",
-        panel.spacing = unit(1, "cm"),
-        legend.position = "bottom",
-        strip.text = element_text(face = "bold"),
-        axis.text.x = element_text(angle = 45, vjust = 0.7)) + #, hjust=1
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7)
+  ) +
   labs(x = NULL,
        y = NULL,
-       fill = NULL)
-```
-
-## Can Drive by Age and Gender
-
-```{r}
-# Age and Gender as row names
-
-df_ag <- create_candrive_tbl_b(geog = "Region")
-
+       fill = NULL,
+       title = "Persons by Age who Can or Cannot Drive")
 ```
 
 ```{r}
+per_cda
+```
 
-# make Age col wider or as row name, factor years.
+## Care Trips by Can Drive and Age
 
-df_ag$wide |> 
-  gt(rowname_col = "age")|>
-  cols_width(
-    stub() ~ px(500)
-  ) |> 
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc)) |>
-  cols_align(align = "left",
-             columns = c(3))
+-   Where care trips were taken, the vast majority of those between the ages of 25-84 years can drive.
+
+-   Where there are more care trips by those who cannot drive can be found by those who are either too young to obtain a learners permit or those 85 years or older, depending on the survey year.
+
+```{r}
+t_cda <- create_candrive_tbl(geog = "Region")
 ```
 
 ```{r}
 #| out-width: "100%"
 #| fig-align: "center"
 
-df_ag$long |> 
-  ggplot(aes(x = age, y = prop, fill = as.character(survey_year))) +
+t_cda$long |> 
+  ggplot(aes(x = age, y = prop, fill = as.character(can_drive2))) +
   geom_col(position = "dodge") + 
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                orientation = "x",
-                position = position_dodge(width = 0.9)
-                ) +
-  facet_grid(cols = vars(can_drive2), rows = vars(gender2)) +
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)
+  ) +
+  facet_wrap(~survey_year, ncol = 4, nrow = 1, strip.position = "top") +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        strip.placement = "outside",
-        panel.spacing = unit(1, "cm"),
-        legend.position = "bottom",
-        strip.text = element_text(face = "bold"),
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7)
+  ) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "Care Trips by Age")
+```
+
+```{r}
+t_cda$long |> 
+  select(-can_drive, -dest_loc) |> 
+  relocate(can_drive2, .before = "age")
+
+```
+
+## Care Trips by Can Drive and Gender
+
+```{r}
+# Care trips by Gender
+
+t_g <- create_candrive_tbl_gender(geog = "Region")
+
+```
+
+-   Of those who can drive, there are more care trips made by females than males.
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+t_g$long |> 
+  ggplot(aes(x = gender2, y = prop, fill = can_drive2)) +
+  geom_col(position = "dodge") + 
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)
+  ) +
+  facet_wrap(~survey_year, ncol = 4, nrow = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
         axis.text.x = element_text(angle = 90, vjust = 0.7)) +
   labs(x = NULL,
        y = NULL,
-       fill = NULL)
-```
+       title = "Share of Care Trips by Can Drive and Gender")
 
-### Cannot Drive
-
-A larger share of Females between 35-54 years who took care trips cannot not drive in 2023 compared to Males. In 2025, the share is not as high as compared to the previous survey year.
-
-```{r}
-#| out-width: "100%"
-#| fig-align: "center"
-
-df_ag$long |> 
-  filter(survey_year == 2023 & can_drive2 == "No") |> 
-  ggplot(aes(x = age, y = prop, fill = gender2)) +
-  geom_col() + 
+t_g$long |> 
+  ggplot(aes(x = as.character(survey_year), y = prop, fill = gender2)) +
+  geom_col(position = "dodge") + 
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)
+  ) +
+  facet_wrap(~can_drive2, ncol = 2, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        legend.position = "bottom",
-        axis.text.x = element_text(angle = 45, vjust = 0.7)) +
+  scale_fill_manual(values = psrc_colors$blues_inc) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7)) +
   labs(x = NULL,
        y = NULL,
-       fill = NULL,
-       title = "2023 Cannot Drive")
+       title = "Share of Care Trips by Can Drive and Gender")
+
 ```
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
-
-df_ag$long |> 
-  filter(survey_year == 2025 & can_drive2 == "No") |> 
-  ggplot(aes(x = age, y = prop, fill = gender2)) +
-  geom_col() + 
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5[1:2]) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        legend.position = "bottom",
-        axis.text.x = element_text(angle = 45, vjust = 0.7)) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "2025 Cannot Drive")
+t_g$long
 ```
