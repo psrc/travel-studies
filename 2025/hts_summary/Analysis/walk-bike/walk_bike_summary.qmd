@@ -63,6 +63,8 @@ static_column_chart(filter(mode_summary, mode_class_5 == "Walk"),
                       axis.title.x = element_text(size = 16),
                       plot.title = element_text(size = 24)
                       )
+
+filter(mode_summary, mode_class_5 == "Walk")
 ```
 
 ```{r bike_estimate}
@@ -76,6 +78,8 @@ static_column_chart(filter(mode_summary, mode_class_5 == "Bike/Micromobility"),
                       axis.title.x = element_text(size = 16),
                       plot.title = element_text(size = 24)
                       )
+
+filter(mode_summary, mode_class_5 == "Bike/Micromobility")
 ```
 
 ```{r walk_share}
@@ -89,6 +93,8 @@ static_column_chart(filter(mode_summary, mode_class_5 == "Walk"),
                       axis.title.x = element_text(size = 16),
                       plot.title = element_text(size = 24)
                       )
+
+filter(mode_summary, mode_class_5 == "Walk")
 ```
 
 ```{r bike_share}
@@ -102,6 +108,8 @@ static_column_chart(filter(mode_summary, mode_class_5 == "Bike/Micromobility"),
                       axis.title.x = element_text(size = 16),
                       plot.title = element_text(size = 24)
                       )
+
+filter(mode_summary, mode_class_5 == "Bike/Micromobility")
 ```
 
 ### Trips by Household Income
@@ -120,13 +128,16 @@ static_bar_chart(filter(walk_bike_by_income_combined, mode_class_5 == "Walk"
                    legend.text = element_text(size=14),
                    plot.title = element_text(size = 24)
                  )
+
+filter(walk_bike_by_income_combined, mode_class_5 == "Walk"
+                        & hhincome_detailed_combined != "Prefer not to answer"
+                        & survey_year %in% c("2023", "2025"))
 ```
 
 ```{r bike_income_combined}
-static_bar_chart(filter(walk_bike_by_income_combined, mode_class_5 == "Bike/Micromobility"
-                        & hhincome_detailed_combined != "Prefer not to answer"
+static_bar_chart(filter(bike_by_income_binary, hhincome_bike != "Prefer not to answer"
                         & survey_year %in% c("2023", "2025")),
-                 y = "hhincome_detailed_combined", x = "prop", fill = "survey_year",
+                 y = "hhincome_bike", x = "prop", fill = "survey_year",
                  xlabel = "% of Trips", ylabel = "Household Income", title = "Bike/Micromobility Trips by Income (combined) - Share",
                  moe = "prop_moe") + theme(
                    axis.text.x = element_text(size = 14),
@@ -136,44 +147,57 @@ static_bar_chart(filter(walk_bike_by_income_combined, mode_class_5 == "Bike/Micr
                    legend.text = element_text(size=14),
                    plot.title = element_text(size = 24)
                  )
+
+filter(bike_by_income_binary, hhincome_bike != "Prefer not to answer"
+                        & survey_year %in% c("2023", "2025"))
 ```
 
 ### Trips by Race/Ethnicity
 
 ```{r walk_race}
-static_bar_chart(filter(walk_bike_by_race, mode_class_5 == "Walk"
-                        & !(race_simple %in% c("Child"))
-                        & !is.na(race_simple)
+static_bar_chart(filter(walk_bike_by_race_binary, mode_class_5 == "Walk"
+                        & !(race_binary %in% c("Child"))
+                        & !is.na(race_binary)
                         & survey_year %in% c("2023", "2025")),
-                 x = "prop", y = str_wrap("race_simple"), fill = "survey_year",
+                 x = "prop", y = str_wrap("race_binary"), fill = "survey_year",
                  xlabel = "% of Trips", ylabel = "Race & Ethnicity", title = "Walk Trips by Race - Share",
                  moe = "prop_moe") + theme(
-                   axis.text.x = element_text(size = 12),
-                   axis.text.y = element_text(size = 10),
+                   axis.text.x = element_text(size = 14),
+                   axis.text.y = element_text(size = 12),
                    axis.title.y = element_text(size = 16),
                    axis.title.x = element_text(size = 16),
                    legend.text = element_text(size=14),
                    plot.title = element_text(size = 24)
                  ) + 
   scale_x_discrete(labels = scales::label_wrap(20))
+
+filter(walk_bike_by_race_binary, mode_class_5 == "Walk"
+                        & !(race_binary %in% c("Child"))
+                        & !is.na(race_binary)
+                        & survey_year %in% c("2023", "2025"))
 ```
 
 ```{r bike_race}
-static_bar_chart(filter(walk_bike_by_race, mode_class_5 == "Bike/Micromobility"
-                        & !(race_simple %in% c("Child"))
-                        & !is.na(race_simple)
+static_bar_chart(filter(walk_bike_by_race_binary, mode_class_5 == "Bike/Micromobility"
+                        & !(race_binary %in% c("Child"))
+                        & !is.na(race_binary)
                         & survey_year %in% c("2023", "2025")),
-                 x = "prop", y = str_wrap("race_simple"), fill = "survey_year",
+                 x = "prop", y = str_wrap("race_binary"), fill = "survey_year",
                  xlabel = "% of Trips", ylabel = "Race & Ethnicity", title = "Bike/Micromobility Trips by Race - Share",
                  moe = "prop_moe") + theme(
-                   axis.text.x = element_text(size = 12),
-                   axis.text.y = element_text(size = 10),
+                   axis.text.x = element_text(size = 14),
+                   axis.text.y = element_text(size = 12),
                    axis.title.y = element_text(size = 16),
                    axis.title.x = element_text(size = 16),
                    legend.text = element_text(size=14),
                    plot.title = element_text(size = 24)
                  ) + 
   scale_x_discrete(labels = scales::label_wrap(20))
+
+filter(walk_bike_by_race_binary, mode_class_5 == "Bike/Micromobility"
+                        & !(race_binary %in% c("Child"))
+                        & !is.na(race_binary)
+                        & survey_year %in% c("2023", "2025"))
 ```
 
 ### Trips by Age
