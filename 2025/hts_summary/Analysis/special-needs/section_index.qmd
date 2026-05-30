@@ -1,0 +1,313 @@
+---
+title: "Special Needs Safety & Security Survey overview: scoring via indices"
+author: "Michael Jensen"
+format:
+  html:
+    toc: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(psrc.travelsurvey)
+library(data.table)
+library(magrittr)
+library(psych)
+library(survey)
+library(ggplot2)
+options(survey.lonely.psu = "adjust")
+options(survey.adjust.domain.lonely = TRUE)
+source("section_index_functions.R")
+```
+
+## Purpose for Using Indices
+
+The Safety & Security Survey ('SSS') includes a large number (267) of interrelated questions--too many to consider simultaneously. Since questions are organized thematically by section, a composite score by section can be used to address those major themes: general anxiety regarding safety and security; system acceptance and enforcement; and travel tradeoffs made for safety/security reasons. In addition to reducing the number of individual dimensions, this approach also reduces noise among individual variables, providing a more stable metric for comparing demographic differences.
+
+## 1. Index Construction
+
+A reliable index combines survey items that measure the same underlying construct. 
+
+1.  **Structural Relevance:** The indices are built from content questions, not demographics. In order to avoid bias, only mandatory questions (i.e. answered by all respondents) are included; conditional (skip-logic) questions are not. Questions with "not applicable" as an option are similarly removed, since the true response scale only applies to the other answer options.
+2.  **Directionality:** Each item in an index points in the same conceptual direction. Items that frame safety positively are reverse-coded so that higher overall scores consistently represent "more" of the construct (e.g., more anxiety, more tradeoffs).
+3.  **Response completeness:** Respondents must answer a minimum number of valid items (e.g., a ceiling of half the included items) to receive a score. This balances data retention against score volatility.
+4.  **Raw Scoring:** The within-respondent mean for answered questions within each section becomes the composite score.
+5.  **Standardization:** Raw means are converted to Z-scores (mean = 0, SD = 1) across the sample. This makes it possible to directly compare effect sizes between demographic groups.
+
+```{r index_construction}
+variable_descriptions <- psrcelmer::get_query("SELECT * FROM safety_survey.variable_descriptions_2025") %>%
+  setDT()
+value_labels <- psrcelmer::get_query("SELECT * FROM safety_survey.value_labels_2025") %>%
+  setDT()
+
+if ("q_id" %in% names(variable_descriptions) && !"question_id" %in% names(variable_descriptions)) {
+  setnames(variable_descriptions, "q_id", "question_id")
+}
+
+exclude_qid <- c(
+  paste0("5.", sprintf("%02d", c(4, 8, 9, 11, 12))),
+  paste0("6.", sprintf("%02d", 5:16)),
+  "7.02",
+  "7.05"
+)
+
+dt_spec <- variable_descriptions[
+  grepl("^(5|6|7)\\.", question_id) & !question_id %chin% exclude_qid,
+  .(question_id, variable, description)
+]
+dt_spec[, index_id := fcase(
+  startsWith(question_id, "5."), "5-anxiety",
+  question_id %chin% c("6.01", "6.02", "6.03", "6.04"), "6-tradeoffs",
+  question_id %chin% c("7.03", "7.04"), "7a-enforcement",
+  question_id %chin% c("7.01", "7.06", "7.07"), "7b-system_acceptance",
+  default = NA_character_
+)]
+dt_spec <- dt_spec[!is.na(index_id)]
+dt_spec[, direction_rule := "keep"]
+dt_spec[variable %chin% c("harrassment", "overall_safety"), direction_rule := "reverse"]
+
+dt_indices <- data.table(
+  index_id = c("5-anxiety", "6-tradeoffs", "7a-enforcement", "7b-system_acceptance"),
+  index_label = c(
+    "Section 5 Anxiety",
+    "Section 6 Tradeoffs",
+    "Section 7A Enforcement",
+    "Section 7B System Acceptance"
+  ),
+  score_stub = c("section5_anxiety", "section6_tradeoffs", "section7a_enforcement", "section7b_acceptance")
+)
+dt_indices[, `:=`(
+  raw_score_var = paste0(score_stub, "_raw"),
+  z_score_var = paste0(score_stub, "_z")
+)]
+
+dt_responses <- psrc.travelsurvey::get_psrc_sss("*") %>%
+  setDT()
+cols_to_drop <- grep("(_lat$|_lon$|_loc_)", names(dt_responses), value = TRUE)
+if (length(cols_to_drop) > 0L) {
+  dt_responses[, (cols_to_drop) := NULL]
+}
+
+dt_responses %<>%
+  normalize_safety_source() %>%
+  filter_completed_responses() %>%
+  derive_demographic_flags()
+
+candidate_vars <- dt_spec[, unique(variable)]
+missing_source_vars <- setdiff(candidate_vars, names(dt_responses))
+
+if (length(missing_source_vars) > 0L) {
+  stop(sprintf(
+    "Missing candidate section-index variables in source data: %s",
+    paste(missing_source_vars, collapse = ", ")
+  ))
+}
+
+id_cols <- c(
+  "person_id", "person_weight", "sample_segment", "disability_person",
+  "age65plus", "low_income", "race_poc", "zero_vehicles"
+)
+
+section_index_data <- copy(dt_responses[, c(id_cols, candidate_vars), with = FALSE])
+
+for (candidate_var in candidate_vars) {
+  direction_rule <- dt_spec[variable == candidate_var, direction_rule][1]
+  set(
+    section_index_data,
+    j = candidate_var,
+    value = apply_direction_rule(section_index_data[[candidate_var]], candidate_var, direction_rule, value_labels)
+  )
+}
+
+dt_spec[, .(index_id, question_id, variable, direction_rule)]
+
+```
+
+
+At this point, the working table contains only respondent identifiers, weights, demographic flags, and the ordered section items that feed the composite scores.
+
+## 2. Index Refinement
+
+Initial inclusion of variables in each index is done on conceptual and structural grounds. Next, we measure reliability and correlation among variables to determine whether the index is coherent, and whether any variables detract statistically.
+
+*   **Internal consistency:** Ordinal Cronbach's $\alpha$ summarizes whether the retained items move together as a section-level scale.
+*   **Item fit:** *Corrected Item-Rest Correlation* shows whether each item aligns with the remainder of the same index. Negative or near-zero values flag items that may not belong in that composite.
+*   **Drop-one check:** `best_dropone_alpha` shows the alpha that would result if the least compatible item were removed. Large gains suggest that an index may still need trimming.
+
+```{r reliability_diagnostics}
+score_single_index <- function(current_index_id) {
+  current_spec <- dt_spec[index_id == current_index_id]
+  current_index <- dt_indices[index_id == current_index_id]
+  included_items <- current_spec[, variable]
+  min_answered_required <- ceiling(length(included_items) / 2)
+  item_data <- copy(section_index_data[, ..included_items])
+  answered_item_count <- rowSums(!is.na(item_data))
+  raw_score <- fifelse(answered_item_count >= min_answered_required, rowMeans(item_data, na.rm = TRUE), NA_real_)
+  raw_score[is.nan(raw_score)] <- NA_real_
+
+  raw_mean <- mean(raw_score, na.rm = TRUE)
+  raw_sd <- stats::sd(raw_score, na.rm = TRUE)
+  z_score <- if (is.finite(raw_sd) && raw_sd > 0) {
+    (raw_score - raw_mean) / raw_sd
+  } else {
+    rep(NA_real_, length(raw_score))
+  }
+
+  reliability_result <- compute_reliability(item_data)
+  item_refinement <- rbindlist(lapply(included_items, function(item_name) {
+    data.table(
+      variable = item_name,
+      corrected_item_rest = compute_corrected_item_rest(item_data, item_name),
+      alpha_if_dropped = compute_alpha_if_dropped(item_data, item_name)
+    )
+  }), fill = TRUE)
+
+  weakest_row <- item_refinement[order(corrected_item_rest, variable)][1]
+  best_drop_row <- item_refinement[order(-alpha_if_dropped, variable)][1]
+
+  refinement_summary <- data.table(
+    index_id = current_index_id,
+    raw_mean = raw_mean,
+    ordinal_alpha = reliability_result$alpha,
+    weakest_item_rest = weakest_row$corrected_item_rest,
+    best_dropone_alpha = best_drop_row$alpha_if_dropped
+  )
+
+  score_columns <- copy(section_index_data[, ..id_cols])
+  score_columns[, `:=`(
+    tmp_raw = raw_score,
+    tmp_z = z_score,
+    tmp_answered = answered_item_count,
+    tmp_min_answered = min_answered_required
+  )]
+  setnames(score_columns, c("tmp_raw", "tmp_z", "tmp_answered", "tmp_min_answered"), c(
+    current_index$raw_score_var,
+    current_index$z_score_var,
+    paste0(current_index_id, "_answered_items"),
+    paste0(current_index_id, "_min_answered_required")
+  ))
+
+  list(
+    score_columns = score_columns,
+    refinement_summary = refinement_summary
+  )
+}
+
+scored_index_results <- lapply(dt_indices$index_id, score_single_index)
+
+section_index_scores <- Reduce(
+  function(left, right) merge(left, right, by = id_cols, all = TRUE),
+  lapply(scored_index_results, `[[`, "score_columns")
+)
+
+index_refinement_summary <- rbindlist(lapply(scored_index_results, `[[`, "refinement_summary"), fill = TRUE)
+
+index_refinement_summary[, c(1,3:5)]
+```
+
+Section 5 & 6 indices show internal consistency (α ≈ 0.85 and 0.82, respectively), but both Section 7 indices are of limited coherence (α ≈ 0.43 each; these tests were actually the basis for separating Section 7A & 7B). Prior exclusions were confirmed to improve each construct. The remaining drop-one alpha is only slightly higher for indices 5 and 7b, and the corresponding item-rest correlation does not suggest those variables are expendable. 
+ 
+## 3. Application: Scoring of Special Needs groups vs reference groups
+
+Index scores can now be extrapolated to the region as a whole using person-level weights and compared between Special Needs populations and the comparison/reference population using the Standardized Mean Difference (Weighted SMD). For example, the SMD for the `disability_person` variable measures the disparity between the average scored responses of those with disabilities, and the average scored responses of those without disabilities. Values less than 0.4 are minor effects; those over 0.7 can be considered large (a value of 1 indicates a full standard deviation difference between groups).
+
+```{r demographic_comparison}
+dt_demographic_spec <- data.table(
+  respondent_dichotomy = c("disability_person", "age65plus", "low_income", "race_poc", "zero_vehicles"),
+  comparison_group_1 = "Yes",
+  comparison_group_2 = "No"
+)
+
+missing_demographic_vars <- setdiff(dt_demographic_spec$respondent_dichotomy, names(section_index_scores))
+missing_score_vars <- setdiff(dt_indices$z_score_var, names(section_index_scores))
+
+if (length(missing_demographic_vars) > 0L) {
+  stop(sprintf(
+    "Missing demographic variables in section_index_scores: %s",
+    paste(missing_demographic_vars, collapse = ", ")
+  ))
+}
+
+if (length(missing_score_vars) > 0L) {
+  stop(sprintf(
+    "Missing z-score variables in section_index_scores: %s",
+    paste(missing_score_vars, collapse = ", ")
+  ))
+}
+
+demographic_results <- rbindlist(lapply(seq_len(nrow(dt_demographic_spec)), function(i) {
+  respondent_dichotomy <- dt_demographic_spec$respondent_dichotomy[i]
+  comparison_groups <- unlist(dt_demographic_spec[i, .(comparison_group_1, comparison_group_2)])
+  analysis_dt <- copy(section_index_scores[
+    trimws(as.character(get(respondent_dichotomy))) %in% comparison_groups &
+      !is.na(person_weight) & person_weight > 0 &
+      !is.na(sample_segment)
+  ])
+
+  if (nrow(analysis_dt) == 0L) {
+    return(NULL)
+  }
+
+  analysis_dt[, (respondent_dichotomy) := factor(trimws(as.character(get(respondent_dichotomy))), levels = comparison_groups)]
+  design <- survey::svydesign(
+    ids = ~1,
+    strata = ~sample_segment,
+    weights = ~person_weight,
+    data = analysis_dt,
+    nest = TRUE
+  )
+
+  rbindlist(lapply(seq_len(nrow(dt_indices)), function(j) {
+    score_var <- dt_indices$z_score_var[j]
+    test_formula <- as.formula(sprintf("`%s` ~ `%s`", score_var, respondent_dichotomy))
+    test_object <- tryCatch(survey::svyttest(test_formula, design), error = function(e) NULL)
+    weighted_smd <- compute_weighted_smd(analysis_dt, score_var, respondent_dichotomy, comparison_groups)
+    p_value <- if (is.null(test_object)) NA_real_ else unname(test_object$p.value)
+
+    data.table(
+      respondent_dichotomy = respondent_dichotomy,
+      comparison_group_1 = comparison_groups[1],
+      comparison_group_2 = comparison_groups[2],
+      index_id = dt_indices$index_id[j],
+      index_label = dt_indices$index_label[j],
+      score_var = score_var,
+      p_value = p_value,
+      weighted_smd = weighted_smd,
+      significance_band = classify_significance(p_value),
+      effect_size_band = classify_effect_size(weighted_smd),
+      respondent_group_higher = fcase(
+        is.na(weighted_smd), NA_character_,
+        weighted_smd > 0, comparison_groups[1],
+        weighted_smd < 0, comparison_groups[2],
+        default = "Neither"
+      )
+    )
+  }), fill = TRUE)
+}), fill = TRUE)
+
+demographic_results[, p_value := fcase(
+  is.na(p_value) | !is.finite(p_value), NA_real_,
+  p_value <= 0, .Machine$double.xmin,
+  p_value > 1, 1,
+  default = p_value
+)]
+
+```
+
+This plot uses effect size on the horizontal axis and marks statistically significant comparisons with filled circles, making it easier to scan for the largest differences first.
+
+```{r demographic_plot, fig.width=8.5, fig.height=7}
+ranked_dot_plot <- build_section_index_ranked_dotplot(
+  demographic_results,
+  preferred_order = c("disability_person", "low_income")
+)
+
+if (!is.null(ranked_dot_plot)) {
+  print(ranked_dot_plot)
+}
+```
+This plot provides a overarching perspective on Special Needs responses to themes in the survey.
+
+Index 5 (Anxiety) shows a very large, significant disparity between those with and without disabilities, with a moderate effect for those with low income or no vehicles. These groups are clearly more concerned with safety and security than their reference populations. Index 6 (tradeoffs) shows a moderate effect for both those with disabilities and those with low income, showing their attitudes are also reflected in behavior. Other scores for these indices are not particularly notable (either marginal effect, insignificant, or both). The weaker indices, 7A & 7B, register weaker results; there is moderate support for more traffic enforcement among older respondents and those without vehicles, but no dramatic attitudinal differences. 
+
+As a result, we will focus more detailed attention on two themes: Anxiety and Tradeoffs, and focus primarily on those with diabilities (secondarily on those with low incomes or no vehicles).

@@ -1,7 +1,7 @@
 project:
   type: book
   output-dir: "HTS-summary-notebook"
-  
+
 book:
   title: "2025 HTS Summary"
   repo-url: https://github.com/psrc/travel-studies/tree/master/2025
@@ -14,7 +14,7 @@ book:
     - Analysis/Topsheet/topsheet_summary.qmd
     - Analysis/Delivery/delivery_analysis.qmd
     - Analysis/care-giving/care-giving.qmd
-    - Analysis/special-needs/special-needs.qmd
+    - Analysis/special-needs/section-index.qmd
 
 format:
   html:
@@ -25,7 +25,7 @@ format:
     df-print: kable
     fig-asp: .7
     fig-width: 4
-    
+
 execute:
   freeze: auto  # re-render only when source changes
 
