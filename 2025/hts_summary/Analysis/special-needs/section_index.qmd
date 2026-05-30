@@ -45,10 +45,10 @@ if ("q_id" %in% names(variable_descriptions) && !"question_id" %in% names(variab
 }
 
 exclude_qid <- c(
-  paste0("5.", sprintf("%02d", c(4, 8, 9, 11, 12))),
-  paste0("6.", sprintf("%02d", 5:16)),
-  "7.02",
-  "7.05"
+  paste0("5.", sprintf("%02d", c(4, 8, 9, 11, 12))), # Thematically distinct
+  paste0("6.", sprintf("%02d", 5:16)),               # Structurally different - N/A option  
+  "7.02",                                            # Thematically distinct
+  "7.05"                                             # Attention question  
 )
 
 dt_spec <- variable_descriptions[
@@ -132,7 +132,7 @@ Initial inclusion of variables in each index is done on conceptual and structura
 
 *   **Internal consistency:** Ordinal Cronbach's $\alpha$ summarizes whether the retained items move together as a section-level scale.
 *   **Item fit:** *Corrected Item-Rest Correlation* shows whether each item aligns with the remainder of the same index. Negative or near-zero values flag items that may not belong in that composite.
-*   **Drop-one check:** `best_dropone_alpha` shows the alpha that would result if the least compatible item were removed. Large gains suggest that an index may still need trimming.
+*   **Drop-one check:** `best_drop_one_alpha` shows the alpha that would result if the least compatible item were removed. Large gains suggest that an index may still need trimming.
 
 ```{r reliability_diagnostics}
 score_single_index <- function(current_index_id) {
@@ -170,7 +170,7 @@ score_single_index <- function(current_index_id) {
     raw_mean = raw_mean,
     ordinal_alpha = reliability_result$alpha,
     weakest_item_rest = weakest_row$corrected_item_rest,
-    best_dropone_alpha = best_drop_row$alpha_if_dropped
+    best_drop_one_alpha = best_drop_row$alpha_if_dropped
   )
 
   score_columns <- copy(section_index_data[, ..id_cols])
