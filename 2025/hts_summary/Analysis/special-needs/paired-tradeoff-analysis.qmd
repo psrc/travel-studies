@@ -1,0 +1,180 @@
+---
+title: "Special Needs Safety & Security Survey: paired tradeoff analysis"
+author: "Michael Jensen"
+format:
+  html:
+    toc: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(data.table)
+library(ggplot2)
+library(knitr)
+library(psrc.travelsurvey)
+library(psrcelmer)
+library(survey)
+options(survey.lonely.psu = "adjust")
+options(survey.adjust.domain.lonely = TRUE)
+source("core_prep_helpers.R")
+source("paired_tradeoff_functions.R")
+
+fmt_pct <- function(x, digits = 0) {
+  ifelse(is.na(x), NA_character_, sprintf(paste0("%.", digits, "f%%"), 100 * x))
+}
+```
+
+## Drilling down with paired comparisons
+
+The strong correlation among the questions combined in the section 5 and the section 6 composite indices allowed us to draw strong thematic conclusions: those with disabilities in particular registered much stronger concern over over personal safety and security while traveling than those without disabilities. But can the survey tell us how much concern involves safety, versus security? And what sacrifices do those with disabilities most often make?\
+\
+Fortunately, the survey includes a dozen questions (6.05-6.16) structured to directly compare safety versus security, linked to a set of trade-offs all measured on the same frequency scale. The trade-offs include:
+
+- taking a longer path (additional distance & time)
+
+- using a non-preferred mode
+
+- incurring additional costs
+
+- forgoing travel altogether
+
+We will examine three calculations: overall scored differences, domain-level disability gaps, and the response distributions behind the largest gaps.
+
+```{r prepare_analysis}
+paired_tradeoff <- build_paired_tradeoff_results()
+overall_summary <- copy(paired_tradeoff$overall_summary)
+overall_tests <- copy(paired_tradeoff$overall_tests)
+domain_findings <- copy(paired_tradeoff$domain_findings)
+focus_responses <- copy(paired_tradeoff$focus_response_summary)
+```
+
+Responses are scored on a simple ordered scale where `Seldom/never = 1`, `Sometimes = 2`, and `Often = 3`. Weighted means therefore summarize how frequently each group (with, or without disabilities) reports making a trade-off for safety or security reasons.
+
+## 1. Overall safety and security disparities
+
+First, we examine the relative rates at which those with or without disabilities make trade-offs generally (across all the paired questions). Again, there is a stark difference between those with or without disabilities for both categories; the difference is most pronounced in terms of personal security.
+
+```{r overall_summary_table}
+overall_view <- overall_summary[
+  ,
+  .(
+    `Disability status` = disability_person,
+    `Weighted respondents` = round(weighted_n),
+    `Average safety score` = round(safety_score_mean, 2),
+    `Average security score` = round(security_score_mean, 2),
+    `Safety items answered` = round(safety_domains_answered_mean, 1),
+    `Security items answered` = round(security_domains_answered_mean, 1)
+  )
+]
+
+kable(overall_view)
+```
+
+```{r overall_gap_plot, fig.width=7.5, fig.height=3.5}
+overall_gap_plot_dt <- data.table(
+  concern_type = c("Safety", "Security"),
+  no_disability = c(
+    overall_summary[disability_person == "No", safety_score_mean],
+    overall_summary[disability_person == "No", security_score_mean]
+  ),
+  disability = c(
+    overall_summary[disability_person == "Yes", safety_score_mean],
+    overall_summary[disability_person == "Yes", security_score_mean]
+  )
+)
+
+ggplot(overall_gap_plot_dt, aes(y = concern_type)) +
+  geom_segment(aes(x = no_disability, xend = disability, yend = concern_type), linewidth = 1.2, color = "grey70") +
+  geom_point(aes(x = no_disability), size = 3, color = "#2c7fb8") +
+  geom_point(aes(x = disability), size = 3, color = "#d95f0e") +
+  scale_x_continuous(limits = c(1, 2.1)) +
+  labs(
+    x = "Weighted mean score",
+    y = NULL,
+    title = "Overall trade-off scores are higher among respondents with disabilities (orange)",
+    subtitle = sprintf(
+      "Safety SMD = %.2f; Security SMD = %.2f",
+      overall_tests[outcome == "safety_score", effect_size],
+      overall_tests[outcome == "security_score", effect_size]
+    )
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+## 2. Disparities by trade-off, ranked
+
+Looking at each question specifically, we see the largest gap–7.6 standard deviations–involves the most restrictive trade-off: not traveling at all.
+
+```{r significant_domain_table}
+significant_domains <- domain_findings[
+  !is.na(p_value) & p_value < 0.05,
+  .(
+    Domain = domain_label,
+    Concern = fifelse(concern_type == "safety", "Safety", "Security"),
+    `Disability mean` = round(Yes, 2),
+    `No-disability mean` = round(No, 2),
+    Gap = round(disability_gap, 2),
+    `Weighted SMD` = round(effect_size, 2),
+    `Effect band` = effect_band,
+    `p-value` = signif(p_value, 2)
+  )
+]
+
+kable(significant_domains)
+```
+
+```{r domain_gap_plot, fig.width=8.5, fig.height=5.5}
+domain_plot_dt <- copy(domain_findings)
+domain_plot_dt[, concern_type := factor(concern_type, levels = c("security", "safety"), labels = c("Security", "Safety"))]
+domain_plot_dt[, domain_concern := factor(
+  paste(domain_label, concern_type, sep = " - "),
+  levels = rev(domain_plot_dt[order(effect_size), paste(domain_label, concern_type, sep = " - ")])
+)]
+
+ggplot(domain_plot_dt, aes(x = effect_size, y = domain_concern, color = concern_type)) +
+  geom_vline(xintercept = c(0.4, 0.7), linetype = c("dashed", "dotted"), color = "grey70") +
+  geom_point(aes(shape = p_value < 0.05), size = 3) +
+  scale_shape_manual(values = c(1, 16), guide = "none") +
+  scale_color_manual(values = c("Security" = "#7a0177", "Safety" = "#1d91c0")) +
+  labs(
+    x = "Weighted standardized mean difference",
+    y = NULL,
+    color = NULL,
+    title = "Disparity (with vs without disability) by trade-off and concern type",
+    subtitle = "Filled points indicate p < 0.05"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+Among the remaining trade-offs, the security version of a the question typically shows a larger disparity than the corresponding safety version. For example, when those with disabilities choose a longer route or use a different mode, they are more likely motivated by security concerns than by safety concerns.
+
+## 3. A closer look at 'Often'
+
+Peeling back the averaged score, we find the answer that explains most of these disparities is the 'Often' response. Those without disabilities report occasional sacrifices for safety and security; for those with disabilities, each trip involves more consideration. Across all paired trade-off questions, those with disabilities answer 'Often' 3.5 times more frequently. They report "often" forgoing trips 8.0 times more frequently than those without disabilities.
+
+```{r often_plot, fig.width=8.5, fig.height=5}
+often_plot_dt <- focus_responses[
+  response_bucket == "Often",
+  .(domain_label, concern_type, disability_person, weighted_prop)
+]
+often_plot_dt[, concern_type := factor(concern_type, levels = c("security", "safety"), labels = c("Security", "Safety"))]
+
+ggplot(often_plot_dt, aes(x = weighted_prop, y = reorder(domain_label, weighted_prop), fill = disability_person)) +
+  geom_col(position = position_dodge(width = 0.7), width = 0.6) +
+  facet_wrap(~ concern_type) +
+  scale_fill_manual(values = c("Yes" = "#d95f0e", "No" = "#2c7fb8"), 
+                    labels = c("Yes" = "With disability", "No" = "Without disability"), name = NULL) +
+  scale_x_continuous(labels = fmt_pct) +
+  labs(
+    x = NULL,
+    y = NULL,
+    title = "Concerns more pervasive for those with disabilities",
+    subtitle = "'Often' responses for selected variables"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+There are approximately 225,000 people with disabilities in our region, or 7 percent of the population. Although they report enjoying travel at higher rates than everyone else, it also tends to be more stressful for them. They consistently report feeling more unsafe about traveling, and report making safety- and security-related sacrifices at higher rates than the reference population. The adjustments they make are not minor; in many cases, their concerns prevent them from making a trip altogether.
+
+The extent of these differences does not suggest a single or immediate solution. It shows a significant difference in perspective, however, and an initial step toward remedying these disparities is consideration of that perspective.

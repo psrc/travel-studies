@@ -25,33 +25,14 @@ PSRC and RSG have built a new package called travelSurveyTools to work with trav
 # devtools::install_github('psrc/psrc.travelsurvey', force=TRUE)
 
 library(data.table)
-library(stringr)
-library(travelSurveyTools)
 library(psrcelmer)
 library(dplyr)
 library(psrcplot)
 library(tidyverse)
-library(table1)
 library(psrc.travelsurvey)
 
 library(sf) #for regional geographies
 sf_use_s2(FALSE)
-library(corrplot) #for correlation analysis
-
-source('../survey-23-preprocess.R')
-# source('C:/Users/mrichards/Documents/GitHub/travel-studies/2023/summary/survey-23-preprocess.R')
-```
-
-## Read in Codebook
-
-```{r}
-cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
-
-variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
-value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
-
-setDT(variable_list)
-setDT(value_labels)
 ```
 
 ## Read in Data from Elmer

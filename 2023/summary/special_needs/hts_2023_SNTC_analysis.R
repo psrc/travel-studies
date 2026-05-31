@@ -7,7 +7,7 @@ library(psrcplot)
 library(ggplot2)
 library(extrafont)
 
-hts_survey_year <- 2025
+hts_survey_year <- c(2023, 2025)
 
 sn_vars <- c("age", "vehicle_count", "hhincome_broad", "disability_person","hh_race_category") # Special needs dimensions
 travel_dims <- c("dest_purpose", "duration_minutes", "mode_class")                             # Travel behavior variables
@@ -43,7 +43,7 @@ add_hts_cv <- function(table){
 battery <- function(sn_var){                                                                   # Statistical summaries for each SN dimension
   hts_data2 <- copy(hts_data)
   if(sn_var=="disability_person"){
-    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year==hts_survey_year))      # -- disability is new to the survey
+    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year %in% hts_survey_year))  # -- disability variables introduced 2023
   }
   sn_stat <- purrr::partial(psrc_hts_stat, hts_data=hts_data2, analysis_unit="trip",
                             ... = , incl_na=FALSE) %>% add_hts_cv()                            # exclude NA from share denominator
@@ -56,7 +56,7 @@ battery <- function(sn_var){                                                    
   rs$mode_share      <- sn_stat(c("adult", sn_var, "mode_basic"))
   rs$minutes         <- sn_stat(c("adult", sn_var), "duration_minutes")
   if(sn_var!="hh_race_category"){
-    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year==hts_survey_year))
+    hts_data2 %<>% lapply(FUN=function(x) dplyr::filter(x, survey_year %in% hts_survey_year))
     rs$work_tripcount  <- sn_stat(c("adult", "purpose_work", sn_var))
     rs$groc_tripcount  <- sn_stat(c("adult", "purpose_grocery", sn_var))
     rs$med_tripcount   <- sn_stat(c("adult", "purpose_medical", sn_var))
@@ -119,8 +119,7 @@ add_sn_grpvars <- function(input_data){
 
 # Get data ----------------------------------------
 
-  hts_data <- get_psrc_hts(survey_years = c(2023,2025), 
-                           survey_vars=c(sn_vars, travel_dims, demog_dims))
+  hts_data <- get_psrc_hts(survey_vars=c(sn_vars, travel_dims, demog_dims))
   hts_data %<>% add_sn_grpvars()
 
   sn_remap <- c(age = "age_bin3", hhincome_broad = "hhincome_bin5",
@@ -159,34 +158,69 @@ veh_inc <- sn_stat2(c("adult", "veh_yn", "hhincome_bin3"))
 
 # Visualize -------------------------------------
 
+# No-vehicle composition plot
+
+composition_plots <- list()
+
+composition_plots$p_noveh_income <- ggplot(
+  filter(
+    veh_inc,
+    #survey_year %in% hts_survey_year,
+    veh_yn == "No vehicle"
+  ),
+  aes(x = factor(survey_year), y = prop, fill = hhincome_bin3)
+) +
+  geom_col(color = "white", width = 0.7) +
+  geom_text(
+    aes(label = scales::percent(prop, accuracy = 1)),
+    position = position_stack(vjust = 0.5),
+    size = 3
+  ) +
+  scale_y_continuous(
+    labels = scales::label_percent(accuracy = 1),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  scale_fill_brewer(palette = "YlGnBu", direction = 1, na.translate = FALSE) +
+  labs(
+    x = NULL,
+    y = "Share of no-vehicle adults",
+    fill = "Household income",
+    title = "Income composition of the no-vehicle population"
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    legend.position = "bottom"
+  )
+
 # Mode share plots
 
 mode_plots <- list()
 
 mode_plots$p_dis_mode <- psrcplot::static_bar_chart(                                           # More HOV & transit; less SOV
-  filter(rs_master$disability_person$mode_share, survey_year==hts_survey_year),
+  filter(rs_master$disability_person$mode_share, survey_year %in% hts_survey_year),
   x="prop", y="disability_person", fill="mode_basic",
   pos="stack", est="percent")
 
 mode_plots$p_race_mode <- psrcplot::static_bar_chart(                                          # More HOV & transit; less SOV
-  filter(rs_master$hh_race_category$mode_share, survey_year==hts_survey_year),
+  filter(rs_master$hh_race_category$mode_share, survey_year %in% hts_survey_year),
   x="prop", y="hh_race_category", fill="mode_basic",
   pos="stack", est="percent") +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 30))
 
 mode_plots$p_age_mode <- psrcplot::static_bar_chart(                                           # Only minor differences
-  filter(rs_master$age_bin3$mode_share, survey_year==hts_survey_year),
+  filter(rs_master$age_bin3$mode_share, survey_year%in% hts_survey_year),
   x="prop", y="age_bin3", fill="mode_basic",
   pos="stack", est="percent")
 
 mode_plots$p_veh_mode <- psrcplot::static_bar_chart(                                           # Clear impact of mode availability; shares reversed.
-  filter(rs_master$veh_yn$mode_share, survey_year==hts_survey_year),
+  filter(rs_master$veh_yn$mode_share, survey_year %in% hts_survey_year),
   x="prop", y="veh_yn", fill="mode_basic",
   pos="stack", est="percent")
 
 mode_plots$p_inc_mode <- psrcplot::static_bar_chart(                                           # Car ownership costs likely result in more transit and walk for lowest incomes
   filter(rs_master$hhincome_bin5$mode_share,
-         survey_year==hts_survey_year),
+         survey_year %in% hts_survey_year),
   x="prop", y="hhincome_bin5", fill="mode_basic",
   pos="stack", est="percent")
 
@@ -200,24 +234,24 @@ purpose_plots$p_dis_purpose <- psrcplot::static_bar_chart(                      
   pos="stack", est="percent")
 
 purpose_plots$p_race_purpose <- psrcplot::static_bar_chart(                                          # More HOV & transit; less SOV
-  filter(rs_master$hh_race_category$purpose_share, survey_year==hts_survey_year),
+  filter(rs_master$hh_race_category$purpose_share, survey_year %in% hts_survey_year),
   x="prop", y="hh_race_category", fill="dest_purpose_bin4",
   pos="stack", est="percent") +
   scale_x_discrete(labels = function(x) str_wrap(x, width = 30))
 
 purpose_plots$p_age_purpose <- psrcplot::static_bar_chart(                                           # Only minor differences
-  filter(rs_master$age_bin3$purpose_share, survey_year==hts_survey_year),
+  filter(rs_master$age_bin3$purpose_share, survey_year %in% hts_survey_year),
   x="prop", y="age_bin3", fill="dest_purpose_bin4",
   pos="stack", est="percent")
 
 purpose_plots$p_veh_purpose <- psrcplot::static_bar_chart(                                           # Clear impact of purpose availability; shares reversed.
-  filter(rs_master$veh_yn$purpose_share, survey_year==hts_survey_year),
+  filter(rs_master$veh_yn$purpose_share, survey_year %in% hts_survey_year),
   x="prop", y="veh_yn", fill="dest_purpose_bin4",
   pos="stack", est="percent")
 
 purpose_plots$p_inc_purpose <- psrcplot::static_bar_chart(                                           # Car ownership costs likely result in more transit and walk for lowest incomes
   filter(rs_master$hhincome_bin5$purpose_share,
-         survey_year==hts_survey_year),
+         survey_year %in% hts_survey_year),
   x="prop", y="hhincome_bin5", fill="dest_purpose_bin4",
   pos="stack", est="percent")
 
