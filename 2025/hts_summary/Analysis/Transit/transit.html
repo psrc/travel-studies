@@ -99,9 +99,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<section id="quarto" class="level2">
-<h2 class="anchored" data-anchor-id="quarto">Quarto</h2>
-<p>Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <a href="https://quarto.org" class="uri">https://quarto.org</a>.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(psrc.travelsurvey)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(magrittr)</span>
@@ -111,15 +108,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(psrcplot)</span>
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(openxlsx)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="transit_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
 </div>
 <div class="cell">
 <div class="cell-output-display">
@@ -140,28 +128,69 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="transit_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>df</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    survey_year       mode_class_5 count        prop    prop_moe        est
+         &lt;char&gt;              &lt;ord&gt; &lt;int&gt;       &lt;num&gt;       &lt;num&gt;      &lt;num&gt;
+ 1:        2017              Drive 20288 0.824244030 0.010511401 13505229.4
+ 2:        2017            Transit  3621 0.040243301 0.004633059   659386.0
+ 3:        2017               Walk  6750 0.104519352 0.008596945  1712548.4
+ 4:        2017 Bike/Micromobility   820 0.007510209 0.002308939   123054.7
+ 5:        2017              Other   871 0.023483108 0.004158688   384770.5
+ 6:        2019              Drive 24484 0.812998346 0.009964995 13600501.3
+ 7:        2019            Transit  4130 0.041244509 0.005050001   689971.9
+ 8:        2019               Walk  9736 0.106488339 0.007605981  1781424.0
+ 9:        2019 Bike/Micromobility  1160 0.010972676 0.002753409   183559.9
+10:        2019              Other  1338 0.028296129 0.004353673   473360.8
+11:        2021              Drive  7587 0.794114706 0.009185867 10189129.8
+12:        2021            Transit   330 0.025001341 0.003569917   320787.3
+13:        2021               Walk  1816 0.157438989 0.008302067  2020068.7
+14:        2021 Bike/Micromobility   137 0.009726335 0.002074103   124796.7
+15:        2021              Other   143 0.013718630 0.002640100   176021.0
+16:        2023              Drive 22059 0.819205320 0.008788411 13210086.1
+17:        2023            Transit  1653 0.028145818 0.003419773   453865.1
+18:        2023               Walk  6918 0.109779341 0.007116217  1770245.5
+19:        2023 Bike/Micromobility   874 0.011302926 0.001981862   182265.2
+20:        2023              Other   793 0.031566596 0.004279293   509026.8
+21:        2025              Drive 19914 0.812799466 0.008171336 13795480.2
+22:        2025            Transit  1337 0.036919482 0.003380664   626626.9
+23:        2025               Walk  3513 0.097438614 0.005790873  1653805.8
+24:        2025 Bike/Micromobility   473 0.015165122 0.002822143   257394.5
+25:        2025              Other   685 0.037677315 0.004634354   639489.4
+    survey_year       mode_class_5 count        prop    prop_moe        est
+         &lt;char&gt;              &lt;ord&gt; &lt;int&gt;       &lt;num&gt;       &lt;num&gt;      &lt;num&gt;
+      est_moe
+        &lt;num&gt;
+ 1: 419908.51
+ 2:  75902.09
+ 3: 144688.50
+ 4:  37885.81
+ 5:  68471.28
+ 6: 385208.45
+ 7:  85424.25
+ 8: 130463.45
+ 9:  46186.38
+10:  73515.67
+11: 187539.58
+12:  46109.68
+13: 106976.73
+14:  26594.24
+15:  33951.91
+16: 331526.32
+17:  55409.13
+18: 119237.43
+19:  31983.73
+20:  69829.35
+21: 317749.09
+22:  57322.99
+23:  98950.37
+24:  48170.28
+25:  79968.00
+      est_moe
+        &lt;num&gt;</code></pre>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="do">## transit trips share</span></span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>transit_chart <span class="ot">&lt;-</span> <span class="fu">static_column_chart</span>(df2, <span class="at">x=</span><span class="st">'survey_year'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">ylabel=</span> <span class="st">'Share'</span>,</span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>                                     <span class="co">#xlabel='Mode',</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">moe=</span><span class="st">'prop_moe'</span>,</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">title=</span><span class="st">'Transit Trips - Share'</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), </span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), </span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>)) </span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>transit_chart</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -180,19 +209,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="do">## walk trips share</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>walk_chart <span class="ot">&lt;-</span> <span class="fu">static_column_chart</span>(df3, <span class="at">x=</span><span class="st">'survey_year'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">ylabel=</span> <span class="st">'Share'</span>,</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                                     <span class="co">#xlabel='Mode',</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">moe=</span><span class="st">'prop_moe'</span>,</span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">title=</span><span class="st">'Walk Trips - Share'</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), </span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), </span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>)) </span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>walk_chart</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -202,28 +218,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="transit_files/figure-html/unnamed-chunk-10-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   survey_year mode_class_5 count       prop    prop_moe      est  est_moe
+        &lt;char&gt;        &lt;ord&gt; &lt;int&gt;      &lt;num&gt;       &lt;num&gt;    &lt;num&gt;    &lt;num&gt;
+1:        2017      Transit  3621 0.04024330 0.004633059 659386.0 75902.09
+2:        2019      Transit  4130 0.04124451 0.005050001 689971.9 85424.25
+3:        2021      Transit   330 0.02500134 0.003569917 320787.3 46109.68
+4:        2023      Transit  1653 0.02814582 0.003419773 453865.1 55409.13
+5:        2025      Transit  1337 0.03691948 0.003380664 626626.9 57322.99</code></pre>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="do">## bike/micro trips share</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>bike_chart <span class="ot">&lt;-</span> <span class="fu">static_column_chart</span>(df4, <span class="at">x=</span><span class="st">'survey_year'</span>, <span class="at">y=</span><span class="st">'prop'</span>, <span class="at">fill=</span><span class="st">'survey_year'</span>,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">ylabel=</span> <span class="st">'Share'</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                                     <span class="co">#xlabel='Mode',</span></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">moe=</span><span class="st">'prop_moe'</span>,</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>                                     <span class="at">title=</span><span class="st">'Bike/Micromobility Trips - Share'</span></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>) <span class="sc">+</span> <span class="fu">theme</span>(<span class="at">axis.text.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.text.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>),</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>          <span class="at">legend.text =</span> <span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">14</span>), </span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.y=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>), </span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>          <span class="at">axis.title.x=</span><span class="fu">element_text</span>(<span class="at">size=</span><span class="dv">20</span>)) </span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>bike_chart</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -241,7 +247,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Transit Share</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
@@ -251,12 +256,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-<p>Transit Frequency</p>
 <div class="cell">
 <div class="cell-output-display">
 <div>
 <figure class="figure">
 <p><img src="transit_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Transit Frequency</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid figure-img" width="672"></p>
 </figure>
 </div>
 </div>
@@ -279,7 +311,228 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 </div>
-</section>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>df6</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    survey_year   transit_mode_acc count        prop    prop_moe        est
+         &lt;char&gt;             &lt;fctr&gt; &lt;int&gt;       &lt;num&gt;       &lt;num&gt;      &lt;num&gt;
+ 1:        2017   Walked or jogged  1723 0.888847303 0.046442724 489032.792
+ 2:        2017 Bike/Micromobility    30 0.032128768 0.026619815  17676.851
+ 3:        2017          Vehicular   106 0.079023929 0.040490890  43477.988
+ 4:        2019   Walked or jogged  2221 0.851838221 0.046894702 456972.062
+ 5:        2019 Bike/Micromobility    11 0.003577292 0.002787680   1919.053
+ 6:        2019          Vehicular   168 0.144584487 0.046771967  77562.933
+ 7:        2021   Walked or jogged   263 0.842282475 0.055881642 244776.536
+ 8:        2021 Bike/Micromobility     7 0.008214803 0.006541907   2387.312
+ 9:        2021          Vehicular    27 0.149502722 0.055658361  43447.133
+10:        2023   Walked or jogged  1334 0.935137114 0.022677602 350615.984
+11:        2023 Bike/Micromobility    27 0.010657048 0.004443552   3995.704
+12:        2023          Vehicular    67 0.054205838 0.021938255  20323.686
+13:        2025   Walked or jogged   981 0.890438449 0.035871147 477043.875
+14:        2025 Bike/Micromobility    23 0.013907943 0.007350726   7451.047
+15:        2025          Vehicular    80 0.095653608 0.035482864  51245.505
+      est_moe
+        &lt;num&gt;
+ 1: 54559.516
+ 2: 15015.960
+ 3: 23194.070
+ 4: 68708.046
+ 5:  1481.793
+ 6: 26040.057
+ 7: 25300.111
+ 8:  1924.917
+ 9: 16853.390
+10: 43004.135
+11:  1662.004
+12:  8023.802
+13: 39643.844
+14:  3912.348
+15: 20209.825</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-22-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-24-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-25-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-26-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-27-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-28-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df12<span class="fl">.1</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   survey_year                 re_4group mode_class_5 count       prop
+        &lt;char&gt;                    &lt;fctr&gt;        &lt;ord&gt; &lt;int&gt;      &lt;num&gt;
+1:        2025                    AANHPI      Transit   273 0.04156235
+2:        2025 Black or African American      Transit   121 0.08911154
+3:        2025   Another Person of Color      Transit   164 0.04119391
+4:        2025                     White      Transit   612 0.03505501
+      prop_moe       est  est_moe
+         &lt;num&gt;     &lt;num&gt;    &lt;num&gt;
+1: 0.009873798 101969.60 24152.00
+2: 0.023631964  63913.53 16542.20
+3: 0.009560270  89152.95 20660.55
+4: 0.004314950 261761.73 32115.69</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>transit_race_chart</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-31-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>transit_race_chart_detailed</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-31-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-32-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-32-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>df12<span class="fl">.2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    survey_year                 re_4group mode_class_5 count       prop
+         &lt;char&gt;                    &lt;fctr&gt;        &lt;ord&gt; &lt;int&gt;      &lt;num&gt;
+ 1:        2017                    AANHPI      Transit   591 0.03999815
+ 2:        2017 Black or African American      Transit    90 0.10345635
+ 3:        2017   Another Person of Color      Transit   381 0.06445907
+ 4:        2017                     White      Transit  2257 0.03301237
+ 5:        2019                    AANHPI      Transit   633 0.06620689
+ 6:        2019 Black or African American      Transit   114 0.15135890
+ 7:        2019   Another Person of Color      Transit   328 0.03756342
+ 8:        2019                     White      Transit  2793 0.04719786
+ 9:        2021                    AANHPI      Transit    73 0.06087644
+10:        2021 Black or African American      Transit    38 0.06404047
+11:        2021   Another Person of Color      Transit    40 0.01623738
+12:        2021                     White      Transit   147 0.02056097
+13:        2023                    AANHPI      Transit   272 0.01890748
+14:        2023 Black or African American      Transit    80 0.16016517
+15:        2023   Another Person of Color      Transit   207 0.03410363
+16:        2023                     White      Transit   932 0.02075651
+17:        2025                    AANHPI      Transit   273 0.04156235
+18:        2025 Black or African American      Transit   121 0.08911154
+19:        2025   Another Person of Color      Transit   164 0.04119391
+20:        2025                     White      Transit   612 0.03505501
+    survey_year                 re_4group mode_class_5 count       prop
+         &lt;char&gt;                    &lt;fctr&gt;        &lt;ord&gt; &lt;int&gt;      &lt;num&gt;
+       prop_moe       est   est_moe
+          &lt;num&gt;     &lt;num&gt;     &lt;num&gt;
+ 1: 0.008768621  51657.87 10406.209
+ 2: 0.045343491  51058.68 22165.684
+ 3: 0.021254013  91626.35 30119.394
+ 4: 0.005026364 314017.24 47546.178
+ 5: 0.015574253  73229.71 16655.533
+ 6: 0.051710286  85219.31 32304.984
+ 7: 0.011850914  62426.35 19771.641
+ 8: 0.008089070 403063.05 70772.840
+ 9: 0.016667193  85045.44 23972.520
+10: 0.024364937  37668.75 14578.725
+11: 0.007455629  18067.95  8294.103
+12: 0.004461391 156954.28 34310.107
+13: 0.005882036  41741.99 12945.960
+14: 0.051420504  73918.16 26303.318
+15: 0.010973960  69842.91 22508.837
+16: 0.003660851 161540.55 28480.006
+17: 0.009873798 101969.60 24152.002
+18: 0.023631964  63913.53 16542.202
+19: 0.009560270  89152.95 20660.551
+20: 0.004314950 261761.73 32115.689
+       prop_moe       est   est_moe
+          &lt;num&gt;     &lt;num&gt;     &lt;num&gt;</code></pre>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-34-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="transit_files/figure-html/unnamed-chunk-34-2.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 
 </main>
 <!-- /main column -->

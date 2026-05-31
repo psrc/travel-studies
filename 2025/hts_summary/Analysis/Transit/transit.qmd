@@ -4,10 +4,6 @@ format: html
 editor: visual
 ---
 
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
 ```{r message=FALSE, warning=FALSE}
 
 library(psrc.travelsurvey)
@@ -25,7 +21,7 @@ library(openxlsx)
 #| echo: false
 
 # Specify which variables to retrieve
-vars <- c("mode_class", "mode_class_5", "transit_freq", "mode_acc", "commute_mode", "dest_purpose", "home_county", "home_rgcname", "home_jurisdiction", "home_rgcname")
+vars <- c("mode_class", "mode_class_5", "transit_freq", "mode_acc", "commute_mode", "dest_purpose", "home_county", "home_rgcname", "home_jurisdiction", "home_rgcname", "dest_purpose_cat", "dest_purpose_cat_5", "hhincome_broad", "transportation_statement_transit", "commute_subsidy_transit", "commute_subsidy_parking", "commute_subsidy_1", "disability_person", "race_category")
 
 survey_year <- c(
   "2017", "2019", "2021", "2023", 
@@ -43,16 +39,7 @@ hts_data <- get_psrc_hts(survey_vars = vars, survey_year=survey_year)  # default
 # 
 # head(dplyr::select(rs1, -c(survey_year, min, max)))
 
-# Calculate a categorical summary, i.e. count/share
-hts_data_mode <- hts_bin_mode(hts_data)
 
-df <- psrc_hts_stat(hts_data_mode, "trip", "mode_class_5", incl_na=FALSE) 
-
-df$survey_year<-as.character(df$survey_year)  
-
-df$mode_class_5 <- factor(df$mode_class_5,
-         levels = c("Bike/Micromobility", "Drive", "Other",
-                    "Transit", "Walk"))
 
 #write.xlsx(df, 'mode_class.xlsx')
 
@@ -61,11 +48,31 @@ df$mode_class_5 <- factor(df$mode_class_5,
 ```{r}
 #| echo: false
 
+# Calculate a categorical summary, i.e. count/share
+hts_data_mode <- hts_bin_mode(hts_data)
+
+df <- psrc_hts_stat(hts_data, "trip", "mode_class_5", incl_na=FALSE) 
+
+df$survey_year<-as.character(df$survey_year)  
+
+df$mode_class_5 <- factor(df$mode_class_5,
+         levels = c("Bike/Micromobility", "Drive", "Other",
+                    "Transit", "Walk"))
+
+#write.xlsx(df, 'count.xlsx')
+
+```
+
+```{r}
+#| echo: false
+
 # Trips Count
-df_count <- df %>% group_by(survey_year) %>% summarise(total = sum(est))
+df_count <- psrc_hts_stat(hts_data_mode, "trip", "mode_class_5", incl_na=FALSE) %>% group_by(survey_year) %>% summarise(total = sum(est))
+
+df_count$survey_year<-as.character(df_count$survey_year) 
 
 trips_chart <- static_column_chart(df_count, x='survey_year', y='total', fill='survey_year',
-                                     ylabel= 'Share',
+                                     ylabel= 'Count',
                                      #xlabel='Mode',
                                      #moe='prop_moe',
                                      title='Total Trips in Region'
@@ -76,6 +83,7 @@ trips_chart <- static_column_chart(df_count, x='survey_year', y='total', fill='s
           axis.title.x=element_text(size=20)) 
 
 trips_chart
+
 ```
 
 ```{r}
@@ -93,6 +101,10 @@ mode_chart <- static_column_chart(df, x='mode_class_5', y='prop', fill='survey_y
           axis.title.x=element_text(size=20)) 
 
 mode_chart
+```
+
+```{r}
+df
 ```
 
 ```{r}
@@ -123,7 +135,7 @@ df2$survey_year<-as.character(df2$survey_year)
 transit_chart_count <- static_column_chart(df2, x='survey_year', y='est', fill='survey_year',
                                      ylabel= 'Count',
                                      #xlabel='Mode',
-                                     moe='est_moe',
+                                     #moe='est_moe',
                                      title='Transit Trips - Count'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
@@ -132,6 +144,27 @@ transit_chart_count <- static_column_chart(df2, x='survey_year', y='est', fill='
           axis.title.x=element_text(size=20)) 
 
 transit_chart_count
+```
+
+```{r}
+#| echo: false
+
+transit_chart_count_err <- static_column_chart(df2, x='survey_year', y='est', fill='survey_year',
+                                     ylabel= 'Count',
+                                     #xlabel='Mode',
+                                     moe='est_moe',
+                                     title='Transit Trips - Count'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20)) 
+
+transit_chart_count_err
+```
+
+```{r}
+df2
 ```
 
 ```{r}
@@ -225,77 +258,42 @@ bike_chart <- static_column_chart(df4, x='survey_year', y='prop', fill='survey_y
 bike_chart
 ```
 
-```{r}
-#| echo: false
-
-df_filtered <- df %>% filter(mode_class_5 != "Drive")
-
-mode_chart_nodrive <- static_column_chart(df_filtered, x='survey_year', y='prop', fill='mode_class_5',
-                                     ylabel= 'Share',
-                                     #xlabel='Mode',
-                                     moe='prop_moe',
-                                     title='Mode Share without Drive'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20)) 
-
-mode_chart_nodrive
-```
-
-Transit Share
-
-```{r}
-#| echo: false
-
-transit_chart <- static_column_chart(df2, x='survey_year', y='prop', fill='mode_class_5',
-                                     ylabel= 'Share',
-                                         #xlabel='Mode', 
-                                         moe='prop_moe',
-                                     title='Share of Transit Trips'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20))
-
-transit_chart
-
-```
-
 Transit Frequency
 
 ```{r}
 #| echo: false
 
 #add bucket frequency
-
 hts_data$person <- mutate(
   hts_data$person,
   transit_freq_bucket=case_when(
-    transit_freq=='6-7 days a week' ~ '6-7 days a week',
-    transit_freq=='5 days a week' ~ '5 days a week',
-    transit_freq==c('2 days a week', '3 days a week', '4 days a week', '2-4 days a week') 
+    transit_freq %in%'6-7 days a week' ~ '6-7 days a week',
+    transit_freq %in% '5 days a week' ~ '5 days a week',
+    transit_freq%in%c('2 days a week', '3 days a week', '4 days a week', '2-4 days a week') 
     ~ '2-4 days a week',
-    transit_freq=='1 day a week'~ '1 day a week',
-    transit_freq=='1-3 days in the past month'~ '1-3 days in the past month',
-    transit_freq=='Never in the past 30 days'~ 'Never in the past 30 days'
+    transit_freq%in%'1 day a week'~ '1 day a week',
+    transit_freq%in%'1-3 days in the past month'~ '1-3 days in the past month',
+    transit_freq%in%'Never in the past 30 days'~ 'Never in the past 30 days'
     ))
 
-df3 <- psrc_hts_stat(hts_data, "trip", c("transit_freq_bucket"), incl_na=FALSE)
+df5 <- psrc_hts_stat(hts_data, "trip", c("transit_freq_bucket"), incl_na=FALSE)
 
-df3$survey_year<-as.character(df3$survey_year)
+# df5.1 <- psrc_hts_stat(hts_data, "trip", c("transit_freq"), incl_na=FALSE)
 
-df3$transit_freq_bucket <-
-  factor(df3$transit_freq_bucket,
+#write.xlsx(df5, 'transitfreqbucket.xlsx')
+#write.xlsx(df5.1, 'transitfreq.xlsx')
+
+df5$survey_year<-as.character(df5$survey_year)
+
+df5$transit_freq_bucket <-
+  factor(df5$transit_freq_bucket,
          levels = c("6-7 days a week", "5 days a week", "2-4 days a week",
                     "1 day a week", "1-3 days in the past month", 
                     "Never in the past 30 days"))
 
-transit_freq_chart <- static_column_chart(df3, x='transit_freq_bucket', y='prop', fill='survey_year',ylabel= 'Share',
+transit_freq_chart <- static_column_chart(df5, x='transit_freq_bucket', y='prop', fill='survey_year',ylabel= 'Share',
                                   #xlabel='Mode',
-                                  title='Transit Frequency',
+                                  title='Transit Use Frequency',
                                   moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
         axis.text.y=element_text(size=14),
@@ -305,28 +303,430 @@ transit_freq_chart <- static_column_chart(df3, x='transit_freq_bucket', y='prop'
 
 transit_freq_chart
 
+# transit_freq_chart_count <- static_column_chart(df5, x='transit_freq_bucket', y='est', fill='survey_year',ylabel= 'Count',
+#                                   #xlabel='Mode',
+#                                   title='Transit Use Frequency',
+#                                   #moe='prop_moe'
+# ) + theme(axis.text.x=element_text(size=14),
+#         axis.text.y=element_text(size=14),
+#         legend.text = element_text(size=14), 
+#         axis.title.y=element_text(size=20), 
+#         axis.title.x=element_text(size=20))
+# 
+# transit_freq_chart_count
 ```
 
 ```{r}
 #| echo: false
 
 # mode_acc to transit
-# df3.5 <- psrc_hts_stat(hts_data, "trip", c("mode_acc"), incl_na=FALSE)
-# 
-# df3.5$survey_year<-as.character(df3.5$survey_year)
-# 
-# #write.xlsx(df3.5, 'transit_mode2.xlsx')
-# 
-# transit_acc_chart_detail <- static_column_chart(df3.5, x='survey_year', y='prop', fill='mode_acc',ylabel= 'Share',
-#                                          #xlabel='Mode', 
-#                                          moe='prop_moe'
-# ) + theme(axis.text.x=element_text(size=14),
-#           axis.text.y=element_text(size=14),
-#           legend.text = element_text(size=14), 
-#           axis.title.y=element_text(size=20), 
-#           axis.title.x=element_text(size=20))
-# 
-# transit_acc_chart_detail
+hts_data2 <-  
+  hts_bin_transit_mode_acc(hts_data)
+
+df6 <- psrc_hts_stat(hts_data2, "trip", c("transit_mode_acc"), incl_na=FALSE) 
+
+df6$survey_year<-as.character(df6$survey_year)
+
+transit_acc_chart <- static_column_chart(df6, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+                                         title='Access to Transit Trips - Share', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14),
+        legend.text = element_text(size=14), 
+        axis.title.y=element_text(size=20), 
+        axis.title.x=element_text(size=20))
+
+transit_acc_chart
+```
+
+```{r}
+#| echo: false
+
+df6.2025 <- df6 %>% filter(survey_year==2025)
+transit_acc_chart_2025 <- static_column_chart(df6.2025, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+                                         title='Access to Transit Trips - Share (2025)'
+) + theme(axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14),
+        legend.text = element_text(size=14), 
+        axis.title.y=element_text(size=20), 
+        axis.title.x=element_text(size=20))
+
+transit_acc_chart_2025
+```
+
+```{r}
+#| echo: false
+transit_acc_chart_count <- static_column_chart(df6, x='survey_year', y='est', fill='transit_mode_acc',ylabel= 'Count',
+                                         title='Access to Transit Trips - Count',
+                                  #moe='est_moe'
+) + theme(axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14),
+        legend.text = element_text(size=14), 
+        axis.title.y=element_text(size=20), 
+        axis.title.x=element_text(size=20))
+
+transit_acc_chart_count
+```
+
+```{r}
+#| echo: false
+transit_acc_chart_count_err <- static_column_chart(df6, x='survey_year', y='est', fill='transit_mode_acc',ylabel= 'Count',
+                    title='Access to Transit Trips - Count',
+                                  moe='est_moe'
+) + theme(axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14),
+        legend.text = element_text(size=14), 
+        axis.title.y=element_text(size=20), 
+        axis.title.x=element_text(size=20))
+
+transit_acc_chart_count_err
+```
+
+```{r}
+df6
+```
+
+```{r}
+#| echo: false
+
+df6.1 <- df6 %>% filter(transit_mode_acc!="Walked or jogged")
+
+transit_acc_chart_nowalk <- static_column_chart(df6.1, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+                                         title='Access to Transit Trips - Share', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_acc_chart_nowalk
+
+# df6.2 <- psrc_hts_stat(hts_data2, "trip", c("mode_acc"), incl_na=FALSE) 
+```
+
+```{r}
+#| echo: false
+
+# mode_acc to transit
+hts_data3 <-  
+  hts_bin_transit_mode_acc(hts_data)
+
+df7 <- psrc_hts_stat(hts_data3, "trip", c("dest_purpose_cat_5", "transit_mode_acc"), incl_na=FALSE) %>% 
+#  filter(dest_purpose_cat_5=="Social/Recreation") %>%
+#  filter(transit_mode_acc=="Bike/Micromobility") %>% 
+  filter(survey_year=="2025") 
+
+df7$survey_year<-as.character(df7$survey_year)
+
+dest_walk_chart <- static_column_chart(df7, x='survey_year', y='prop', fill='dest_purpose_cat_5',ylabel= 'Share',
+                                         title='Walk Access to Transit by Destination Purpose - Share', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+#dest_walk_chart
+
+```
+
+```{r}
+#| echo: false
+
+## add two and three income buckets
+
+hts_data$hh <- mutate(
+  hts_data$hh,
+  income_3group=factor(case_when(
+        hhincome_broad %in% c("Under $25,000","$25,000-$49,999")~'Under $50,000',
+        hhincome_broad %in% c("$50,000-$74,999", "$75,000-$99,999")~"$50,000-$99,999",
+        hhincome_broad %in% c("$100,000 or more","$100,000-$199,999", "$200,000 or more")~"$100,000 or more",
+        TRUE~hhincome_broad
+                ),
+      levels = c('Under $50,000',"$50,000-$99,999","$100,000 or more","Prefer not to answer")
+      ))
+
+hts_data$hh <- mutate(
+  hts_data$hh,
+ income_2group = factor(
+      case_when(
+        hhincome_broad %in% c("Under $25,000","$25,000-$49,999","$50,000-$74,999")~ "Under $75,000",
+        hhincome_broad %in% c("$75,000-$99,999","$100,000 or more","$100,000-$199,999","$200,000 or more")~ "$75,000 or more",
+        hhincome_broad == "Prefer not to answer"~ NA
+                ),
+      levels= c("Under $75,000","$75,000 or more")
+      ))
+
+hts_data_mode <- hts_bin_mode(hts_data)
+
+df8 <- psrc_hts_stat(hts_data_mode, "trip", c("income_3group", "mode_class_5"), incl_na=FALSE) %>%
+  filter(mode_class_5=="Transit") %>% 
+  filter(survey_year=="2025") %>%
+  filter(income_3group!="Prefer not to answer")
+
+df8$survey_year<-as.character(df8$survey_year)
+
+transit_income_chart <- static_bar_chart(df8, x='prop', y='income_3group', fill='income_3group',ylabel= 'Income',
+                                         xlabel='Share',
+                    title='Transit Mode by Income - Share (2025)', 
+                                         moe='prop_moe',
+                                         color='pgnobgy_10'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_income_chart
+```
+
+```{r}
+#| echo: false
+
+df9 <- psrc_hts_stat(hts_data_mode, "trip", c("hhincome_broad", "mode_class_5"), incl_na=FALSE) 
+
+df9.1 <- df9 %>%
+  filter(mode_class_5=="Transit") %>% 
+  filter(hhincome_broad!="Prefer not to answer")
+
+df9.1$survey_year<-as.character(df9.1$survey_year)
+  
+transit_income_chart_years <- static_column_chart(df9.1, x='survey_year', y='prop', fill='hhincome_broad',ylabel= 'Share',
+                    title='Transit Mode by Income - Share', 
+                                         moe='prop_moe',
+                                         color='pgnobgy_10'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_income_chart_years
+```
+
+```{r}
+#| echo: false
+df10 <- psrc_hts_stat(hts_data_mode, "trip", c("hhincome_broad", "mode_class_5", "transportation_statement_transit"), incl_na=FALSE) 
+
+df10.2 <- df10 %>%
+  filter(mode_class_5=="Transit") %>% 
+  filter(hhincome_broad!="Prefer not to answer") 
+#%>%
+  #filter(transportation_statement_transit=="2-Disagree") %>% 
+  #filter(hhincome_broad=="Under $25,000")
+
+df10.2$survey_year<-as.character(df10.2$survey_year)
+  
+income_transit_statement_chart <- static_column_chart(df10.2, x='transportation_statement_transit', y='prop', fill='hhincome_broad',ylabel= 'Share',
+                    title='Level of Agreement with:',
+                    subtitle='"I like the idea of public transit as a means of travel for me personally." by Income - Share (2025)',
+                                         moe='prop_moe',
+                                         color='pgnobgy_10'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+income_transit_statement_chart
+```
+
+```{r}
+#| echo: false
+
+df10.1 <- df10 %>%
+  filter(mode_class_5=="Transit") %>% 
+  filter(hhincome_broad!="Prefer not to answer") %>%
+  filter(transportation_statement_transit=="5-Strongly Agree") 
+#%>% filter(hhincome_broad=="Under $25,000")
+
+df10.1$survey_year<-as.character(df10.1$survey_year)
+  
+transit_statement_chart <- static_column_chart(df10.1, x='hhincome_broad', y='prop', fill='hhincome_broad',ylabel= 'Share',
+                    title='Strongly Agree with:',
+                    subtitle='"I like the idea of public transit as a means of travel for me personally." by Income - Share (2025)',
+                                         moe='prop_moe',
+                                         color='pgnobgy_10'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_statement_chart
+```
+
+```{r}
+#| echo: false
+
+# transit pass and parking analysis: "commute_subsidy_parking", "commute_subsidy_1", "commute_subsidy_transit"
+df11 <- psrc_hts_stat(hts_data, "trip", c("hhincome_broad", "commute_subsidy_transit"), incl_na=FALSE) 
+
+df11.1 <- df11 %>%
+  filter(hhincome_broad!="Prefer not to answer") %>%
+  filter(commute_subsidy_transit=="Not offered")
+#%>% filter(hhincome_broad=="Under $25,000")
+
+df11.1$survey_year<-as.character(df11.1$survey_year)
+  
+transit_pass_chart <- static_column_chart(df11.1, x='survey_year', y='prop', fill='hhincome_broad',ylabel= 'Share',
+                    title='Transit Pass Not Offered - Share',
+                                         moe='prop_moe',
+                                         color='pgnobgy_10'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+transit_pass_chart
+```
+
+```{r}
+#| echo: false
+
+hts_data$person <- mutate(
+  hts_data$person,
+  re_4group=factor(case_when(
+        race_category %in% c("AANHPI non-Hispanic")~"AANHPI",
+        race_category %in% c("Black or African American non-Hispanic")~"Black or African American",
+        race_category %in% c("Some Other Race non-Hispanic", "Hispanic", "Two or More Races non-Hispanic")~"Another Person of Color",
+        race_category %in% c("White non-Hispanic")~"White",
+        TRUE~race_category
+                ),
+      levels = c("AANHPI","Black or African American", "Another Person of Color", "White")
+      ))
+
+hts_data$person <- mutate(
+  hts_data$person,
+  re_2group=factor(case_when(
+        race_category %in% c("Black or African American non-Hispanic", "Hispanic", "Some Other Race non-Hispanic", "AANHPI non-Hispanic", "Two or More Races non-Hispanic")~"People of Color",
+        race_category %in% c("White non-Hispanic")~"White",
+        TRUE~race_category
+                ),
+      levels = c("People of Color", "White")
+      ))
+
+# Retrieve the data again with new variables
+hts_data4 <-
+  hts_bin_mode(hts_data)
+
+df12 <- psrc_hts_stat(hts_data4, "trip", c("re_2group", "mode_class_5"), incl_na=FALSE) %>% 
+  filter(mode_class_5=="Transit") %>% 
+  filter(survey_year=="2025")
+
+df12$survey_year<-as.character(df12$survey_year)
+
+transit_race_chart <- static_bar_chart(df12, x='prop', y='re_2group', fill='mode_class_5',xlabel= 'Share',
+                                         title='Transit Trips by R/E - Share',
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14),
+          axis.title.y=element_text(size=20),
+          axis.title.x=element_text(size=20))
+
+df12.1 <- psrc_hts_stat(hts_data4, "trip", c("re_4group", "mode_class_5"), incl_na=FALSE) %>% 
+  filter(mode_class_5=="Transit") %>% 
+  filter(survey_year=="2025")
+
+df12.1$survey_year<-as.character(df12.1$survey_year)
+
+transit_race_chart_detailed <- static_bar_chart(df12.1, x='prop', y='re_4group', fill='mode_class_5',xlabel= 'Share',
+                                         title='Transit Trips by R/E - Share',
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14),
+          axis.title.y=element_text(size=20),
+          axis.title.x=element_text(size=20))
+
+```
+
+```{r}
+
+df12.1
+```
+
+```{r}
+
+transit_race_chart
+
+transit_race_chart_detailed
+```
+
+```{r}
+#| echo: false
+
+df12.2 <- psrc_hts_stat(hts_data4, "trip", c("re_4group", "mode_class_5"), incl_na=FALSE) %>% 
+  filter(mode_class_5=="Transit") 
+
+df12.2$survey_year<-as.character(df12.2$survey_year)
+
+transit_race_chart_years <- static_column_chart(df12.2, x='survey_year', y='prop', fill='re_4group',ylabel= 'Share',
+                                         title='Transit Trips by R/E - Share',
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14),
+          axis.title.y=element_text(size=20),
+          axis.title.x=element_text(size=20))
+
+transit_race_chart_years
+
+transit_race_count_years_count <- static_column_chart(df12.1, x='survey_year', y='est', fill='re_4group',ylabel= 'Count',
+                                         title='Transit Trips by R/E - Share',
+                                         moe='est_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14),
+          axis.title.y=element_text(size=20),
+          axis.title.x=element_text(size=20))
+
+transit_race_count_years_count
+```
+
+```{r}
+df12.2
+```
+
+```{r}
+#| echo: false
+hts_data5 <-
+  hts_bin_mode(hts_data)
+
+df13 <- psrc_hts_stat(hts_data5, "trip", c("disability_person", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
+#%>% filter(survey_year=="2025")
+
+df13$survey_year<-as.character(df13$survey_year)
+
+transit_dis_chart <- static_column_chart(df13, x='survey_year', y='prop', fill='disability_person',xlabel= 'Share',
+                                         title='Transit Trips by Disability Status - Share',
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14),
+          axis.title.y=element_text(size=20),
+          axis.title.x=element_text(size=20))
+
+transit_dis_chart
+
+df13.1 <- psrc_hts_stat(hts_data5, "trip", c("disability_person", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
+
+df13.1$survey_year<-as.character(df13.1$survey_year)
+
+transit_dis_count <- static_column_chart(df13.1, x='survey_year', y='est', fill='disability_person',ylabel= 'Count',
+                                         title='Transit Trips by Disability Status - Count',
+                                         moe='est_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14),
+          axis.title.y=element_text(size=20),
+          axis.title.x=element_text(size=20))
+
+transit_dis_count
 
 ```
 
@@ -343,12 +743,12 @@ hts_data$hh <- mutate(
     ((home_county=='King' &!home_jurisdiction %in% c('Seattle', 'Bellevue'))|home_county=='Snohomish')~'Snohomish-King Suburban',
     .default=home_county))
 # 
-df3.6 <- psrc_hts_stat(hts_data, "trip", c("homegeog", "mode_acc"), incl_na=FALSE) %>% filter(survey_year=="2023") %>% filter(mode_acc=="Walked or jogged")
+df13 <- psrc_hts_stat(hts_data, "trip", c("homegeog", "mode_acc"), incl_na=FALSE) %>% filter(survey_year=="2025") %>% filter(mode_acc=="Walked or jogged")
 # 
-# df3.6$survey_year<-as.character(df3.6$survey_year)
+# df13$survey_year<-as.character(df13$survey_year)
 # 
 # 
-# transit_acc_chart_detail <- static_column_chart(df3.6, x='survey_year', y='prop', fill='transit_mode_bucket',ylabel= 'Share',
+# transit_acc_chart_detail <- static_column_chart(df13, x='survey_year', y='prop', fill='transit_mode_bucket',ylabel= 'Share',
 #                                          #xlabel='Mode',
 #                                          moe='prop_moe',
 #                                          color='pgnobgy_10',
@@ -372,11 +772,11 @@ hts_data$hh <- mutate(
   rgchome=if_else((!is.na(home_rgcname) & home_rgcname!='Not RGC'),"Regional Growth Center", "Not Regional Growth Center"))
 
 # walk trips
-df3.7 <- psrc_hts_stat(hts_data, "trip", c("rgchome", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5 == "Bike/Micromobility")
+df14 <- psrc_hts_stat(hts_data, "trip", c("rgchome", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5 == "Bike/Micromobility")
 # 
-# df3.7$survey_year<-as.character(df3.7$survey_year) 
+# df14$survey_year<-as.character(df14$survey_year) 
 
-# transit_acc_chart_detail_nowalk <- static_column_chart(df3.7, x='survey_year', y='prop', fill='transit_mode_bucket',ylabel= 'Share',
+# transit_acc_chart_detail_nowalk <- static_column_chart(df14, x='survey_year', y='prop', fill='transit_mode_bucket',ylabel= 'Share',
 #                                          #xlabel='Mode',
 #                                          moe='prop_moe',
 #                                          color='pgnobgy_10',
@@ -392,44 +792,22 @@ df3.7 <- psrc_hts_stat(hts_data, "trip", c("rgchome", "mode_class_5"), incl_na=F
 
 ```{r}
 #| echo: false
-hts_data2 <-  
-  hts_bin_transit_mode_acc(hts_data)
-
-df4 <- psrc_hts_stat(hts_data2, "trip", c("transit_mode_acc"), incl_na=FALSE) 
-
-df4$survey_year<-as.character(df4$survey_year)
-
-transit_acc_chart <- static_column_chart(df4, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
-                                         title='Access to Transit Trips - Share', 
-                                         moe='prop_moe'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20))
-
-transit_acc_chart
-
-```
-
-```{r}
-#| echo: false
 ## access to transit trips without walk
-df5 <- df4 %>%
-  filter(transit_mode_acc!="Walked or jogged")
-
-df5$survey_year<-as.character(df5$survey_year)
-
-transit_acc_chart_wo_walk <- static_column_chart(df5, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
-                                         title='Access to Transit Trips - Share (no walk)', 
-                                         moe='prop_moe'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20))
-
-transit_acc_chart_wo_walk
+# df5 <- df4 %>%
+#   filter(transit_mode_acc!="Walked or jogged")
+# 
+# df5$survey_year<-as.character(df5$survey_year)
+# 
+# transit_acc_chart_wo_walk <- static_column_chart(df5, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+#                                          title='Access to Transit Trips - Share (no walk)', 
+#                                          moe='prop_moe'
+# ) + theme(axis.text.x=element_text(size=14),
+#           axis.text.y=element_text(size=14),
+#           legend.text = element_text(size=14), 
+#           axis.title.y=element_text(size=20), 
+#           axis.title.x=element_text(size=20))
+# 
+# transit_acc_chart_wo_walk
 
 ```
 
@@ -437,20 +815,20 @@ transit_acc_chart_wo_walk
 #| echo: false
 
 # trip mode share by county
-
-hts_data$trip <- mutate(
-  hts_data$trip,
- mode_bucket=case_when(
-    mode_class %in% c('Drive SOV') ~ 'Drive Alone',
-    mode_class %in% c('Drive HOV2', 'Drive HOV3') ~ 'Carpool',
-    mode_class %in% c('Transit') ~ 'Transit',
-    mode_class %in% c('School bus', 'Ride hail', 'Other') ~ 'Other',
-    mode_class %in% c('Walk') ~ 'Walk',
-    mode_class %in% c('Bike', 'Micromobility') ~ 'Bike/Micromobility'
-    ))
-
-df_county <- psrc_hts_stat(hts_data, "trip", c("home_county", "mode_bucket"), incl_na=FALSE) %>% filter(survey_year=="2025")
-
-df_county2 <-  psrc_hts_stat(hts_data, "trip", c("home_county", "mode_class_5"), incl_na=FALSE) %>% filter(survey_year=="2023")
+# 
+# hts_data$trip <- mutate(
+#   hts_data$trip,
+#  mode_bucket=case_when(
+#     mode_class %in% c('Drive SOV') ~ 'Drive Alone',
+#     mode_class %in% c('Drive HOV2', 'Drive HOV3') ~ 'Carpool',
+#     mode_class %in% c('Transit') ~ 'Transit',
+#     mode_class %in% c('School bus', 'Ride hail', 'Other') ~ 'Other',
+#     mode_class %in% c('Walk') ~ 'Walk',
+#     mode_class %in% c('Bike', 'Micromobility') ~ 'Bike/Micromobility'
+#     ))
+# 
+# df_county <- psrc_hts_stat(hts_data, "trip", c("home_county", "mode_bucket"), incl_na=FALSE) %>% filter(survey_year=="2025")
+# 
+# df_county2 <-  psrc_hts_stat(hts_data, "trip", c("home_county", "mode_class_5"), incl_na=FALSE) %>% filter(survey_year=="2023")
 
 ```
