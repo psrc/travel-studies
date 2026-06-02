@@ -86,10 +86,10 @@ hh_mutate <- hts_data[["hh"]] |>
 person_mutate <- hts_data[["person"]] |> 
   mutate(
     gender2 = factor(
-      case_when(gender %in% c("Boy/Man (cisgender or transgender)", "Male") ~ "Male", 
-                gender %in% c("Girl/Woman (cisgender or transgender)", "Female") ~ "Female", 
+      case_when(gender %in% c("Boy/Man (cisgender or transgender)", "Male") ~ "Men", 
+                gender %in% c("Girl/Woman (cisgender or transgender)", "Female") ~ "Women", 
                 TRUE ~ NA),
-      levels = c("Male","Female"))
+      levels = c("Men","Women"))
   ) |> 
   mutate(over_64 = factor(case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ 1,
                                 .default = 0), levels = c(1, 0))) |> 
@@ -118,15 +118,6 @@ hh_mutate <- hh_mutate |>
                                            has_elders == 0 & numchildren != "0 children" ~ "Has children, no elders",
                                            has_elders == 0 & numchildren == "0 children" ~ "No children, no elders",
                                            has_elders == 1 & numchildren == "0 children" ~ "No children, has elders")))
-  # mutate(hh_composition_comp = factor(case_when(care_trip_taken == 1 & has_elders == 1 & numchildren != "0 children" ~ "Care trip taken, Has children, has elders",
-  #                                               care_trip_taken == 1 & has_elders == 0 & numchildren != "0 children" ~ "Care trip taken, Has children, no elders",
-  #                                               care_trip_taken == 1 & has_elders == 0 & numchildren == "0 children" ~ "Care trip taken, No children, no elders",
-  #                                               care_trip_taken == 1 & has_elders == 1 & numchildren == "0 children" ~ "Care trip taken, No children, has elders",
-  #                                               care_trip_taken == 0 & has_elders == 1 & numchildren != "0 children" ~ "No Care trip taken, Has children, has elders",
-  #                                               care_trip_taken == 0 & has_elders == 0 & numchildren != "0 children" ~ "No Care trip taken, Has children, no elders",
-  #                                               care_trip_taken == 0 & has_elders == 0 & numchildren == "0 children" ~ "No Care trip taken, No children, no elders",
-  #                                               care_trip_taken == 0 & has_elders == 1 & numchildren == "0 children" ~ "No Care trip taken, No children, has elders"
-  # ))) |>
   
   
 

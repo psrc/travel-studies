@@ -1,3 +1,25 @@
+plot_facet_wrap <- function(table, facet, var1, var2, title, color_pal = psrc_colors$pognbgy_5) {
+  table |> 
+    ggplot(aes(x = {{var1}}, y = prop, fill = {{var2}})) + #gender2, x also = fill
+    geom_col(position = "dodge") + 
+    geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                   orientation = "x",
+                   position = position_dodge(width = 0.9)
+    ) +
+    facet_wrap(vars({{facet}}), ncol = 4, nrow = 1, strip.position = "top") + #survey_year
+    labs(x = NULL,
+         y = NULL,
+         fill = NULL,
+         title = title) +
+    scale_y_continuous(labels = scales::percent) +
+    scale_fill_manual(values = color_pal) +
+    psrc_style() +
+    theme(panel.grid.major.y = element_blank(),
+          axis.title = element_blank(),
+          axis.text.x = element_text(angle = 90, vjust = 0.7)
+    )
+}
+
 create_trip_purpose_tbl <- function(hts_data) {
   # This section prints a table with weighted/unweighted x Home/Exclude Home x trip purpose
   # region
