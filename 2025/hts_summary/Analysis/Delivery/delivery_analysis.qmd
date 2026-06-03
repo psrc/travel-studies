@@ -632,21 +632,4 @@ ggplot(test,
        caption = hts_source)
 ```
 
-```{r}
-rs_2years <- psrc_hts_triprate(hts_data, group_vars=c("dest_purpose_cat")) %>%
-  filter(dest_purpose_cat=="Shopping")
-# 
-# ggplot(rs1 %>% filter(dest_purpose_cat=="Shopping"), 
-#        aes(x=factor(survey_year), y=mean), fill=psrc_colors$pgnobgy_5[1]) +
-#   geom_col() +
-#   geom_text(aes(label=scales::number(mean, accuracy = 0.01)),
-#             vjust = -0.3) +
-#   scale_y_continuous(labels = scales::number) +
-#   psrc_style() +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank())
-
-travelSurveyTools::hts_prep_triprate()
-```
-
 

@@ -12,12 +12,16 @@ book:
   chapters:
     - index.qmd # this is a required file for Quarto Book
     - Analysis/Topsheet/topsheet_summary.qmd
-    - Analysis/Delivery/delivery_analysis.qmd
     - Analysis/care-giving/care-giving.qmd
+    - part: "<b>Delivery</b>"
+      chapters:
+        - Analysis/Delivery/delivery_analysis.qmd
+        - Analysis/Delivery/delivery_landuse.qmd
     - part: "<b>Special Needs</b>"
       chapters:
         - Analysis/special-needs/section_index.qmd
-        - Analysis/special-needs/paired-tradeoff-analysis.qmd
+        - Analysis/special-needs/paired-tradeoff-analysis.qmd  
+    - Analysis/walk-bike/walk_bike_summary.qmd
 
 
 format:
