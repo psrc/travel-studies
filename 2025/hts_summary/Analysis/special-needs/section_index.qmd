@@ -299,13 +299,17 @@ This plot uses effect size on the horizontal axis and marks statistically signif
 ```{r demographic_plot, fig.width=8.5, fig.height=7}
 ranked_dot_plot <- build_section_index_ranked_dotplot(
   demographic_results,
-  preferred_order = c("disability_person", "low_income")
+  preferred_order = c("disability_person", "low_income"),
+  interactive = TRUE
 )
 
-if (!is.null(ranked_dot_plot)) {
-  print(ranked_dot_plot)
-}
+ranked_dot_plot
 ```
+
+```{=html}
+<div style="height: 1rem;"></div>
+```
+
 This plot provides a overarching perspective on Special Needs responses to themes in the survey.
 
 Index 5 (Anxiety) shows a very large, significant disparity between those with and without disabilities, with a moderate effect for those with low income or no vehicles. These groups are clearly more concerned with safety and security than their reference populations. Index 6 (tradeoffs) shows a moderate effect for both those with disabilities and those with low income, showing their attitudes are also reflected in behavior. Other scores for these indices are not particularly notable (either marginal effect, insignificant, or both). The weaker indices, 7A & 7B, register weaker results; there is moderate support for more traffic enforcement among older respondents and those without vehicles, but no dramatic attitudinal differences. 

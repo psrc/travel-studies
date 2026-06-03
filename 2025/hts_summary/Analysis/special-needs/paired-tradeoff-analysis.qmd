@@ -13,6 +13,7 @@ library(data.table)
 library(ggplot2)
 library(knitr)
 library(psrc.travelsurvey)
+library(magrittr)
 library(psrcelmer)
 library(survey)
 options(survey.lonely.psu = "adjust")
@@ -99,7 +100,7 @@ ggplot(overall_gap_plot_dt, aes(y = concern_type)) +
       overall_tests[outcome == "security_score", effect_size]
     )
   ) +
-  theme_minimal(base_size = 11)
+  theme_minimal(base_size = 12)
 ```
 
 ## 2. Disparities by trade-off, ranked
@@ -171,6 +172,62 @@ ggplot(often_plot_dt, aes(x = weighted_prop, y = reorder(domain_label, weighted_
     y = NULL,
     title = "Concerns more pervasive for those with disabilities",
     subtitle = "'Often' responses for selected variables"
+  ) +
+  theme_minimal(base_size = 11)
+```
+
+## 4. Triprate corroboration from the Core Survey
+
+Observational data from the core Household Travel Survey supports this: although there is no way to know what fraction of potential trips were not made based on safety and security reasons, we see on average those with disabilities make 30 percent fewer trips per day.
+
+```{r triprates by disability status}
+
+hts_data <- get_psrc_hts(survey_years = c(2023, 2025), survey_vars = c("dest_purpose", "disability_person"))
+hts_data$person[,
+  disability_yn := factor(dplyr::if_else(as.character(disability_person)=="Prefer not to answer", NA_character_, disability_person))]
+
+rs_triprate <- psrc_hts_triprate(hts_data, group_vars = "disability_yn", incl_na = FALSE) %>% 
+  setDT() %>% .[, .(survey_year, disability_yn, median)]
+
+```
+
+```{r triprate_dumbbell_plot, fig.width=7.5, fig.height=3.5}
+triprate_plot_dt <- dcast(
+  copy(rs_triprate)[!is.na(disability_yn)],
+  survey_year ~ disability_yn,
+  value.var = "median"
+)
+
+triprate_plot_long <- melt(
+  triprate_plot_dt,
+  id.vars = "survey_year",
+  measure.vars = c("No", "Yes"),
+  variable.name = "disability_yn",
+  value.name = "median"
+)
+
+triprate_plot_long[, disability_yn := factor(disability_yn, levels = c("No", "Yes"))]
+triprate_plot_dt[, survey_year := factor(survey_year, levels = rev(sort(unique(survey_year))))]
+triprate_plot_long[, survey_year := factor(survey_year, levels = levels(triprate_plot_dt$survey_year))]
+
+ggplot(triprate_plot_dt, aes(y = survey_year)) +
+  geom_segment(aes(x = No, xend = Yes, yend = survey_year), linewidth = 1.2, color = "grey70") +
+  geom_point(
+    data = triprate_plot_long,
+    aes(x = median, color = disability_yn),
+    size = 3
+  ) +
+  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
+  scale_color_manual(
+    values = c("No" = "#2c7fb8", "Yes" = "#d95f0e"),
+    breaks = c("No", "Yes"),
+    labels = c("No" = "Without disability", "Yes" = "With disability"),
+    name = NULL
+  ) +
+  labs(
+    x = "Median trips per day",
+    y = NULL,
+    title = "Median daily trip rates are 30 percent lower for those with disabilities"
   ) +
   theme_minimal(base_size = 11)
 ```

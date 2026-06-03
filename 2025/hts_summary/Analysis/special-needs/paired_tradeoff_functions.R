@@ -174,6 +174,31 @@ classify_effect_size <- function(values) {
   )
 }
 
+summarize_weighted_totals <- function(dt, group_vars, output_name = "weighted_n", incl_na = TRUE) {
+  summary_dt <- psrc.travelsurvey::psrc_sss_stat(
+    dt,
+    group_vars = group_vars,
+    incl_na = incl_na
+  ) |> setDT()
+
+  summary_dt[, (output_name) := est]
+  summary_dt[, c("count", "prop", "prop_moe", "est", "est_moe") := NULL]
+  summary_dt[]
+}
+
+summarize_weighted_means <- function(dt, group_vars, stat_var, output_name, incl_na = FALSE) {
+  summary_dt <- psrc.travelsurvey::psrc_sss_stat(
+    dt,
+    group_vars = group_vars,
+    stat_var = stat_var,
+    incl_na = incl_na
+  ) |> setDT()
+
+  summary_dt[, (output_name) := mean]
+  summary_dt[, c("count", "min", "max", "mean", "mean_moe", "median", "median_moe") := NULL]
+  summary_dt[]
+}
+
 build_paired_tradeoff_results <- function() {
   codebook <- psrcelmer::get_query(
     "SELECT variable, label, value FROM safety_survey.value_labels_2025"
@@ -277,17 +302,26 @@ build_paired_tradeoff_results <- function() {
     by = respondent_row_id
   ]
 
-  overall_summary <- overall_scores[
-    ,
-    .(
-      weighted_n = sum(person_weight, na.rm = TRUE),
-      safety_score_mean = stats::weighted.mean(safety_score, person_weight, na.rm = TRUE),
-      security_score_mean = stats::weighted.mean(security_score, person_weight, na.rm = TRUE),
-      safety_domains_answered_mean = stats::weighted.mean(safety_domains_answered, person_weight, na.rm = TRUE),
-      security_domains_answered_mean = stats::weighted.mean(security_domains_answered, person_weight, na.rm = TRUE)
-    ),
-    by = disability_person
-  ]
+  overall_summary <- summarize_weighted_totals(overall_scores, "disability_person")
+  for (summary_spec in list(
+    c("safety_score", "safety_score_mean"),
+    c("security_score", "security_score_mean"),
+    c("safety_domains_answered", "safety_domains_answered_mean"),
+    c("security_domains_answered", "security_domains_answered_mean")
+  )) {
+    overall_summary <- merge(
+      overall_summary,
+      summarize_weighted_means(
+        overall_scores,
+        group_vars = "disability_person",
+        stat_var = summary_spec[[1]],
+        output_name = summary_spec[[2]]
+      ),
+      by = "disability_person",
+      all = TRUE,
+      sort = FALSE
+    )
+  }
 
   overall_tests <- rbindlist(list(
     safe_svyttest(overall_scores, "safety_score"),
@@ -302,14 +336,23 @@ build_paired_tradeoff_results <- function() {
 
   applicable_dt <- long_dt[applicable == TRUE & !is.na(concern_score)]
 
-  domain_summary <- applicable_dt[
-    ,
-    .(
-      weighted_n = sum(person_weight, na.rm = TRUE),
-      mean_score = stats::weighted.mean(concern_score, person_weight, na.rm = TRUE)
+  domain_summary <- merge(
+    summarize_weighted_totals(
+      applicable_dt,
+      group_vars = c("domain_id", "domain_label", "concern_type", "disability_person"),
+      incl_na = FALSE
     ),
-    by = .(domain_id, domain_label, concern_type, disability_person)
-  ]
+    summarize_weighted_means(
+      applicable_dt,
+      group_vars = c("domain_id", "domain_label", "concern_type", "disability_person"),
+      stat_var = "concern_score",
+      output_name = "mean_score",
+      incl_na = FALSE
+    ),
+    by = c("domain_id", "domain_label", "concern_type", "disability_person"),
+    all = TRUE,
+    sort = FALSE
+  )
 
   domain_gaps <- dcast(
     domain_summary,
@@ -328,11 +371,10 @@ build_paired_tradeoff_results <- function() {
   domain_findings[, effect_band := classify_effect_size(effect_size)]
   setorder(domain_findings, -effect_size, domain_label, concern_type)
 
-  response_summary <- long_dt[
-    ,
-    .(weighted_n = sum(person_weight, na.rm = TRUE)),
-    by = .(domain_id, domain_label, concern_type, disability_person, response_bucket)
-  ]
+  response_summary <- summarize_weighted_totals(
+    long_dt,
+    group_vars = c("domain_id", "domain_label", "concern_type", "disability_person", "response_bucket")
+  )
   response_summary[, weighted_prop := weighted_n / sum(weighted_n), by = .(domain_id, concern_type, disability_person)]
 
   top_domains <- domain_findings[!is.na(p_value) & p_value < 0.05][order(-effect_size), unique(domain_id)]

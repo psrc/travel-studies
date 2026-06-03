@@ -347,7 +347,7 @@ classify_significance <- function(p_value) {
   )
 }
 
-build_section_index_ranked_dotplot <- function(demographic_results, preferred_order = c("disability_person", "low_income")) {
+build_section_index_ranked_dotplot <- function(demographic_results, preferred_order = c("disability_person", "low_income"), interactive = FALSE) {
   dt_plot <- copy(demographic_results)
 
   if (nrow(dt_plot) == 0L) {
@@ -363,6 +363,24 @@ build_section_index_ranked_dotplot <- function(demographic_results, preferred_or
   dt_plot[, `:=`(
     neg_log10_p = -log10(p_value),
     significant = p_value < 0.05
+  )]
+
+  dt_plot[, hover_text := sprintf(
+    paste(
+      "Index: %s",
+      "Group: %s",
+      "SMD: %+.3f",
+      "p-value: %s",
+      sep = "<br>"
+    ),
+    index_label,
+    respondent_dichotomy,
+    weighted_smd,
+    fifelse(
+      is.na(p_value),
+      "NA",
+      ifelse(p_value < 0.001, formatC(p_value, format = "e", digits = 2), formatC(p_value, format = "f", digits = 3))
+    )
   )]
 
   dt_plot <- dt_plot[
@@ -402,7 +420,7 @@ build_section_index_ranked_dotplot <- function(demographic_results, preferred_or
     actual_breaks <- unique(c(0, max(dt_plot$neg_log10_p, na.rm = TRUE)))
   }
 
-  ggplot2::ggplot(dt_plot, ggplot2::aes(x = weighted_smd, y = respondent_dichotomy)) +
+  plot_obj <- ggplot2::ggplot(dt_plot, ggplot2::aes(x = weighted_smd, y = respondent_dichotomy, text = hover_text)) +
     ggplot2::geom_vline(xintercept = 0, color = "grey55", linewidth = 0.5, linetype = "dashed") +
     ggplot2::geom_point(
       data = dt_plot[significant == FALSE],
@@ -461,4 +479,10 @@ build_section_index_ranked_dotplot <- function(demographic_results, preferred_or
       axis.text.y = ggplot2::element_text(face = "bold"),
       plot.title.position = "plot"
     )
+
+  if (interactive && requireNamespace("plotly", quietly = TRUE)) {
+    return(plotly::ggplotly(plot_obj, tooltip = "text"))
+  }
+
+  plot_obj
 }

@@ -14,8 +14,11 @@ book:
     - Analysis/Topsheet/topsheet_summary.qmd
     - Analysis/Delivery/delivery_analysis.qmd
     - Analysis/care-giving/care-giving.qmd
-    - Analysis/special-needs/section_index.qmd
-    - Analysis/special-needs/paired-tradeoff-analysis.qmd
+    - part: "<b>Special Needs</b>"
+      chapters:
+        - Analysis/special-needs/section_index.qmd
+        - Analysis/special-needs/paired-tradeoff-analysis.qmd
+
 
 format:
   html:
@@ -26,6 +29,7 @@ format:
     df-print: kable
     fig-asp: .7
     fig-width: 4
+    embed-resources: true
 
 execute:
   freeze: auto  # re-render only when source changes
