@@ -11,8 +11,11 @@ book:
 
   chapters:
     - index.qmd # this is a required file for Quarto Book
-    - Analysis/Topsheet/topsheet_summary.qmd
-    - Analysis/care-giving/care-giving.qmd
+    # - Analysis/Topsheet/topsheet_summary.qmd
+    - part: "<b>Care Giving</b>"
+      chapters:
+        - Analysis/care-giving/care-giving.qmd
+        - Analysis/care-giving/care-giving-gender-v02.qmd
     - part: "<b>Delivery</b>"
       chapters:
         - Analysis/Delivery/delivery_analysis.qmd
@@ -21,6 +24,7 @@ book:
       chapters:
         - Analysis/special-needs/section_index.qmd
         - Analysis/special-needs/paired-tradeoff-analysis.qmd  
+    - Analysis/Transit/transit.qmd
     - Analysis/walk-bike/walk_bike_summary.qmd
 
 
@@ -33,7 +37,6 @@ format:
     df-print: kable
     fig-asp: .7
     fig-width: 4
-    embed-resources: true
 
 execute:
   freeze: auto  # re-render only when source changes

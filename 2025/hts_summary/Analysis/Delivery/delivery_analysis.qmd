@@ -25,19 +25,18 @@ hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Su
 stat_delivery <- function(delivery_var, title){
   
   res <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
-    filter(.[[delivery_var]]=="Yes") %>%
-    select(all_of(c("survey_year",delivery_var,"prop","prop_moe","count")))
+    filter(.[[delivery_var]]=="Yes") 
   
-  # result table
+  # result table with formatting
   df_plot <- res %>%
-    mutate(prop = scales::percent(prop, accuracy = 0.1),
-           prop_moe = scales::percent(prop_moe, accuracy = 0.01))
+    # function sourced from Analysis/util.R
+    get_table_format()
   
-  # print ggplot
+  # print your charts
   print(
     ggplot(res, 
-           aes(x=factor(survey_year), y=prop), fill=psrc_colors$pgnobgy_5[1]) +
-      geom_col() +
+           aes(x=factor(survey_year), y=prop)) +
+      geom_col(fill=psrc_colors$pgnobgy_5[1]) +
       geom_text(aes(label=scales::percent(prop, accuracy = 0.1)),
                 vjust = -0.3) +
       geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.4) +
@@ -48,6 +47,7 @@ stat_delivery <- function(delivery_var, title){
       labs(caption = hts_source, title = title)
   )
   
+  # print result table by calling df_plot
   return(df_plot)
   
 }
@@ -62,6 +62,7 @@ df_plot <- stat_delivery("deliver_package", "package delivery")
 ```
 
 ```{r}
+# print table
 df_plot
 ```
 
@@ -141,13 +142,14 @@ df_plot2
 stat_delivery_type <- function(delivery_var, group_var, title){
   
   res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>% 
-    filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer") %>%
-    select(all_of(c("survey_year",group_var,delivery_var,"prop","prop_moe","count") ))
+    filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer")
   
+  # result table with formatting
   df_plot <- res %>%
-    mutate(prop = scales::percent(prop, accuracy = 0.1),
-           prop_moe = scales::percent(prop_moe, accuracy = 0.01))
+    # function sourced from Analysis/util.R
+    get_table_format()
   
+  # print your charts
   print(
     ggplot(res, 
            aes(x=delivery_var, y=prop, fill=!!sym(group_var))) +
@@ -184,6 +186,7 @@ stat_delivery_type <- function(delivery_var, group_var, title){
            title = title)
   )
   
+  # print result table by calling df_plot
   return(df_plot)
 }
 ```
