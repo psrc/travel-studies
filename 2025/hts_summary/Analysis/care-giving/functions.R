@@ -6,7 +6,7 @@ plot_facet_wrap <- function(table, facet, var1, var2, title, color_pal = psrc_co
                    orientation = "x",
                    position = position_dodge(width = 0.9)
     ) +
-    facet_wrap(vars({{facet}}), ncol = 4, nrow = 1, strip.position = "top") + #survey_year
+    facet_wrap(vars({{facet}}), ncol = 5, nrow = 1, strip.position = "top") + #survey_year
     labs(x = NULL,
          y = NULL,
          fill = NULL,

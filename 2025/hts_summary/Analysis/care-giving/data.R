@@ -7,12 +7,11 @@ install_psrc_fonts()
 
 ## vars and categories ----
 
-survey_year <- c("1719", "2021", "2023", "2025")
+survey_year <- c("2017", "2019", "2021", "2023", "2025")
 
 vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
-          "age","can_drive","gender",
-          "hhincome_broad","home_county",
-          "numchildren")
+          "age","can_drive","gender", "race_category",
+          "hhincome_broad","home_county", "numchildren")
 
 care_purpose_cat <- c("Escort", "Shopping", "Meal", "Personal Business/Errand/Appointment")
 work_cat <- c("Work","Work-related")
@@ -93,7 +92,15 @@ person_mutate <- hts_data[["person"]] |>
   ) |> 
   mutate(over_64 = factor(case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ 1,
                                 .default = 0), levels = c(1, 0))) |> 
-  mutate(can_drive2 = str_extract(can_drive, "^[^,]+"))
+  mutate(can_drive2 = str_extract(can_drive, "^[^,]+")) |> 
+  mutate(race_simple = case_when(race_category == "White non-Hispanic" ~ "White",
+                                 race_category == "AANHPI non-Hispanic" ~ "Asian American, Native Hawaiian, or Pacific Islander",
+                                 race_category == "Black or African American non-Hispanic" ~ "Black or African American",
+                                 race_category %in% c("Some Other Race non-Hispanic", "Two or More Races non-Hispanic") ~ "Some Other Race",
+                                 TRUE ~ race_category)) |> 
+  mutate(race_binary = case_when(race_category == "White non-Hispanic" ~ "White",
+                                 race_category %in% c("AANHPI non-Hispanic", "Black or African American non-Hispanic", "Hispanic", "Some Other Race non-Hispanic", "Two or More Races non-Hispanic") ~ "People of Color",
+                                 TRUE ~ race_category))
 
 # Household universe ----
 

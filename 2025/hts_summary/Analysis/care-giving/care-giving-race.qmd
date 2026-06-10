@@ -1,0 +1,296 @@
+---
+title: "Race and Ethnicity"
+editor: visual
+format: 
+  html:
+    mainfont: Poppins
+    toc: true
+    warning: false
+    echo: false
+    fig-width: 4.5
+    fig-asp: .618
+---
+```{r setup}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+install_psrc_fonts()
+```
+
+```{r}
+
+files <- c("data.R", "functions.R")
+
+invisible(
+lapply(files, function(f) {
+  source(here::here("Analysis", "care-giving", f))
+})
+)
+
+```
+
+```{r}
+geog <- "Region"
+ geo_col <- case_when(geog == "Region" ~ "dest_region",
+                       geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
+```
+
+## All People by Race and Ethnicity
+
+```{r}
+
+re_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "person",
+                     group_vars = "race_category",
+                     incl_na = FALSE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+
+
+```
+
+```{r}
+# plot_facet_wrap(table = re_rs, facet = as.character(survey_year), var1 = race_category, var2 = race_category, title = "Race and Ethnicity", color_pal = psrc_colors$pognbgy_10)
+# var1 = "race_category"
+# var2 = "race_category"
+title = "Race and Ethnicity"
+color_pal = psrc_colors$pognbgy_10
+# facet = "survey_year"
+
+ re_rs |> 
+   mutate(survey_year = as.character(survey_year)) |> 
+    ggplot(aes(x = race_category, y = prop, fill = race_category)) + #gender2, x also = fill
+    geom_col(position = "dodge") + 
+    geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                   orientation = "x",
+                   position = position_dodge(width = 0.9)
+    ) +
+    facet_wrap(vars(survey_year), ncol = 5, nrow = 1, strip.position = "top") + #survey_year
+    labs(x = NULL,
+         y = NULL,
+         fill = NULL,
+         title = title) +
+    scale_y_continuous(labels = scales::percent) +
+    scale_fill_manual(values = color_pal) +
+    psrc_style() +
+    theme(panel.grid.major.y = element_blank(),
+          axis.title = element_blank(),
+          axis.text.x = element_blank(),
+          legend.position = "right"
+          # axis.text.x = element_text(angle = 90, vjust = 0.7)
+    ) 
+```
+```{r}
+re_rs
+```
+
+## All trips by Race and Ethnicity
+
+Of all trips in 2025, 47% are made by White (non-Hispanic), 15% by AANHPI.
+
+```{r}
+tre_rs <- psrc_hts_stat(df_hts,
+                        analysis_unit = "trip",
+                        group_vars = "race_category",
+                        incl_na = FALSE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe)) |>
+  filter(survey_year == 2025)
+
+```
+
+```{r}
+tre_rs
+```
+
+
+## sumcheck
+```{r, eval=FALSE}
+at_rs |> 
+  group_by(survey_year) |> 
+  summarize(person_sum_est = sum(est)) # 2025: 3.87 million
+
+tre_rs |> 
+  summarize(trip_sum_est = sum(est)) # 2025 w/o NA 15,879,518, w/NA 17,100,397	
+```
+
+
+## Care Trips by Race and Ethnicity
+
+### Analysis B
+
+<!-- Of all <race>, <x>% are care-giving trips -->
+
+- There isn't a specific group that does more care-giving trips than others.
+
+```{r}
+# race simple refers to labels being simplified (not categories)
+
+recg_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "race_simple", "care_purpose_cat"),
+                     incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+```{r, eval = FALSE}
+recg_rs |> 
+  group_by(survey_year, .data[[geo_col]], race_simple) |> 
+  summarise(sum_prop = sum(prop))
+```
+
+```{r}
+col_var <- "race_simple"
+
+recg_rs_f <- recg_rs |> 
+  filter(!.data[[col_var]] %in% c("Child") & !is.na(.data[[col_var]]),
+         care_purpose_cat == "Care",
+         .data[[geo_col]] %in% "Region")
+
+plot_facet_wrap(table = recg_rs_f, 
+                facet = survey_year, 
+                var1 = .data[[col_var]], 
+                var2 = .data[[col_var]], 
+                title = "Care Trips by Race and Ethnicity", 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  )
+```
+
+```{r}
+recg_rs
+
+```
+```{r, eval=FALSE}
+recg_rs |>
+  group_by(survey_year, race_category) |>
+  summarize(sum_prop = sum(prop))
+```
+
+#### Aggregate groups
+
+- There isn't a group that takes more or less care-trips than the other.
+
+```{r}
+# race_binary refers to POC, White, Child
+
+rebcg_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "race_binary", "care_purpose_cat"),
+                     incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+```{r}
+col_var <- "race_binary"
+
+rebcg_rs_f <- rebcg_rs |> 
+  filter(!.data[[col_var]] %in% c("Child") & !is.na(.data[[col_var]]),
+         care_purpose_cat == "Care",
+         .data[[geo_col]] %in% "Region")
+
+plot_facet_wrap(table = rebcg_rs_f, 
+                facet = survey_year, 
+                var1 = .data[[col_var]], 
+                var2 = .data[[col_var]], 
+                title = "Care Trips by Race and Ethnicity", 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  )
+
+```
+```{r}
+rebcg_rs
+```
+
+
+### Analysis A
+
+- Of all care-giving trips in the Region across survey years, the largest share are made by those who are White Adults. 
+```{r}
+col_var <- "race_category"
+
+cgre_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "care_purpose_cat", col_var),
+                     incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+
+```{r, eval=FALSE}
+# Do all the elements of the regional care-purpose facet equal to 100%?
+
+cgre_rs |> 
+  group_by(survey_year, .data[[geo_col]], care_purpose_cat) |> 
+  summarise(sum_prop = sum(prop))
+```
+
+```{r}
+cgre_rs_f <- cgre_rs |> 
+  filter(.data[[geo_col]] %in% "Region",
+         care_purpose_cat == "Care")
+
+plot_facet_wrap(table = cgre_rs_f, 
+                facet = survey_year, 
+                var1 = .data[[col_var]], 
+                var2 = .data[[col_var]], 
+                title = "Care Trips by Race and Ethnicity", 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  ) 
+
+```
+```{r}
+cgre_rs
+```
+
+
+- Of all care-trips in the region across survey years, those who are White adults have a greater share compared to Adult People of Color; however, care-trip making among Adult People of Color has increased over time since 2019.
+
+```{r}
+col_var <- "race_binary"
+
+cgreb_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "care_purpose_cat", col_var),
+                     incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+```{r}
+cgreb_rs_f <- cgreb_rs |> 
+  filter(.data[[geo_col]] %in% "Region",
+         care_purpose_cat == "Care")
+
+plot_facet_wrap(table = cgreb_rs_f, 
+                facet = survey_year, 
+                var1 = .data[[col_var]], 
+                var2 = .data[[col_var]], 
+                title = "Care Trips by Race and Ethnicity", 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "right"
+  ) 
+```
+```{r}
+cgreb_rs
+```
+
