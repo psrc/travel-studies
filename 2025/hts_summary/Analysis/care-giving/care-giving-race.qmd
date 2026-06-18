@@ -10,6 +10,7 @@ format:
     fig-width: 4.5
     fig-asp: .618
 ---
+
 ```{r setup}
 library(tidyverse)
 library(psrc.travelsurvey)
@@ -52,12 +53,10 @@ re_rs <- psrc_hts_stat(df_hts,
 ```
 
 ```{r}
-# plot_facet_wrap(table = re_rs, facet = as.character(survey_year), var1 = race_category, var2 = race_category, title = "Race and Ethnicity", color_pal = psrc_colors$pognbgy_10)
-# var1 = "race_category"
-# var2 = "race_category"
-title = "Race and Ethnicity"
-color_pal = psrc_colors$pognbgy_10
-# facet = "survey_year"
+#| out-width: "80%"
+
+title <-  "Race and Ethnicity"
+color_pal <-  psrc_colors$pognbgy_10
 
  re_rs |> 
    mutate(survey_year = as.character(survey_year)) |> 
@@ -78,10 +77,17 @@ color_pal = psrc_colors$pognbgy_10
     theme(panel.grid.major.y = element_blank(),
           axis.title = element_blank(),
           axis.text.x = element_blank(),
-          legend.position = "right"
+          # legend.position = "bottom",
+          # Shrink the legend text and title
+          legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
           # axis.text.x = element_text(angle = 90, vjust = 0.7)
     ) 
 ```
+
 ```{r}
 re_rs
 ```
@@ -105,9 +111,9 @@ tre_rs <- psrc_hts_stat(df_hts,
 tre_rs
 ```
 
-
-## sumcheck
 ```{r, eval=FALSE}
+## sumcheck
+
 at_rs |> 
   group_by(survey_year) |> 
   summarize(person_sum_est = sum(est)) # 2025: 3.87 million
@@ -115,7 +121,6 @@ at_rs |>
 tre_rs |> 
   summarize(trip_sum_est = sum(est)) # 2025 w/o NA 15,879,518, w/NA 17,100,397	
 ```
-
 
 ## Care Trips by Race and Ethnicity
 
@@ -127,11 +132,12 @@ tre_rs |>
 
 ```{r}
 # race simple refers to labels being simplified (not categories)
+# incl_na is FALSE to exclude NAs in care_purpose_cat which are HOME trips
 
 recg_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "race_simple", "care_purpose_cat"),
-                     incl_na = TRUE) |> 
+                     incl_na = FALSE) |> 
   mutate(prop_per = percent(prop),
          moe_per = percent(prop_moe))
 ```
@@ -143,6 +149,8 @@ recg_rs |>
 ```
 
 ```{r}
+#| out-width: "100%"
+
 col_var <- "race_simple"
 
 recg_rs_f <- recg_rs |> 
@@ -154,12 +162,17 @@ plot_facet_wrap(table = recg_rs_f,
                 facet = survey_year, 
                 var1 = .data[[col_var]], 
                 var2 = .data[[col_var]], 
-                title = "Care Trips by Race and Ethnicity", 
+                title = "Race and Ethnicity & Care Trips", 
                 color_pal = psrc_colors$pognbgy_10) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "bottom"
+        legend.position = "bottom",
+         legend.text = element_text(size = 6),
+          # legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.2, "cm") 
   )
 ```
 
@@ -167,13 +180,14 @@ plot_facet_wrap(table = recg_rs_f,
 recg_rs
 
 ```
+
 ```{r, eval=FALSE}
 recg_rs |>
   group_by(survey_year, race_category) |>
   summarize(sum_prop = sum(prop))
 ```
 
-#### Aggregate groups
+#### Aggregate groups (People of Color)
 
 - There isn't a group that takes more or less care-trips than the other.
 
@@ -183,12 +197,27 @@ recg_rs |>
 rebcg_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "race_binary", "care_purpose_cat"),
-                     incl_na = TRUE) |> 
+                     incl_na = FALSE) |> 
   mutate(prop_per = percent(prop),
          moe_per = percent(prop_moe))
 ```
 
+```{r, eval=FALSE}
+# sumcheck
+
+rebcg_rs_test <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "race_binary", "care_purpose_cat"),
+                     incl_na = TRUE)
+
+rebcg_rs_test |> 
+  group_by(dest_region, survey_year, race_binary) |> 
+  summarise(sum_prop = sum(prop))
+```
+
 ```{r}
+#| out-width: "100%"
+
 col_var <- "race_binary"
 
 rebcg_rs_f <- rebcg_rs |> 
@@ -200,23 +229,29 @@ plot_facet_wrap(table = rebcg_rs_f,
                 facet = survey_year, 
                 var1 = .data[[col_var]], 
                 var2 = .data[[col_var]], 
-                title = "Care Trips by Race and Ethnicity", 
+                title = "Race and Ethnicity & Care Trips", 
                 color_pal = psrc_colors$pognbgy_10) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "bottom"
+        legend.position = "bottom",
+         legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
   )
 
 ```
+
 ```{r}
 rebcg_rs
 ```
 
-
 ### Analysis A
 
-- Of all care-giving trips in the Region across survey years, the largest share are made by those who are White Adults. 
+- Of all care-giving trips in the Region across survey years, the largest share are made by those who are White Adults.
+
 ```{r}
 col_var <- "race_category"
 
@@ -228,7 +263,6 @@ cgre_rs <- psrc_hts_stat(df_hts,
          moe_per = percent(prop_moe))
 ```
 
-
 ```{r, eval=FALSE}
 # Do all the elements of the regional care-purpose facet equal to 100%?
 
@@ -238,6 +272,8 @@ cgre_rs |>
 ```
 
 ```{r}
+#| out-width: "80%"
+
 cgre_rs_f <- cgre_rs |> 
   filter(.data[[geo_col]] %in% "Region",
          care_purpose_cat == "Care")
@@ -251,14 +287,21 @@ plot_facet_wrap(table = cgre_rs_f,
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "bottom"
-  ) 
+        legend.position = "bottom",
+         legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
+  )
 
 ```
+
 ```{r}
 cgre_rs
 ```
 
+#### Aggregate groups (People of Color)
 
 - Of all care-trips in the region across survey years, those who are White adults have a greater share compared to Adult People of Color; however, care-trip making among Adult People of Color has increased over time since 2019.
 
@@ -274,6 +317,8 @@ cgreb_rs <- psrc_hts_stat(df_hts,
 ```
 
 ```{r}
+#| out-width: "80%"
+
 cgreb_rs_f <- cgreb_rs |> 
   filter(.data[[geo_col]] %in% "Region",
          care_purpose_cat == "Care")
@@ -287,10 +332,15 @@ plot_facet_wrap(table = cgreb_rs_f,
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "right"
-  ) 
+        legend.position = "right",
+         legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
+  )
 ```
+
 ```{r}
 cgreb_rs
 ```
-

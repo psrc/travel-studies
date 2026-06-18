@@ -16,7 +16,14 @@ plot_facet_wrap <- function(table, facet, var1, var2, title, color_pal = psrc_co
     psrc_style() +
     theme(panel.grid.major.y = element_blank(),
           axis.title = element_blank(),
-          axis.text.x = element_text(angle = 90, vjust = 0.7)
+          axis.text.x = element_text(angle = 90, vjust = 0.7),
+          # Shrink the legend text and title
+          legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm"),
+          legend.position = "bottom"
     )
 }
 

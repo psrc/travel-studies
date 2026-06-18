@@ -21,6 +21,12 @@ install_psrc_fonts()
 ```
 
 ```{r}
+geog <- "Region"
+ geo_col <- case_when(geog == "Region" ~ "dest_region",
+                       geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
+```
+
+```{r}
 
 files <- c("data.R", "functions.R")
 
@@ -48,6 +54,8 @@ per_cda <- psrc_hts_stat(df_hts,
                     group_vars = c("can_drive2", "age"),
                     incl_na = FALSE)
 
+# per_cda
+
 ```
 
 ```{r}
@@ -61,13 +69,19 @@ per_cda |>
                  orientation = "x",
                  position = position_dodge(width = 0.9)
   ) +
-  facet_wrap(~survey_year, ncol = 4, nrow = 1, strip.position = "top") +
+  facet_wrap(~survey_year, ncol = 5, nrow = 1, strip.position = "top") +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = psrc_colors$pognbgy_5) +
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7)
+        axis.text.x = element_text(angle = 90, vjust = 0.7),
+        # Shrink the legend text and title
+          legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
   ) +
   labs(x = NULL,
        y = NULL,
@@ -81,97 +95,182 @@ per_cda
 
 ## Care Trips by Can Drive and Age
 
+### Analysis A
+
 -   Where care trips were taken, the vast majority of those between the ages of 25-84 years can drive.
 
 -   Where there are more care trips by those who cannot drive can be found by those who are either too young to obtain a learners permit or those 85 years or older, depending on the survey year.
 
 ```{r}
-t_cda <- create_candrive_tbl(geog = "Region")
+age_groups <- c("12-15 years", "16-17 years", "18-24 years", "25-34 years", "35-44 years", "45-54 years",
+                 "55-64 years", "65-74 years", "75-84 years", "85 years or older")
+
+t_cda <- psrc_hts_stat(df_hts,
+                      analysis_unit = "trip",
+                      group_vars = c(geo_col, "care_purpose_cat", "age", "can_drive2"),
+                      incl_na = FALSE) |>
+    filter(.data[[geo_col]] == geog,
+           care_purpose_cat == "Care") |>
+    mutate(age = factor(age, levels = age_groups)) |>
+    arrange(age)
+
+
 ```
+
+::: panel-tabset
+#### Yes (can drive)
 
 ```{r}
 #| out-width: "100%"
-#| fig-align: "center"
 
-t_cda$long |> 
-  ggplot(aes(x = age, y = prop, fill = as.character(can_drive2))) +
-  geom_col(position = "dodge") + 
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)
-  ) +
-  facet_wrap(~survey_year, ncol = 4, nrow = 1, strip.position = "top") +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7)
-  ) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "Care Trips by Age")
+plot_facet_wrap(table = t_cda |> filter(can_drive2 %in% "Yes"),
+                facet = survey_year,
+                var1 = age,
+                var2 = age,
+                title = "Age, Yes, can drive and Care Trips",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+
 ```
 
-```{r}
-t_cda$long |> 
-  select(-can_drive, -dest_loc) |> 
-  relocate(can_drive2, .before = "age")
+#### No (can drive)
 
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = t_cda |> filter(can_drive2 %in% "No"),
+                facet = survey_year,
+                var1 = age,
+                var2 = age,
+                title = "Age, No, cannot drive and Care Trips",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+```
+:::
+
+```{r}
+t_cda
+
+```
+
+<!-- ### Analysis B -->
+
+```{r, eval=FALSE}
+
+# Of those that can drive between ages X, X% are care-giving trips.
+
+# This might be a difficult analysis because of all the different age groups and lower sample sizes
+
+cda_t <- psrc_hts_stat(df_hts,
+                      analysis_unit = "trip",
+                      group_vars = c(geo_col, "can_drive2", "age", "care_purpose_cat"),
+                      incl_na = FALSE) |>
+    filter(.data[[geo_col]] == geog) |>
+    mutate(age = factor(age, levels = age_groups)) |>
+    arrange(age)
+
+cda_t
 ```
 
 ## Care Trips by Can Drive and Gender
 
+### Analysis A
+
+-   Of all care-trips in the Region and those who can drive, there is a higher share of Women than Men for most survey years
+
 ```{r}
 # Care trips by Gender
 
-t_g <- create_candrive_tbl_gender(geog = "Region")
-
-```
-
--   Of those who can drive, there are more care trips made by females than males.
-
-```{r}
-#| layout-ncol: 2
-#| out-width: "50%"
-
-t_g$long |> 
-  ggplot(aes(x = gender2, y = prop, fill = can_drive2)) +
-  geom_col(position = "dodge") + 
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)
-  ) +
-  facet_wrap(~survey_year, ncol = 4, nrow = 1) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7)) +
-  labs(x = NULL,
-       y = NULL,
-       title = "Share of Care Trips by Can Drive and Gender")
-
-t_g$long |> 
-  ggplot(aes(x = as.character(survey_year), y = prop, fill = gender2)) +
-  geom_col(position = "dodge") + 
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)
-  ) +
-  facet_wrap(~can_drive2, ncol = 2, nrow = 1) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$blues_inc) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7)) +
-  labs(x = NULL,
-       y = NULL,
-       title = "Share of Care Trips by Can Drive and Gender")
-
+t_cd_g <- psrc_hts_stat(df_hts,
+                      analysis_unit = "trip",
+                      group_vars = c(geo_col, "care_purpose_cat", "can_drive2", "gender2"),
+                      incl_na = TRUE) 
 ```
 
 ```{r}
-t_g$long
+t_cd_g_f <- t_cd_g |>
+  filter(.data[[geo_col]] == geog, 
+         care_purpose_cat %in% "Care")
 ```
+
+```{r, eval=FALSE}
+# sumcheck
+t_cd_g_f |> 
+  group_by(survey_year, can_drive2) |> 
+  summarise(sum_prop = sum(prop))
+```
+
+::: panel-tabset
+#### Yes (can drive)
+
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes"),
+                facet = survey_year,
+                var1 = gender2,
+                var2 = gender2,
+                title = "Care Trips, Yes-can drive, and Gender",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+```
+
+#### No (can drive)
+
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "No"),
+                facet = survey_year,
+                var1 = gender2,
+                var2 = gender2,
+                title = "Care Trips, No-cannot drive, and Gender",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+```
+:::
+
+```{r}
+t_cd_g_f
+```
+
+### Analysis B
+
+```{r}
+cd_g_t <- psrc_hts_stat(df_hts,
+                      analysis_unit = "trip",
+                      group_vars = c(geo_col, "can_drive2", "gender2", "care_purpose_cat"),
+                      incl_na = FALSE) 
+
+cd_g_t
+```
+
+::: panel-tabset
+#### Yes (can drive)
+
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = cd_g_t |> filter(can_drive2 %in% "Yes"),
+                facet = survey_year,
+                var1 = gender2,
+                var2 = care_purpose_cat,
+                title = "Can Drive, Gender, Care Purpose Category",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+```
+
+#### No (can drive)
+
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = cd_g_t |> filter(can_drive2 %in% "No"),
+                facet = survey_year,
+                var1 = gender2,
+                var2 = care_purpose_cat,
+                title = "Can Drive, Gender, Care Purpose Category",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+```
+:::
