@@ -1,0 +1,246 @@
+---
+title: "Gender"
+editor: visual
+format: 
+  html:
+    mainfont: Poppins
+    toc: true
+    warning: false
+    echo: false
+    fig-width: 4.5
+    fig-asp: .618
+---
+
+```{r setup}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+install_psrc_fonts()
+```
+
+```{r}
+
+files <- c("data.R", "functions.R")
+
+invisible(
+lapply(files, function(f) {
+  source(here::here("Analysis", "care-giving", f))
+})
+)
+
+```
+
+```{r}
+geog <- "Region"
+ geo_col <- case_when(geog == "Region" ~ "dest_region",
+                       geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
+```
+
+## All trips
+
+```{r}
+at_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "gender2"),
+                     incl_na = FALSE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+
+# Which group is doing more?
+# How many trips overall are made by Females in the region?
+
+# 17.1 million trips (for everyone), check persons/trips tables sum.
+```
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+at_rs |> 
+  ggplot(aes(x = as.character(survey_year), y = prop, fill = gender2)) +
+  geom_col(position = "dodge") + 
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7)
+  ) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "All Trips by Gender")
+
+at_rs |> 
+  ggplot(aes(x = gender2, y = prop, fill = as.character(survey_year))) +
+  geom_col(position = "dodge") + 
+  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                 orientation = "x",
+                 position = position_dodge(width = 0.9)
+  ) +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.7)
+  ) +
+  labs(x = NULL,
+       y = NULL,
+       fill = NULL,
+       title = "All Trips by Gender")
+```
+
+```{r}
+at_rs
+```
+
+```{r, eval=FALSE}
+#### Check sums
+rs2 |> 
+  summarize(trips_sum_est = sum(est)) # M + F = 13,766,970	
+
+sum_trips <- hts_data$trip |> 
+  group_by(survey_year) |> 
+  summarize(trip_weight_sum = sum(trip_weight)) # 2025: 17,100,397
+
+sum_trips
+
+rs3 <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "gender2"),
+                     incl_na = TRUE) 
+
+rs3 |> 
+  group_by(survey_year) |> 
+  summarize(trip_sum_est = sum(est)) # 2025: M + F + NA - 17,100,397
+
+```
+
+## Care Trips by Gender
+
+### Analysis A
+
+- Of all care trips, Women made over 50% of those trips across most survey years.
+
+- Of all care trips in 2025, 53% are made by Women and 40% by Men.
+
+```{r}
+ctg_rs <- psrc_hts_stat(df_hts,
+                    analysis_unit = "trip",
+                    group_vars = c(geo_col, "care_purpose_cat", "gender2"),
+                    incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+
+# Which group is doing more?
+# Of all care trips made in , X are made by Females. Compared to all trips, X are made by Females.
+```
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+ctg_rs_f <- ctg_rs |> 
+  filter(.data[[geo_col]] %in% "Region",
+         care_purpose_cat == "Care") |> 
+  mutate(survey_year = as.character(survey_year))
+
+plot_facet_wrap(table = ctg_rs_f,
+                facet = survey_year,
+                var1 = gender2,
+                var2 = gender2,
+                title = "Care Trips by Gender") +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+
+plot_facet_wrap(table = ctg_rs_f,
+                facet = gender2,
+                var1 = survey_year,
+                var2 = survey_year,
+                title = "Care Trips by Gender",
+                color_pal = psrc_colors$blues_inc) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+
+```
+
+```{r}
+ctg_rs_f 
+```
+
+### Analysis B
+
+- Of all trips made by Women in 2025, 53% are care-giving trips. Of all trips made by Men in 2025, 45% are care-giving trips. This excludes "Home" trips which have been coded as NA.
+
+```{r}
+# exclude where care_purpose_cat is NA because those are home trips, and b/c each gender is its own universe,
+# NAs can also be filtered out
+
+gct_rs <- psrc_hts_stat(df_hts,
+                    analysis_unit = "trip",
+                    group_vars = c(geo_col, "gender2", "care_purpose_cat"),
+                    incl_na = FALSE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+::: panel-tabset
+```{r}
+col_var <- "gender2"
+
+gct_rs_f <- gct_rs |> 
+  filter(.data[[geo_col]] %in% "Region",
+         !is.na(.data[[col_var]])) |> 
+  mutate(survey_year = as.character(survey_year))
+```
+
+#### Men
+
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Men"),
+                facet = survey_year,
+                var1 = .data[[col_var]],
+                var2 = care_purpose_cat,
+                title = "Men and Care Purpose Categories",
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  ) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+
+```
+
+#### Women
+
+```{r}
+#| out-width: "100%"
+
+
+plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Women"),
+                facet = survey_year,
+                var1 = .data[[col_var]],
+                var2 = care_purpose_cat,
+                title = "Women and Care Purpose Categories",
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  ) +
+  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+
+```
+:::
+
+```{r}
+gct_rs_f
+```
