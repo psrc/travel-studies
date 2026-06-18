@@ -26,7 +26,8 @@ files <- c("data.R", "functions.R")
 
 invisible(
 lapply(files, function(f) {
-  source(here::here("Analysis", "care-giving", f))
+  # source(here::here("Analysis", "care-giving", f))
+  source(f)
 })
 )
 ```
@@ -42,6 +43,7 @@ Children is based on var `numchildren`.
 - Generally there are predominately more households without children or elders that households with both children and elders.
 
 - In 2017/19 and 2021, there has been relatively more households with only children and no elders than only elders. In 2023 and 2025, it is undetermined if there are more or less.
+
 ```{r}
 hhs_comp <- psrc_hts_stat(df_hts,
                      analysis_unit = "hh",
@@ -59,7 +61,7 @@ ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
                  position = position_dodge(width = 0.9)) +
-  facet_wrap(~survey_year, ncol = 4, nrow = 1) +
+  facet_wrap(~survey_year, ncol = 5, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = psrc_colors$pognbgy_10) +
   psrc_style() +
@@ -80,7 +82,7 @@ mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n"
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
                  position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition_label, ncol = 4, nrow = 1) +
+  facet_wrap(~hh_composition_label, ncol = 5, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = psrc_colors$blues_inc) +
   psrc_style() +
@@ -133,9 +135,7 @@ hhc_sum <- hhc |>
 
 ```
 
-
-
-### Care Trips Taken 
+### Care Trips Taken
 
 #### Household Composition
 
@@ -154,7 +154,7 @@ create_hhstr_tbl(geog = "Region")$long |>
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
                  position = position_dodge(width = 0.9)) +
-  facet_wrap(~survey_year, ncol = 4, nrow = 1) +
+  facet_wrap(~survey_year, ncol = 5, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = psrc_colors$pognbgy_10) +
   psrc_style() +
@@ -176,7 +176,7 @@ create_hhstr_tbl(geog = "Region")$long |>
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
                  position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition_label, ncol = 4, nrow = 1) +
+  facet_wrap(~hh_composition_label, ncol = 5, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = psrc_colors$blues_inc) +
   psrc_style() +
@@ -189,6 +189,7 @@ create_hhstr_tbl(geog = "Region")$long |>
        fill = NULL,
        title = "Households that Made Care Trips")
 ```
+
 ```{r, eval=FALSE}
 #| out-width: "100%"
 #| fig-align: "center"
@@ -200,7 +201,7 @@ create_hhstr_tbl(geog = "Region")$long |>
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
                  position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition, ncol = 4, nrow = 1) +
+  facet_wrap(~hh_composition, ncol = 5, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
   scale_fill_manual(values = psrc_colors$blues_inc) +
   psrc_style() +

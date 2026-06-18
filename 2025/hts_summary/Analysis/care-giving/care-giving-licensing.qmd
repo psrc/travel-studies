@@ -32,7 +32,8 @@ files <- c("data.R", "functions.R")
 
 invisible(
 lapply(files, function(f) {
-  source(here::here("Analysis", "care-giving", f))
+  source(f)
+  # source(here::here("Analysis", "care-giving", f))
 })
 )
 
@@ -40,13 +41,13 @@ lapply(files, function(f) {
 
 ## Can Drive by Age
 
--   There were fewer 18-24 year olds who could drive in 2017/19 than those who couldn't. By 2023, there were significantly less who were driving.
+- There were fewer 18-24 year olds who could drive in 2017/19 than those who couldn't. By 2023, there were significantly less who were driving.
 
--   There were more 25-34 year olds who could drive compared to those who couldn't in 2021, but it's hard to determine in other years.
+- There were more 25-34 year olds who could drive compared to those who couldn't in 2021, but it's hard to determine in other years.
 
--   Between 35-64 years in 2017/19 and 2025, there are more who could drive than couldn't. In 2023, there are more people who can drive than those who cannot in the 35-54 age range.
+- Between 35-64 years in 2017/19 and 2025, there are more who could drive than couldn't. In 2023, there are more people who can drive than those who cannot in the 35-54 age range.
 
--   Those who are between 16-24 years of age have a higher share who cannot drive. The earliest a person can obtain a learner's permit is 15 in addition to people who delay learning how to drive.
+- Those who are between 16-24 years of age have a higher share who cannot drive. The earliest a person can obtain a learner's permit is 15 in addition to people who delay learning how to drive.
 
 ```{r}
 per_cda <- psrc_hts_stat(df_hts,
@@ -97,9 +98,9 @@ per_cda
 
 ### Analysis A
 
--   Where care trips were taken, the vast majority of those between the ages of 25-84 years can drive.
+- Where care trips were taken, the vast majority of those between the ages of 25-84 years can drive.
 
--   Where there are more care trips by those who cannot drive can be found by those who are either too young to obtain a learners permit or those 85 years or older, depending on the survey year.
+- Where there are more care trips by those who cannot drive can be found by those who are either too young to obtain a learners permit or those 85 years or older, depending on the survey year.
 
 ```{r}
 age_groups <- c("12-15 years", "16-17 years", "18-24 years", "25-34 years", "35-44 years", "45-54 years",
@@ -176,7 +177,7 @@ cda_t
 
 ### Analysis A
 
--   Of all care-trips in the Region and those who can drive, there is a higher share of Women than Men for most survey years
+- Of all care-trips in the Region and those who can drive, there is a higher share of Women than Men for most survey years
 
 ```{r}
 # Care trips by Gender

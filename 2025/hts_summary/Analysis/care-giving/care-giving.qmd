@@ -24,7 +24,8 @@ files <- c("data.R", "functions.R")
 
 invisible(
 lapply(files, function(f) {
-  source(here::here("Analysis", "care-giving", f))
+  source(f)
+  # source(here::here("Analysis", "care-giving", f))
 })
 )
 
