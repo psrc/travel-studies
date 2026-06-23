@@ -7,7 +7,7 @@ library(psrcplot)
 library(ggplot2)
 library(extrafont)
 
-hts_survey_year <- c(2023, 2025)
+hts_survey_year <- c(2025)
 
 sn_vars <- c("age", "vehicle_count", "hhincome_broad", "disability_person","hh_race_category") # Special needs dimensions
 travel_dims <- c("dest_purpose", "duration_minutes", "mode_class")                             # Travel behavior variables

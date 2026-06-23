@@ -1,0 +1,102 @@
+---
+title: "Special Needs Travel Analysis (2025)"
+author: "Michael Jensen"
+format:
+  html:
+    toc: true
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+hts_survey_year <- 2025
+source("../../../../2023/summary/special_needs/hts_2023_SNTC_analysis.R")
+```
+
+## Overview
+
+These data update analysis presented to the Coordinated Mobility & Accessibility Committee in 2024. The core Household Transportation Survey supports analysis of households with: 
+1) disabilities
+2) low-income
+3) no vehicles
+4) age 65+
+5) people of color
+Due to constraints on children as respondents, households with children under age 18 are not reflected; the survey also does not reflect/sample those with low English proficiency.
+
+---
+
+## Population Composition
+
+### Income composition of the no-vehicle population
+
+```{r noveh-income, fig.width=6, fig.height=4}
+composition_plots$p_noveh_income
+```
+
+---
+
+## Mode Share
+
+### By disability status
+
+```{r mode-disability, fig.width=6, fig.height=3.5}
+mode_plots$p_dis_mode
+```
+
+### By race/ethnicity
+
+```{r mode-race, fig.width=6, fig.height=4}
+mode_plots$p_race_mode
+```
+
+### By age group
+
+```{r mode-age, fig.width=6, fig.height=3.5}
+mode_plots$p_age_mode
+```
+
+### By vehicle availability
+
+```{r mode-vehicle, fig.width=6, fig.height=3.5}
+mode_plots$p_veh_mode
+```
+
+### By household income
+
+```{r mode-income, fig.width=6, fig.height=4}
+mode_plots$p_inc_mode
+```
+
+---
+
+## Trip Purpose
+
+### By disability status
+
+```{r purpose-disability, fig.width=6, fig.height=3.5}
+purpose_plots$p_dis_purpose
+```
+
+### By race/ethnicity
+
+```{r purpose-race, fig.width=6, fig.height=4}
+purpose_plots$p_race_purpose
+```
+
+### By age group
+
+```{r purpose-age, fig.width=6, fig.height=3.5}
+purpose_plots$p_age_purpose
+```
+
+### By vehicle availability
+
+```{r purpose-vehicle, fig.width=6, fig.height=3.5}
+purpose_plots$p_veh_purpose
+```
+
+### By household income
+
+```{r purpose-income, fig.width=6, fig.height=4}
+purpose_plots$p_inc_purpose
+```
