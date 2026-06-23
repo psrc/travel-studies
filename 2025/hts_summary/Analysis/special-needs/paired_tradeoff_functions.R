@@ -124,7 +124,7 @@ compute_weighted_smd <- function(dt, value_col, group_col = "disability_person",
   (mean_yes - mean_no) / pooled_sd
 }
 
-safe_svyttest <- function(dt, outcome_col, group_col = "disability_person") {
+safe_svyttest <- function(dt, outcome_col, group_col = "disability_person", group_levels = c("Yes", "No")) {
   dt <- copy(dt[!is.na(get(outcome_col))])
 
   if (nrow(dt) == 0L || uniqueN(dt[[group_col]]) < 2L) {
@@ -158,7 +158,180 @@ safe_svyttest <- function(dt, outcome_col, group_col = "disability_person") {
   data.table(
     outcome = outcome_col,
     p_value = if (is.null(test_object)) NA_real_ else unname(test_object$p.value),
-    effect_size = compute_weighted_smd(dt, outcome_col, group_col = group_col)
+    effect_size = compute_weighted_smd(dt, outcome_col, group_col = group_col, group_levels = group_levels)
+  )
+}
+
+build_paired_tradeoff_dichotomy_results <- function(dichotomy_var, group_levels, dichotomy_label = dichotomy_var) {
+  codebook <- psrcelmer::get_query(
+    "SELECT variable, label, value FROM safety_survey.value_labels_2025"
+  ) |> setDT()
+
+  responses <- psrc.travelsurvey::get_psrc_sss("*") |> setDT()
+  responses <- normalize_safety_source(responses)
+  responses <- filter_completed_responses(responses)
+  responses <- derive_demographic_flags(responses)
+
+  if (!dichotomy_var %in% names(responses)) {
+    stop(sprintf("Missing required dichotomy variable: %s", dichotomy_var))
+  }
+
+  required_columns <- c(
+    "person_id",
+    "person_weight",
+    "sample_segment",
+    dichotomy_var,
+    paired_tradeoff_domains$safety_var,
+    paired_tradeoff_domains$security_var
+  )
+  missing_columns <- setdiff(required_columns, names(responses))
+
+  if (length(missing_columns) > 0L) {
+    stop(sprintf("Missing required columns: %s", paste(missing_columns, collapse = ", ")))
+  }
+
+  analysis_dt <- copy(responses[
+    trimws(as.character(get(dichotomy_var))) %chin% group_levels &
+      !is.na(person_weight) & person_weight > 0 &
+      !is.na(sample_segment),
+    c(
+      "person_id",
+      "person_weight",
+      "sample_segment",
+      dichotomy_var,
+      paired_tradeoff_domains$safety_var,
+      paired_tradeoff_domains$security_var
+    ),
+    with = FALSE
+  ])
+
+  analysis_dt[, respondent_row_id := .I]
+  analysis_dt[, dichotomy_value := factor(trimws(as.character(get(dichotomy_var))), levels = group_levels)]
+
+  long_dt <- rbindlist(lapply(seq_len(nrow(paired_tradeoff_domains)), function(i) {
+    current_domain <- paired_tradeoff_domains[i]
+
+    rbindlist(list(
+      data.table(
+        respondent_row_id = analysis_dt[["respondent_row_id"]],
+        person_weight = analysis_dt[["person_weight"]],
+        sample_segment = analysis_dt[["sample_segment"]],
+        dichotomy_value = analysis_dt[["dichotomy_value"]],
+        domain_id = current_domain[["domain_id"]],
+        domain_label = current_domain[["domain_label"]],
+        concern_type = "safety",
+        variable = current_domain[["safety_var"]],
+        response_label = decode_response_label(analysis_dt[[current_domain[["safety_var"]]]], current_domain[["safety_var"]], codebook)
+      ),
+      data.table(
+        respondent_row_id = analysis_dt[["respondent_row_id"]],
+        person_weight = analysis_dt[["person_weight"]],
+        sample_segment = analysis_dt[["sample_segment"]],
+        dichotomy_value = analysis_dt[["dichotomy_value"]],
+        domain_id = current_domain[["domain_id"]],
+        domain_label = current_domain[["domain_label"]],
+        concern_type = "security",
+        variable = current_domain[["security_var"]],
+        response_label = decode_response_label(analysis_dt[[current_domain[["security_var"]]]], current_domain[["security_var"]], codebook)
+      )
+    ), fill = TRUE)
+  }), fill = TRUE)
+
+  long_dt <- cbind(long_dt, classify_concern_response(long_dt[["response_label"]]))
+  long_dt[, concern_type := factor(concern_type, levels = c("safety", "security"))]
+
+  applicable_dt <- long_dt[applicable == TRUE & !is.na(concern_score)]
+
+  domain_summary <- merge(
+    summarize_weighted_totals(
+      applicable_dt,
+      group_vars = c("domain_id", "domain_label", "concern_type", "dichotomy_value"),
+      incl_na = FALSE
+    ),
+    summarize_weighted_means(
+      applicable_dt,
+      group_vars = c("domain_id", "domain_label", "concern_type", "dichotomy_value"),
+      stat_var = "concern_score",
+      output_name = "mean_score",
+      incl_na = FALSE
+    ),
+    by = c("domain_id", "domain_label", "concern_type", "dichotomy_value"),
+    all = TRUE,
+    sort = FALSE
+  )
+
+  domain_gaps <- dcast(
+    domain_summary,
+    domain_id + domain_label + concern_type ~ dichotomy_value,
+    value.var = "mean_score"
+  )
+
+  gap_col <- paste0(group_levels[1], " - ", group_levels[2])
+  domain_gaps[, (gap_col) := get(group_levels[1]) - get(group_levels[2])]
+
+  domain_tests <- applicable_dt[
+    ,
+    safe_svyttest(.SD, "concern_score", group_col = "dichotomy_value", group_levels = group_levels),
+    by = .(domain_id, domain_label, concern_type)
+  ]
+
+  domain_findings <- merge(
+    domain_gaps,
+    domain_tests,
+    by = c("domain_id", "domain_label", "concern_type"),
+    all.x = TRUE
+  )
+  domain_findings[, effect_band := classify_effect_size(effect_size)]
+  setorder(domain_findings, -effect_size, domain_label, concern_type)
+
+  significant_domains <- domain_findings[
+    !is.na(p_value) & p_value < 0.05,
+    .(
+      Domain = domain_label,
+      Concern = fifelse(concern_type == "safety", "Safety", "Security"),
+      `Selected mean` = round(get(group_levels[1]), 2),
+      `Not selected mean` = round(get(group_levels[2]), 2),
+      Gap = round(get(gap_col), 2),
+      `Weighted SMD` = round(effect_size, 2),
+      `Effect band` = effect_band,
+      `p-value` = signif(p_value, 2)
+    )
+  ]
+
+  plot_dt <- dcast(
+    copy(domain_findings),
+    domain_id + domain_label ~ concern_type,
+    value.var = c("effect_size", "p_value")
+  )
+  plot_dt[, pair_max := pmax(effect_size_safety, effect_size_security, na.rm = TRUE)]
+  plot_dt[!is.finite(pair_max), pair_max := NA_real_]
+  plot_dt[, domain_label := factor(
+    domain_label,
+    levels = plot_dt[order(-pair_max, domain_label), domain_label]
+  )]
+
+  plot_long <- melt(
+    plot_dt,
+    id.vars = c("domain_id", "domain_label"),
+    measure.vars = patterns(effect_size = "^effect_size_", p_value = "^p_value_"),
+    variable.name = "concern_index"
+  )
+  plot_long[, concern_type := factor(
+    c("Safety", "Security")[concern_index],
+    levels = c("Security", "Safety")
+  )]
+
+  list(
+    analysis_dt = analysis_dt,
+    long_dt = long_dt,
+    applicable_dt = applicable_dt,
+    domain_findings = domain_findings,
+    significant_domains = significant_domains,
+    plot_dt = plot_dt,
+    plot_long = plot_long,
+    gap_col = gap_col,
+    dichotomy_label = dichotomy_label,
+    group_levels = group_levels
   )
 }
 

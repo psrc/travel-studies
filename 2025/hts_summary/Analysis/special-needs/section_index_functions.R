@@ -411,17 +411,12 @@ build_section_index_ranked_dotplot <- function(demographic_results, preferred_or
   )]
 
   color_ramp <- c("#ffffcc", "#a1dab4", "#41b6c4", "#2c7fb8", "#253494")
-  max_abs_smd <- max(abs(dt_plot$weighted_smd), na.rm = TRUE)
-  x_limit <- max(0.25, ceiling(max_abs_smd * 4) / 4)
-
+  x_breaks <- c(-0.5, -0.4, 0, 0.4, 0.7, 1)
   p_breaks <- c(0, -log10(0.05), 2, 3, 5)
-  actual_breaks <- p_breaks[p_breaks <= max(dt_plot$neg_log10_p, na.rm = TRUE)]
-  if (length(actual_breaks) < 2L) {
-    actual_breaks <- unique(c(0, max(dt_plot$neg_log10_p, na.rm = TRUE)))
-  }
 
   plot_obj <- ggplot2::ggplot(dt_plot, ggplot2::aes(x = weighted_smd, y = respondent_dichotomy, text = hover_text)) +
-    ggplot2::geom_vline(xintercept = 0, color = "grey55", linewidth = 0.5, linetype = "dashed") +
+    ggplot2::geom_vline(xintercept = c(-0.4, 0.4, 0.7), color = "grey55", linewidth = 0.5, linetype = "dashed") +
+    ggplot2::geom_vline(xintercept = 0, color = "grey55", linewidth = 0.5, linetype = "solid") +
     ggplot2::geom_point(
       data = dt_plot[significant == FALSE],
       shape = 21,
@@ -443,18 +438,21 @@ build_section_index_ranked_dotplot <- function(demographic_results, preferred_or
     ggplot2::facet_wrap(ggplot2::vars(index_label), ncol = 1) +
     ggplot2::scale_y_discrete(limits = rev(resp_top_to_bottom)) +
     ggplot2::scale_x_continuous(
-      limits = c(-x_limit, x_limit),
-      breaks = scales::pretty_breaks(n = 5),
+      limits = c(-0.4, 1),
+      breaks = x_breaks,
+      labels = scales::label_number(accuracy = 0.1, trim = TRUE),
       expand = ggplot2::expansion(mult = c(0.02, 0.04))
     ) +
     ggplot2::scale_fill_gradientn(
       name = "p-value\n(darker = lower)",
       colours = color_ramp,
-      breaks = actual_breaks,
+      limits = range(p_breaks),
+      breaks = p_breaks,
       labels = function(x) {
         val <- 10^(-x)
         ifelse(val < 0.001, formatC(val, format = "e", digits = 1), formatC(val, format = "f", digits = 3))
       },
+      oob = scales::squish,
       guide = ggplot2::guide_colorbar(
         order = 1,
         title.position = "top",

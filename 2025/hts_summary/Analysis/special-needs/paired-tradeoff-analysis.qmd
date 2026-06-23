@@ -126,18 +126,40 @@ kable(significant_domains)
 ```
 
 ```{r domain_gap_plot, fig.width=8.5, fig.height=5.5}
-domain_plot_dt <- copy(domain_findings)
-domain_plot_dt[, concern_type := factor(concern_type, levels = c("security", "safety"), labels = c("Security", "Safety"))]
-domain_plot_dt[, domain_concern := factor(
-  paste(domain_label, concern_type, sep = " - "),
-  levels = rev(domain_plot_dt[order(effect_size), paste(domain_label, concern_type, sep = " - ")])
+domain_plot_dt <- dcast(
+  copy(domain_findings),
+  domain_id + domain_label ~ concern_type,
+  value.var = c("effect_size", "p_value")
+)
+domain_plot_dt[, pair_max := pmax(effect_size_safety, effect_size_security, na.rm = TRUE)]
+domain_plot_dt[!is.finite(pair_max), pair_max := NA_real_]
+domain_plot_dt[, domain_label := factor(
+  domain_label,
+  levels = domain_plot_dt[order(-pair_max, domain_label), domain_label]
 )]
 
-ggplot(domain_plot_dt, aes(x = effect_size, y = domain_concern, color = concern_type)) +
+domain_plot_long <- melt(
+  domain_plot_dt,
+  id.vars = c("domain_id", "domain_label"),
+  measure.vars = patterns(effect_size = "^effect_size_", p_value = "^p_value_"),
+  variable.name = "concern_index"
+)
+domain_plot_long[, concern_type := factor(
+  c("Safety", "Security")[concern_index],
+  levels = c("Security", "Safety")
+)]
+
+ggplot(domain_plot_dt, aes(y = domain_label)) +
   geom_vline(xintercept = c(0.4, 0.7), linetype = c("dashed", "dotted"), color = "grey70") +
-  geom_point(aes(shape = p_value < 0.05), size = 3) +
+  geom_segment(aes(x = effect_size_safety, xend = effect_size_security, yend = domain_label), linewidth = 1.2, color = "grey70") +
+  geom_point(
+    data = domain_plot_long,
+    aes(x = effect_size, color = concern_type, shape = p_value < 0.05),
+    size = 3
+  ) +
   scale_shape_manual(values = c(1, 16), guide = "none") +
-  scale_color_manual(values = c("Security" = "#7a0177", "Safety" = "#1d91c0")) +
+  scale_color_manual(values = c("Security" = "#91268F", "Safety" = "#8CC63E")) +
+  scale_x_continuous(limits = c(0, NA), expand = expansion(mult = c(0, 0.05))) +
   labs(
     x = "Weighted standardized mean difference",
     y = NULL,
