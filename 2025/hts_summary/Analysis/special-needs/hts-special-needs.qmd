@@ -10,7 +10,18 @@ format:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 hts_survey_year <- 2025
+
+# Apply larger defaults before sourcing so generated plots inherit sizes.
+ggplot2::theme_update(
+  axis.text = ggplot2::element_text(size = 12),
+  axis.title = ggplot2::element_text(size = 13),
+  legend.text = ggplot2::element_text(size = 12),
+  legend.title = ggplot2::element_text(size = 13)
+)
+ggplot2::update_geom_defaults("text", list(size = 4.5))
+
 source("../../../../2023/summary/special_needs/hts_2023_SNTC_analysis.R")
+
 ```
 
 ## Overview
@@ -37,66 +48,42 @@ composition_plots$p_noveh_income
 
 ## Mode Share
 
-### By disability status
+```{r mode-tabs, results='asis', fig.width=6, fig.height=3.5}
+mode_tab_labels <- c(
+  p_dis_mode  = "By disability status",
+  p_race_mode = "By race/ethnicity",
+  p_age_mode  = "By age group",
+  p_veh_mode  = "By vehicle availability",
+  p_inc_mode  = "By household income"
+)
 
-```{r mode-disability, fig.width=6, fig.height=3.5}
-mode_plots$p_dis_mode
-```
-
-### By race/ethnicity
-
-```{r mode-race, fig.width=6, fig.height=4}
-mode_plots$p_race_mode
-```
-
-### By age group
-
-```{r mode-age, fig.width=6, fig.height=3.5}
-mode_plots$p_age_mode
-```
-
-### By vehicle availability
-
-```{r mode-vehicle, fig.width=6, fig.height=3.5}
-mode_plots$p_veh_mode
-```
-
-### By household income
-
-```{r mode-income, fig.width=6, fig.height=4}
-mode_plots$p_inc_mode
+cat("\n:::{.panel-tabset}\n\n")
+purrr::iwalk(mode_tab_labels, \(label, nm) {
+  cat("###", label, "\n\n")
+  print(mode_plots[[nm]])
+  cat("\n\n")
+})
+cat(":::")
 ```
 
 ---
 
 ## Trip Purpose
 
-### By disability status
+```{r purpose-tabs, results='asis', fig.width=6, fig.height=3.5}
+purpose_tab_labels <- c(
+  p_dis_purpose  = "By disability status",
+  p_race_purpose = "By race/ethnicity",
+  p_age_purpose  = "By age group",
+  p_veh_purpose  = "By vehicle availability",
+  p_inc_purpose  = "By household income"
+)
 
-```{r purpose-disability, fig.width=6, fig.height=3.5}
-purpose_plots$p_dis_purpose
-```
-
-### By race/ethnicity
-
-```{r purpose-race, fig.width=6, fig.height=4}
-purpose_plots$p_race_purpose
-```
-
-### By age group
-
-```{r purpose-age, fig.width=6, fig.height=3.5}
-purpose_plots$p_age_purpose
-```
-
-### By vehicle availability
-
-```{r purpose-vehicle, fig.width=6, fig.height=3.5}
-purpose_plots$p_veh_purpose
-```
-
-### By household income
-
-```{r purpose-income, fig.width=6, fig.height=4}
-purpose_plots$p_inc_purpose
+cat("\n:::{.panel-tabset}\n\n")
+purrr::iwalk(purpose_tab_labels, \(label, nm) {
+  cat("###", label, "\n\n")
+  print(purpose_plots[[nm]])
+  cat("\n\n")
+})
+cat(":::")
 ```
