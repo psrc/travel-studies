@@ -39,9 +39,9 @@ geog <- "Region"
                        geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
 ```
 
-## All People by Race and Ethnicity
+<!-- ## All People by Race and Ethnicity -->
 
-```{r}
+```{r, eval=FALSE}
 
 re_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "person",
@@ -53,7 +53,7 @@ re_rs <- psrc_hts_stat(df_hts,
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 #| out-width: "80%"
 
 title <-  "Race and Ethnicity"
@@ -89,15 +89,15 @@ color_pal <-  psrc_colors$pognbgy_10
     ) 
 ```
 
-```{r}
+```{r, eval=FALSE}
 re_rs
 ```
 
-## All trips by Race and Ethnicity
+<!-- ## All trips by Race and Ethnicity -->
 
-Of all trips in 2025, 47% are made by White (non-Hispanic), 15% by AANHPI.
+<!-- Of all trips in 2025, 47% are made by White (non-Hispanic), 15% by AANHPI. -->
 
-```{r}
+```{r, eval=FALSE}
 tre_rs <- psrc_hts_stat(df_hts,
                         analysis_unit = "trip",
                         group_vars = "race_category",
@@ -108,7 +108,7 @@ tre_rs <- psrc_hts_stat(df_hts,
 
 ```
 
-```{r}
+```{r, eval=FALSE}
 tre_rs
 ```
 
@@ -129,7 +129,7 @@ tre_rs |>
 
 <!-- Of all <race>, <x>% are care-giving trips -->
 
-- There isn't a specific group that does more care-giving trips than others.
+- There isn't a specific group that does more care-giving trips than others across survey years.
 
 ```{r}
 # race simple refers to labels being simplified (not categories)
@@ -149,6 +149,9 @@ recg_rs |>
   summarise(sum_prop = sum(prop))
 ```
 
+::: {.panel-tabset}
+
+#### By Survey Year
 ```{r}
 #| out-width: "100%"
 
@@ -177,8 +180,32 @@ plot_facet_wrap(table = recg_rs_f,
   )
 ```
 
+#### By Race Simple
+
 ```{r}
-recg_rs
+#| out-width: "100%"
+plot_facet_wrap(table = recg_rs_f, 
+                facet = .data[[col_var]], 
+                var1 = as.character(survey_year), 
+                var2 = as.character(survey_year), 
+                title = "Race and Ethnicity & Care Trips", 
+                color_pal = psrc_colors$blues_inc) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom",
+         legend.text = element_text(size = 6),
+          # legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.2, "cm"),
+        strip.text = element_text(size = 9)
+  )
+```
+:::
+
+```{r}
+recg_rs_f 
 
 ```
 
@@ -216,6 +243,9 @@ rebcg_rs_test |>
   summarise(sum_prop = sum(prop))
 ```
 
+::: {.panel-tabset}
+
+#### By Survey Year
 ```{r}
 #| out-width: "100%"
 
@@ -245,8 +275,32 @@ plot_facet_wrap(table = rebcg_rs_f,
 
 ```
 
+#### By Race Binary
+
 ```{r}
-rebcg_rs
+#| out-width: "100%"
+
+plot_facet_wrap(table = rebcg_rs_f, 
+                facet = .data[[col_var]], 
+                var1 = as.character(survey_year), 
+                var2 = as.character(survey_year), 
+                title = "Race and Ethnicity & Care Trips", 
+                color_pal = psrc_colors$blues_inc) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom",
+         legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
+  )
+```
+:::
+
+```{r}
+rebcg_rs_f
 ```
 
 ### Analysis A
@@ -299,7 +353,7 @@ plot_facet_wrap(table = cgre_rs_f,
 ```
 
 ```{r}
-cgre_rs
+cgre_rs_f
 ```
 
 #### Aggregate groups (People of Color)
@@ -343,5 +397,5 @@ plot_facet_wrap(table = cgreb_rs_f,
 ```
 
 ```{r}
-cgreb_rs
+cgreb_rs_f
 ```

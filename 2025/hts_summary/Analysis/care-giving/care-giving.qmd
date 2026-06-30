@@ -35,7 +35,7 @@ lapply(files, function(f) {
 
 ### PSRC Destination Purpose Assignment
 
-Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years.
+Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years. Analysis for care-giving will exclude HOME trips.
 
 ```{r}
 
@@ -49,16 +49,16 @@ trip_purp_a |>
     align = "left",
     columns = dest_purpose_cat
   ) |>
-  tab_spanner_delim(delim = ".") |> 
+  tab_spanner_delim(delim = ".") |>
   tab_style(
     style = cell_fill(color = "lightyellow"),
     locations = cells_body(
       columns = dest_purpose_cat,
       rows = dest_purpose_cat %in% care_purpose_cat  # Matches values in the vector
     )
-  ) |> 
+  ) |>
   data_color(
-    columns = contains("weighted.Exclude"),
+    columns = contains("Exclude"),
     rows = dest_purpose_cat %in% care_purpose_cat,
     colors = "lightyellow"
   )
@@ -97,9 +97,14 @@ care_purp |>
     )
   ) |> 
   data_color(
-    columns = matches("^weighted"),
     rows = care_purpose_cat == "Care",
     colors = "lightyellow"
   )
+#|> 
+  # data_color(
+  #   columns = matches("^weighted"),
+  #   rows = care_purpose_cat == "Care",
+  #   colors = "lightyellow"
+  # )
 
 ```

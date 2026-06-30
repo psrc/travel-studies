@@ -6,7 +6,9 @@ plot_facet_wrap <- function(table, facet, var1, var2, title, color_pal = psrc_co
                    orientation = "x",
                    position = position_dodge(width = 0.9)
     ) +
-    facet_wrap(vars({{facet}}), ncol = 5, nrow = 1, strip.position = "top") + #survey_year
+    facet_wrap(vars({{facet}}), ncol = 5, nrow = 1, strip.position = "top"#,
+               # label_wrap_gen(width = 10, multi_line = TRUE)
+               ) + #survey_year
     labs(x = NULL,
          y = NULL,
          fill = NULL,
@@ -36,7 +38,7 @@ create_trip_purpose_tbl <- function(hts_data) {
                        group_vars = c("dest_region","dest_purpose_cat"),
                        incl_na = FALSE) |>
     mutate(type = "Include HOME")
-  
+
   rs_no_home <- psrc_hts_stat(hts_data,
                                analysis_unit = "trip",
                                group_vars = c("dest_region","dest_purpose_cat_no_home"),
@@ -47,18 +49,25 @@ create_trip_purpose_tbl <- function(hts_data) {
   # Region
   
   rs <- rs |>  
-    add_row(rs_no_home)
+    add_row(rs_no_home) |> 
+    mutate(prop_per = label_percent(accuracy = 0.1)(prop))
   
-  rs_calc <- rs |>
-    mutate(unweighted = percent(count/sum(count)),
-           weighted = percent(prop),
-           .by = c(type, survey_year))
+  # rs_calc <- rs |>
+  #   mutate(unweighted = percent(count/sum(count)),
+  #          weighted = percent(prop),
+  #          .by = c(type, survey_year))
     
-  df <- rs_calc |>
+  # df <- rs_calc |>
+  #   pivot_wider(id_cols = "dest_purpose_cat",
+  #               names_from = c(type, survey_year),
+  #               values_from = contains("weighted"),
+  #               names_sep = ".")
+  
+  df <- rs |>
     pivot_wider(id_cols = "dest_purpose_cat",
                 names_from = c(type, survey_year),
-                values_from = contains("weighted"),
-                names_sep = ".") 
+                values_from = "prop_per",
+                names_sep = ".")
 }
 
 create_care_purpose_tbl <- function(hts_data) {
@@ -67,18 +76,25 @@ create_care_purpose_tbl <- function(hts_data) {
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
                       group_vars = c("dest_region", "care_purpose_cat"),
-                      incl_na = FALSE)
+                      incl_na = FALSE) |>
+    mutate(prop_per = label_percent(accuracy = 0.1)(prop))
 
-  df_calc <- rs |> 
-    mutate(unweighted = percent(count/sum(count)),
-           weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = survey_year)
+  # df_calc <- rs |> 
+  #   mutate(unweighted = percent(count/sum(count)),
+  #          weighted = percent(prop),
+  #          moe = percent(prop_moe),
+  #          .by = survey_year)
   
-  df <- df_calc |>
+  # df <- df_calc |>
+  #   pivot_wider(id_cols = "care_purpose_cat",
+  #               names_from = survey_year,
+  #               values_from = contains("weighted"),
+  #               names_sep = ".") 
+  
+  df <- rs |>
     pivot_wider(id_cols = "care_purpose_cat",
                 names_from = survey_year,
-                values_from = contains("weighted"),
+                values_from = "prop_per",
                 names_sep = ".") 
   
 }
