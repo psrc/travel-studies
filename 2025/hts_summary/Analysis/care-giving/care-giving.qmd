@@ -35,7 +35,7 @@ lapply(files, function(f) {
 
 ### PSRC Destination Purpose Assignment
 
-Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years. Analysis for care-giving will exclude HOME trips.
+Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years. Care-giving is an aggregate of the following destination purposes (escort, personal business/errand/appointment, meal, and shopping). The care-giving analysis will also exclude HOME trips.
 
 ```{r}
 
@@ -68,43 +68,43 @@ trip_purp_a |>
 
 ### Care Purpose
 
-Care is defined as the following purposes: Escort, Shopping, Meal, Personal Business/Errand/Appointment. All `HOME` trips are excluded.
+Care is defined as the following purposes: Escort, Shopping, Meal, Personal Business/Errand/Appointment. All `HOME` trips are excluded. The remaining categories from the `dest_purpose_cat` either stand alone or have been aggregated to the following:
 
-Care: `r care_purpose_cat`
+**Care**: `r care_purpose_cat`
 
-Work: `r work_cat`
+**Work**: `r work_cat`
 
-Other: `r other_cat`
+**Other**: `r other_cat`
 
-School: `r school_cat`
+**School**: `r school_cat`
+
+Care related trips make up the majority of trips compared to other purpose categories across survey years.
 
 ```{r}
-
 care_purp <- create_care_purpose_tbl(df_hts)
+```
 
-care_purp |> 
-  gt() |> 
-   cols_align(
-    align = "left",
-    columns = 1
-  ) |>
-  tab_spanner_delim(delim = ".") |> 
-    tab_style(
-    style = cell_fill(color = "lightyellow"),
-    locations = cells_body(
-      columns = care_purpose_cat,
-      rows = care_purpose_cat == "Care"  # Matches values in the vector
-    )
-  ) |> 
-  data_color(
-    rows = care_purpose_cat == "Care",
-    colors = "lightyellow"
-  )
-#|> 
-  # data_color(
-  #   columns = matches("^weighted"),
-  #   rows = care_purpose_cat == "Care",
-  #   colors = "lightyellow"
-  # )
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
 
+plot_facet_wrap(care_purp, 
+                survey_year, 
+                care_purpose_cat, 
+                care_purpose_cat, 
+                "Care Purpose Categories by Year", 
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_blank())
+
+plot_facet_wrap(care_purp, 
+                care_purpose_cat, 
+                as.character(survey_year), 
+                as.character(survey_year), 
+                "Care Purpose Categories by Year", 
+                color_pal = psrc_colors$blues_inc) +
+  theme(axis.text.x = element_blank())
+```
+
+```{r}
+care_purp
 ```

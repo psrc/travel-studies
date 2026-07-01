@@ -76,19 +76,6 @@ mode_share_income("income_100", geog = "Region")|>
 Driving is the predominant mode of transportation for care trips. Those who earn under \$50,000 are using transit more than those who earn over \$50,000 across survey years.
 
 ```{r}
-
-mode_share_income_set_b(geog = "Region")$wide|>
-  gt() |>
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc, care_purpose_cat)) |>
-  cols_align(align = "left",
-             columns = c(3)
-)
-```
-
-### Chart
-
-```{r}
 msi_df <- mode_share_income_set_b(geog = "Region")$long  |> 
   mutate(income_comp = factor(income_comp, levels = c("Under $50,000", "$50,000-$99,999", "$100,000 or more")))
 
@@ -116,11 +103,9 @@ msi_df |>
 
 ```
 
-## Under \$50k and \$50k or More
-
 ```{r}
 
-mode_share_income_set_c(geog = "Region")$wide|>
+mode_share_income_set_b(geog = "Region")$wide|>
   gt() |>
   tab_spanner_delim(delim = ".") |>
   cols_hide(c(dest_loc, care_purpose_cat)) |>
@@ -129,12 +114,12 @@ mode_share_income_set_c(geog = "Region")$wide|>
 )
 ```
 
+## Under \$50k and \$50k or More
+
 ```{r}
 msi50bin_df <- mode_share_income_set_c(geog = "Region")$long |> 
   mutate(income_50 = factor(income_50, levels = c("Under $50,000", "$50,000 or more")))
 ```
-
-### Chart
 
 ```{r}
 #| out-width: "100%"
@@ -157,3 +142,15 @@ msi50bin_df |>
        y = NULL)
 
 ```
+
+```{r}
+
+mode_share_income_set_c(geog = "Region")$wide|>
+  gt() |>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3)
+)
+```
+

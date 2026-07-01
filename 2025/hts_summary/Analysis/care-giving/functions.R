@@ -77,7 +77,8 @@ create_care_purpose_tbl <- function(hts_data) {
                       analysis_unit = "trip",
                       group_vars = c("dest_region", "care_purpose_cat"),
                       incl_na = FALSE) |>
-    mutate(prop_per = label_percent(accuracy = 0.1)(prop))
+    mutate(prop_per = label_percent(accuracy = 0.1)(prop),
+           prop_moe_per = label_percent(accuracy = 0.1)(prop_moe))
 
   # df_calc <- rs |> 
   #   mutate(unweighted = percent(count/sum(count)),
@@ -91,11 +92,11 @@ create_care_purpose_tbl <- function(hts_data) {
   #               values_from = contains("weighted"),
   #               names_sep = ".") 
   
-  df <- rs |>
-    pivot_wider(id_cols = "care_purpose_cat",
-                names_from = survey_year,
-                values_from = "prop_per",
-                names_sep = ".") 
+  # df <- rs |>
+  #   pivot_wider(id_cols = "care_purpose_cat",
+  #               names_from = survey_year,
+  #               values_from = "prop_per",
+  #               names_sep = ".") 
   
 }
 
