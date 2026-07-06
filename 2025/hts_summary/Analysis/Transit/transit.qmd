@@ -685,7 +685,6 @@ transit_race_chart_detailed
 ```
 
 ```{r}
-
 df12.1
 ```
 
@@ -900,92 +899,4 @@ mode_county <- static_column_chart(df19, x='survey_year', y='prop', fill='home_c
           axis.title.x=element_text(size=20))
 
 mode_county
-```
-
-```{r}
-#| echo: false
-
-# df20 <- psrc_hts_stat(hts_data7, "trip", c("rgchome", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Walk")
-# 
-# walk_rgchome <- static_column_chart(df20, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share',
-#                                          #xlabel='Mode',
-#                                          moe='prop_moe',
-#                                          color='pgnobgy_10',
-#                                          title='Walk Trips by Home in RGCs - Share'
-# ) + theme(axis.text.x=element_text(size=14),
-#           axis.text.y=element_text(size=14),
-#           legend.text = element_text(size=14),
-#           axis.title.y=element_text(size=20),
-#           axis.title.x=element_text(size=20))
-# 
-# walk_rgchome
-```
-
-```{r}
-#| echo: false
-# 
-# df21 <- psrc_hts_stat(hts_data7, "trip", c("rgchome", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Bike/Micromobility")
-# 
-# bike_rgchome <- static_column_chart(df21, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share',
-#                                          #xlabel='Mode',
-#                                          moe='prop_moe',
-#                                          color='pgnobgy_10',
-#                                          title='Bike/Micromobility Trips by Home in RGCs - Share'
-# ) + theme(axis.text.x=element_text(size=14),
-#           axis.text.y=element_text(size=14),
-#           legend.text = element_text(size=14),
-#           axis.title.y=element_text(size=20),
-#           axis.title.x=element_text(size=20))
-# 
-# bike_rgchome
-```
-
-```{r}
-#| echo: false
-
-# # VMT
-# 
-# df20 <- psrc_hts_stat(hts_data,
-#                      analysis_unit = "trip",
-#                      group_vars = "rgchome",
-#                      stat_var = "distance_miles",
-#                      incl_na = FALSE)
-# 
-# df19 <- psrc_hts_stat(hts_data7, "trip", c("home_county", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
- 
-# mode_county <- static_column_chart(df19, x='survey_year', y='prop', fill='home_county',ylabel= 'Share',
-#                                          title='Access to Transit Trips - Share (no walk)',
-#                                          moe='prop_moe'
-# ) + theme(axis.text.x=element_text(size=14),
-#           axis.text.y=element_text(size=14),
-#           legend.text = element_text(size=14),
-#           axis.title.y=element_text(size=20),
-#           axis.title.x=element_text(size=20))
-# 
-# mode_county
-```
-
-```{r}
-#| echo: false
-
-## work from home
-# 
-# hts_data8 <-
-#   hts_bin_mode(hts_data)
-# 
-# df22 <- psrc_hts_stat(hts_data8, "person", c("homegeog", "wfh_hybrid"), incl_na=FALSE) %>% filter(survey_year=="2025") 
-# 
-# work_from_home_geo <- static_bar_chart(df22, x='prop', y='homegeog', fill='wfh_hybrid',ylabel= 'Share',
-#                                          #xlabel='Mode',
-#                                          moe='prop_moe',
-#                                          color='pgnobgy_10',
-#                                          title='Work From Home by Home Geography - Share'
-# ) + theme(axis.text.x=element_text(size=14),
-#           axis.text.y=element_text(size=14),
-#           legend.text = element_text(size=14),
-#           axis.title.y=element_text(size=20),
-#           axis.title.x=element_text(size=20))
-# 
-# work_from_home_geo
-
 ```
