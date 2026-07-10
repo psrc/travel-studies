@@ -52,17 +52,6 @@ create_trip_purpose_tbl <- function(hts_data) {
     add_row(rs_no_home) |> 
     mutate(prop_per = label_percent(accuracy = 0.1)(prop))
   
-  # rs_calc <- rs |>
-  #   mutate(unweighted = percent(count/sum(count)),
-  #          weighted = percent(prop),
-  #          .by = c(type, survey_year))
-    
-  # df <- rs_calc |>
-  #   pivot_wider(id_cols = "dest_purpose_cat",
-  #               names_from = c(type, survey_year),
-  #               values_from = contains("weighted"),
-  #               names_sep = ".")
-  
   df <- rs |>
     pivot_wider(id_cols = "dest_purpose_cat",
                 names_from = c(type, survey_year),
@@ -79,52 +68,7 @@ create_care_purpose_tbl <- function(hts_data) {
                       incl_na = FALSE) |>
     mutate(prop_per = label_percent(accuracy = 0.1)(prop),
            prop_moe_per = label_percent(accuracy = 0.1)(prop_moe))
-
-  # df_calc <- rs |> 
-  #   mutate(unweighted = percent(count/sum(count)),
-  #          weighted = percent(prop),
-  #          moe = percent(prop_moe),
-  #          .by = survey_year)
   
-  # df <- df_calc |>
-  #   pivot_wider(id_cols = "care_purpose_cat",
-  #               names_from = survey_year,
-  #               values_from = contains("weighted"),
-  #               names_sep = ".") 
-  
-  # df <- rs |>
-  #   pivot_wider(id_cols = "care_purpose_cat",
-  #               names_from = survey_year,
-  #               values_from = "prop_per",
-  #               names_sep = ".") 
-  
-}
-
-mode_share_income <- function(income, geog){
-  geo_col <- case_when(geog == "Region" ~ "dest_region",
-                       geog %in% c("King County", "Kitsap County", "Pierce County", "Snohomish County") ~ "dest_county")
-
-  rs <- psrc_hts_stat(df_hts,
-                       analysis_unit = "trip",
-                       group_vars = c(geo_col, "care_purpose_cat", income, "mode_class_5"),
-                       incl_na = FALSE) |>
-    rename(dest_loc = sym(geo_col)) |>
-    filter(dest_loc == geog,
-           care_purpose_cat == "Care") |>
-    mutate(type = "percent") |>
-    mutate(unweighted = percent(count/sum(count)),
-           weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = c("survey_year", "type", income))
-
-  v <- c("survey_year", "dest_loc", "care_purpose_cat", income, "mode_class_5", "unweighted", "weighted", "moe")
-
-  rs |> 
-    select(all_of(v)) |> 
-    pivot_wider(id_cols = c("dest_loc", "care_purpose_cat", "mode_class_5"),
-                names_from = c("survey_year", contains("income")),
-                values_from = c(contains("weighted"), "moe"),
-                names_sep = ".") 
 }
 
 mode_share_income_set_b <- function(geog){
@@ -140,28 +84,26 @@ mode_share_income_set_b <- function(geog){
     rename(dest_loc = sym(geo_col)) |>
     filter(dest_loc == geog,
            care_purpose_cat == "Care") |>
-    mutate(type = "percent") |>
-    mutate(unweighted = percent(count/sum(count)),
-           weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = c("survey_year", "type", "income_comp"))
+    mutate(prop_per = label_percent(accuracy = 0.1)(prop),
+           moe_per = label_percent(accuracy = 0.1)(prop_moe))
 
-  v <- c("survey_year", "dest_loc", "care_purpose_cat", "income_comp", "mode_class_5", "weighted", "moe")
+  v <- c("survey_year", "dest_loc", "care_purpose_cat", "income_comp", "mode_class_5", "prop_per", "moe_per", "count")
 
   df <- rs |>
     select(all_of(v)) |>
     pivot_wider(id_cols = c("dest_loc", "care_purpose_cat", "mode_class_5"),
-                names_from = c("income_comp", "survey_year"),
-                values_from = c("weighted", "moe"),
-                names_glue = "{income_comp}.{survey_year}.{.value}"
+                names_from = c("survey_year","income_comp"),
+                values_from = c("prop_per", "moe_per", "count"),
+                names_glue = "{survey_year}.{income_comp}.{.value}"
                 ) |>
-    relocate("dest_loc","care_purpose_cat","mode_class_5", contains("Under"), contains("$50,000"), contains("or more")) 
+    relocate("dest_loc","care_purpose_cat","mode_class_5") 
   
-  ind01 <- grep("weighted", colnames(df))
-  ind02 <- grep("moe", colnames(df))
+  ind01 <- grep("prop_per", colnames(df))
+  ind02 <- grep("moe_per", colnames(df))
+  ind03 <- grep("count", colnames(df))
   
   df_reorder <- df |> 
-    select("dest_loc","care_purpose_cat","mode_class_5", unlist(map2(ind01, ind02, c)))
+    select("dest_loc","care_purpose_cat","mode_class_5", unlist(pmap(list(ind01, ind02, ind03), c)))
 
   return(list(long = rs, wide = df_reorder))
 }
@@ -179,28 +121,22 @@ mode_share_income_set_c <- function(geog){
     rename(dest_loc = sym(geo_col)) |>
     filter(dest_loc == geog,
            care_purpose_cat == "Care") |>
-    mutate(type = "percent") |>
-    mutate(unweighted = percent(count/sum(count)),
-           weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = c("survey_year", "type", "income_50"))
+    mutate(prop_per = label_percent(accuracy = 0.1)(prop),
+           moe_per = label_percent(accuracy = 0.1)(prop_moe))
 
-  v <- c("survey_year", "dest_loc", "care_purpose_cat", "income_50", "mode_class_5", "weighted", "moe", "count")
-  
+  v <- c("survey_year", "dest_loc", "care_purpose_cat", "income_50", "mode_class_5", "prop_per", "moe_per", "count")
+
   df <- rs |>
     select(all_of(v)) |>
     pivot_wider(id_cols = c("dest_loc", "care_purpose_cat", "mode_class_5"),
                 names_from = c("survey_year", "income_50"),
-                # names_from = c("income_50", "survey_year"),
-                values_from = c("weighted", "moe", "count"),
+                values_from = c("prop_per", "moe_per", "count"),
                 names_glue = "{survey_year}.{income_50}.{.value}"
-                # names_glue = "{income_50}.{survey_year}.{.value}"
     ) |>
-    relocate("dest_loc","care_purpose_cat","mode_class_5", contains("2023"), contains("2025"))
-    # relocate("dest_loc","care_purpose_cat","mode_class_5", contains("Under"), contains("or more")) 
+    relocate("dest_loc","care_purpose_cat","mode_class_5")
   
-  ind01 <- grep("weighted", colnames(df))
-  ind02 <- grep("moe", colnames(df))
+  ind01 <- grep("prop_per", colnames(df))
+  ind02 <- grep("moe_per", colnames(df))
   ind03 <- grep("count", colnames(df))
   
   df_reorder <- df |> 
@@ -362,39 +298,6 @@ create_candrive_tbl_gender <- function(geog) {
   
   df_reorder <- df |> 
     select("dest_loc", "gender2", unlist(pmap(list(ind01, ind02, ind03), c)))
-  
-  return(list(long = rs, wide = df_reorder))
-}
-
-create_hhstr_tbl <- function(geog) {
-  # same as create_hhstr_tbl_comp but care trip taken is its own column
-  # with or without care trips, hh with children < 18 AND/OR 85 +
-  
-  rs <- psrc_hts_stat(df_hts,
-                      analysis_unit = "hh",
-                      group_vars = c("care_trip_taken", "hh_composition"),
-                      incl_na = FALSE) |> 
-    mutate(weighted = percent(prop),
-           moe = percent(prop_moe),
-           .by = c("survey_year"))
-  
-  v <- c("survey_year", "care_trip_taken", "hh_composition", "weighted", "moe", "count")
-  
-  df <- rs |>
-    select(all_of(v)) |>
-    pivot_wider(id_cols = c("care_trip_taken", "hh_composition"),
-                names_from = c("survey_year"),
-                values_from = c("weighted", "moe", "count"),
-                names_glue = "{survey_year}.{.value}"
-    ) |>
-    relocate("care_trip_taken", "hh_composition", all_of(unlist(map(survey_year, ~grep(.x, names(.), value = TRUE)))))
-  
-  ind01 <- grep("weighted", colnames(df))
-  ind02 <- grep("moe", colnames(df))
-  ind03 <- grep("count", colnames(df))
-  
-  df_reorder <- df |> 
-    select("care_trip_taken", "hh_composition", unlist(pmap(list(ind01, ind02, ind03), c)))
   
   return(list(long = rs, wide = df_reorder))
 }

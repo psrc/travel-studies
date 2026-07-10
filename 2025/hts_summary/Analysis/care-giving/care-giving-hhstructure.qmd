@@ -40,9 +40,7 @@ Children is based on var `numchildren`.
 
 ## Overall Household Composition
 
-- Generally there are predominately more households without children or elders that households with both children and elders.
-
-- In 2017/19 and 2021, there has been relatively more households with only children and no elders than only elders. In 2023 and 2025, it is undetermined if there are more or less.
+- Generally there are predominately more households without children or elders than households with both children and elders.
 
 ```{r}
 hhs_comp <- psrc_hts_stat(df_hts,
@@ -56,7 +54,7 @@ hhs_comp <- psrc_hts_stat(df_hts,
 #| out-width: "50%"
 
 hhs_comp |> 
-ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
+  ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
   geom_col(position = "dodge") +
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
@@ -67,15 +65,23 @@ ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "none") +
+        axis.text.x = element_blank(),
+        # axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "bottom",
+        # Shrink the legend text and title
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        
+        # Shrink the legend key boxes (both width and height)
+        legend.key.size = unit(0.4, "cm")
+  ) +
   labs(x = NULL,
        y = NULL,
        fill = NULL,
        title = "Household Composition")
 
 hhs_comp |> 
-mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
+  mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
          hh_composition_label = str_to_title(hh_composition_label)) |> 
   ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
   geom_col(position = "dodge") +
@@ -88,8 +94,15 @@ mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n"
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "none") +
+        # axis.text.x = element_text(angle = 90, vjust = 0.7),
+        axis.text.x = element_blank(),
+        legend.position = "bottom",
+        # Shrink the legend text and title
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        
+        # Shrink the legend key boxes (both width and height)
+        legend.key.size = unit(0.4, "cm")) +
   labs(x = NULL,
        y = NULL,
        fill = NULL,
@@ -135,11 +148,11 @@ hhc_sum <- hhc |>
 
 ```
 
-### Care Trips Taken
+## Care Trips Taken
 
-#### Household Composition
+### Analysis A
 
-- Where care trips were taken, there is a higher share of households with no children or elders followed by households that have children but no elders.
+- Where care trips were taken, more were made by households with no children or elders followed by households that have children but no elders.
 
 - There are few households that are multi-generational with both children and elders of households that took care trips.
 
@@ -147,7 +160,14 @@ hhc_sum <- hhc |>
 #| layout-ncol: 2
 #| out-width: "50%"
 
-create_hhstr_tbl(geog = "Region")$long |>
+hhstr_a <- psrc_hts_stat(df_hts,
+                    analysis_unit = "hh",
+                    group_vars = c("care_trip_taken", "hh_composition"),
+                    incl_na = FALSE) |>
+  mutate(prop_per = percent(prop),
+         prop_moe_per = percent(prop_moe))
+
+ hhstr_a |>
   filter(care_trip_taken == 1) |> 
   ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
   geom_col(position = "dodge") +
@@ -160,14 +180,21 @@ create_hhstr_tbl(geog = "Region")$long |>
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "none") +
+        axis.text.x = element_blank(),
+        # axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "bottom",
+         # Shrink the legend text and title
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        
+        # Shrink the legend key boxes (both width and height)
+        legend.key.size = unit(0.4, "cm")) +
   labs(x = NULL,
        y = NULL,
        fill = NULL,
-       title = "Households that Made Care Trips")
+       title = "Care Trips and Household Composition")
 
-create_hhstr_tbl(geog = "Region")$long |>
+hhstr_a |>
   filter(care_trip_taken == 1) |> 
   mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
          hh_composition_label = str_to_title(hh_composition_label)) |> 
@@ -182,48 +209,70 @@ create_hhstr_tbl(geog = "Region")$long |>
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "none") +
+        axis.text.x = element_blank(),
+        # axis.text.x = element_text(angle = 90, vjust = 0.7),
+        legend.position = "bottom",
+         # Shrink the legend text and title
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        
+        # Shrink the legend key boxes (both width and height)
+        legend.key.size = unit(0.4, "cm")) +
   labs(x = NULL,
        y = NULL,
        fill = NULL,
-       title = "Households that Made Care Trips")
+       title = "Care Trips and Household Composition")
 ```
 
-```{r, eval=FALSE}
-#| out-width: "100%"
-#| fig-align: "center"
 
-create_hhstr_tbl(geog = "Region")$long |>
-  filter(care_trip_taken == 1) |> 
-  ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
+```{r}
+hhstr_a
+```
+
+### Analysis B
+
+Of households where there are either elders or children present, or none at all, there are more care-giving trips made. Especially of households where there are children and no elders, there are fewer non-care-giving trips compared to other household types.
+
+There are few households with both elders and children. Their results have very large margins of error and cannot be determined.
+```{r}
+hhstr_b <- psrc_hts_stat(df_hts,
+                    analysis_unit = "hh",
+                    group_vars = c("hh_composition","care_trip_taken"),
+                    incl_na = FALSE) |>
+  mutate(prop_per = percent(prop),
+         prop_moe_per = percent(prop_moe))
+```
+
+```{r}
+#| fig-align: center
+#| out-width: "80%"
+ hhstr_b |>
+  ggplot(aes(y = prop, x = as.character(survey_year), fill = care_trip_taken)) +
   geom_col(position = "dodge") +
   geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                  orientation = "x",
                  position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition, ncol = 5, nrow = 1) +
+  facet_wrap(~hh_composition, ncol = 4, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$blues_inc) +
+  scale_fill_manual(values = psrc_colors$pognbgy_10, labels = c("1" = "Care Trip", "0" = "Non-care Trip")) +
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "none") +
+        legend.position = "bottom",
+        # Shrink the legend text and title
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        
+        # Shrink the legend key boxes (both width and height)
+        legend.key.size = unit(0.4, "cm")) +
   labs(x = NULL,
        y = NULL,
        fill = NULL,
-       title = "Households that Made Care Trips")
+       title = "Household Composition and Care Trips")
 ```
 
 ```{r}
-
-create_hhstr_tbl(geog = "Region")$long
-
-# create_hhstr_tbl_b(geog = "Region")$wide |> 
-#   filter(care_trip_taken == 1) |> 
-#   gt() |> 
-#   tab_spanner_delim(delim = ".") |>
-#   cols_align(align = "left",
-#              columns = c(1,2))
-
+hhstr_b
 ```
+

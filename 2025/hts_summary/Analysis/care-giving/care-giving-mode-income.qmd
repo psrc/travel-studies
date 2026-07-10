@@ -33,47 +33,109 @@ lapply(files, function(f) {
 
 ```
 
+## Analysis A
+
+### Under \$50k and \$50k or More
+
+Driving is the predominant mode of transportation for care trips. Those who earn under \$50,000 are using transit more than those who earn over \$50,000 across survey years.
+
+```{r}
+msi50bin_df <- mode_share_income_set_c(geog = "Region")$long |> 
+  mutate(income_50 = factor(income_50, levels = c("Under $50,000", "$50,000 or more")))
+```
+
 ::: panel-tabset
-## \$50,000
+## Side-by-side
 
 ```{r}
-mode_share_income(income = "income_50", geog = "Region") |> 
-  gt() |>
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc, care_purpose_cat)) |>
-  cols_align(align = "left",
-             columns = c(3)
-  )
+#| out-width: "90%"
+#| fig-align: "center"
+
+msi50bin_df |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = mode_class_5)) +
+  facet_wrap(~income_50, strip.position = "top") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        # strip.placement = "outside",
+        # panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(hjust = 0.5)
+        # strip.text = element_text(face = "bold")
+        ) +
+  labs(x = NULL,
+       y = NULL)
+
 ```
 
-## \$75,000
+## Under \$50,000
 
 ```{r}
-mode_share_income("income_75", geog = "Region")|> 
-  gt() |>
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc, care_purpose_cat)) |>
-  cols_align(align = "left",
-             columns = c(3)
-  )
+#| layout-ncol: 2
+#| out-width: "50%"
+#| 
+msi50bin_df_u <- msi50bin_df |>
+  filter(income_50 == "Under $50,000")
+
+plot_facet_wrap(table = msi50bin_df_u, 
+                facet = as.character(survey_year), 
+                var1 = mode_class_5, 
+                var2  = mode_class_5, 
+                title = "Income by Primary Trip Mode", 
+                color_pal = psrc_colors$pognbgy_5)+
+  theme(axis.text.x = element_blank())
+
+plot_facet_wrap(table = msi50bin_df_u, 
+                var1 = as.character(survey_year), 
+                var2 = as.character(survey_year),
+                facet = mode_class_5, 
+                title = "Income by Primary Trip Mode", 
+                color_pal = psrc_colors$blues_inc)+
+  theme(axis.text.x = element_blank())
 ```
 
-## \$100,000
+## \$50,000 or More
 
 ```{r}
-mode_share_income("income_100", geog = "Region")|> 
-  gt() |>
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc, care_purpose_cat)) |>
-  cols_align(align = "left",
-             columns = c(3)
-  )
+#| layout-ncol: 2
+#| out-width: "50%"
+#| 
+msi50bin_df_m <- msi50bin_df |>
+  filter(income_50 == "$50,000 or more")
+
+plot_facet_wrap(table = msi50bin_df_m, 
+                facet = as.character(survey_year), 
+                var1 = mode_class_5, 
+                var2  = mode_class_5, 
+                title = "Income by Primary Trip Mode", 
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_blank())
+
+plot_facet_wrap(table = msi50bin_df_m, 
+                var1 = as.character(survey_year), 
+                var2 = as.character(survey_year),
+                facet = mode_class_5, 
+                title = "Income by Primary Trip Mode", 
+                color_pal = psrc_colors$blues_inc) +
+  theme(axis.text.x = element_blank())
 ```
 :::
 
-## Under \$50k, \$50k-\$100k, \$100k or more
+```{r}
 
-Driving is the predominant mode of transportation for care trips. Those who earn under \$50,000 are using transit more than those who earn over \$50,000 across survey years.
+mode_share_income_set_c(geog = "Region")$wide|>
+  gt() |>
+  tab_spanner_delim(delim = ".") |>
+  cols_hide(c(dest_loc, care_purpose_cat)) |>
+  cols_align(align = "left",
+             columns = c(3)
+)
+```
+
+### Under \$50k, \$50k-\$100k, \$100k or more
 
 ```{r}
 msi_df <- mode_share_income_set_b(geog = "Region")$long  |> 
@@ -114,43 +176,65 @@ mode_share_income_set_b(geog = "Region")$wide|>
 )
 ```
 
-## Under \$50k and \$50k or More
+## Analysis B
+
+### Under \$50k and \$50k or More
 
 ```{r}
-msi50bin_df <- mode_share_income_set_c(geog = "Region")$long |> 
-  mutate(income_50 = factor(income_50, levels = c("Under $50,000", "$50,000 or more")))
+mode_inc_b <- psrc_hts_stat(df_hts,
+                            analysis_unit = "trip",
+                            group_vars = c("dest_region", "income_50", "mode_class_5", "care_purpose_cat"),
+                            incl_na = FALSE) |>
+  mutate(prop_per = label_percent(accuracy = 0.1)(prop),
+         moe_per = label_percent(accuracy = 0.1)(prop_moe))
+```
+
+::: panel-tabset
+
+### Drive
+```{r}
+
+mode_inc_b_drive_u <- mode_inc_b |>
+  filter(mode_class_5 == "Drive" & income_50 == "Under $50,000")
+
+mode_inc_b_drive_o <- mode_inc_b |>
+  filter(mode_class_5 == "Drive" & income_50 == "$50,000 or more")
+
+mode_inc_b_drive <- mode_inc_b |>
+  filter(mode_class_5 == "Drive")
 ```
 
 ```{r}
-#| out-width: "100%"
 #| fig-align: "center"
+#| out-width: "90%"
 
-msi50bin_df |> 
-  ggplot() +
-  geom_col(aes(x = as.character(survey_year), y = prop, fill = mode_class_5)) +
-  facet_wrap(~income_50, strip.position = "bottom") +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        strip.placement = "outside",
-        panel.spacing = unit(0, "cm"),
-        legend.position = "bottom",
-        strip.text = element_text(face = "bold")) +
-  labs(x = NULL,
-       y = NULL)
-
+plot_facet_wrap(table = mode_inc_b_drive,
+                facet = income_50,
+                var1 = care_purpose_cat,
+                var2  = as.character(survey_year),
+                title = "Income by Primary Trip Mode (Drive)",
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.7))
 ```
 
+### Transit
 ```{r}
 
-mode_share_income_set_c(geog = "Region")$wide|>
-  gt() |>
-  tab_spanner_delim(delim = ".") |>
-  cols_hide(c(dest_loc, care_purpose_cat)) |>
-  cols_align(align = "left",
-             columns = c(3)
-)
 ```
 
+### Walk
+```{r}
+
+```
+
+### Bike/Micromobility
+```{r}
+
+```
+
+### Other
+```{r}
+
+```
+
+:::

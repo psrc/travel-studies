@@ -130,6 +130,7 @@ tre_rs |>
 <!-- Of all <race>, <x>% are care-giving trips -->
 
 - There isn't a specific group that does more care-giving trips than others across survey years.
+- *How do the other categories in the `care_purpose_cat` compare to the Care purpose?*
 
 ```{r}
 # race simple refers to labels being simplified (not categories)
@@ -149,9 +150,9 @@ recg_rs |>
   summarise(sum_prop = sum(prop))
 ```
 
-::: {.panel-tabset}
-
+::: panel-tabset
 #### By Survey Year
+
 ```{r}
 #| out-width: "100%"
 
@@ -243,9 +244,9 @@ rebcg_rs_test |>
   summarise(sum_prop = sum(prop))
 ```
 
-::: {.panel-tabset}
-
+::: panel-tabset
 #### By Survey Year
+
 ```{r}
 #| out-width: "100%"
 
