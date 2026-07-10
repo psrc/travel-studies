@@ -190,19 +190,14 @@ mode_inc_b <- psrc_hts_stat(df_hts,
 ```
 
 ::: panel-tabset
-
 ### Drive
+
 ```{r}
-
-mode_inc_b_drive_u <- mode_inc_b |>
-  filter(mode_class_5 == "Drive" & income_50 == "Under $50,000")
-
-mode_inc_b_drive_o <- mode_inc_b |>
-  filter(mode_class_5 == "Drive" & income_50 == "$50,000 or more")
-
 mode_inc_b_drive <- mode_inc_b |>
   filter(mode_class_5 == "Drive")
 ```
+
+Of trips made by those who make under \$50,000 and driving was the primary trip mode, at least 50% were care-giving compared to other trip purposes. When compared to certain survey years, more care-giving drive trips were made than those who earn more than \$50,000.
 
 ```{r}
 #| fig-align: "center"
@@ -214,27 +209,92 @@ plot_facet_wrap(table = mode_inc_b_drive,
                 var2  = as.character(survey_year),
                 title = "Income by Primary Trip Mode (Drive)",
                 color_pal = psrc_colors$pognbgy_5) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.7))
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ### Transit
+
 ```{r}
 
+mode_inc_b_trans <- mode_inc_b |>
+  filter(mode_class_5 == "Transit")
+```
+
+```{r}
+#| fig-align: "center"
+#| out-width: "90%"
+
+plot_facet_wrap(table = mode_inc_b_trans,
+                facet = income_50,
+                var1 = care_purpose_cat,
+                var2  = as.character(survey_year),
+                title = "Income by Primary Trip Mode (Transit)",
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ### Walk
+
 ```{r}
 
+mode_inc_b_walk <- mode_inc_b |>
+  filter(mode_class_5 == "Walk")
+```
+
+Of trips made by those who earn $50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
+
+```{r}
+#| fig-align: "center"
+#| out-width: "90%"
+
+plot_facet_wrap(table = mode_inc_b_walk,
+                facet = income_50,
+                var1 = care_purpose_cat,
+                var2  = as.character(survey_year),
+                title = "Income by Primary Trip Mode (Walk)",
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ### Bike/Micromobility
+
 ```{r}
 
+mode_inc_b_bike <- mode_inc_b |>
+  filter(mode_class_5 == "Bike/Micromobility")
+```
+
+```{r}
+#| fig-align: "center"
+#| out-width: "90%"
+
+plot_facet_wrap(table = mode_inc_b_bike,
+                facet = income_50,
+                var1 = care_purpose_cat,
+                var2  = as.character(survey_year),
+                title = "Income by Primary Trip Mode (Bike)",
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ### Other
+
 ```{r}
 
+mode_inc_b_other <- mode_inc_b |>
+  filter(mode_class_5 == "Other")
 ```
 
+```{r}
+#| fig-align: "center"
+#| out-width: "90%"
+
+plot_facet_wrap(table = mode_inc_b_other,
+                facet = income_50,
+                var1 = care_purpose_cat,
+                var2  = as.character(survey_year),
+                title = "Income by Primary Trip Mode (Other)",
+                color_pal = psrc_colors$pognbgy_5) +
+  theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
+```
 :::
