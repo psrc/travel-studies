@@ -1,0 +1,168 @@
+---
+title: "Park and Ride Analysis"
+date: today
+server: shiny
+
+execute:
+  echo: false
+  warning: false
+---
+
+```{r}
+# get data and load standard data processing
+library(shiny)
+library(leaflet)
+library(tidyverse)
+source("park_and_ride_processing_2023.R")
+
+hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
+
+```
+
+
+```{r}
+#| panel: sidebar
+
+selectInput('trip', 'Trip ID', all_pnr_trips_est$trip_id)
+uiOutput("google_button")
+```
+
+```{r}
+#| panel: fill
+
+# print variable description
+
+leafletOutput("manual_select")
+```
+
+```{r}
+DT::DTOutput("var_description")
+```
+
+
+```{r}
+#| context: server
+
+locations_all_pnr_times <- readRDS("locations_all_pnr_times.rds")
+all_pnr_trips_est <- readRDS("all_pnr_trips_est.rds")
+
+pnr_centroids <- readRDS("pnr_centroids.rds")
+pnr_centroids_ll <- sf::st_transform(pnr_centroids, 4326)
+
+
+selectedTrip <- reactive({
+  all_pnr_trips_est[all_pnr_trips_est$trip_id == input$trip,]
+  })
+selectedTripTrace <- reactive({
+  locations_all_pnr_times[locations_all_pnr_times$trip_id == input$trip,]
+})
+
+
+output$var_description <- DT::renderDT(
+  selectedTrip() |> 
+    dplyr::select(all_of(c("trip_id","depart_datetime","arrive_datetime","EditNotes","origin_purpose","dest_purpose",
+             "mode_class","mode_acc","mode_egr"))) |>
+    dplyr::mutate(depart_datetime = as.character(depart_datetime)) |>
+    dplyr::mutate(arrive_datetime = as.character(arrive_datetime)), 
+      
+  rownames = FALSE,
+  selection = 'none', 
+  options = list(ordering = F, dom = 't')
+)
+
+output$manual_select <- leaflet::renderLeaflet({
+
+  trip <- selectedTrip()
+  trace <- selectedTripTrace()
+
+  leaflet::leaflet(pnr_centroids_ll) |>
+
+    leaflet::addProviderTiles(
+      leaflet::providers$CartoDB.Positron,
+      group = "Positron (minimal)"
+    ) |>
+
+    # Park-and-ride lots
+    leaflet::addCircleMarkers(
+      stroke = FALSE,
+      radius = 4,
+      fillColor = "red",
+      fillOpacity = 0.6,
+      popup = ~paste(
+        "<b>Lot:</b>", EditNotes,
+        "<br><b>Junction ID:</b>", PSRCjunctID
+      )
+    ) |>
+
+    # Selected trip trace
+    leaflet::addCircleMarkers(
+      lng = trace$lon,
+      lat = trace$lat,
+      stroke = FALSE,
+      radius = 3,
+      fillColor = "blue",
+      fillOpacity = 0.5,
+      popup = paste(
+        "<b>Collected Time:</b>",
+        trace$collect_time_pdt,
+        "<br><b>Trip ID:</b>",
+        trace$trip_id
+      )
+    ) |>
+
+    # trip destination
+    leaflet::addAwesomeMarkers(
+      lng = trip$dest_lng,
+      lat = trip$dest_lat,
+      icon = leaflet::awesomeIcons(markerColor = "red", icon = "location"),
+      popup = paste(
+        "<b>Destination Purpose:</b>",
+        trip$dest_purpose,
+        "<br><b>Trip Mode:</b>",
+        trip$mode_class,
+        "<br><b>Trip ID:</b>",
+        trip$trip_id
+      )
+    ) |>
+
+    # trip origin
+    leaflet::addAwesomeMarkers(
+      lng = trip$origin_lng,
+      lat = trip$origin_lat,
+      icon = leaflet::awesomeIcons(markerColor = "darkblue", icon = "location"),
+      popup = paste(
+        "<b>Origin Purpose:</b>",
+        trip$origin_purpose,
+        "<br><b>Trip Mode:</b>",
+        trip$mode_class,
+        "<br><b>Trip ID:</b>",
+        trip$trip_id
+      )
+    )
+})
+
+output$google_button <- renderUI({
+
+  trip <- selectedTrip()
+
+  origin <- paste0(trip$origin_lat[1], ",", trip$origin_lng[1])
+  dest   <- paste0(trip$dest_lat[1], ",", trip$dest_lng[1])
+
+  url <- paste0(
+    "https://www.google.com/maps/dir/",
+    URLencode(origin),
+    "/",
+    URLencode(dest)
+  )
+
+  tags$a(
+    href = url,
+    target = "_blank",
+    class = "btn btn-primary",
+    icon("route"),
+    " Directions"
+  )
+})
+
+```
+
