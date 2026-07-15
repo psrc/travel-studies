@@ -77,6 +77,10 @@ hts_data$hh <- hts_data$hh %>%
                                            home_county %in% c("Kitsap County", "Pierce County", "Snohomish County") ~ home_county),
                                  levels = c("Seattle", "Rest of King", "Kitsap County", "Pierce County", "Snohomish County")))
 
+# create geographic variables
+hts_data$hh <- hts_data$hh %>% 
+  mutate(in_rgc = ifelse(home_rgcname == "Not RGC", "Home Not in RGC", "Home in RGC"))
+
 
 # Create analysis tables ----------------------------------------------------------------------
 mode_summary <- psrc_hts_stat(hts_data,
@@ -121,4 +125,9 @@ walk_bike_by_gender <- psrc_hts_stat(hts_data,
 walk_bike_by_age <- psrc_hts_stat(hts_data,
                                   analysis_unit = "trip",
                                   group_vars = c("age_condensed", "mode_class_5")) %>% 
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+
+walk_bike_by_rgc <- psrc_hts_stat(hts_data,
+                                  analysis_unit = "trip",
+                                  group_vars = c("in_rgc", "mode_class_5")) %>% 
   filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))

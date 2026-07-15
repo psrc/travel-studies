@@ -21,6 +21,36 @@ install_psrc_fonts()
 source("walk_bike_data.R")
 ```
 
+```{r output_function, include=FALSE}
+summary_output <- function(tbl, mode){
+  
+  print(static_column_chart(filter(tbl, mode_class_5 == mode),
+                            x = "survey_year", y = "est", fill = "survey_year",
+                            ylabel = "# of Trips", xlabel = "Survey Year", title = paste(mode, "Trips - Estimate"),
+                            moe = "est_moe") + theme(
+                              axis.text.x = element_text(size = 14),
+                              axis.text.y = element_text(size = 14),
+                              axis.title.y = element_text(size = 16),
+                              axis.title.x = element_text(size = 16),
+                              plot.title = element_text(size = 24)
+                            ))
+    
+  print(static_column_chart(filter(tbl, mode_class_5 == mode),
+                            x = "survey_year", y = "prop", fill = "survey_year",
+                            ylabel = "% of Trips", xlabel = "Survey Year", title = paste(mode, "Trips - Share"),
+                            moe = "prop_moe") + theme(
+                              axis.text.x = element_text(size = 14),
+                              axis.text.y = element_text(size = 14),
+                              axis.title.y = element_text(size = 16),
+                              axis.title.x = element_text(size = 16),
+                              plot.title = element_text(size = 24)
+                            ))
+  
+  return(filter(tbl, mode_class_5 == mode))
+  
+}
+```
+
 ## Trips in Region
 
 ```{r trip_totals}
@@ -52,74 +82,54 @@ static_column_chart(filter(mode_summary, survey_year %in% c("2023", "2025")
 
 ## Walking and Bike/Micromobility Trips
 
-```{r walk_estimate}
-static_column_chart(filter(mode_summary, mode_class_5 == "Walk"),
-                    x = "survey_year", y = "est", fill = "survey_year",
-                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Walk Trips - Estimate",
-                    moe = "est_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 16),
-                      axis.title.x = element_text(size = 16),
-                      plot.title = element_text(size = 24)
-                      )
+:::{.panel-tabset}
 
-filter(mode_summary, mode_class_5 == "Walk")
+### Walking
+```{r walk_total}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+summary_output(mode_summary, "Walk")
 ```
 
-```{r bike_estimate}
-static_column_chart(filter(mode_summary, mode_class_5 == "Bike/Micromobility"),
-                    x = "survey_year", y = "est", fill = "survey_year",
-                    ylabel = "# of Trips", xlabel = "Survey Year", title = "Bike/Micromobility Trips - Estimate",
-                    moe = "est_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 16),
-                      axis.title.x = element_text(size = 16),
-                      plot.title = element_text(size = 24)
-                      )
+### Bike/Micromobility
+```{r bike_total}
+#| layout-ncol: 2
+#| out-width: "50%"
 
-filter(mode_summary, mode_class_5 == "Bike/Micromobility")
+summary_output(mode_summary, "Bike/Micromobility")
 ```
 
-```{r walk_share}
-static_column_chart(filter(mode_summary, mode_class_5 == "Walk"),
-                    x = "survey_year", y = "prop", fill = "survey_year",
-                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Walk Trips - Share",
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 16),
-                      axis.title.x = element_text(size = 16),
-                      plot.title = element_text(size = 24)
-                      )
-
-filter(mode_summary, mode_class_5 == "Walk")
-```
-
-```{r bike_share}
-static_column_chart(filter(mode_summary, mode_class_5 == "Bike/Micromobility"),
-                    x = "survey_year", y = "prop", fill = "survey_year",
-                    ylabel = "% of Trips", xlabel = "Survey Year", title = "Bike/Micromobility Trips - Share",
-                    moe = "prop_moe") + theme(
-                      axis.text.x = element_text(size = 14),
-                      axis.text.y = element_text(size = 14),
-                      axis.title.y = element_text(size = 16),
-                      axis.title.x = element_text(size = 16),
-                      plot.title = element_text(size = 24)
-                      )
-
-filter(mode_summary, mode_class_5 == "Bike/Micromobility")
-```
+:::
 
 ### Trips by Household Income
 
+:::{.panel-tabset}
+
+#### Walking
 ```{r walk_income_combined}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_bar_chart(filter(walk_bike_by_income_combined, mode_class_5 == "Walk"
+                        & hhincome_detailed_combined != "Prefer not to answer"
+                        & survey_year %in% c("2023", "2025")),
+                 y = "hhincome_detailed_combined", x = "est", fill = "survey_year",
+                 xlabel = "# of Trips", ylabel = "Household Income", title = "Walk Trips by Income - Estimate",
+                 moe = "est_moe") + theme(
+                   axis.text.x = element_text(size = 14),
+                   axis.text.y = element_text(size = 12),
+                   axis.title.y = element_text(size = 16),
+                   axis.title.x = element_text(size = 16),
+                   legend.text = element_text(size=14),
+                   plot.title = element_text(size = 24)
+                 )
+
 static_bar_chart(filter(walk_bike_by_income_combined, mode_class_5 == "Walk"
                         & hhincome_detailed_combined != "Prefer not to answer"
                         & survey_year %in% c("2023", "2025")),
                  y = "hhincome_detailed_combined", x = "prop", fill = "survey_year",
-                 xlabel = "% of Trips", ylabel = "Household Income", title = "Walk Trips by Income (combined) - Share",
+                 xlabel = "% of Trips", ylabel = "Household Income", title = "Walk Trips by Income - Share",
                  moe = "prop_moe") + theme(
                    axis.text.x = element_text(size = 14),
                    axis.text.y = element_text(size = 12),
@@ -134,11 +144,28 @@ filter(walk_bike_by_income_combined, mode_class_5 == "Walk"
                         & survey_year %in% c("2023", "2025"))
 ```
 
+#### Bike/Micromobility
 ```{r bike_income_combined}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_bar_chart(filter(bike_by_income_binary, hhincome_bike != "Prefer not to answer"
+                        & survey_year %in% c("2023", "2025")),
+                 y = "hhincome_bike", x = "est", fill = "survey_year",
+                 xlabel = "# of Trips", ylabel = "Household Income", title = "Bike/Micromobility Trips by Income - Estimate",
+                 moe = "est_moe") + theme(
+                   axis.text.x = element_text(size = 14),
+                   axis.text.y = element_text(size = 12),
+                   axis.title.y = element_text(size = 16),
+                   axis.title.x = element_text(size = 16),
+                   legend.text = element_text(size=14),
+                   plot.title = element_text(size = 24)
+                 )
+
 static_bar_chart(filter(bike_by_income_binary, hhincome_bike != "Prefer not to answer"
                         & survey_year %in% c("2023", "2025")),
                  y = "hhincome_bike", x = "prop", fill = "survey_year",
-                 xlabel = "% of Trips", ylabel = "Household Income", title = "Bike/Micromobility Trips by Income (combined) - Share",
+                 xlabel = "% of Trips", ylabel = "Household Income", title = "Bike/Micromobility Trips by Income - Share",
                  moe = "prop_moe") + theme(
                    axis.text.x = element_text(size = 14),
                    axis.text.y = element_text(size = 12),
@@ -152,9 +179,33 @@ filter(bike_by_income_binary, hhincome_bike != "Prefer not to answer"
                         & survey_year %in% c("2023", "2025"))
 ```
 
+:::
+
 ### Trips by Race/Ethnicity
 
+:::{.panel-tabset}
+
+#### Walking
 ```{r walk_race}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_bar_chart(filter(walk_bike_by_race_binary, mode_class_5 == "Walk"
+                        & !(race_binary %in% c("Child"))
+                        & !is.na(race_binary)
+                        & survey_year %in% c("2023", "2025")),
+                 x = "est", y = str_wrap("race_binary"), fill = "survey_year",
+                 xlabel = "# of Trips", ylabel = "Race & Ethnicity", title = "Walk Trips by Race - Estimate",
+                 moe = "est_moe") + theme(
+                   axis.text.x = element_text(size = 14),
+                   axis.text.y = element_text(size = 12),
+                   axis.title.y = element_text(size = 16),
+                   axis.title.x = element_text(size = 16),
+                   legend.text = element_text(size=14),
+                   plot.title = element_text(size = 24)
+                 ) + 
+  scale_x_discrete(labels = scales::label_wrap(20))
+
 static_bar_chart(filter(walk_bike_by_race_binary, mode_class_5 == "Walk"
                         & !(race_binary %in% c("Child"))
                         & !is.na(race_binary)
@@ -177,7 +228,27 @@ filter(walk_bike_by_race_binary, mode_class_5 == "Walk"
                         & survey_year %in% c("2023", "2025"))
 ```
 
+#### Bike/Micromobility
 ```{r bike_race}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_bar_chart(filter(walk_bike_by_race_binary, mode_class_5 == "Bike/Micromobility"
+                        & !(race_binary %in% c("Child"))
+                        & !is.na(race_binary)
+                        & survey_year %in% c("2023", "2025")),
+                 x = "est", y = str_wrap("race_binary"), fill = "survey_year",
+                 xlabel = "# of Trips", ylabel = "Race & Ethnicity", title = "Bike/Micromobility Trips by Race - Estimate",
+                 moe = "est_moe") + theme(
+                   axis.text.x = element_text(size = 14),
+                   axis.text.y = element_text(size = 12),
+                   axis.title.y = element_text(size = 16),
+                   axis.title.x = element_text(size = 16),
+                   legend.text = element_text(size=14),
+                   plot.title = element_text(size = 24)
+                 ) + 
+  scale_x_discrete(labels = scales::label_wrap(20))
+
 static_bar_chart(filter(walk_bike_by_race_binary, mode_class_5 == "Bike/Micromobility"
                         & !(race_binary %in% c("Child"))
                         & !is.na(race_binary)
@@ -200,9 +271,30 @@ filter(walk_bike_by_race_binary, mode_class_5 == "Bike/Micromobility"
                         & survey_year %in% c("2023", "2025"))
 ```
 
+:::
+
 ### Trips by Age
 
+:::{.panel-tabset}
+
+#### Walking
 ```{r walk_age}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_column_chart(filter(walk_bike_by_age, mode_class_5 == "Walk" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "age_condensed", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Age Group", title = "Walk Trips by Age - Estimate",
+                    moe = "est_moe") + theme(
+                      axis.text.x = element_text(size = 12),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+
 static_column_chart(filter(walk_bike_by_age, mode_class_5 == "Walk" 
                            & survey_year %in% c("2023", "2025")),
                     x = "age_condensed", y = "prop", fill = "survey_year",
@@ -215,9 +307,29 @@ static_column_chart(filter(walk_bike_by_age, mode_class_5 == "Walk"
                       legend.text = element_text(size=14),
                       plot.title = element_text(size = 24)
                       )
+
+filter(walk_bike_by_age, mode_class_5 == "Walk" 
+                           & survey_year %in% c("2023", "2025"))
 ```
 
+#### Bike/Micromobility
 ```{r bike_age}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_column_chart(filter(walk_bike_by_age, mode_class_5 == "Bike/Micromobility" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "age_condensed", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Age Group", title = "Bike/Micromobility Trips by Age - Estimate",
+                    moe = "est_moe") + theme(
+                      axis.text.x = element_text(size = 12),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+
 static_column_chart(filter(walk_bike_by_age, mode_class_5 == "Bike/Micromobility" 
                            & survey_year %in% c("2023", "2025")),
                     x = "age_condensed", y = "prop", fill = "survey_year",
@@ -230,10 +342,36 @@ static_column_chart(filter(walk_bike_by_age, mode_class_5 == "Bike/Micromobility
                       legend.text = element_text(size=14),
                       plot.title = element_text(size = 24)
                       )
+
+filter(walk_bike_by_age, mode_class_5 == "Bike/Micromobility" 
+                           & survey_year %in% c("2023", "2025"))
 ```
 
+:::
+
 ### Trips by Gender
+
+:::{.panel-tabset}
+
+#### Walking
 ```{r walk_gender}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_column_chart(filter(walk_bike_by_gender, mode_class_5 == "Walk" 
+                           & gender_group != "Prefer not to answer" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "gender_group", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Gender", title = "Walk Trips by Gender - Estimate",
+                    moe = "est_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+
 static_column_chart(filter(walk_bike_by_gender, mode_class_5 == "Walk" 
                            & gender_group != "Prefer not to answer" 
                            & survey_year %in% c("2023", "2025")),
@@ -247,9 +385,31 @@ static_column_chart(filter(walk_bike_by_gender, mode_class_5 == "Walk"
                       legend.text = element_text(size=14),
                       plot.title = element_text(size = 24)
                       )
+
+filter(walk_bike_by_gender, mode_class_5 == "Walk" 
+                           & gender_group != "Prefer not to answer" 
+                           & survey_year %in% c("2023", "2025"))
 ```
 
+#### Bike/Micromobility
 ```{r bike_gender}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_column_chart(filter(walk_bike_by_gender, mode_class_5 == "Bike/Micromobility" 
+                           & gender_group != "Prefer not to answer" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "gender_group", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Gender", title = "Bike/Micromobility Trips by Gender - Estimate",
+                    moe = "est_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 24)
+                      )
+
 static_column_chart(filter(walk_bike_by_gender, mode_class_5 == "Bike/Micromobility" 
                            & gender_group != "Prefer not to answer" 
                            & survey_year %in% c("2023", "2025")),
@@ -263,4 +423,86 @@ static_column_chart(filter(walk_bike_by_gender, mode_class_5 == "Bike/Micromobil
                       legend.text = element_text(size=14),
                       plot.title = element_text(size = 24)
                       )
+
+filter(walk_bike_by_gender, mode_class_5 == "Bike/Micromobility" 
+                           & gender_group != "Prefer not to answer" 
+                           & survey_year %in% c("2023", "2025"))
 ```
+
+:::
+
+### Trips based on Home Location
+
+:::{.panel-tabset}
+
+#### Walking
+```{r walk_rgc}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_column_chart(filter(walk_bike_by_rgc, mode_class_5 == "Walk" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "in_rgc", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Home Location", title = "Walk Trips by Home in RGCs - Estimate",
+                    moe = "est_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 22)
+                      )
+
+static_column_chart(filter(walk_bike_by_rgc, mode_class_5 == "Walk" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "in_rgc", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Home Location", title = "Walk Trips by Home in RGCs - Share",
+                    moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 22)
+                      )
+
+filter(walk_bike_by_rgc, mode_class_5 == "Walk" 
+                           & survey_year %in% c("2023", "2025"))
+```
+
+#### Bike/Micromobility
+```{r bike_rgc}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+static_column_chart(filter(walk_bike_by_rgc, mode_class_5 == "Bike/Micromobility" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "in_rgc", y = "est", fill = "survey_year",
+                    ylabel = "# of Trips", xlabel = "Home Location", title = "Bike Trips by Home in RGCs - Estimate",
+                    moe = "est_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 22)
+                      )
+
+static_column_chart(filter(walk_bike_by_rgc, mode_class_5 == "Bike/Micromobility" 
+                           & survey_year %in% c("2023", "2025")),
+                    x = "in_rgc", y = "prop", fill = "survey_year",
+                    ylabel = "% of Trips", xlabel = "Home Location", title = "Bike Trips by Home in RGCs - Share",
+                    moe = "prop_moe") + theme(
+                      axis.text.x = element_text(size = 14),
+                      axis.text.y = element_text(size = 14),
+                      axis.title.y = element_text(size = 16),
+                      axis.title.x = element_text(size = 16),
+                      legend.text = element_text(size=14),
+                      plot.title = element_text(size = 22)
+                      )
+
+filter(walk_bike_by_rgc, mode_class_5 == "Bike/Micromobility" 
+                           & survey_year %in% c("2023", "2025"))
+```
+
+:::
