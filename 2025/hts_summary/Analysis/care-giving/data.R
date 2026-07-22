@@ -40,20 +40,20 @@ trip_mutate <- hts_data[["trip"]] |>
 
 hhinc_list <- list(
   low_50 = c("Under $25,000", "$25,000-$49,999"),
-  high_50 = c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,999","$200,000 or more"),
+  high_50 = c("$50,000-$74,999","$75,000-$99,999","$100,000-$199,999","$100,000 or more", "$200,000 or more"),
   levels_50 = c("Under $50,000","$50,000 or more"),
   
   low_75 = c("Under $25,000","$25,000-$49,999","$50,000-$74,999"),
-  high_75 = c("$75,000-$99,999","$100,000-$199,999","$200,000 or more"),
+  high_75 = c("$75,000-$99,999","$100,000-$199,999","$100,000 or more", "$200,000 or more"),
   levels_75 = c("Under $75,000","$75,000 or more"),
   
   low_100 = c("Under $25,000","$25,000-$49,999","$50,000-$74,999","$75,000-$99,999"),
-  high_100 = c("$100,000-$199,999","$200,000 or more"),
+  high_100 = c("$100,000-$199,999","$100,000 or more", "$200,000 or more"),
   levels_100 = c("Under $100,000","$100,000 or more"),
   
   low_comp = c("Under $25,000", "$25,000-$49,999"),
   med_comp = c("$50,000-$74,999","$75,000-$99,999"),
-  high_comp = c("$100,000-$199,999","$200,000 or more")
+  high_comp = c("$100,000-$199,999","$100,000 or more", "$200,000 or more")
 )
 
 ## households ----
@@ -87,8 +87,8 @@ person_mutate <- hts_data[["person"]] |>
     gender2 = factor(
       case_when(gender %in% c("Boy/Man (cisgender or transgender)", "Male") ~ "Men", 
                 gender %in% c("Girl/Woman (cisgender or transgender)", "Female") ~ "Women", 
-                TRUE ~ NA),
-      levels = c("Men","Women"))
+                TRUE ~ "Prefer not to answer or Other"),
+      levels = c("Men","Women", "Prefer not to answer or Other"))
   ) |> 
   mutate(over_64 = factor(case_when(age %in% c("65-74 years", "75-84 years", "85 years or older") ~ 1,
                                 .default = 0), levels = c(1, 0))) |> 

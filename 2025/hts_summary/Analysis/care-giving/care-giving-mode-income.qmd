@@ -33,7 +33,9 @@ lapply(files, function(f) {
 
 ```
 
-## Analysis A
+## Trip Mode and Income for Care-giving Trips
+
+The following charts and tables analyze the share of trip modes across two to three income brackets for *all care-giving trips*.
 
 ### Under \$50k and \$50k or More
 
@@ -176,7 +178,9 @@ mode_share_income_set_b(geog = "Region")$wide|>
 )
 ```
 
-## Analysis B
+## Trip purpose and Income by Primary Trip Mode
+
+The following charts and tables analyze the share of trip purposes by primary trip mode across two income brackets.
 
 ### Under \$50k and \$50k or More
 
@@ -197,7 +201,11 @@ mode_inc_b_drive <- mode_inc_b |>
   filter(mode_class_5 == "Drive")
 ```
 
-Of trips made by those who make under \$50,000 and driving was the primary trip mode, at least 50% were care-giving compared to other trip purposes. When compared to certain survey years, more care-giving drive trips were made than those who earn more than \$50,000.
+Of trips made by those who make under \$50,000 and where driving was the primary trip mode, at least 50% were care-giving compared to other trip purposes.The shares for care-giving trips by driving are higher for those making under \$50,000 compared to those who make more.
+
+Of those who earn more than \$50,000 and where driving is the primary trip mode, there are more care-giving trips than other trip purposes.
+
+When comparing across income levels, there are more work trips by driving of those who earn more than \$50,000 than those who earn less than \$50,000.  
 
 ```{r}
 #| fig-align: "center"
@@ -210,6 +218,9 @@ plot_facet_wrap(table = mode_inc_b_drive,
                 title = "Income by Primary Trip Mode (Drive)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
+```
+```{r}
+mode_inc_b_drive
 ```
 
 ### Transit
@@ -232,6 +243,11 @@ plot_facet_wrap(table = mode_inc_b_trans,
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
+```{r}
+
+mode_inc_b_trans
+
+```
 
 ### Walk
 
@@ -241,7 +257,7 @@ mode_inc_b_walk <- mode_inc_b |>
   filter(mode_class_5 == "Walk")
 ```
 
-Of trips made by those who earn $50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
+Of trips made by those who earn \$50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
 
 ```{r}
 #| fig-align: "center"
@@ -254,6 +270,10 @@ plot_facet_wrap(table = mode_inc_b_walk,
                 title = "Income by Primary Trip Mode (Walk)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
+```
+```{r}
+
+mode_inc_b_walk
 ```
 
 ### Bike/Micromobility
@@ -277,6 +297,11 @@ plot_facet_wrap(table = mode_inc_b_bike,
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
+```{r}
+
+mode_inc_b_bike
+```
+
 ### Other
 
 ```{r}
@@ -297,4 +322,9 @@ plot_facet_wrap(table = mode_inc_b_other,
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
+```{r}
+
+mode_inc_b_other
+```
+
 :::
