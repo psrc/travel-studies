@@ -1,0 +1,289 @@
+---
+title: "Walk to Transit APP"
+date: today
+server: shiny
+
+execute:
+  echo: false
+  warning: false
+---
+
+```{r}
+# get data and load standard data processing
+library(shiny)
+library(leaflet)
+library(tidyverse)
+source("walk_to_transit_processing.R")
+
+hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
+
+```
+
+
+```{r}
+#| panel: sidebar
+
+selectInput('submode', 'Transit Submode', c("Rail","Bus","Rail and Bus","Ferry"))
+selectInput('trip', 'Trip ID', NULL)
+uiOutput("google_button")
+```
+
+```{r}
+#| panel: fill
+
+# print variable description
+
+leafletOutput("manual_select")
+```
+
+## Trip Attributes
+
+```{r}
+DT::DTOutput("var_description")
+```
+
+## Estimated Stops
+
+```{r}
+DT::DTOutput("est_stops")
+
+```
+
+
+```{r}
+#| context: server
+
+locations_all_walk_transit <- readRDS(file.path("data","locations_all_walk_transit.rds"))
+all_walk_transit_est <- readRDS(file.path("data","all_walk_transit_est.rds"))
+
+pnr_centroids <- readRDS(file.path("data","pnr_centroids.rds"))
+pnr_centroids_ll <- sf::st_transform(pnr_centroids, 4326)
+
+# transit stops by mode
+transit_stops <- readRDS(file.path("data","transit_stops.rds"))
+lightrail_stops <- transit_stops[transit_stops$type_name == "Light Rail",]
+commuterrail_stops <- transit_stops[transit_stops$type_name == "Commuter Rail",]
+ferry_stops <- transit_stops[transit_stops$type_name %in% c("Passenger Ferry","Auto Ferry"),]
+other_stops <- transit_stops[transit_stops$type_name %in% c("BRT","Bus","Streetcar","ST Express","Monorail"),]
+
+selectedSubmodeTripList <- reactive({
+  all_walk_transit_est[all_walk_transit_est$transit_submode == input$submode,]$trip_id
+  })
+
+observe({
+  updateSelectInput(
+    session,
+    "trip",
+    choices = selectedSubmodeTripList(),
+    selected = selectedSubmodeTripList()[1]
+  )
+})
+
+selectedTrip <- reactive({
+  all_walk_transit_est[all_walk_transit_est$trip_id == input$trip,]
+  })
+selectedTripTrace <- reactive({
+  locations_all_walk_transit[locations_all_walk_transit$trip_id == input$trip,]
+})
+
+
+output$var_description <- DT::renderDT(
+  selectedTrip() |> 
+    dplyr::select(all_of(c("trip_id","depart_datetime","arrive_datetime","origin_purpose","dest_purpose",
+             "transit_submode"))) |>
+    dplyr::mutate(depart_datetime = as.character(depart_datetime)) |>
+    dplyr::mutate(arrive_datetime = as.character(arrive_datetime)), 
+      
+  rownames = FALSE,
+  selection = 'none', 
+  options = list(ordering = F, dom = 't')
+)
+
+output$est_stops <- DT::renderDT(
+  selectedTrip() |> 
+    dplyr::select(all_of(c("origin_type_name","origin_stop_name","acc_dist_ft","acc_walk_min",
+                           "dest_type_name","dest_stop_name","egr_dist_ft","egr_walk_min"))) |>
+    dplyr::mutate(acc_dist_ft = round(acc_dist_ft),
+                  egr_dist_ft = round(egr_dist_ft),
+                  acc_walk_min = round(acc_walk_min),
+                  egr_walk_min = round(egr_walk_min)), 
+      
+  rownames = FALSE,
+  selection = 'none', 
+  options = list(ordering = F, dom = 't')
+)
+
+output$manual_select <- leaflet::renderLeaflet({
+
+  trip <- selectedTrip()
+  trace <- selectedTripTrace()
+
+  leaflet::leaflet(pnr_centroids_ll) |>
+
+    leaflet::addProviderTiles(
+      leaflet::providers$CartoDB.Positron,
+      group = "Positron (minimal)"
+    ) |>
+
+    # Park-and-ride lots
+    leaflet::addCircleMarkers(
+      stroke = FALSE,
+      radius = 4,
+      fillColor = "red",
+      fillOpacity = 0.6,
+      popup = ~paste(
+        "<b>Lot:</b>", EditNotes,
+        "<br><b>Junction ID:</b>", PSRCjunctID
+      ),
+      group="P&R lots"
+    ) |>
+
+    # Transit stops
+    leaflet::addCircleMarkers(
+      lng = lightrail_stops$stop_lon,
+      lat = lightrail_stops$stop_lat,
+      stroke = FALSE,
+      radius = 4,
+      fillColor = "#00A7A0",
+      fillOpacity = 0.6,
+      popup = ~paste(
+        "<b>Agency Name:</b>", lightrail_stops$type_name,
+        "<br><b>Stop ID:</b>", lightrail_stops$stop_id,
+        "<br><b>Stop Name:</b>", lightrail_stops$stop_name
+      ),
+      group="Rail Stops"
+    ) |>
+    
+    leaflet::addCircleMarkers(
+      lng = commuterrail_stops$stop_lon,
+      lat = commuterrail_stops$stop_lat,
+      stroke = FALSE,
+      radius = 4,
+      fillColor = "#005753",
+      fillOpacity = 0.6,
+      popup = ~paste(
+        "<b>Agency Name:</b>", commuterrail_stops$type_name,
+        "<br><b>Stop ID:</b>", commuterrail_stops$stop_id,
+        "<br><b>Stop Name:</b>", commuterrail_stops$stop_name
+      ),
+      group="Rail Stops"
+    ) |>
+    
+    leaflet::addCircleMarkers(
+      lng = ferry_stops$stop_lon,
+      lat = ferry_stops$stop_lat,
+      stroke = FALSE,
+      radius = 4,
+      fillColor = "#F4835E",
+      fillOpacity = 0.6,
+      popup = ~paste(
+        "<b>Agency Name:</b>", ferry_stops$type_name,
+        "<br><b>Stop ID:</b>", ferry_stops$stop_id,
+        "<br><b>Stop Name:</b>", ferry_stops$stop_name
+      ),
+      group="Ferry Stops"
+    ) |>
+    
+    leaflet::addCircleMarkers(
+      lng = other_stops$stop_lon,
+      lat = other_stops$stop_lat,
+      stroke = FALSE,
+      radius = 4,
+      fillColor = "#A9D46E",
+      fillOpacity = 0.6,
+      popup = ~paste(
+        "<b>Agency Name:</b>", other_stops$type_name,
+        "<br><b>Stop ID:</b>", other_stops$stop_id,
+        "<br><b>Stop Name:</b>", other_stops$stop_name
+      ),
+      group="Bus Stops"
+    ) |>
+
+    # Selected trip trace
+    leaflet::addCircleMarkers(
+      lng = trace$lon,
+      lat = trace$lat,
+      stroke = FALSE,
+      radius = 3,
+      fillColor = "blue",
+      fillOpacity = 0.5,
+      popup = paste(
+        "<b>Collected Time:</b>",
+        trace$collect_time_pdt,
+        "<br><b>Trip ID:</b>",
+        trace$trip_id
+      )
+    ) |>
+
+    # trip destination
+    leaflet::addAwesomeMarkers(
+      lng = trip$dest_lng,
+      lat = trip$dest_lat,
+      icon = leaflet::awesomeIcons(markerColor = "red", icon = "location"),
+      popup = paste(
+        "<b>Destination Purpose:</b>",
+        trip$dest_purpose,
+        "<br><b>Transit Submode:</b>",
+        trip$transit_submode,
+        "<br><b>Transit Egress Mode:</b>",
+        trip$mode_egr,
+        "<br><b>Egress Stop ID:</b>", trip$dest_stop_id,
+        "<br><b>Egress Stop Name:</b>", trip$dest_stop_name,
+        "<br><b>Trip ID:</b>",
+        trip$trip_id
+      )
+    ) |>
+
+    # trip origin
+    leaflet::addAwesomeMarkers(
+      lng = trip$origin_lng,
+      lat = trip$origin_lat,
+      icon = leaflet::awesomeIcons(markerColor = "darkblue", icon = "location"),
+      popup = paste(
+        "<b>Origin Purpose:</b>",
+        trip$origin_purpose,
+        "<br><b>Transit Submode:</b>",
+        trip$transit_submode,
+        "<br><b>Transit Access Mode:</b>",
+        trip$mode_acc,
+        "<br><b>Access Stop ID:</b>", trip$origin_stop_id,
+        "<br><b>Access Stop Name:</b>", trip$origin_stop_name,
+        "<br><b>Trip ID:</b>",
+        trip$trip_id
+      )
+    ) |>
+    
+    # Layers control
+    leaflet::addLayersControl(
+      overlayGroups = c("Rail Stops","Bus Stops","Ferry Stops","P&R lots"),
+      options = leaflet::layersControlOptions(collapsed = FALSE)
+    ) |> 
+    
+    leaflet::hideGroup(c("Bus Stops","Ferry Stops","P&R lots"))
+})
+
+output$google_button <- renderUI({
+
+  trip <- selectedTrip()
+
+  origin <- paste0(trip$origin_lat[1], ",", trip$origin_lng[1])
+  dest   <- paste0(trip$dest_lat[1], ",", trip$dest_lng[1])
+
+  url <- paste0(
+    "https://www.google.com/maps/dir/",
+    URLencode(origin),
+    "/",
+    URLencode(dest)
+  )
+
+  tags$a(
+    href = url,
+    target = "_blank",
+    class = "btn btn-primary",
+    icon("route"),
+    " Directions"
+  )
+})
+
+```
+

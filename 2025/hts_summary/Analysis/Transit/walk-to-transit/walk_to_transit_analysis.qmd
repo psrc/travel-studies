@@ -1,0 +1,38 @@
+---
+title: "Walk to Transit Analysis"
+date: today
+---
+
+- only trips with walk mode as both transit access and egress modes are considered
+- walking time inference: 3 mph = 15,840 feet/hour = 264 feet/minute
+
+```{r}
+# get data and load standard data processing
+library(shiny)
+library(leaflet)
+library(tidyverse)
+source("walk_to_transit_processing.R")
+
+hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
+
+```
+
+```{r}
+df_rail <- all_walk_transit_est %>%
+  filter(transit_submode == "Rail") 
+
+df_rail%>%
+  summarise(n_na = sum(is.na(dest_stop_id)),
+            n_est = sum(!is.na(dest_stop_id)))
+```
+
+
+```{r}
+hist(all_walk_transit_est$acc_walk_min, breaks=100)
+```
+
+
+```{r}
+plot(ecdf(all_walk_transit_est$acc_walk_min))
+```
+
