@@ -123,9 +123,111 @@ tre_rs |>
   summarize(trip_sum_est = sum(est)) # 2025 w/o NA 15,879,518, w/NA 17,100,397	
 ```
 
-## Care Trips by Race and Ethnicity
+### Race and Ethnicity by Trip Purpose
 
-### Analysis B
+The follow chart and table show the distribution of trips by people of various races and ethnicity by trip purpose -- specifically care-giving.
+
+Those who are listed as NA include those who preferred not to answer.
+
+- Of all care-giving trips in the Region across survey years, the largest share are made by those who are White Adults.
+
+```{r}
+col_var <- "race_category"
+
+cgre_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "care_purpose_cat", col_var),
+                     incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+```{r, eval=FALSE}
+# Do all the elements of the regional care-purpose facet equal to 100%?
+
+cgre_rs |> 
+  group_by(survey_year, .data[[geo_col]], care_purpose_cat) |> 
+  summarise(sum_prop = sum(prop))
+```
+
+```{r}
+#| out-width: "80%"
+
+cgre_rs_f <- cgre_rs |> 
+  filter(.data[[geo_col]] %in% "Region",
+         care_purpose_cat == "Care")
+
+plot_facet_wrap(table = cgre_rs_f, 
+                facet = survey_year, 
+                var1 = .data[[col_var]], 
+                var2 = .data[[col_var]], 
+                title = "Race and Ethnicity by Care Trip Purpose", 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom",
+         legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
+  )
+
+```
+
+```{r}
+cgre_rs_f
+```
+
+### People of Color by Trip Purpose
+
+- Of all care-trips in the region across survey years, those who are White adults have a greater share compared to Adult People of Color; however, trips for care-giving among Adult People of Color have increased over time since 2019.
+
+```{r}
+col_var <- "race_binary"
+
+cgreb_rs <- psrc_hts_stat(df_hts,
+                     analysis_unit = "trip",
+                     group_vars = c(geo_col, "care_purpose_cat", col_var),
+                     incl_na = TRUE) |> 
+  mutate(prop_per = percent(prop),
+         moe_per = percent(prop_moe))
+```
+
+```{r}
+#| out-width: "80%"
+
+cgreb_rs_f <- cgreb_rs |> 
+  filter(.data[[geo_col]] %in% "Region",
+         care_purpose_cat == "Care")
+
+plot_facet_wrap(table = cgreb_rs_f, 
+                facet = survey_year, 
+                var1 = .data[[col_var]], 
+                var2 = .data[[col_var]], 
+                title = "People of Color by Care Trip Purpose", 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "right",
+         legend.text = element_text(size = 8),
+          legend.title = element_text(size = 9),
+          
+          # Shrink the legend key boxes (both width and height)
+          legend.key.size = unit(0.4, "cm") 
+  )
+```
+
+```{r}
+cgreb_rs_f
+```
+
+
+## Trip Purpose by Race and Ethnicity
+
+The following charts and tables show the distribution of trips by trip purpose and race and ethnicity.
 
 <!-- Of all <race>, <x>% are care-giving trips -->
 
@@ -220,7 +322,12 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & C
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Care Trips", type = "cat")
 
 ```
+
 :::
+
+```{r}
+recg_rs_f
+```
 
 ### Work
 
@@ -239,22 +346,6 @@ recg_rs_f <- recg_rs |>
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Work Trips", type = "survey")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = survey_year, 
-#                 var1 = .data[[col_var]], 
-#                 var2 = .data[[col_var]], 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$pognbgy_10) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm") 
-#   )
 ```
 
 #### By Race Simple
@@ -263,25 +354,13 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & W
 #| out-width: "100%"
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Work Trips", type = "cat")
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = .data[[col_var]], 
-#                 var1 = as.character(survey_year), 
-#                 var2 = as.character(survey_year), 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$blues_inc) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm"),
-#         strip.text = element_text(size = 9)
-#   )
+
 ```
 :::
+
+```{r}
+recg_rs_f
+```
 
 ### School
 
@@ -300,22 +379,6 @@ recg_rs_f <- recg_rs |>
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & School Trips", type = "survey")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = survey_year, 
-#                 var1 = .data[[col_var]], 
-#                 var2 = .data[[col_var]], 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$pognbgy_10) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm") 
-#   )
 ```
 
 #### By Race Simple
@@ -325,25 +388,12 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & S
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & School Trips", type = "cat")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = .data[[col_var]], 
-#                 var1 = as.character(survey_year), 
-#                 var2 = as.character(survey_year), 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$blues_inc) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm"),
-#         strip.text = element_text(size = 9)
-#   )
 ```
 :::
+
+```{r}
+recg_rs_f
+```
 
 ### Social/Recreation
 
@@ -362,22 +412,6 @@ recg_rs_f <- recg_rs |>
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "survey")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = survey_year, 
-#                 var1 = .data[[col_var]], 
-#                 var2 = .data[[col_var]], 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$pognbgy_10) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm") 
-#   )
 ```
 
 #### By Race Simple
@@ -387,26 +421,12 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & S
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "cat")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = .data[[col_var]], 
-#                 var1 = as.character(survey_year), 
-#                 var2 = as.character(survey_year), 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$blues_inc) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm"),
-#         strip.text = element_text(size = 9)
-#   )
 ```
 :::
 
+```{r}
+recg_rs_f
+```
 ### Other
 
 ::: panel-tabset
@@ -424,22 +444,6 @@ recg_rs_f <- recg_rs |>
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Other Trips", type = "survey")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = survey_year, 
-#                 var1 = .data[[col_var]], 
-#                 var2 = .data[[col_var]], 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$pognbgy_10) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm") 
-#   )
 ```
 
 #### By Race Simple
@@ -449,25 +453,13 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & O
 
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Other Trips", type = "cat")
 
-# plot_facet_wrap(table = recg_rs_f, 
-#                 facet = .data[[col_var]], 
-#                 var1 = as.character(survey_year), 
-#                 var2 = as.character(survey_year), 
-#                 title = "Race and Ethnicity & Care Trips", 
-#                 color_pal = psrc_colors$blues_inc) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 6),
-#           # legend.title = element_text(size = 9),
-#           
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.2, "cm"),
-#         strip.text = element_text(size = 9)
-#   )
 ```
 :::
+
+```{r}
+recg_rs_f
+```
+
 ::::::::
 
 ```{r, eval=FALSE}
@@ -476,9 +468,9 @@ recg_rs |>
   summarize(sum_prop = sum(prop))
 ```
 
-### Aggregate groups (People of Color)
+## Trip Purpose by People of Color
 
-- There isn't a group that takes more or less care-trips than the other.
+- There isn't a group that makes more or less care-trips than the other.
 
 ```{r}
 # race_binary refers to POC, White, Child
@@ -522,23 +514,6 @@ rebcg_rs_f <- rebcg_rs |>
 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Care Trips", type = "survey")
 
-# plot_facet_wrap(table = rebcg_rs_f,
-#                 facet = survey_year,
-#                 var1 = .data[[col_var]],
-#                 var2 = .data[[col_var]],
-#                 title = "Race and Ethnicity & Care Trips",
-#                 color_pal = psrc_colors$pognbgy_10) +
-#   theme(panel.grid.major.y = element_blank(),
-#         axis.title = element_blank(),
-#         axis.text.x = element_blank(),
-#         legend.position = "bottom",
-#          legend.text = element_text(size = 8),
-#           legend.title = element_text(size = 9),
-# 
-#           # Shrink the legend key boxes (both width and height)
-#           legend.key.size = unit(0.4, "cm")
-#   )
-
 ```
 
 #### By Race Binary
@@ -549,6 +524,10 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Care Trips", type = "cat")
 ```
 :::
+
+```{r}
+rebcg_rs_f
+```
 
 ### Work
 
@@ -578,6 +557,10 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 ```
 :::
 
+```{r}
+rebcg_rs_f
+```
+
 ### School
 
 ::: panel-tabset
@@ -605,6 +588,10 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & School Trips", type = "cat")
 ```
 :::
+
+```{r}
+rebcg_rs_f
+```
 
 ### Social/Recreation
 
@@ -634,6 +621,10 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 ```
 :::
 
+```{r}
+rebcg_rs_f
+```
+
 ### Other
 
 ::: panel-tabset
@@ -661,101 +652,8 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Other Trips", type = "cat")
 ```
 :::
+
+```{r}
+rebcg_rs_f
+```
 ::::::::
-
-### Analysis A
-
-- Of all care-giving trips in the Region across survey years, the largest share are made by those who are White Adults.
-
-```{r}
-col_var <- "race_category"
-
-cgre_rs <- psrc_hts_stat(df_hts,
-                     analysis_unit = "trip",
-                     group_vars = c(geo_col, "care_purpose_cat", col_var),
-                     incl_na = TRUE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
-```
-
-```{r, eval=FALSE}
-# Do all the elements of the regional care-purpose facet equal to 100%?
-
-cgre_rs |> 
-  group_by(survey_year, .data[[geo_col]], care_purpose_cat) |> 
-  summarise(sum_prop = sum(prop))
-```
-
-```{r}
-#| out-width: "80%"
-
-cgre_rs_f <- cgre_rs |> 
-  filter(.data[[geo_col]] %in% "Region",
-         care_purpose_cat == "Care")
-
-plot_facet_wrap(table = cgre_rs_f, 
-                facet = survey_year, 
-                var1 = .data[[col_var]], 
-                var2 = .data[[col_var]], 
-                title = "Care Trips by Race and Ethnicity", 
-                color_pal = psrc_colors$pognbgy_10) +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = "bottom",
-         legend.text = element_text(size = 8),
-          legend.title = element_text(size = 9),
-          
-          # Shrink the legend key boxes (both width and height)
-          legend.key.size = unit(0.4, "cm") 
-  )
-
-```
-
-```{r}
-cgre_rs_f
-```
-
-#### Aggregate groups (People of Color)
-
-- Of all care-trips in the region across survey years, those who are White adults have a greater share compared to Adult People of Color; however, care-trip making among Adult People of Color has increased over time since 2019.
-
-```{r}
-col_var <- "race_binary"
-
-cgreb_rs <- psrc_hts_stat(df_hts,
-                     analysis_unit = "trip",
-                     group_vars = c(geo_col, "care_purpose_cat", col_var),
-                     incl_na = TRUE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
-```
-
-```{r}
-#| out-width: "80%"
-
-cgreb_rs_f <- cgreb_rs |> 
-  filter(.data[[geo_col]] %in% "Region",
-         care_purpose_cat == "Care")
-
-plot_facet_wrap(table = cgreb_rs_f, 
-                facet = survey_year, 
-                var1 = .data[[col_var]], 
-                var2 = .data[[col_var]], 
-                title = "Care Trips by Race and Ethnicity", 
-                color_pal = psrc_colors$pognbgy_10) +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = "right",
-         legend.text = element_text(size = 8),
-          legend.title = element_text(size = 9),
-          
-          # Shrink the legend key boxes (both width and height)
-          legend.key.size = unit(0.4, "cm") 
-  )
-```
-
-```{r}
-cgreb_rs_f
-```

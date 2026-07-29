@@ -150,7 +150,9 @@ hhc_sum <- hhc |>
 
 ## Care Trips Taken
 
-### Analysis A
+### Household Composition by Trip Purpose
+
+The following charts and tables show the distribution of households and their composition by trip purpose -- specifically care-giving.
 
 - Where care trips were taken, more were made by households with no children or elders followed by households that have children but no elders.
 
@@ -224,16 +226,18 @@ hhstr_a |>
        title = "Care Trips and Household Composition")
 ```
 
-
 ```{r}
 hhstr_a
 ```
 
-### Analysis B
+### Trip Purpose by Household Composition
+
+The following charts and tables show the distribution of trip purposes by the different types of household composition.
 
 Of households where there are either elders or children present, or none at all, there are more care-giving trips made. Especially of households where there are children and no elders, there are fewer non-care-giving trips compared to other household types.
 
 There are few households with both elders and children. Their results have very large margins of error and cannot be determined.
+
 ```{r}
 hhstr_b <- psrc_hts_stat(df_hts,
                     analysis_unit = "hh",
@@ -275,4 +279,3 @@ hhstr_b <- psrc_hts_stat(df_hts,
 ```{r}
 hhstr_b
 ```
-

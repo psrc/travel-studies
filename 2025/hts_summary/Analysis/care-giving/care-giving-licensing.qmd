@@ -94,9 +94,9 @@ per_cda |>
 per_cda
 ```
 
-## Care Trips by Can Drive and Age
+## Care Trips, Can Drive, Age
 
-### Analysis A
+### Can Drive and Age by Trip Purpose
 
 - Where care trips were taken, the vast majority of those between the ages of 25-84 years can drive.
 
@@ -130,7 +130,8 @@ plot_facet_wrap(table = t_cda |> filter(can_drive2 %in% "Yes"),
                 var2 = age,
                 title = "Age, Yes, can drive and Care Trips",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
 
 ```
 
@@ -145,7 +146,8 @@ plot_facet_wrap(table = t_cda |> filter(can_drive2 %in% "No"),
                 var2 = age,
                 title = "Age, No, cannot drive and Care Trips",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
 ```
 :::
 
@@ -173,14 +175,18 @@ cda_t <- psrc_hts_stat(df_hts,
 cda_t
 ```
 
-## Care Trips by Can Drive and Gender
+## Care Trips, Can Drive, & Gender
 
-### Analysis A
+### Gender by Can Drive and Trip Purpose
+
+The following charts and tables show the distribution of gender who can or cannot drive by trip purpose--specifically for care-giving.
 
 - Of all care-trips in the Region and those who can drive, there is a higher share of Women than Men for most survey years
 
+- NA represents persons who are ages 15 years and under.
+
 ```{r}
-# Care trips by Gender
+# Can Drive and Gender by Trip Purpose
 
 t_cd_g <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
@@ -207,13 +213,15 @@ t_cd_g_f |>
 ```{r}
 #| out-width: "100%"
 
-plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes"),
+plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes") |> mutate(fifty_line = "50%"),
                 facet = survey_year,
                 var1 = gender2,
                 var2 = gender2,
                 title = "Care Trips, Yes-can drive, and Gender",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
+  theme(axis.text.x = element_blank())
 ```
 
 #### No (can drive)
@@ -227,54 +235,92 @@ plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "No"),
                 var2 = gender2,
                 title = "Care Trips, No-cannot drive, and Gender",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
+  theme(axis.text.x = element_blank())
 ```
+
+#### NA (can drive)
+
+NA represents persons who are ages 15 years and under.
+
+```{r}
+#| out-width: "100%"
+
+plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
+                facet = survey_year,
+                var1 = gender2,
+                var2 = gender2,
+                title = "Care Trips, NA Can Drive, and Gender",
+                color_pal = psrc_colors$pognbgy_10) +
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed")) +
+  theme(axis.text.x = element_blank())
+```
+
 :::
 
 ```{r}
 t_cd_g_f
 ```
 
-### Analysis B
+### Trip Purpose by Can Drive and Gender
+
+The following charts and tables show the distribution of trip purpose by those who can or cannot drive and gender.
 
 ```{r}
 cd_g_t <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
-                      group_vars = c(geo_col, "can_drive2", "gender2", "care_purpose_cat"),
+                      group_vars = c(geo_col, "gender2", "can_drive2", "care_purpose_cat"),
                       incl_na = FALSE) 
-
-cd_g_t
 ```
-Of all Men or Women who can drive, the predominant trip purpose is care-giving trips. For 4 out of the 5 survey years, over 50% of trips made by Women who can drive are care-related trips. 
+
+Of all Men or Women who can drive, the predominant trip purpose is care-giving trips. For 4 out of the 5 survey years, over 50% of trips made by Women who can drive are care-related trips.
 
 For Men and Women who cannot drive, trips are primarily care-giving trips for most survey years.
 
-::: panel-tabset
-#### Yes (can drive)
+:::panel-tabset
+#### Men
 
 ```{r}
 #| out-width: "100%"
 
-plot_facet_wrap(table = cd_g_t |> filter(can_drive2 %in% "Yes"),
+plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Men"),
                 facet = survey_year,
-                var1 = gender2,
+                var1 = can_drive2,
                 var2 = care_purpose_cat,
-                title = "Can Drive, Gender, Care Purpose Category",
+                title = "Men, Can Drive, and Trip Purpose",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+```
+```{r}
+ cd_g_t |> filter(gender2 %in% "Men")
 ```
 
-#### No (can drive)
+
+
+
+#### Women
 
 ```{r}
 #| out-width: "100%"
 
-plot_facet_wrap(table = cd_g_t |> filter(can_drive2 %in% "No"),
+plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Women"),
                 facet = survey_year,
-                var1 = gender2,
+                var1 = can_drive2,
                 var2 = care_purpose_cat,
-                title = "Can Drive, Gender, Care Purpose Category",
+                title = "Women, Can Drive, and Trip Purpose",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
 ```
+
+```{r}
+ cd_g_t |> filter(gender2 %in% "Women")
+```
+
 :::
+
+
+

@@ -60,43 +60,20 @@ at_rs <- psrc_hts_stat(df_hts,
 #| layout-ncol: 2
 #| out-width: "50%"
 
-at_rs |> 
-  ggplot(aes(x = as.character(survey_year), y = prop, fill = gender2)) +
-  geom_col(position = "dodge") + 
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)
-  ) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7)
-  ) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "All Trips by Gender")
+plot_facet_wrap(table = at_rs,
+                facet = survey_year,
+                var1 = gender2,
+                var2 = gender2,
+                title = "All Trips by Gender") +
+  theme(axis.text.x = element_blank())
 
-at_rs |> 
-  ggplot(aes(x = gender2, y = prop, fill = as.character(survey_year))) +
-  geom_col(position = "dodge") + 
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)
-  ) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_5) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7)
-  ) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "All Trips by Gender")
+plot_facet_wrap(table = at_rs,
+                facet = gender2,
+                var1 = as.character(survey_year),
+                var2 = as.character(survey_year),
+                title = "All Trips by Gender",
+                color_pal = psrc_colors$blues_inc) +
+  theme(axis.text.x = element_blank())
 ```
 
 ```{r}
@@ -125,9 +102,13 @@ rs3 |>
 
 ```
 
-## Care Trips by Gender
+## Care Trips and Gender
 
-### Analysis A
+The following charts and tables show the share of trips by gender for care-giving purposes.
+
+### Gender by Trip Purpose
+
+<!-- Comparing genders within each purpose -->
 
 - Of all care trips, Women made over 50% of those trips across most survey years.
 
@@ -159,7 +140,9 @@ plot_facet_wrap(table = ctg_rs_f,
                 var1 = gender2,
                 var2 = gender2,
                 title = "Care Trips by Gender") +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+ geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
+  theme(axis.text.x = element_blank())
 
 plot_facet_wrap(table = ctg_rs_f,
                 facet = gender2,
@@ -167,7 +150,9 @@ plot_facet_wrap(table = ctg_rs_f,
                 var2 = survey_year,
                 title = "Care Trips by Gender",
                 color_pal = psrc_colors$blues_inc) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
+  theme(axis.text.x = element_blank())
 
 ```
 
@@ -175,9 +160,11 @@ plot_facet_wrap(table = ctg_rs_f,
 ctg_rs_f 
 ```
 
-### Analysis B
+### Trip Purpose by Gender
 
-- Of all trips made by Women in 2025, 53% are care-giving trips. Of all trips made by Men in 2025, 45% are care-giving trips. This excludes "Home" trips which have been coded as NA.
+The following charts and table show the share of care-giving trips by gender.
+
+- Of all trips made by Women in 2025, 53% are care-giving trips. Of all trips made by Men in 2025, 45% are care-giving trips.
 
 ```{r}
 # exclude where care_purpose_cat is NA because those are home trips, and b/c each gender is its own universe,
@@ -210,15 +197,20 @@ plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Men"),
                 facet = survey_year,
                 var1 = .data[[col_var]],
                 var2 = care_purpose_cat,
-                title = "Men and Care Purpose Categories",
+                title = "Men and Trip Purpose",
                 color_pal = psrc_colors$pognbgy_10) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
         legend.position = "bottom"
   ) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+```
 
+```{r}
+gct_rs_f |> 
+  filter(gender2 == "Men")
 ```
 
 #### Women
@@ -231,18 +223,47 @@ plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Women"),
                 facet = survey_year,
                 var1 = .data[[col_var]],
                 var2 = care_purpose_cat,
-                title = "Women and Care Purpose Categories",
+                title = "Women and Trip Purpose",
                 color_pal = psrc_colors$pognbgy_10) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
         legend.position = "bottom"
   ) +
-  geom_hline(yintercept = .5, color = "red", linetype = "dashed")
+   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
 
 ```
-:::
 
 ```{r}
-gct_rs_f
+gct_rs_f |> 
+  filter(gender2 == "Women")
 ```
+
+#### Prefer not to say or Other
+
+```{r}
+#| out-width: "100%"
+
+
+plot_facet_wrap(table = gct_rs_f |> filter(!gender2 %in% c("Men", "Women")),
+                facet = survey_year,
+                var1 = .data[[col_var]],
+                var2 = care_purpose_cat,
+                title = "Prefer not to say or Other and Trip Purpose",
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  ) +
+   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+
+```
+
+```{r}
+gct_rs_f |> 
+  filter(!gender2 %in% c("Men", "Women"))
+```
+:::

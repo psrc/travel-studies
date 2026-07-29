@@ -205,7 +205,7 @@ Of trips made by those who make under \$50,000 and where driving was the primary
 
 Of those who earn more than \$50,000 and where driving is the primary trip mode, there are more care-giving trips than other trip purposes.
 
-When comparing across income levels, there are more work trips by driving of those who earn more than \$50,000 than those who earn less than \$50,000.  
+When comparing across income levels, there are more work trips by driving of those who earn more than \$50,000 than those who earn less than \$50,000.
 
 ```{r}
 #| fig-align: "center"
@@ -219,6 +219,7 @@ plot_facet_wrap(table = mode_inc_b_drive,
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
+
 ```{r}
 mode_inc_b_drive
 ```
@@ -243,6 +244,7 @@ plot_facet_wrap(table = mode_inc_b_trans,
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
+
 ```{r}
 
 mode_inc_b_trans
@@ -271,6 +273,7 @@ plot_facet_wrap(table = mode_inc_b_walk,
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
+
 ```{r}
 
 mode_inc_b_walk
@@ -322,9 +325,9 @@ plot_facet_wrap(table = mode_inc_b_other,
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
+
 ```{r}
 
 mode_inc_b_other
 ```
-
 :::
