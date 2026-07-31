@@ -1,0 +1,29 @@
+project:
+  output-dir: "HTS-summary-notebook"
+
+book:
+  title: "2025 HTS Summary"
+
+  chapters:
+    - index.qmd # this is a required file for Quarto Book
+    # - Analysis/Topsheet/topsheet_summary.qmd
+    - part: "<b>Care Giving</b>"
+      chapters:
+        - Analysis/care-giving/care-giving.qmd
+        - Analysis/care-giving/care-giving-mode-income.qmd
+        - Analysis/care-giving/care-giving-gender.qmd
+        - Analysis/care-giving/care-giving-licensing.qmd
+        - Analysis/care-giving/care-giving-hhstructure.qmd
+        - Analysis/care-giving/care-giving-race.qmd
+    - part: "<b>Delivery</b>"
+      chapters:
+        - Analysis/Delivery/delivery_analysis.qmd
+        - Analysis/Delivery/delivery_landuse.qmd
+    - part: "<b>Special Needs</b>"
+      chapters:
+        - Analysis/special-needs/section_index.qmd
+        - Analysis/special-needs/paired-tradeoff-analysis.qmd
+        - Analysis/special-needs/hts-special-needs.qmd
+    - Analysis/Telework/telework_analysis.qmd
+    - Analysis/Transit/transit.qmd
+    - Analysis/walk-bike/walk_bike_summary.qmd
