@@ -77,11 +77,13 @@ fig_delivery <- function(delivery_var, title){
 
 tbl_delivery <- function(delivery_var, title){
   
-  psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
+  df_plot <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
     filter(.[[delivery_var]]=="Yes")  %>%
     
     # function sourced from Analysis/util.R
     get_table_format()
+  
+  knitr::kable(df_plot)
   
 }
 
@@ -102,7 +104,7 @@ fig_delivery("deliver_package", "package delivery")
 ```{r}
 #| label: tbl-deliver-package
 
-knitr::kable(tbl_delivery("deliver_package", "package delivery"))
+tbl_delivery("deliver_package", "package delivery")
 
 ```
 
@@ -121,7 +123,7 @@ fig_delivery("deliver_food", "food delivery")
 ```{r}
 #| label: tbl-deliver-food
 
-knitr::kable(tbl_delivery("deliver_food", "food delivery"))
+tbl_delivery("deliver_food", "food delivery")
 
 ```
 
@@ -139,7 +141,7 @@ fig_delivery("deliver_work", "service work")
 ```{r}
 #| label: tbl-deliver-work
 
-knitr::kable(tbl_delivery("deliver_work", "service work"))
+tbl_delivery("deliver_work", "service work")
 
 ```
 
@@ -158,7 +160,7 @@ fig_delivery("deliver_grocery", "grocery delivery")
 ```{r}
 #| label: tbl-deliver-grocery
 
-knitr::kable(tbl_delivery("deliver_grocery", "grocery delivery"))
+tbl_delivery("deliver_grocery", "grocery delivery")
 
 ```
 
@@ -177,7 +179,7 @@ fig_delivery("deliver_outside_any", "delivery outside home (inc. at office)")
 ```{r}
 #| label: tbl-deliver-outside
 
-knitr::kable(tbl_delivery("deliver_outside_any", "delivery outside home (inc. at office)"))
+tbl_delivery("deliver_outside_any", "delivery outside home (inc. at office)")
 
 ```
 
@@ -194,7 +196,7 @@ fig_delivery("deliver_elsewhere", "delivery outside home")
 ```{r}
 #| label: tbl-deliver-elsewhere
 
-knitr::kable(tbl_delivery("deliver_elsewhere", "delivery outside home"))
+tbl_delivery("deliver_elsewhere", "delivery outside home")
 
 ```
 
@@ -209,7 +211,7 @@ fig_delivery("deliver_office", "delivery at office")
 ```{r}
 #| label: tbl-deliver-office
 
-knitr::kable(tbl_delivery("deliver_office", "delivery at office"))
+tbl_delivery("deliver_office", "delivery at office")
 
 ```
 
@@ -219,15 +221,16 @@ knitr::kable(tbl_delivery("deliver_office", "delivery at office"))
 
 ```{r}
 
-plot_delivery_type <- function(delivery_var, group_var, title){
+plot_delivery_type <- function(delivery_var, group_var, title, type="both"){
 
   res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>%
     filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer")
 
   # print your charts
-  print(
-    ggplot(res,
-           aes(x=delivery_var, y=prop, fill=!!sym(group_var))) +
+  if( type %in% c("year","both") ){
+    
+    df_plot <- ggplot(res,
+                      aes(x=delivery_var, y=prop, fill=!!sym(group_var))) +
       geom_col(position = position_dodge(),width = 0.8) +
       geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                     position = position_dodge(0.8),
@@ -241,11 +244,15 @@ plot_delivery_type <- function(delivery_var, group_var, title){
             axis.text.x = element_blank())+
       labs(caption = hts_source,
            title = title)
-  )
-
-  print(
-    ggplot(res,
-           aes(x=delivery_var, y=prop, fill=factor(survey_year))) +
+    
+    print(df_plot)
+    
+  } 
+  
+  if( type %in% c("cat","both") ){
+    
+    df_plot <- ggplot(res,
+                      aes(x=delivery_var, y=prop, fill=factor(survey_year))) +
       geom_col(position = position_dodge(),width = 0.8) +
       geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
                     position = position_dodge(0.8),
@@ -259,11 +266,14 @@ plot_delivery_type <- function(delivery_var, group_var, title){
             axis.text.x = element_blank())+
       labs(caption = hts_source,
            title = title)
-  )
+    
+    print(df_plot)
+    
+  }
   
 }
 
-table_delivery_type <- function(){
+table_delivery_type <- function(delivery_var, group_var, title){
   
   res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>%
     filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer")
@@ -273,61 +283,222 @@ table_delivery_type <- function(){
     # function sourced from Analysis/util.R
     get_table_format()
   
+  knitr::kable(df_plot)
+  
 }
 ```
 
 
-<!-- ### household income -->
+### household income
 
-<!-- - households with higher income have been consistently receiving more packages than others -->
-<!-- - no noticeable trends -->
+- households with higher income have been consistently receiving more packages than others
+- no noticeable trends
 
-<!-- :::{.panel-tabset} -->
+#### package
 
-<!-- #### package -->
+```{r}
+#| label: fig-package-income
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+plot_delivery_type("deliver_package","income_3group",
+                   "package delivery by income",
+                   type="year")
+```
 
-<!-- df_plot <- stat_delivery_type("deliver_package","income_3group", -->
-<!--                               "package delivery by income") -->
-<!-- ``` -->
+```{r}
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+plot_delivery_type("deliver_package","income_3group",
+                   "package delivery by income",
+                   type="cat")
+```
 
-<!-- #### grocery -->
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| label: tbl-package-income
+table_delivery_type("deliver_package","income_3group",
+                   "package delivery by income")
+```
 
-<!-- df_plot <- stat_delivery_type("deliver_grocery","income_3group", -->
-<!--                               "grocery delivery by income") -->
-<!-- ``` -->
+:::{.panel-tabset}
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+#### grocery
 
-<!-- #### food -->
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+plot_delivery_type("deliver_grocery","income_3group",
+                              "grocery delivery by income")
+```
 
-<!-- df_plot <- stat_delivery_type("deliver_food","income_3group", -->
-<!--                               "food delivery by income") -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","income_3group",
+                              "grocery delivery by income")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
 
-<!-- ::: -->
+#### food
 
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+plot_delivery_type("deliver_food","income_3group",
+                              "food delivery by income")
+```
+
+```{r}
+table_delivery_type("deliver_food","income_3group",
+                              "food delivery by income")
+```
+
+:::
+
+### vehicle availability
+
+Households with no cars have more grocery deliveries -> grocery deliveries are accessible for households without cars
+
+Households with enough cars have more food deliveries -> food deliveries serve households with higher income
+
+
+#### grocery
+
+```{r}
+#| label: fig-grocery-vehicle
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+
+plot_delivery_type("deliver_grocery","have_cars",
+                   "grocery delivery by auto availability",
+                   type="year")
+```
+
+```{r}
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+
+plot_delivery_type("deliver_grocery","have_cars",
+                   "grocery delivery by auto availability",
+                   type="cat")
+```
+
+```{r}
+#| label: tbl-grocery-vehicle
+
+table_delivery_type("deliver_grocery","have_cars",
+                    "grocery delivery by auto availability")
+```
+
+:::{.panel-tabset}
+
+#### package
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+plot_delivery_type("deliver_package","have_cars",
+                              "package delivery by auto availability")
+```
+
+```{r}
+table_delivery_type("deliver_package","have_cars",
+                              "package delivery by auto availability")
+```
+
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+plot_delivery_type("deliver_food","have_cars",
+                              "food delivery by auto availability")
+```
+
+```{r}
+table_delivery_type("deliver_food","have_cars",
+                              "food delivery by auto availability")
+```
+
+:::
+
+
+### household composition
+
+#### package
+
+```{r}
+#| label: fig-package-hh
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+
+plot_delivery_type("deliver_package","lifecycle_2group",
+                   "package delivery by household composition",
+                   type="year")
+```
+
+```{r}
+#| fig-height: 3
+#| fig-width: 5.1
+#| out-width: "350px"
+
+plot_delivery_type("deliver_package","lifecycle_2group",
+                   "package delivery by household composition",
+                   type="cat")
+```
+
+```{r}
+#| label: tbl-package-hh
+
+table_delivery_type("deliver_package","lifecycle_2group",
+                              "package delivery by household composition")
+```
+
+:::{.panel-tabset}
+
+#### grocery
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+plot_delivery_type("deliver_grocery","lifecycle_2group",
+                              "grocery delivery by household composition")
+```
+
+```{r}
+
+table_delivery_type("deliver_grocery","lifecycle_2group",
+                              "grocery delivery by household composition")
+```
+
+#### food
+
+```{r}
+#| layout-ncol: 2
+#| out-width: "50%"
+
+plot_delivery_type("deliver_food","lifecycle_2group",
+                              "food delivery by household composition")
+```
+
+```{r}
+
+table_delivery_type("deliver_food","lifecycle_2group",
+                              "food delivery by household composition")
+```
+
+:::
 
 <!-- ### number of workers -->
 
@@ -377,59 +548,6 @@ table_delivery_type <- function(){
 
 <!-- ::: -->
 
-<!-- ### vehicle availability -->
-
-<!-- Households with no cars have more grocery deliveries -> grocery deliveries are accessible for households without cars -->
-
-<!-- Households with enough cars have more food deliveries -> food deliveries serve households with higher income -->
-
-<!-- :::{.panel-tabset} -->
-
-<!-- #### package -->
-
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
-
-<!-- df_plot <- stat_delivery_type("deliver_package","have_cars", -->
-<!--                               "package delivery by auto availability") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
-
-<!-- #### grocery -->
-
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
-
-<!-- df_plot <- stat_delivery_type("deliver_grocery","have_cars", -->
-<!--                               "grocery delivery by auto availability") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
-
-<!-- #### food -->
-
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
-
-<!-- df_plot <- stat_delivery_type("deliver_food","have_cars", -->
-<!--                               "food delivery by auto availability") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
-
-<!-- ::: -->
-
-
 <!-- ### household race categories -->
 
 <!-- :::{.panel-tabset} -->
@@ -478,53 +596,6 @@ table_delivery_type <- function(){
 
 <!-- ::: -->
 
-<!-- ### household composition -->
-
-<!-- :::{.panel-tabset} -->
-
-<!-- #### package -->
-
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
-
-<!-- df_plot <- stat_delivery_type("deliver_package","lifecycle_2group", -->
-<!--                               "package delivery by household composition") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
-
-<!-- #### grocery -->
-
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
-
-<!-- df_plot <- stat_delivery_type("deliver_grocery","lifecycle_2group", -->
-<!--                               "grocery delivery by household composition") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
-
-<!-- #### food -->
-
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
-
-<!-- df_plot <- stat_delivery_type("deliver_food","lifecycle_2group", -->
-<!--                               "food delivery by household composition") -->
-<!-- ``` -->
-
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
-
-<!-- ::: -->
 
 <!-- ## delivery by home location and type -->
 
