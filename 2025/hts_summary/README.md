@@ -57,5 +57,6 @@
 
 ## products
 - documents: HTML documents or Quarto Book containing each analyst's analysis work (example: [topsheet_summary.html, open file in file explorer](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/Topsheet/topsheet-notebook/topsheet_summary.html))
-- summary report (HTML): Quarto Book with everyone's analysis (example: [here, open file in file explorer](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/HTS-summary-notebook/index.html))
+- Exploration and Analysis (HTML): Quarto Book with everyone's exploration and analysis work(example: [here, open file in file explorer](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/HTS-summary-notebook/index.html))
+- Summary Report (HTML): Quarto Book with everyone's analysis results and findings 
 - presentations: multiple presentations for boards and committees that comes from different topic analyses
