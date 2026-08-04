@@ -41,15 +41,17 @@
 1. simple barchart:
 
 ```
-#| out-width: "37%"
-#| fig-width: 3
+#| fig-height: 3
+#| fig-width: 5.1
+#| out-width: "350px"
 ```
 
 2. faceted barcharts
 
 ```
-#| out-width: "50%"
-#| fig-width: 4
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 ```
 - see Quarto website for more figure settings: https://quarto.org/docs/computations/execution-options.html#figure-options
 
