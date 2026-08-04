@@ -11,9 +11,17 @@
 #### 3. to render your analysis scripts into a [Quarto Book](https://quarto.org/docs/books/) in your topic folder
 -   you will need at least two files: [\_quarto.yml](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/Delivery/_quarto.yml) and [index.qmd](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/Delivery/index.qmd), plus any other analysis scripts you'd like to include
 -   render by running `quarto render` at your folder location in terminal
-#### 4. to render the full summary report along with everyone's work
--   make sure your script is listed in [here](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/_quarto.yml) as one of the chapters
--   render by running `quarto render` at the hts_summary folder location in terminal
+#### 4. add your analysis to the full "2025 HTS Exploration & Analysis report" along with everyone's work
+-   make sure your Quarto notebooks are listed in [here](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/_quarto-exploration-analysis.yml) as one of the chapters
+-   render by running `quarto render` at the `hts_summary` folder location in terminal
+#### 5. summarize analysis results by creating a summary page
+- create a `.qmd` file in the [SummaryReport](https://github.com/psrc/travel-studies/tree/master/2025/hts_summary/SummaryReport) folder (example: [`Delivery.qmd`](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/SummaryReport/Delivery.qmd))
+- in the `.qmd` file, include necessary charts and tables from your analysis notebooks with [embed](https://quarto.org/docs/authoring/notebook-embed.html) shortcodes and describe analysis findings in bullet points
+    - to be referenced with embed, figures and tables must be labeled with `#| label: fig-xxxxx` and `#| label: tbl-xxxxx` respectively ([example](https://github.com/psrc/travel-studies/blob/ca921bd80153fd4269fe54197e576488d818a91e/2025/hts_summary/Analysis/Delivery/delivery_analysis.qmd#L94-L109))
+    - example figure size configuration: [example here](https://github.com/psrc/travel-studies/blob/ca921bd80153fd4269fe54197e576488d818a91e/2025/hts_summary/Analysis/Delivery/delivery_analysis.qmd#L96-L98)
+    - bugs to be aware of:
+      1. embed shortcode can't find any figures/tables nested within markdown div containers such as `:::{.panel-tabsets} :::`
+      2. embed shortcode doesn't work with most table formatting packages ([kable() from kintr](https://github.com/psrc/travel-studies/blob/ca921bd80153fd4269fe54197e576488d818a91e/2025/hts_summary/Analysis/Delivery/delivery_analysis.qmd#L86) works well while directly printing tables, `gt` and `DT` didn't work when I tried them)
 
 ## resources
 
@@ -24,6 +32,8 @@
     -   [install Quarto](https://quarto.org/docs/get-started/)
     -   [execution options](https://quarto.org/docs/reference/cells/cells-knitr.html#code-output)
     -   [tabsets](https://quarto.org/docs/output-formats/html-basics.html#tabsets) when showing same charts by different segments
+    -   [project profiles](https://quarto.org/docs/projects/profiles.html) to adapt options and content of your projects for different scenarios
+    -   [embed shortcode](https://quarto.org/docs/authoring/notebook-embed.html) to include the output of another Quarto document
 - HTS data in Elmer: the multi-year data is stored in Elmer as views ('HHSurvey.v_households','HHSurvey.v_persons','HHSurvey.v_days','HHSurvey.v_trips','HHSurvey.v_vehicles')
 
 ### size and formatting recommendations for ggplot figures on Quarto documents
