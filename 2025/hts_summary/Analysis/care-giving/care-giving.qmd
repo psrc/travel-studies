@@ -38,31 +38,18 @@ lapply(files, function(f) {
 Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years. Care-giving is an aggregate of the following destination purposes (escort, personal business/errand/appointment, meal, and shopping). The care-giving analysis will also exclude HOME trips.
 
 ```{r}
-
+#| label: tbl-trip-purp-all
+#| 
 # This section prints a table with weighted/unweighted x Home/Exclude Home x trip purpose
 
 trip_purp_a <- create_trip_purpose_tbl(df_hts)
 
-trip_purp_a |>
-  gt() |>
-  cols_align(
-    align = "left",
-    columns = dest_purpose_cat
-  ) |>
-  tab_spanner_delim(delim = ".") |>
-  tab_style(
-    style = cell_fill(color = "lightyellow"),
-    locations = cells_body(
-      columns = dest_purpose_cat,
-      rows = dest_purpose_cat %in% care_purpose_cat  # Matches values in the vector
-    )
-  ) |>
-  data_color(
-    columns = contains("Exclude"),
-    rows = dest_purpose_cat %in% care_purpose_cat,
-    colors = "lightyellow"
-  )
+trip_purp_a_fmt <- trip_purp_a |> 
+  pivot_longer(cols = contains("HOME")) |> 
+  separate_wider_delim(cols = "name", names = c("home", "year"), delim = ".") |> 
+  pivot_wider(id_cols = c("dest_purpose_cat", "home"), names_from = "year", values_from = "value")
 
+knitr::kable(trip_purp_a_fmt)
 
 ```
 
@@ -85,8 +72,10 @@ care_purp <- create_care_purpose_tbl(df_hts)
 ```
 
 ```{r}
-#| layout-ncol: 2
-#| out-width: "50%"
+#| label: fig-care-purp-cat-01
+#| fig-height: 3
+#| fig-width: 5.1
+#| out-width: "350px"
 
 plot_facet_wrap(care_purp, 
                 survey_year, 
@@ -95,7 +84,13 @@ plot_facet_wrap(care_purp,
                 "Care Purpose Categories by Year", 
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_blank())
+```
 
+```{r}
+#| label: fig-care-purp-cat-02
+#| fig-height: 3
+#| fig-width: 5.1
+#| out-width: "350px"
 plot_facet_wrap(care_purp, 
                 care_purpose_cat, 
                 as.character(survey_year), 
@@ -106,5 +101,7 @@ plot_facet_wrap(care_purp,
 ```
 
 ```{r}
-care_purp
+#| label: tbl-care-purp-cat
+#| 
+knitr::kable(care_purp)
 ```

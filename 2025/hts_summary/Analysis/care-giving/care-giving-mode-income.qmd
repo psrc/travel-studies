@@ -193,8 +193,8 @@ mode_inc_b <- psrc_hts_stat(df_hts,
          moe_per = label_percent(accuracy = 0.1)(prop_moe))
 ```
 
-::: panel-tabset
-### Drive
+<!-- ::: panel-tabset -->
+#### Drive
 
 ```{r}
 mode_inc_b_drive <- mode_inc_b |>
@@ -208,8 +208,10 @@ Of those who earn more than \$50,000 and where driving is the primary trip mode,
 When comparing across income levels, there are more work trips by driving of those who earn more than \$50,000 than those who earn less than \$50,000.
 
 ```{r}
-#| fig-align: "center"
-#| out-width: "90%"
+#| label: fig-mode-inc-b-drive-01
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = mode_inc_b_drive,
                 facet = income_50,
@@ -221,10 +223,12 @@ plot_facet_wrap(table = mode_inc_b_drive,
 ```
 
 ```{r}
-mode_inc_b_drive
+#| label: tbl-mode-inc-b-drive-01
+
+knitr::kable(mode_inc_b_drive)
 ```
 
-### Transit
+#### Transit
 
 ```{r}
 
@@ -251,7 +255,7 @@ mode_inc_b_trans
 
 ```
 
-### Walk
+#### Walk
 
 ```{r}
 
@@ -279,7 +283,7 @@ plot_facet_wrap(table = mode_inc_b_walk,
 mode_inc_b_walk
 ```
 
-### Bike/Micromobility
+#### Bike/Micromobility
 
 ```{r}
 
@@ -305,7 +309,7 @@ plot_facet_wrap(table = mode_inc_b_bike,
 mode_inc_b_bike
 ```
 
-### Other
+#### Other
 
 ```{r}
 
@@ -330,4 +334,4 @@ plot_facet_wrap(table = mode_inc_b_other,
 
 mode_inc_b_other
 ```
-:::
+<!-- ::: -->

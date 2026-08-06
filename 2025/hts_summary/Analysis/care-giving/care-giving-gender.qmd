@@ -178,7 +178,8 @@ gct_rs <- psrc_hts_stat(df_hts,
          moe_per = percent(prop_moe))
 ```
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
+
 ```{r}
 col_var <- "gender2"
 
@@ -191,7 +192,10 @@ gct_rs_f <- gct_rs |>
 #### Men
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-men-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Men"),
                 facet = survey_year,
@@ -209,14 +213,17 @@ plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Men"),
 ```
 
 ```{r}
-gct_rs_f |> 
-  filter(gender2 == "Men")
+knitr::kable(gct_rs_f |> 
+  filter(gender2 == "Men"))
 ```
 
 #### Women
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-women-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 
 plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Women"),
@@ -236,14 +243,17 @@ plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Women"),
 ```
 
 ```{r}
-gct_rs_f |> 
-  filter(gender2 == "Women")
+knitr::kable(gct_rs_f |> 
+  filter(gender2 == "Women"))
 ```
 
 #### Prefer not to say or Other
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-other-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 
 plot_facet_wrap(table = gct_rs_f |> filter(!gender2 %in% c("Men", "Women")),
@@ -263,7 +273,8 @@ plot_facet_wrap(table = gct_rs_f |> filter(!gender2 %in% c("Men", "Women")),
 ```
 
 ```{r}
-gct_rs_f |> 
-  filter(!gender2 %in% c("Men", "Women"))
+knitr::kable(gct_rs_f |> 
+  filter(!gender2 %in% c("Men", "Women")))
 ```
-:::
+
+<!-- ::: -->

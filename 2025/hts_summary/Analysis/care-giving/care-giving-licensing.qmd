@@ -207,11 +207,14 @@ t_cd_g_f |>
   summarise(sum_prop = sum(prop))
 ```
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### Yes (can drive)
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-yes-can-drive-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes") |> mutate(fifty_line = "50%"),
                 facet = survey_year,
@@ -227,7 +230,10 @@ plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes") |> mutate(fift
 #### No (can drive)
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-no-can-drive-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "No"),
                 facet = survey_year,
@@ -245,7 +251,10 @@ plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "No"),
 NA represents persons who are ages 15 years and under.
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-na-can-drive-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
                 facet = survey_year,
@@ -257,11 +266,15 @@ plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
   scale_linetype_manual(name = NULL, values = c("50%" = "dashed")) +
   theme(axis.text.x = element_blank())
 ```
-
-:::
+<!-- ::: -->
 
 ```{r}
-t_cd_g_f
+#| label: tbl-gender-can-drive-trip-purp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(t_cd_g_f)
 ```
 
 ### Trip Purpose by Can Drive and Gender
@@ -279,7 +292,7 @@ Of all Men or Women who can drive, the predominant trip purpose is care-giving t
 
 For Men and Women who cannot drive, trips are primarily care-giving trips for most survey years.
 
-:::panel-tabset
+::: panel-tabset
 #### Men
 
 ```{r}
@@ -294,12 +307,10 @@ plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Men"),
   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
   scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
 ```
+
 ```{r}
  cd_g_t |> filter(gender2 %in% "Men")
 ```
-
-
-
 
 #### Women
 
@@ -319,8 +330,4 @@ plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Women"),
 ```{r}
  cd_g_t |> filter(gender2 %in% "Women")
 ```
-
 :::
-
-
-
