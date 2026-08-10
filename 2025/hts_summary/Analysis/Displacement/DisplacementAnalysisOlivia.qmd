@@ -1,0 +1,1442 @@
+---
+title: "Displacement Analysis Olivia"
+format: html
+editor: visual
+---
+
+```{r}
+# YOU MIGHT need to download some special packages on github: travelSurveyTools, psrcelmer, and psrcplot. IF you need to download them, here's how:
+library(remotes)
+ 
+remotes::install_github('RSGInc/travelSurveyTools')
+remotes::install_github('psrc/psrcelmer')
+remotes::install_github('psrc/psrcplot')
+# using this package
+remotes::install_github('psrc/psrc.travelsurvey', force=TRUE)
+
+library(data.table)
+library(stringr)
+library(travelSurveyTools)
+library(psrcelmer)
+library(dplyr)
+library(psrcplot)
+library(tidyverse)
+library(table1)
+library(psrc.travelsurvey)
+
+library(sf) #for regional geographies
+sf_use_s2(FALSE)
+library(corrplot) #for correlation analysis
+
+source('../survey-23-preprocess.R')
+```
+
+## Read in Codebook
+
+```{r}
+cb_path = str_glue("J:/Projects/Surveys/HHTravel/Survey2023/Data/data_published/PSRC_Codebook_2023_v1.xlsx")
+
+variable_list = readxl::read_xlsx(cb_path, sheet = 'variable_list')
+value_labels = readxl::read_xlsx(cb_path, sheet = 'value_labels')
+
+setDT(variable_list)
+setDT(value_labels)
+```
+
+## Read in Data from Elmer
+
+```{r}
+# Specify which variables to retrieve
+# View(psrc.travelsurvey:::init_variable_list)
+
+vars <- c(
+  #household-level variables
+  'household_id', 'res_dur', 'prev_home_wa', 'home_rgcname', 
+  'prev_home_rgcname', 'home_county', 'prev_home_county',
+  'home_jurisdiction', 'prev_rent_own', 'rent_own', 
+  'prev_res_type', 'res_type',
+  'hhsize', 'numadults', 'numchildren', 'numworkers', 'vehicle_count', 
+  'hhincome_detailed', 'hhincome_broad',
+  'prev_res_factors_amenities', 'prev_res_factors_community_change',
+  'prev_res_factors_crime', 'prev_res_factors_employment', 
+  'prev_res_factors_forced', 'prev_res_factors_hh_size', 
+  'prev_res_factors_housing_cost', 'prev_res_factors_income_change', 
+  'prev_res_factors_less_space', 'prev_res_factors_more_space', 
+  'prev_res_factors_no_answer', 'prev_res_factors_other', 
+  'prev_res_factors_quality', 'prev_res_factors_school', 
+  'prev_res_factors_specify', 'prev_res_factors_telework', 
+  'hh_race_category',
+  "home_jurisdiction","home_lat","home_lng", 'displaced',"hhincome_bin5",
+  
+  #person-level variables
+  'race_category', 'race_afam', 'race_aiak', 'race_asian', 'race_hapi', 
+  'race_noanswer', 'race_other', 'race_other_specify', 'race_white',
+  'ethnicity_1', 'ethnicity_2', 'ethnicity_3', 'ethnicity_4', 
+  'ethnicity_997', 'ethnicity_999', 'ethnicity_other',
+  'person_id', 'gender', 'age',
+  'education', 'employment')
+
+# Retrieve the data
+survey_years = c(2017, 2019, 2021, 2023, 2025)
+hts_data <- get_psrc_hts(survey_years = survey_years, survey_vars = vars)  # default includes all survey_years
+```
+
+#Percent displaced by survey year
+
+(number of people who lived in washington before and have moved in the past 5 years who moved for the four displacement reasons)/(number of people who lived in washington before and have moved in the past 5 years)
+
+```{r}
+hh_test <- hts_data$hh %>% 
+  mutate(movers=case_when(res_dur=="Less than a year" |
+                            res_dur=="Between 1 and 2 years" | 
+                            res_dur=="Between 2 and 3 years" |
+                            res_dur=="Between 3 and 5 years"
+                          ~ 'Did move',
+                          res_dur=="Missing Response" ~ 'No response',
+                          TRUE ~ 'Did not move'),
+         displaced=case_when(prev_res_factors_forced=='Selected'|
+                               prev_res_factors_income_change=='Selected'|
+                               prev_res_factors_housing_cost =='Selected'|
+                               prev_res_factors_community_change=='Selected'~ 'Displaced',
+                             TRUE~'Not displaced')
+  ) %>%
+    filter(
+     prev_home_wa == "Yes, previous home was in Washington"
+    )
+
+#table(hh_test$movers, hh_test$displaced)
+
+
+# There is an issue with the 2023 data where some people who hadn't moved within the past 5 years were able to select reasons for moving (prev_res_factors). This shouldn't have happened: all respondents were asked how long they had been in their current homes > if they chose <5 years they were asked if their previous residence had been in WA > if yes, they were asked to select why they moved. As a result, we will need to filter out the people who did not move.
+
+hh_test_move <- hh_test %>%
+  filter(movers == "Did move")
+```
+
+
+```{r}
+hh_displaced <- hh_test_move %>%
+  mutate(moved = case_when(res_dur %in% c('Less than a year', 'Between 1 and 2 years', 'Between 2 and 3 years', 'Between 3 and 5 years')~ "moved",
+                           TRUE~"not moved"),
+        displaced_no_res = case_when(is.na(prev_res_factors_forced) ~ 'No Response',
+                                      TRUE~displaced)
+         )
+test <- hts_data
+test$hh <- hh_displaced
+
+res <- psrc_hts_stat(test, "hh", c("moved","displaced_no_res"), incl_na = TRUE)
+print(res)
+```
+
+```{r}
+library(scales)
+plot_data <- res %>%
+  filter(displaced_no_res == "Displaced")
+
+ggplot(plot_data,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1]) +
+   geom_errorbar(
+    aes(
+      ymin = pmax(prop - prop_moe, 0),
+      ymax = pmin(prop + prop_moe, 1)
+    ),
+    width = 0.15,
+    linewidth = 0.7
+  ) +
+  geom_text(
+    aes(
+      y = pmin(prop + prop_moe + 0.02, 1),
+      label = percent(prop, accuracy = 0.1)
+    ),
+    size = 5
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.05))
+  ) +
+  labs(
+    title = "Percent Displaced by Survey Year",
+    x = "Survey Year",
+    y = "Percent Displaced"
+  ) +
+  theme_minimal()
+```
+
+# percent displaced by county
+
+```{r}
+# create new variables with exhaustive filters 
+hts_data$hh <- hts_data$hh %>% 
+  mutate(full_sample=case_when(!is.na(hh_weight)~"Full sample",
+                               TRUE~"No"),
+         movers=case_when(res_dur=="Less than a year" & full_sample=="Full sample"|
+                            res_dur=="Between 1 and 2 years" & full_sample=="Full sample"| 
+                            res_dur=="Between 2 and 3 years" & full_sample=="Full sample"|
+                            res_dur=="Between 3 and 5 years" & full_sample=="Full sample"~ 'Did move',
+                          TRUE ~ 'Did not move'),
+         movers_wa=case_when(movers=="Did move" & grepl("Yes", prev_home_wa)|
+                               movers=="Did move" & grepl("Yes", prev_home_wa)| 
+                               movers=="Did move" & grepl("Yes", prev_home_wa)|
+                               movers=="Did move" & grepl("Yes", prev_home_wa) ~ 'Did move in WA',
+                             TRUE ~ 'Did not move in WA'),
+         displaced=case_when(prev_res_factors_forced=='Selected' & movers_wa=="Did move in WA"|
+                               prev_res_factors_income_change=='Selected' & movers_wa=="Did move in WA"|
+                               prev_res_factors_housing_cost =='Selected' & movers_wa=="Did move in WA"|
+                               prev_res_factors_community_change=='Selected' & movers_wa=="Did move in WA" ~ 'Displaced',
+                             TRUE~'Not displaced')
+  )
+
+# generate counts/weighted estimates for subpopulations
+total_hh <- psrc_hts_stat(hts_data, "hh", c("full_sample"), incl_na = TRUE)
+moving_wa <- psrc_hts_stat(hts_data, "hh", c("full_sample", "movers_wa"), incl_na = TRUE)
+displaced_moving_wa <- psrc_hts_stat(hts_data, "hh", c("movers_wa", "displaced"), incl_na = TRUE)
+
+displaced_moving_wa_county <- psrc_hts_stat(hts_data, "hh", c("home_county","movers_wa", "displaced"), incl_na = TRUE)
+print(displaced_moving_wa_county)
+displaced_moving_wa_county_filter <- displaced_moving_wa_county %>%
+  filter(movers_wa=="Did move in WA",
+         displaced=="Displaced"
+  )
+print(displaced_moving_wa_county_filter)
+```
+# bar graph percent displaced by county
+
+```{r}
+ggplot(displaced_moving_wa_county_filter,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+    aes(
+      ymin = pmax(prop - prop_moe, 0),
+      ymax = pmin(prop + prop_moe, 1)
+    ),
+    width = 0.15,
+    linewidth = 0.7
+  ) +
+  geom_text(
+    aes(
+      y = pmin(prop + prop_moe + 0.02, 1),
+      label = percent(prop, accuracy = 0.1)
+    ),
+    size = 3.5
+  ) +
+  facet_wrap(~home_county) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.8),   # increased to leave room for MOE and labels
+    breaks = seq(0, 0.8, by = 0.1)
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percent Displaced",
+    title = "Percentage of WA Movers Who Were Displaced by County"
+  ) +
+  theme_minimal(base_size = 12)
+```
+# percent displaced by reason
+
+```{r}
+vars <- c(
+  #household-level variables
+  'household_id', 'res_dur', 'prev_home_wa', 'home_rgcname', 
+  'prev_home_rgcname', 'home_county', 'prev_home_county',
+  'prev_res_factors_amenities', 'prev_res_factors_community_change',
+  'prev_res_factors_crime', 'prev_res_factors_employment', 
+  'prev_res_factors_forced', 'prev_res_factors_hh_size', 
+  'prev_res_factors_housing_cost', 'prev_res_factors_income_change', 
+  'prev_res_factors_less_space', 'prev_res_factors_more_space', 
+  'prev_res_factors_no_answer', 'prev_res_factors_other', 
+  'prev_res_factors_quality', 'prev_res_factors_school', 
+  'prev_res_factors_specify', 'prev_res_factors_telework', 
+  'hh_race_category',
+  "home_jurisdiction","home_lat","home_lng",
+  "prev_home_lat", "prev_home_lng", 
+  "home_tract20", "prev_home_tract20")
+
+# this code is clean for reference purposes - it is the most restrictive in terms of filters so that any survey logic errors are accounted for and the sub-populations are those we are most interested in
+
+# download data
+hts_data <- get_psrc_hts(survey_vars = vars)  # default includes all survey_years
+
+# create new variables with exhaustive filters 
+hts_data$hh <- hts_data$hh %>% 
+  mutate(full_sample=case_when(!is.na(hh_weight)~"Full sample",
+                               TRUE~"No"),
+         movers=case_when(res_dur=="Less than a year" & full_sample=="Full sample"|
+                            res_dur=="Between 1 and 2 years" & full_sample=="Full sample"| 
+                            res_dur=="Between 2 and 3 years" & full_sample=="Full sample"|
+                            res_dur=="Between 3 and 5 years" & full_sample=="Full sample"~ 'Did move',
+                          TRUE ~ 'Did not move'),
+         movers_wa=case_when(movers=="Did move" & grepl("Yes", prev_home_wa)|
+                               movers=="Did move" & grepl("Yes", prev_home_wa)| 
+                               movers=="Did move" & grepl("Yes", prev_home_wa)|
+                               movers=="Did move" & grepl("Yes", prev_home_wa) ~ 'Did move in WA',
+                             TRUE ~ 'Did not move in WA'),
+         displaced=case_when(prev_res_factors_forced=='Selected' & movers_wa=="Did move in WA"|
+                               prev_res_factors_income_change=='Selected' & movers_wa=="Did move in WA"|
+                               prev_res_factors_housing_cost =='Selected' & movers_wa=="Did move in WA"|
+                               prev_res_factors_community_change=='Selected' & movers_wa=="Did move in WA" ~ 'Displaced',
+                             TRUE~'Not displaced')
+  )
+
+# generate counts/weighted estimates for subpopulations
+total_hh <- psrc_hts_stat(hts_data, "hh", c("full_sample"), incl_na = TRUE)
+moving_wa <- psrc_hts_stat(hts_data, "hh", c("full_sample", "movers_wa"), incl_na = TRUE)
+displaced_moving_wa <- psrc_hts_stat(hts_data, "hh", c("movers_wa", "displaced"), incl_na = TRUE)
+
+displaced_moving_wa_county <- psrc_hts_stat(hts_data, "hh", c("home_county","movers_wa", "displaced"), incl_na = TRUE)
+
+displaced_moving_wa_county_filter <- displaced_moving_wa_county %>%
+  filter(movers_wa=="Did move in WA",
+         displaced=="Displaced"
+  )
+```
+
+# reason: forced
+
+```{r}
+# creating simplified forced variable
+hts_data$hh <- hts_data$hh %>% 
+  mutate(forced = case_when(prev_res_factors_forced=="Selected"~"Forced",
+                           prev_res_factors_forced=="Not Selected"~"No"))
+
+# calculating estimates/shares
+forced_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "forced"), 
+                              incl_na = TRUE)
+print(forced_trial)
+
+```
+
+# bar graph: forced
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+forced_plot <- forced_trial %>%
+  filter(
+    forced == "Forced",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(forced_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.45),   # increase to accommodate MOE
+    breaks = seq(0, 0.45, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Due to Forced"
+  ) +
+  theme_minimal(base_size = 12)
+```
+# reason: income change
+```{r}
+# income
+# table(hts_data$hh$prev_res_factors_income_change)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(income = case_when(prev_res_factors_income_change=="Selected"~"Income change",
+                           prev_res_factors_income_change=="Not Selected"~"No"))
+
+income_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "income"), 
+                              incl_na = TRUE)
+
+
+print(income_trial)
+```
+
+# bar graph: income change
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+income_plot <- income_trial %>%
+  filter(
+    income == "Income change",
+    movers_wa == "Did move in WA"
+    
+  )
+
+ggplot(income_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.45),   # increase to accommodate MOE
+    breaks = seq(0, 0.45, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Due to Income Change"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+# reason: housing cost
+```{r}
+# housing cost
+# table(hts_data$hh$prev_res_factors_housing_cost)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(housing = case_when(prev_res_factors_housing_cost=="Selected"~"Housing cost",
+                           prev_res_factors_housing_cost=="Not Selected"~"No"))
+
+housing_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "housing"), 
+                              incl_na = TRUE)
+
+print(housing_trial)
+```
+
+# bar graph: housing cost
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+housing_plot <- housing_trial %>%
+  filter(
+    housing == "Housing cost",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(housing_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.70),   # increase to accommodate MOE
+    breaks = seq(0, 0.70, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Due to Income Change"
+  ) +
+  theme_minimal(base_size = 12)
+```
+
+# reason: community change
+
+```{r}
+# community change
+# table(hts_data$hh$prev_res_factors_community_change)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(community = case_when(prev_res_factors_community_change=="Selected"~"Community Change",
+                           prev_res_factors_community_change=="Not Selected"~"No"))
+
+community_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "community"), 
+                              incl_na = TRUE)
+
+print(community_trial)
+```
+
+# bar graph: community change
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+community_plot <- community_trial %>%
+  filter(
+    community == "Community Change",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(community_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+    geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.40),   # increase to accommodate MOE
+    breaks = seq(0, 0.40, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Community Change as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+
+# reason: amenities
+``` {r}
+# amenities
+# table(hts_data$hh$prev_res_factors_amenities)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(amenities = case_when(prev_res_factors_amenities=="Selected"~"Amenities",
+                           prev_res_factors_amenities=="Not Selected"~"No"))
+
+amenities_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "amenities"), 
+                              incl_na = TRUE)
+
+print(amenities_trial)
+```
+
+# bar graph: amenities
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+amenities_plot <- amenities_trial %>%
+  filter(
+    amenities == "Amenities",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(amenities_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+    geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.30),   # increase to accommodate MOE
+    breaks = seq(0, 0.30, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Amenities as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: crime
+
+```{r}
+# crime
+# table(hts_data$hh$prev_res_factors_crime)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(crime = case_when(prev_res_factors_crime=="Selected"~"Crime",
+                           prev_res_factors_crime=="Not Selected"~"No"))
+
+crime_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "crime"), 
+                              incl_na = TRUE)
+
+print(crime_trial)
+```
+# bar graph: crime
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+crime_plot <- crime_trial %>%
+  filter(
+    crime == "Crime",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(crime_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+    geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.30),   # increase to accommodate MOE
+    breaks = seq(0, 0.30, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Crime as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+
+# reason: employment
+```{r}
+# employment
+# table(hts_data$hh$prev_res_factors_employment)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(employment = case_when(prev_res_factors_employment=="Selected"~"Employment",
+                           prev_res_factors_employment=="Not Selected"~"No"))
+
+employment_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "employment"), 
+                              incl_na = TRUE)
+
+print(employment_trial)
+```
+# bar graph: employment
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+employment_plot <- employment_trial %>%
+  filter(
+    employment == "Employment",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(employment_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.35),   # increase to accommodate MOE
+    breaks = seq(0, 0.35, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Employment as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+
+# reason: household size
+```{r}
+# household size
+# table(hts_data$hh$prev_res_factors_hh_size)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(hhsize = case_when(prev_res_factors_hh_size=="Selected"~"Household size",
+                           prev_res_factors_hh_size=="Not Selected"~"No"))
+
+hhsize_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "hhsize"), 
+                              incl_na = TRUE)
+
+print(hhsize_trial)
+```
+
+# bar graph: household size
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+hhsize_plot <- hhsize_trial %>%
+  filter(
+    hhsize == "Household size",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(hhsize_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.45),   # increase to accommodate MOE
+    breaks = seq(0, 0.45, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Household Size as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: less space
+```{r}
+# less space
+# table(hts_data$hh$prev_res_factors_less_space)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(lessspace = case_when(prev_res_factors_less_space=="Selected"~"Less space",
+                           prev_res_factors_less_space=="Not Selected"~"No"))
+
+lessspace_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "lessspace"), 
+                              incl_na = TRUE)
+
+print(lessspace_trial)
+```
+# bar graph: less space
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+lessspace_plot <- lessspace_trial %>%
+  filter(
+    lessspace == "Less space",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(lessspace_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.10),   # increase to accommodate MOE
+    breaks = seq(0, 0.10, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Less Space as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: more space
+```{r}
+# more space
+# table(hts_data$hh$prev_res_factors_more_space)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(morespace = case_when(prev_res_factors_more_space=="Selected"~"More space",
+                           prev_res_factors_more_space=="Not Selected"~"No"))
+
+morespace_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "morespace"), 
+                              incl_na = TRUE)
+
+print(morespace_trial)
+```
+# bar graph: more space
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+morespace_plot <- morespace_trial %>%
+  filter(
+    morespace == "More space",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(morespace_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.50),   # increase to accommodate MOE
+    breaks = seq(0, 0.50, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting More Space as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: no answer
+
+```{r}
+# no answer
+# table(hts_data$hh$prev_res_factors_no_answer)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(noanswer = case_when(prev_res_factors_no_answer=="Selected"~"No answer",
+                           prev_res_factors_no_answer=="Not Selected"~"No"))
+
+noanswer_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "noanswer"), 
+                              incl_na = TRUE)
+
+print(noanswer_trial)
+```
+# bar graph: no answer
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+noanswer_plot <- noanswer_trial %>%
+  filter(
+    noanswer == "No answer",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(noanswer_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.10),   # increase to accommodate MOE
+    breaks = seq(0, 0.10, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting No Answer as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: other
+```{r}
+# other
+# table(hts_data$hh$prev_res_factors_other)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(other = case_when(prev_res_factors_other=="Selected"~"Other",
+                           prev_res_factors_other=="Not Selected"~"No"))
+
+other_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "other"), 
+                              incl_na = TRUE)
+
+print(other_trial)
+```
+# bar graph: other
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+other_plot <- other_trial %>%
+  filter(
+    other == "Other",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(other_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.15),   # increase to accommodate MOE
+    breaks = seq(0, 0.15, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Other as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+
+
+# reason: quality
+```{r}
+# quality
+# table(hts_data$hh$prev_res_factors_quality)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(quality = case_when(prev_res_factors_quality=="Selected"~"Quality",
+                           prev_res_factors_quality=="Not Selected"~"No"))
+
+quality_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "quality"), 
+                              incl_na = TRUE)
+
+print(quality_trial)
+```
+# bar graph: quality
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+quality_plot <- quality_trial %>%
+  filter(
+    quality == "Quality",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(quality_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.45),   # increase to accommodate MOE
+    breaks = seq(0, 0.45, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Quality as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: school
+```{r}
+# school
+# table(hts_data$hh$prev_res_factors_school)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(school = case_when(prev_res_factors_school=="Selected"~"School",
+                           prev_res_factors_school=="Not Selected"~"No"))
+
+school_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "school"), 
+                              incl_na = TRUE)
+
+print(school_trial)
+```
+# bar graph: school
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+school_plot <- school_trial %>%
+  filter(
+    school == "School",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(school_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.15),   # increase to accommodate MOE
+    breaks = seq(0, 0.15, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting School as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+# reason: telework
+```{r}
+# telework
+# table(hts_data$hh$prev_res_factors_telework)
+hts_data$hh <- hts_data$hh %>% 
+  mutate(telework = case_when(prev_res_factors_telework=="Selected"~"Telework",
+                           prev_res_factors_telework=="Not Selected"~"No"))
+
+telework_trial <- psrc_hts_stat(hts_data, "hh", 
+                              c("movers_wa", "telework"), 
+                              incl_na = TRUE)
+
+print(telework_trial)
+```
+# other: telework
+``` {r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+telework_plot <- telework_trial %>%
+  filter(
+    telework == "Telework",
+    movers_wa == "Did move in WA"
+  )
+
+ggplot(telework_plot,
+       aes(x = factor(survey_year), y = prop)) +
+  geom_col(fill = psrc_colors$pgnobgy_5[1], width = 0.6) +
+  geom_errorbar(
+  aes(
+    ymin = pmax(prop - prop_moe, 0),
+    ymax = pmin(prop + prop_moe, 1)
+  ),
+  width = 0.15,
+  linewidth = 0.8
+  ) +
+  geom_text(
+    aes(label = percent(prop, accuracy = 0.1)),
+    vjust = -0.5,
+    size = 4
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    limits = c(0, 0.05),   # increase to accommodate MOE
+    breaks = seq(0, 0.05, by = 0.05),
+    expand = expansion(mult = c(0, 0.03))
+  ) +
+  labs(
+    x = "Survey Year",
+    y = "Weighted Percentage",
+    title = "Displaced Movers Reporting Telework as a Reason"
+  ) +
+  theme_classic(base_size = 12)
+```
+```{r}
+library(dplyr)
+
+reasons <- bind_rows(
+
+  forced_trial %>%
+    filter(forced == "Forced", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Forced"),
+
+  income_trial %>%
+    filter(income == "Income change", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Income change"),
+
+  housing_trial %>%
+    filter(housing == "Housing cost", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Housing cost"),
+
+  community_trial %>%
+    filter(community == "Community Change", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Community change"),
+
+  amenities_trial %>%
+    filter(amenities == "Amenities", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Amenities"),
+
+  crime_trial %>%
+    filter(crime == "Crime", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Crime"),
+
+  employment_trial %>%
+    filter(employment == "Employment", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Employment"),
+
+  hhsize_trial %>%
+    filter(hhsize == "Household size", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Household size"),
+
+  lessspace_trial %>%
+    filter(lessspace == "Less space", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Less space"),
+
+  morespace_trial %>%
+    filter(morespace == "More space", movers_wa == "Did move in WA") %>%
+    mutate(reason = "More space"),
+
+  noanswer_trial %>%
+    filter(noanswer == "No answer", movers_wa == "Did move in WA") %>%
+    mutate(reason = "No answer"),
+
+  other_trial %>%
+    filter(other == "Other", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Other"),
+
+  quality_trial %>%
+    filter(quality == "Quality", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Quality"),
+
+  school_trial %>%
+    filter(school == "School", movers_wa == "Did move in WA") %>%
+    mutate(reason = "School"),
+
+  telework_trial %>%
+    filter(telework == "Telework", movers_wa == "Did move in WA") %>%
+    mutate(reason = "Telework")
+
+) %>%
+  select(survey_year, reason, prop, prop_moe)
+```
+
+# 2025 reasons plot
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+plot_2025 <- reasons %>%
+  filter(survey_year == 2025) %>%
+  arrange(desc(prop)) %>%
+  mutate(
+  reason = factor(reason, levels = unique(reason)),
+  highlight = if_else(
+    reason %in% c("Housing cost", "Income change", "Forced", "Community change"),
+    "Highlight",
+    "Other"
+  )
+)
+ggplot(plot_2025,
+       aes(x = reason, y = prop)) +
+  geom_col(aes(fill = highlight), width = 0.7) +
+  geom_errorbar(
+    aes(
+      ymin = pmax(prop - prop_moe, 0),
+      ymax = pmin(prop + prop_moe, 1)
+    ),
+    width = 0.2,
+    linewidth = 0.7
+  ) +
+  geom_text(
+    aes(
+      y = pmin(prop + prop_moe + 0.02, 1),
+      label = percent(prop, accuracy = 0.1)
+    ),
+    size = 3.5
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Highlight" = psrc_colors$pgnobgy_5[2],
+      "Other" = psrc_colors$pgnobgy_5[1]
+    ),
+    guide = "none"
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.08))
+  ) +
+  labs(
+    title = "Reasons for Displacement, 2025",
+    x = NULL,
+    y = "Weighted Percent"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+# 2023 reasons plot
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+plot_2023 <- reasons %>%
+  filter(survey_year == 2023) %>%
+  arrange(desc(prop)) %>%
+  mutate(
+  reason = factor(reason, levels = unique(reason)),
+  highlight = if_else(
+    reason %in% c("Housing cost", "Income change", "Forced", "Community change"),
+    "Highlight",
+    "Other"
+  )
+)
+
+ggplot(plot_2023,
+       aes(x = reason, y = prop)) +
+  geom_col(aes(fill = highlight), width = 0.7) +
+  geom_errorbar(
+    aes(
+      ymin = pmax(prop - prop_moe, 0),
+      ymax = pmin(prop + prop_moe, 1)
+    ),
+    width = 0.2,
+    linewidth = 0.7
+  ) +
+  geom_text(
+    aes(
+      y = pmin(prop + prop_moe + 0.02, 1),
+      label = percent(prop, accuracy = 0.1)
+    ),
+    size = 3.5
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Highlight" = psrc_colors$pgnobgy_5[2],
+      "Other" = psrc_colors$pgnobgy_5[1]
+    ),
+    guide = "none"
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.08))
+  ) +
+  labs(
+    title = "Reasons for Displacement, 2023",
+    x = NULL,
+    y = "Weighted Percent"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+# 2021 reasons plot
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+plot_2021 <- reasons %>%
+  filter(survey_year == 2021) %>%
+  arrange(desc(prop)) %>%
+  mutate(
+  reason = factor(reason, levels = unique(reason)),
+  highlight = if_else(
+    reason %in% c("Housing cost", "Income change", "Forced", "Community change"),
+    "Highlight",
+    "Other"
+  )
+)
+
+ggplot(plot_2021,
+       aes(x = reason, y = prop)) +
+  geom_col(aes(fill = highlight), width = 0.7) +
+  geom_errorbar(
+    aes(
+      ymin = pmax(prop - prop_moe, 0),
+      ymax = pmin(prop + prop_moe, 1)
+    ),
+    width = 0.2,
+    linewidth = 0.7
+  ) +
+  geom_text(
+    aes(
+      y = pmin(prop + prop_moe + 0.02, 1),
+      label = percent(prop, accuracy = 0.1)
+    ),
+    size = 3.5
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Highlight" = psrc_colors$pgnobgy_5[2],
+      "Other" = psrc_colors$pgnobgy_5[1]
+    ),
+    guide = "none"
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.08))
+  ) +
+  labs(
+    title = "Reasons for Displacement, 2021",
+    x = NULL,
+    y = "Weighted Percent"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+# 2019 reasons plot
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+plot_2019 <- reasons %>%
+  filter(survey_year == 2019) %>%
+  arrange(desc(prop)) %>%
+  mutate(
+  reason = factor(reason, levels = unique(reason)),
+  highlight = if_else(
+    reason %in% c("Housing cost", "Income change", "Forced", "Community change"),
+    "Highlight",
+    "Other"
+  )
+)
+
+ggplot(plot_2019,
+       aes(x = reason, y = prop)) +
+  geom_col(aes(fill = highlight), width = 0.7) +
+  geom_errorbar(
+    aes(
+      ymin = pmax(prop - prop_moe, 0),
+      ymax = pmin(prop + prop_moe, 1)
+    ),
+    width = 0.2,
+    linewidth = 0.7
+  ) +
+  geom_text(
+    aes(
+      y = pmin(prop + prop_moe + 0.02, 1),
+      label = percent(prop, accuracy = 0.1)
+    ),
+    size = 3.5
+  ) +
+  scale_fill_manual(
+    values = c(
+      "Highlight" = psrc_colors$pgnobgy_5[2],
+      "Other" = psrc_colors$pgnobgy_5[1]
+    ),
+    guide = "none"
+  ) +
+  scale_y_continuous(
+    labels = percent_format(accuracy = 1),
+    expand = expansion(mult = c(0, 0.08))
+  ) +
+  labs(
+    title = "Reasons for Displacement, 2019",
+    x = NULL,
+    y = "Weighted Percent"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
