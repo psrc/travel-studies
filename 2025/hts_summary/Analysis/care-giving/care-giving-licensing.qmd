@@ -177,13 +177,15 @@ cda_t
 
 ## Care Trips, Can Drive, & Gender
 
+All charts in this section focus on care trip purposes. The analysis is presented in two different ways. First, the charts are broken down by respondants’ ability to drive (Yes, No, NA). In the next section they are broken down by gender (Men, Women, Prefer not to answer, Other).
+
 ### Gender by Can Drive and Trip Purpose
 
 The following charts and tables show the distribution of gender who can or cannot drive by trip purpose--specifically for care-giving.
 
 - Of all care-trips in the Region and those who can drive, there is a higher share of Women than Men for most survey years
 
-- NA represents persons who are ages 15 years and under.
+- Charts where respondents did not select an anwwer for Can Drive, those individuals are also ages 15 years and under.
 
 ```{r}
 # Can Drive and Gender by Trip Purpose
@@ -208,6 +210,7 @@ t_cd_g_f |>
 ```
 
 <!-- ::: panel-tabset -->
+
 #### Yes (can drive)
 
 ```{r}
@@ -266,6 +269,7 @@ plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
   scale_linetype_manual(name = NULL, values = c("50%" = "dashed")) +
   theme(axis.text.x = element_blank())
 ```
+
 <!-- ::: -->
 
 ```{r}
@@ -292,11 +296,13 @@ Of all Men or Women who can drive, the predominant trip purpose is care-giving t
 
 For Men and Women who cannot drive, trips are primarily care-giving trips for most survey years.
 
-::: panel-tabset
 #### Men
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-can-drive-men
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Men"),
                 facet = survey_year,
@@ -309,13 +315,21 @@ plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Men"),
 ```
 
 ```{r}
- cd_g_t |> filter(gender2 %in% "Men")
+#| label: tbl-trip-purp-can-drive-men
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+ knitr::kable(cd_g_t |> filter(gender2 %in% "Men"))
 ```
 
 #### Women
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-can-drive-women
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Women"),
                 facet = survey_year,
@@ -328,6 +342,10 @@ plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Women"),
 ```
 
 ```{r}
- cd_g_t |> filter(gender2 %in% "Women")
+#| label: tbl-trip-purp-can-drive-women
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+ knitr::kable(cd_g_t |> filter(gender2 %in% "Women"))
 ```
-:::

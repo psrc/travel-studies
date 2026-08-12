@@ -24,11 +24,14 @@ format:
     df-print: kable
     fig-asp: .7
     fig-width: 4
+    fig-dpi: 150
     
 execute:
-  freeze: auto  # re-render only when source changes
+  echo: false
+  warning: false
 
 
 toc: true
 toc-depth: 4
-warnings: false
+comments:  # enable commenting
+  hypothesis: true

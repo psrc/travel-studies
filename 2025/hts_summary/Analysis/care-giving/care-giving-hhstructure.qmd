@@ -248,8 +248,11 @@ hhstr_b <- psrc_hts_stat(df_hts,
 ```
 
 ```{r}
-#| fig-align: center
-#| out-width: "80%"
+#| label: fig-trip-purp-hhcomp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+
  hhstr_b |>
   ggplot(aes(y = prop, x = as.character(survey_year), fill = care_trip_taken)) +
   geom_col(position = "dodge") +
@@ -277,5 +280,10 @@ hhstr_b <- psrc_hts_stat(df_hts,
 ```
 
 ```{r}
-hhstr_b
+#| label: tbl-trip-purp-hhcomp
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(hhstr_b)
 ```

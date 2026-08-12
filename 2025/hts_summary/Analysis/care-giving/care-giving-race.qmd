@@ -224,7 +224,6 @@ plot_facet_wrap(table = cgreb_rs_f,
 cgreb_rs_f
 ```
 
-
 ## Trip Purpose by Race and Ethnicity
 
 The following charts and tables show the distribution of trips by trip purpose and race and ethnicity.
@@ -322,7 +321,6 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & C
 race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Care Trips", type = "cat")
 
 ```
-
 :::
 
 ```{r}
@@ -427,6 +425,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & S
 ```{r}
 recg_rs_f
 ```
+
 ### Other
 
 ::: panel-tabset
@@ -459,7 +458,6 @@ race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & O
 ```{r}
 recg_rs_f
 ```
-
 ::::::::
 
 ```{r, eval=FALSE}
@@ -496,14 +494,18 @@ rebcg_rs_test |>
   summarise(sum_prop = sum(prop))
 ```
 
-:::::::: panel-tabset
+<!-- :::::::: panel-tabset -->
 ### Care
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-survey-year-care
+#| fig-format: svg
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 col_var <- "race_binary"
 
@@ -519,23 +521,35 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 #### By Race Binary
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-race-binary-care
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+
 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Care Trips", type = "cat")
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-rebcg_rs_f
+#| label: tbl-trip-purp-poc-care
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(rebcg_rs_f)
 ```
 
 ### Work
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-survey-year-work
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 col_var <- "race_binary"
 
@@ -551,23 +565,34 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 #### By Race Binary
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-race-binary-work
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Work Trips", type = "cat")
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-rebcg_rs_f
+#| label: tbl-trip-purp-poc-work
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(rebcg_rs_f)
 ```
 
 ### School
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-survey-year-school
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 col_var <- "race_binary"
 
@@ -583,23 +608,34 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 #### By Race Binary
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-race-binary-school
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & School Trips", type = "cat")
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-rebcg_rs_f
+#| label: tbl-trip-purp-poc-school
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(rebcg_rs_f)
 ```
 
 ### Social/Recreation
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-survey-year-socrec
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 col_var <- "race_binary"
 
@@ -615,23 +651,34 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 #### By Race Binary
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-race-binary-socrec
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "cat")
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-rebcg_rs_f
+#| label: tbl-trip-purp-poc-socrec
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(rebcg_rs_f)
 ```
 
 ### Other
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-survey-year-other
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 col_var <- "race_binary"
 
@@ -647,13 +694,21 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 #### By Race Binary
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-poc-race-binary-other
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
 
 race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Other Trips", type = "cat")
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-rebcg_rs_f
+#| label: tbl-trip-purp-poc-other
+#| fig-height: 4
+#| fig-width: 7
+#| out-width: "350px"
+#| 
+knitr::kable(rebcg_rs_f)
 ```
-::::::::
+<!-- :::::::: -->
