@@ -194,6 +194,7 @@ mode_inc_b <- psrc_hts_stat(df_hts,
 ```
 
 <!-- ::: panel-tabset -->
+
 #### Drive
 
 ```{r}
@@ -334,4 +335,146 @@ plot_facet_wrap(table = mode_inc_b_other,
 
 mode_inc_b_other
 ```
+
 <!-- ::: -->
+
+### Under \$50k, \$50k-\$100k, \$100k or more
+
+```{r}
+mode_inc_b_3 <- psrc_hts_stat(df_hts,
+                            analysis_unit = "trip",
+                            group_vars = c("dest_region", "income_comp", "mode_class_5", "care_purpose_cat"),
+                            incl_na = FALSE) |>
+  mutate(prop_per = label_percent(accuracy = 0.1)(prop),
+         moe_per = label_percent(accuracy = 0.1)(prop_moe))|> 
+  mutate(income_comp = factor(income_comp, levels = c("Under $50,000", "$50,000-$99,999", "$100,000 or more")))
+
+# msi_df <- mode_share_income_set_b(geog = "Region")$long  |> 
+#   mutate(income_comp = factor(income_comp, levels = c("Under $50,000", "$50,000-$99,999", "$100,000 or more")))
+
+```
+
+#### Drive
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+mode_inc_b_3 |> 
+  filter(mode_class_5 == "Drive") |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = care_purpose_cat)) +
+  facet_wrap(~income_comp, strip.position = "top") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL,
+       title = "Drive by Income and Trip Purpose")
+
+```
+
+#### Transit
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+mode_inc_b_3 |> 
+  filter(mode_class_5 == "Transit") |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = care_purpose_cat)) +
+  facet_wrap(~income_comp, strip.position = "top") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL,
+       title = "Transit by Income and Trip Purpose")
+
+```
+
+#### Walk
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+mode_inc_b_3 |> 
+  filter(mode_class_5 == "Walk") |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = care_purpose_cat)) +
+  facet_wrap(~income_comp, strip.position = "top") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL,
+       title = "Walk by Income and Trip Purpose")
+
+```
+
+#### Bike/Micromobility
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+mode_inc_b_3 |> 
+  filter(mode_class_5 == "Bike/Micromobility") |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = care_purpose_cat)) +
+  facet_wrap(~income_comp, strip.position = "top") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL,
+       title = "Bike/Micromobility by Income and Trip Purpose")
+
+```
+
+#### Other
+```{r}
+#| out-width: "100%"
+#| fig-align: "center"
+
+mode_inc_b_3 |> 
+  filter(mode_class_5 == "Other") |> 
+  ggplot() +
+  geom_col(aes(x = as.character(survey_year), y = prop, fill = care_purpose_cat)) +
+  facet_wrap(~income_comp, strip.position = "top") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = psrc_colors$pognbgy_5) +
+  psrc_style() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank(),
+        strip.placement = "outside",
+        panel.spacing = unit(0, "cm"),
+        legend.position = "bottom",
+        strip.text = element_text(face = "bold")) +
+  labs(x = NULL,
+       y = NULL,
+       title = "Other by Income and Trip Purpose")
+
+```
