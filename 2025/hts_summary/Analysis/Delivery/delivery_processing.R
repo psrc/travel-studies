@@ -49,12 +49,12 @@ df_hts_analysis$hh <- hts_data$hh %>%
     income_2group = factor(
       case_when(
         
-        hhincome_broad %in% c("Under $25,000","$25,000-$49,999","$50,000-$74,999")~ "Under $75,000",
-        hhincome_broad %in% c("$75,000-$99,999","$100,000 or more","$100,000-$199,999","$200,000 or more")~ "$75,000 or more",
+        hhincome_broad %in% c("Under $25,000","$25,000-$49,999","$50,000-$74,999","$75,000-$99,999")~ "Under $100,000",
+        hhincome_broad %in% c("$100,000 or more","$100,000-$199,999","$200,000 or more")~ "$100,000 or more",
         hhincome_broad == "Prefer not to answer"~ NA
         
       ),
-      levels= c("Under $75,000","$75,000 or more")
+      levels= c("Under $100,000","$100,000 or more")
     ),
     
     # income with 3 groups
@@ -178,10 +178,10 @@ df_hts_analysis$hh <- hts_data$hh %>%
     
     lifecycle_2group = factor(
       case_when(
-        lifecycle_class %in% c("Household with older adults", "Household includes children")~ "Household with children and/or elders",
-        lifecycle_class %in% c("Household with adults 35-64", "Household with adults 18-34")~ "Household with adults 18-64",
+        lifecycle_class %in% c("Household with older adults", "Household includes children")~ "Household with children/elders",
+        lifecycle_class %in% c("Household with adults 35-64", "Household with adults 18-34")~ "Household with adults",
         TRUE~ "other"),
-      levels = c("Household with children and/or elders","Household with adults 18-64",
+      levels = c("Household with children/elders","Household with adults",
                  "other")
     ),
   )

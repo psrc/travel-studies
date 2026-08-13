@@ -1,6 +1,9 @@
 ---
-title: Delivery Data Dump
+title: Delivery Analysis
 date: today
+
+params:
+  errorbar: FALSE
 ---
 
 ```{r}
@@ -11,51 +14,29 @@ source("delivery_processing.R")
 
 hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
 
+# assign fill colors to delivery types
+psrc_fill_dec <- list(
+  deliver_package = psrc_colors$purples_dec[1:5],
+  deliver_food = psrc_colors$oranges_dec[1:5],
+  deliver_grocery = psrc_colors$blues_dec[1:5],
+  deliver_work = psrc_colors$greens_dec[1:5],
+  deliver_outside_any = psrc_colors$grays_dec[4:5],
+  deliver_elsewhere = psrc_colors$grays_dec[4:5],
+  deliver_office = psrc_colors$grays_dec[4:5]
+  )
 ```
 
 ## delivery trends
 
-- About a third of regional households got packages on an average weekday since 2019
-- Food delivery became more popular since 2021. About 1 out of 25 households get food delivery on an average weekday
-- In 2025, only 3% of households are getting service work on an average weekday, fewer than year 2021 and earlier
-- No significant trend for grocery deliveries and deliveries outside of home
+- Package delivery peaked in 2021. The rate in 2025 reached a similar level at about a third of regional households got packages on an average weekday.
+- Food delivery dramatically increased in 2021 and stayed high.
+- Service work was highest before COVID and about half in 2025.
+- Grocery delivery more than doubled in 2021, but dropped to near pre-COVID level after.
+- 3% of households have deliveries outside of home (incl. at office) in 2025. The rate is similar in 2023.
 
 ```{r}
-stat_delivery <- function(delivery_var, title){
-  
-  res <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
-    filter(.[[delivery_var]]=="Yes") 
-  
-  # result table with formatting
-  df_plot <- res %>%
-    # function sourced from Analysis/util.R
-    get_table_format()
-  
-  # print your charts
-  print(
-    ggplot(res, 
-           aes(x=factor(survey_year), y=prop)) +
-      geom_col(fill=psrc_colors$pgnobgy_5[1]) +
-      geom_text(aes(label=scales::percent(prop, accuracy = 1)),
-                vjust = -0.3) +
-      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.4) +
-      scale_y_continuous(labels = scales::percent) +
-      psrc_style() +
-      theme(panel.grid.major.y = element_blank(),
-            axis.title = element_blank())+
-      labs(caption = hts_source, title = title)
-  )
-  
-  res %>%
-    # function sourced from Analysis/util.R
-    get_table_format()
-  
-  # print result table by calling df_plot
-  # return(df_plot)
-  
-}
 
-fig_delivery <- function(delivery_var, title){
+fig_delivery <- function(delivery_var){
   
   res <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
     filter(.[[delivery_var]]=="Yes") 
@@ -63,19 +44,23 @@ fig_delivery <- function(delivery_var, title){
   print(
     ggplot(res, 
            aes(x=factor(survey_year), y=prop)) +
-      geom_col(fill=psrc_colors$pgnobgy_5[1]) +
+      geom_col(aes(fill = factor(survey_year)), width=0.7) +
       geom_text(aes(label=scales::percent(prop, accuracy = 1)),
                 vjust = -0.3) +
-      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.4) +
-      scale_y_continuous(labels = scales::percent) +
+      geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+      errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.1), 
+                      on=params$errorbar) +
+      scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+      scale_fill_manual(values = psrc_fill_dec[[delivery_var]]) +
       psrc_style() +
-      theme(panel.grid.major.y = element_blank(),
-            axis.title = element_blank())+
-      labs(caption = hts_source, title = title)
+      theme(legend.position = "none",
+            panel.grid.major.y = element_blank(),
+            axis.text.y = element_blank(),
+            axis.title = element_blank())
   )
 }
 
-tbl_delivery <- function(delivery_var, title){
+tbl_delivery <- function(delivery_var){
   
   df_plot <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
     filter(.[[delivery_var]]=="Yes")  %>%
@@ -93,18 +78,20 @@ tbl_delivery <- function(delivery_var, title){
 
 ```{r}
 #| label: fig-deliver-package
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "350px"
+#| fig-cap: package delivery
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_package", "package delivery")
+fig_delivery("deliver_package")
 
 ```
 
 ```{r}
 #| label: tbl-deliver-package
+#| tbl-colwidths: false
 
-tbl_delivery("deliver_package", "package delivery")
+tbl_delivery("deliver_package")
 
 ```
 
@@ -112,18 +99,19 @@ tbl_delivery("deliver_package", "package delivery")
 
 ```{r}
 #| label: fig-deliver-food
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "450px"
+#| fig-cap: food delivery
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_food", "food delivery")
+fig_delivery("deliver_food")
 
 ```
 
 ```{r}
 #| label: tbl-deliver-food
 
-tbl_delivery("deliver_food", "food delivery")
+tbl_delivery("deliver_food")
 
 ```
 
@@ -131,17 +119,18 @@ tbl_delivery("deliver_food", "food delivery")
 
 ```{r}
 #| label: fig-deliver-work
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "550px"
+#| fig-cap: service work
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_work", "service work")
+fig_delivery("deliver_work")
 ```
 
 ```{r}
 #| label: tbl-deliver-work
 
-tbl_delivery("deliver_work", "service work")
+tbl_delivery("deliver_work")
 
 ```
 
@@ -149,132 +138,154 @@ tbl_delivery("deliver_work", "service work")
 
 ```{r}
 #| label: fig-deliver-grocery
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "650px"
+#| fig-cap: grocery delivery
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_grocery", "grocery delivery")
+fig_delivery("deliver_grocery")
 
 ```
 
 ```{r}
 #| label: tbl-deliver-grocery
 
-tbl_delivery("deliver_grocery", "grocery delivery")
+tbl_delivery("deliver_grocery")
 
 ```
 
 ### delivery outside home
 
+:::{.panel-tabset}
+
+#### outside home + at office
+
 ```{r}
 #| label: fig-deliver-outside
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "40%"
+#| fig-cap: "delivery outside home (inc. at office)"
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_outside_any", "delivery outside home (inc. at office)")
+fig_delivery("deliver_outside_any")
 
 ```
 
 ```{r}
 #| label: tbl-deliver-outside
 
-tbl_delivery("deliver_outside_any", "delivery outside home (inc. at office)")
+tbl_delivery("deliver_outside_any")
 
 ```
 
-### delivery outside home and at office separated
+
+#### outside home
 
 ```{r}
 #| label: fig-deliver-elsewhere
-#| fig-height: 3
-#| fig-width: 5.1
+#| fig-cap: "delivery outside home"
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_elsewhere", "delivery outside home")
+fig_delivery("deliver_elsewhere")
 ```
 
 ```{r}
 #| label: tbl-deliver-elsewhere
 
-tbl_delivery("deliver_elsewhere", "delivery outside home")
+tbl_delivery("deliver_elsewhere")
 
 ```
 
+#### at office
+
 ```{r}
 #| label: fig-deliver-office
-#| fig-height: 3
-#| fig-width: 5.1
+#| fig-cap: "delivery at office"
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
-fig_delivery("deliver_office", "delivery at office")
+fig_delivery("deliver_office")
 ```
 
 ```{r}
 #| label: tbl-deliver-office
 
-tbl_delivery("deliver_office", "delivery at office")
+tbl_delivery("deliver_office")
 
 ```
 
-
+:::
 
 ## delivery by demographic characteristics
 
 ```{r}
 
-plot_delivery_type <- function(delivery_var, group_var, title, type="both"){
+plot_delivery_type <- function(delivery_var, group_var, type="both"){
 
   res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>%
     filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer")
 
   # print your charts
   if( type %in% c("year","both") ){
-    
+
     df_plot <- ggplot(res,
                       aes(x=delivery_var, y=prop, fill=!!sym(group_var))) +
-      geom_col(position = position_dodge(),width = 0.8) +
-      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                    position = position_dodge(0.8),
-                    width = 0.4) +
+      geom_col(position = position_dodge(), width=0.9) +
+      geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                    position = position_dodge(0.9),
+                vjust = -0.3) +
+      errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                    position = position_dodge(0.9),
+                                    width = 0.1), 
+                      on=params$errorbar) +
+      geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
       facet_wrap(~ survey_year, ncol=5)+
+      scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
       scale_fill_manual(values = psrc_colors$pgnobgy_5)+
-      scale_y_continuous(labels = scales::percent) +
       psrc_style() +
       theme(panel.grid.major.y = element_blank(),
+            legend.text = element_text(size = 11),
             axis.title = element_blank(),
-            axis.text.x = element_blank())+
-      labs(caption = hts_source,
-           title = title)
-    
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank())
+
     print(df_plot)
-    
-  } 
-  
-  if( type %in% c("cat","both") ){
-    
-    df_plot <- ggplot(res,
-                      aes(x=delivery_var, y=prop, fill=factor(survey_year))) +
-      geom_col(position = position_dodge(),width = 0.8) +
-      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                    position = position_dodge(0.8),
-                    width = 0.4) +
-      facet_wrap(as.formula(paste("~", group_var)), ncol=5)+
-      scale_fill_manual(values = psrc_colors$blues_inc)+
-      scale_y_continuous(labels = scales::percent) +
-      psrc_style() +
-      theme(panel.grid.major.y = element_blank(),
-            axis.title = element_blank(),
-            axis.text.x = element_blank())+
-      labs(caption = hts_source,
-           title = title)
-    
-    print(df_plot)
-    
+
   }
-  
+
+  if( type %in% c("cat","both") ){
+
+    df_plot <- ggplot(res,
+                      aes(x=factor(survey_year), y=prop, fill=factor(survey_year))) +
+      geom_col(width = 0.8) +
+      geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                vjust = -0.3) +
+      errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                    width = 0.1), 
+                      on=params$errorbar) +
+      geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+      facet_wrap(as.formula(paste("~", group_var)), ncol=5)+
+      scale_fill_manual(values = psrc_fill_dec[[delivery_var]])+
+      scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+      psrc_style() +
+      theme(legend.position = "none",
+            strip.text = element_text(size = 11),
+            panel.grid.major.y = element_blank(),
+            panel.spacing.x = unit(1, "lines"),
+            axis.title = element_blank(),
+            axis.text.y = element_blank())
+
+    print(df_plot)
+
+  }
+
 }
 
-table_delivery_type <- function(delivery_var, group_var, title){
-  
+table_delivery_type <- function(delivery_var, group_var){
+
   res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>%
     filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer")
 
@@ -282,12 +293,11 @@ table_delivery_type <- function(delivery_var, group_var, title){
   df_plot <- res %>%
     # function sourced from Analysis/util.R
     get_table_format()
-  
+
   knitr::kable(df_plot)
-  
+
 }
 ```
-
 
 ### household income
 
@@ -298,30 +308,30 @@ table_delivery_type <- function(delivery_var, group_var, title){
 
 ```{r}
 #| label: fig-package-income
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "package delivery by household income"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-plot_delivery_type("deliver_package","income_3group",
-                   "package delivery by income",
+plot_delivery_type("deliver_package","income_2group",
                    type="year")
 ```
 
 ```{r}
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| label: fig-package-income-year
+#| fig-cap: "household income: package delivery by year"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-plot_delivery_type("deliver_package","income_3group",
-                   "package delivery by income",
+plot_delivery_type("deliver_package","income_2group",
                    type="cat")
 ```
 
 
 ```{r}
 #| label: tbl-package-income
-table_delivery_type("deliver_package","income_3group",
-                   "package delivery by income")
+table_delivery_type("deliver_package","income_2group")
 ```
 
 :::{.panel-tabset}
@@ -330,15 +340,15 @@ table_delivery_type("deliver_package","income_3group",
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-plot_delivery_type("deliver_grocery","income_3group",
-                              "grocery delivery by income")
+plot_delivery_type("deliver_grocery","income_2group")
 ```
 
 ```{r}
-table_delivery_type("deliver_grocery","income_3group",
-                              "grocery delivery by income")
+table_delivery_type("deliver_grocery","income_2group")
 ```
 
 
@@ -346,15 +356,15 @@ table_delivery_type("deliver_grocery","income_3group",
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-plot_delivery_type("deliver_food","income_3group",
-                              "food delivery by income")
+plot_delivery_type("deliver_food","income_2group")
 ```
 
 ```{r}
-table_delivery_type("deliver_food","income_3group",
-                              "food delivery by income")
+table_delivery_type("deliver_food","income_2group")
 ```
 
 :::
@@ -370,30 +380,30 @@ Households with enough cars have more food deliveries -> food deliveries serve h
 
 ```{r}
 #| label: fig-grocery-vehicle
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "grocery delivery by auto availability"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
 plot_delivery_type("deliver_grocery","have_cars",
-                   "grocery delivery by auto availability",
                    type="year")
 ```
 
 ```{r}
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| label: fig-grocery-vehicle-year
+#| fig-cap: "auto availability: grocery delivery by year"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
 plot_delivery_type("deliver_grocery","have_cars",
-                   "grocery delivery by auto availability",
                    type="cat")
 ```
 
 ```{r}
 #| label: tbl-grocery-vehicle
 
-table_delivery_type("deliver_grocery","have_cars",
-                    "grocery delivery by auto availability")
+table_delivery_type("deliver_grocery","have_cars")
 ```
 
 :::{.panel-tabset}
@@ -402,15 +412,15 @@ table_delivery_type("deliver_grocery","have_cars",
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-plot_delivery_type("deliver_package","have_cars",
-                              "package delivery by auto availability")
+plot_delivery_type("deliver_package","have_cars")
 ```
 
 ```{r}
-table_delivery_type("deliver_package","have_cars",
-                              "package delivery by auto availability")
+table_delivery_type("deliver_package","have_cars")
 ```
 
 
@@ -418,15 +428,15 @@ table_delivery_type("deliver_package","have_cars",
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-plot_delivery_type("deliver_food","have_cars",
-                              "food delivery by auto availability")
+plot_delivery_type("deliver_food","have_cars")
 ```
 
 ```{r}
-table_delivery_type("deliver_food","have_cars",
-                              "food delivery by auto availability")
+table_delivery_type("deliver_food","have_cars")
 ```
 
 :::
@@ -438,30 +448,29 @@ table_delivery_type("deliver_food","have_cars",
 
 ```{r}
 #| label: fig-package-hh
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "package delivery by household composition"
+#| fig-height: 3.9
+#| fig-width: 5.6
+#| fig-format: svg
 
 plot_delivery_type("deliver_package","lifecycle_2group",
-                   "package delivery by household composition",
                    type="year")
 ```
 
 ```{r}
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "350px"
+#| fig-cap: "household composition: package delivery by year"
+#| fig-height: 3.9
+#| fig-width: 5.6
+#| fig-format: svg
 
 plot_delivery_type("deliver_package","lifecycle_2group",
-                   "package delivery by household composition",
                    type="cat")
 ```
 
 ```{r}
 #| label: tbl-package-hh
 
-table_delivery_type("deliver_package","lifecycle_2group",
-                              "package delivery by household composition")
+table_delivery_type("deliver_package","lifecycle_2group")
 ```
 
 :::{.panel-tabset}
@@ -470,316 +479,338 @@ table_delivery_type("deliver_package","lifecycle_2group",
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
+#| fig-height: 3.9
+#| fig-width: 5.6
+#| fig-format: svg
 
-plot_delivery_type("deliver_grocery","lifecycle_2group",
-                              "grocery delivery by household composition")
+plot_delivery_type("deliver_grocery","lifecycle_2group")
 ```
 
 ```{r}
 
-table_delivery_type("deliver_grocery","lifecycle_2group",
-                              "grocery delivery by household composition")
+table_delivery_type("deliver_grocery","lifecycle_2group")
 ```
 
 #### food
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
+#| fig-height: 3.9
+#| fig-width: 5.6
+#| fig-format: svg
 
-plot_delivery_type("deliver_food","lifecycle_2group",
-                              "food delivery by household composition")
+plot_delivery_type("deliver_food","lifecycle_2group")
 ```
 
 ```{r}
 
-table_delivery_type("deliver_food","lifecycle_2group",
-                              "food delivery by household composition")
+table_delivery_type("deliver_food","lifecycle_2group")
 ```
 
 :::
 
-<!-- ### number of workers -->
+### number of workers
 
-<!-- :::{.panel-tabset} -->
+:::{.panel-tabset}
 
-<!-- #### package -->
+#### package
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 6
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_package","numworkers_3cap", -->
-<!--                               "package delivery by number of workers") -->
-<!-- ``` -->
+plot_delivery_type("deliver_package","numworkers_3cap")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_food","lifecycle_2group")
+```
 
-<!-- #### grocery -->
+#### grocery
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 6
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_grocery","numworkers_3cap", -->
-<!--                               "grocery delivery by number of workers") -->
-<!-- ``` -->
+plot_delivery_type("deliver_grocery","numworkers_3cap")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","numworkers_3cap")
+```
 
-<!-- #### food -->
+#### food
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 6
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_food","numworkers_3cap", -->
-<!--                               "food delivery by number of workers") -->
-<!-- ``` -->
+plot_delivery_type("deliver_food","numworkers_3cap")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_food","numworkers_3cap")
+```
 
-<!-- ::: -->
+:::
 
-<!-- ### household race categories -->
+### household race categories
 
-<!-- :::{.panel-tabset} -->
+:::{.panel-tabset}
 
-<!-- #### package -->
+#### package
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 9
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_package","hh_race_category", -->
-<!--                               "package delivery by household race") -->
-<!-- ``` -->
+plot_delivery_type("deliver_package","hh_race_category")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_package","hh_race_category")
+```
 
-<!-- #### grocery -->
+#### grocery
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 9
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_grocery","hh_race_category", -->
-<!--                               "grocery delivery by household race") -->
-<!-- ``` -->
+plot_delivery_type("deliver_grocery","hh_race_category")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","hh_race_category")
+```
 
-<!-- #### food -->
+#### food
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 9
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_food","hh_race_category", -->
-<!--                               "food delivery by household race") -->
-<!-- ``` -->
+plot_delivery_type("deliver_food","hh_race_category")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_food","hh_race_category")
+```
 
-<!-- ::: -->
+:::
 
 
-<!-- ## delivery by home location and type -->
+## delivery by home location and type
 
 
-<!-- ### home county -->
+### home county
 
-<!-- :::{.panel-tabset} -->
+:::{.panel-tabset}
 
-<!-- #### package -->
+#### package
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 6
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_package","home_county", -->
-<!--                               "package delivery by home location - County") -->
-<!-- ``` -->
+plot_delivery_type("deliver_package","home_county")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_package","home_county")
+```
 
-<!-- #### grocery -->
+#### grocery
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 6
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_grocery","home_county", -->
-<!--                               "grocery delivery by home location - County") -->
-<!-- ``` -->
+plot_delivery_type("deliver_grocery","home_county")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","home_county")
+```
 
-<!-- #### food -->
+#### food
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.6
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_food","home_county", -->
-<!--                               "food delivery by home location - County") -->
-<!-- ``` -->
+plot_delivery_type("deliver_grocery","home_county")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","home_county")
+```
 
-<!-- ::: -->
+:::
 
-<!-- ### home in centers -->
+### home in centers
 
-<!-- :::{.panel-tabset} -->
+:::{.panel-tabset}
 
-<!-- #### package -->
+#### package
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_package","home_rgc", -->
-<!--                               "package delivery by home location - Center") -->
-<!-- ``` -->
+plot_delivery_type("deliver_package","home_rgc")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_package","home_rgc")
+```
 
-<!-- #### grocery -->
+#### grocery
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_grocery","home_rgc", -->
-<!--                               "grocery delivery by home location - Center") -->
-<!-- ``` -->
+plot_delivery_type("deliver_grocery","home_rgc")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","home_rgc")
+```
 
-<!-- #### food -->
+#### food
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_food","home_rgc", -->
-<!--                               "food delivery by home location - Center") -->
-<!-- ``` -->
+plot_delivery_type("deliver_food","home_rgc")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_food","home_rgc")
+```
 
-<!-- ::: -->
+:::
 
 
-<!-- ### residence type -->
+### residence type
 
-<!-- :::{.panel-tabset} -->
+:::{.panel-tabset}
 
-<!-- #### package -->
+#### package
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_package","res_type_group", -->
-<!--                               "package delivery by residence type") -->
-<!-- ``` -->
+plot_delivery_type("deliver_package","res_type_group")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_food","res_type_group")
+```
 
-<!-- #### grocery -->
+#### grocery
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_grocery","res_type_group", -->
-<!--                               "grocery delivery by residence type") -->
-<!-- ``` -->
+plot_delivery_type("deliver_grocery","res_type_group")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_grocery","res_type_group")
+```
 
-<!-- #### food -->
+#### food
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_food","res_type_group", -->
-<!--                               "food delivery by residence type") -->
-<!-- ``` -->
+plot_delivery_type("deliver_food","res_type_group")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_food","res_type_group")
+```
 
-<!-- #### service work -->
+#### service work
 
-<!-- ```{r} -->
-<!-- #| layout-ncol: 2 -->
-<!-- #| out-width: "50%" -->
+```{r}
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+#| fig-format: svg
 
-<!-- df_plot <- stat_delivery_type("deliver_work","res_type_group", -->
-<!--                               "service work by residence type") -->
-<!-- ``` -->
+plot_delivery_type("deliver_work","res_type_group")
+```
 
-<!-- ```{r} -->
-<!-- df_plot -->
-<!-- ``` -->
+```{r}
+table_delivery_type("deliver_work","res_type_group")
+```
 
-<!-- ::: -->
+:::
 
 ## shopping trip rates over the years
 
 ```{r}
 #| label: fig-shop-trip-rate
-#| fig-height: 3.8
-#| fig-width: 5.1
+#| fig-cap: "shopping trip rates over years"
+#| fig-height: 2.5
+#| fig-width: 3
+#| fig-format: svg
 
 df_plot <- psrc_hts_triprate(hts_data, group_vars="dest_purpose_cat") %>%
   filter(dest_purpose_cat == "Shopping")
 
 ggplot(df_plot,
-       aes(x=factor(survey_year), y=mean), fill=psrc_colors$pgnobgy_5[1]) +
-  geom_col() +
+       aes(x=factor(survey_year), y=mean, fill=factor(survey_year))) +
+  geom_col(width=0.7) +
   geom_text(aes(label=scales::number(mean, accuracy = 0.1)),
             vjust = -0.3) +
-  scale_y_continuous(labels = scales::number) +
+  geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+  errorbar_switch(geom_errorbar(aes(ymin = mean - mean_moe, ymax = mean + mean_moe), width = 0.1), 
+                  on=params$errorbar) +
+  scale_y_continuous(labels = scales::number, expand = expansion(mult = c(0, 0.1))) +
+  scale_fill_manual(values = psrc_colors$grays_dec) +
   psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank()) +
-  labs(title = "shopping trip rates over years",
-       caption = hts_source)
+  theme(legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.y = element_blank())
 ```
 
 
