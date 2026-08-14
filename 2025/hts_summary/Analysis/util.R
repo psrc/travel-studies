@@ -15,18 +15,26 @@ get_table_format <- function(.data){
            prop_moe = scales::percent(prop_moe, accuracy = 0.01),
            est = scales::number(est, accuracy = 1, big.mark = ","),
            count = scales::number(count, accuracy = 1, big.mark = ",")) %>%
-    select(-est_moe)
+    select(-est_moe) %>%
+    rename(`survey year` = survey_year,
+           share = prop,
+           share_moe = prop_moe,
+           estimates = est,
+           sample = count)
 }
 
-# plot_single_var <- function(df_plot, var_name, limits=NULL){
-#   ggplot(df_plot, aes(x={{var_name}}, y=prop, fill=factor(survey_year))) +
-#     geom_col(position = position_dodge(),width = 0.8) +
-#     geom_text(aes(label=prop_label),
-#               vjust = -0.5,
-#               position = position_dodge(0.8)) +
-#     scale_fill_manual(values = psrc_colors$pgnobgy_5)+
-#     scale_y_continuous(labels = scales::percent, limits = limits) +
-#     psrc_style() +
-#     theme(panel.grid.major.y = element_blank(),
-#           axis.title = element_blank())
-# }
+
+
+# switch to turn error bars on and off using yaml parameter: params$errorbar
+errorbar_switch <- function(errorbar, on = FALSE){
+  if(on){
+    
+    list( errorbar )
+    
+  } else{
+    
+    list()
+    
+  }
+  
+}

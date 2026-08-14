@@ -37,7 +37,7 @@ psrc_hts_stat(df_hts_data, "person",
               # exclude NAs in calculation: only considering workers
               incl_na=TRUE) %>%
   # function sourced from Analysis/util.R
-  get_table_format() %>%
+  # get_table_format() %>%
   arrange(employment_simple,telecommute_status,work_from_home,workplace_simple,telecommute_freq_1plus) %>%
   filter(survey_year == 2025) %>%
   select(employment_simple,workplace_simple,telecommute_freq_1plus,telecommute_status,count)
@@ -128,10 +128,10 @@ stat_telework_type <- function(group_var, title){
     mutate(group_var = ordered(group_var, levels = c("Region",levels(res$group_var))))
     
   # result table with formatting
-  df_plot <- res %>%
+  df_plot <- res%>%
+    select(survey_year,group_var,count,prop,prop_moe,est,est_moe) %>%
     # function sourced from Analysis/util.R
-    get_table_format() %>%
-    select(survey_year,group_var,count,prop,prop_moe,est)
+    get_table_format()# 
   
   # print your charts
   print(
@@ -238,10 +238,10 @@ ggplot(df_plot,
   theme(axis.title = element_blank())+
   labs(caption = hts_source, title = "Telework status by home location")
 
-df_plot %>%
+df_plot%>%
+    select(survey_year,home_county,telecommute_status,count,prop,prop_moe,est,est_moe) %>%
     # function sourced from Analysis/util.R
-    get_table_format() %>%
-    select(survey_year,home_county,telecommute_status,count,prop,prop_moe,est)
+    get_table_format() 
 ```
 
 ### home location (at least one day)
