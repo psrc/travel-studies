@@ -327,6 +327,8 @@ df_person <- hts_data$person %>%
     ),
     
     work_county = factor(case_when(
+      # no work location for workers working fully at home
+      telecommute_status == "Fully At Home"~NA,
       work_county %in% c("King County","Kitsap County","Pierce County","Snohomish County")~ work_county,
       !is.na(work_county)~ "Outside of Region",
       TRUE~NA
