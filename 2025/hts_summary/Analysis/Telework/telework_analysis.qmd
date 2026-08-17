@@ -1,6 +1,9 @@
 ---
 title: "Telework Analysis"
 date: today
+
+params:
+  errorbar: TRUE
 ---
 
 ```{r}
@@ -9,19 +12,18 @@ date: today
 # get data and load standard data processing
 source("telework_processing.R")  
 
-hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Survey"
-
-plot_formatting <- function(colors, title){
+plot_formatting <- function(colors = c("#4C4C4C", "#91268F", "#8CC63E", "#F05A28", "#00A7A0")){
   list(
+    geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3),
     scale_fill_manual(values = colors),
-    scale_y_continuous(labels = scales::percent),
+    scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))),
     psrc_style(),
     theme(panel.grid.major.y = element_blank(),
+          legend.text = element_text(size = 11),
           axis.title = element_blank(),
-          axis.text.x = element_blank()),
-    labs(caption = hts_source,
-         title = title)
-    )
+          axis.text.x = element_blank(),
+          axis.text.y = element_blank())
+  )
 }
 
 ```
@@ -49,7 +51,11 @@ psrc_hts_stat(df_hts_data, "person",
 - trend remained similar since 2023
 
 ```{r}
-#| out-width: "50%"
+#| label: fig-telework-trend
+#| fig-cap: "Telework trend"
+#| fig-asp: 0.75
+#| fig-width: 6
+#| fig-format: svg
 
 df_plot <- psrc_hts_stat(df_hts_data, "person", 
                          c("telecommute_status"),
@@ -68,12 +74,14 @@ ggplot(df_plot,
   geom_text(aes(y= prop_position, label=scales::percent(prop, accuracy = 1),
                 color=telecommute_status),
             vjust = -0.6) +
+  geom_hline(yintercept = c(0,1), color = "#cbcbcb", linewidth = 0.3) +
   scale_fill_manual(values = c("#4C4C4C","#91268F","#F05A28"))+
   scale_color_manual(values = c("#4C4C4C","white","white"), guide = "none")+
   scale_y_continuous(labels = scales::percent) +
   psrc_style() +
-  theme(axis.title = element_blank())+
-  labs(caption = hts_source, title = "Telework trend")
+  theme(axis.title = element_blank(),
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_blank())
 ```
 
 
@@ -83,83 +91,143 @@ ggplot(df_plot,
 - Active Modes include walk, bike and micromobility
 
 ```{r}
-#| out-width: "50%"
-#| fig-width: 5
+#| label: fig-commute-mode-share
+#| fig-cap: "Commute mode share"
+#| fig-asp: 0.4
+#| fig-width: 9
+#| fig-format: svg
+
 res <- psrc_hts_stat(df_hts_data, "person", 
                      c("work_mode_simple"),
                      incl_na=FALSE)
 
-ggplot(res, 
-       aes(x=work_mode_simple, y=prop, fill=factor(survey_year))) +
-  geom_col(position = position_dodge(),width = 0.8) +
-  geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                position = position_dodge(0.8),
-                width = 0.4) +
-  facet_wrap(~work_mode_simple, ncol=5, scales = "free")+
-  plot_formatting(psrc_colors$blues_inc[-1],"Commute mode trend: excluding work at home workers ")
+ggplot(res,
+       aes(x=factor(survey_year), y=prop, fill=factor(survey_year))) +
+  geom_col(width = 0.8) +
+  geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+            vjust = -0.3) +
+  errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                width = 0.1), 
+                  on=params$errorbar) +
+  geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+  facet_wrap(~work_mode_simple, ncol=4, 
+             # scale = "free"
+             )+
+  scale_fill_manual(values = psrc_colors$greens_dec)+
+  scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+  psrc_style() +
+  theme(legend.position = "none",
+        strip.text = element_text(size = 11),
+        panel.grid.major.y = element_blank(),
+        panel.spacing.x = unit(0.5, "lines"),
+        axis.title = element_blank(),
+        axis.text.y = element_blank())
+```
 
+```{r}
 res %>%
     # function sourced from Analysis/util.R
     get_table_format()
 ```
 
 
-
 ```{r}
+  
+res_region <- psrc_hts_stat(df_hts_data, "person", 
+                            c("telecommute_freq_1plus"),
+                            incl_na=FALSE) %>%
+  filter(telecommute_freq_1plus == "telecommute at least 1 day/week") %>%
+  mutate(group_var = "Region Total")
 
-stat_telework_type <- function(group_var, title){
+stat_telework_type <- function(group_var){
   
   res <- psrc_hts_stat(df_hts_data, "person", 
                        c(group_var,"telecommute_freq_1plus"),
                        incl_na=FALSE) %>%
     filter(telecommute_freq_1plus == "telecommute at least 1 day/week") %>%
-    mutate(group_var = !!sym(group_var))
+    mutate(group_var = !!sym(group_var)) 
   
-  res2 <- psrc_hts_stat(df_hts_data, "person", 
-                       c("telecommute_freq_1plus"),
-                       incl_na=FALSE) %>%
-    filter(telecommute_freq_1plus == "telecommute at least 1 day/week",
-           survey_year %in% res$survey_year) %>%
-    mutate(group_var = "Region")
   res <- res %>% 
-    select(names(res2)) %>% 
-    add_row(res2) %>%
+    select(names(res_region)) %>% 
+    add_row(res_region %>% filter(survey_year %in% res$survey_year)) %>%
     filter(group_var != "Prefer not to answer") %>%
-    mutate(group_var = ordered(group_var, levels = c("Region",levels(res$group_var))))
+    mutate(group_var = ordered(group_var, levels = c("Region Total",levels(res$group_var))))
+
+  return(res)
+}
+
+plot_telework_type <- function(group_var, type="both", 
+                               color_year=c("#4C4C4C", "#91268F", "#8CC63E", "#F05A28", "#00A7A0"),
+                               color_cat=psrc_colors$blues_dec){
+  
+  res <- stat_telework_type(group_var)
+  
+  if( type %in% c("year","both") ){
     
+    # print your charts
+    print(
+      ggplot(res, 
+             aes(x=telecommute_freq_1plus, y=prop, fill=group_var)) +
+        geom_col(position = position_dodge(),width = 0.95) +
+        geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                      position = position_dodge(0.95),
+                  vjust = -0.3, 
+                  size = 10, size.unit="pt") +
+        errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                      position = position_dodge(0.95),
+                                      width = 0.1), 
+                        on=params$errorbar) +
+        facet_wrap(~ survey_year, ncol=5)+
+        geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+        scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+        scale_fill_manual(values = color_year)+
+        psrc_style() +
+        theme(panel.grid.major.y = element_blank(),
+              legend.text = element_text(size = 11),
+              axis.title = element_blank(),
+              axis.text.x = element_blank(),
+              axis.text.y = element_blank())
+      )
+  }
+  
+  if( type %in% c("cat","both") ){
+    
+    print(
+      ggplot(res, 
+             aes(x=factor(survey_year), y=prop, fill=factor(survey_year))) +
+        geom_col(width = 0.8) +
+        geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                  vjust = -0.3, 
+                  size = 10.5, size.unit="pt") +
+        errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                      width = 0.1), 
+                        on=params$errorbar) +
+        facet_wrap(~group_var, ncol=5)+
+        geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+        scale_fill_manual(values = color_cat)+
+        scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+        psrc_style() +
+        theme(legend.position = "none",
+              strip.text = element_text(size = 11),
+              panel.grid.major.y = element_blank(),
+              panel.spacing.x = unit(0.5, "lines"),
+              axis.title = element_blank(),
+              axis.text.x = element_text(size = 10.5),
+              axis.text.y = element_blank())
+    )    
+    
+  }
+  
+}
+
+tbl_telework_type <- function(group_var){
+  
   # result table with formatting
-  df_plot <- res%>%
-    select(survey_year,group_var,count,prop,prop_moe,est,est_moe) %>%
+  stat_telework_type(group_var) %>%
+    select("survey_year","group_var","telecommute_freq_1plus","count","prop","prop_moe","est","est_moe") %>%
     # function sourced from Analysis/util.R
-    get_table_format()# 
+    get_table_format()
   
-  # print your charts
-  print(
-    ggplot(res, 
-           aes(x=telecommute_freq_1plus, y=prop, fill=group_var)) +
-      geom_col(position = position_dodge(),width = 0.8) +
-      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                    position = position_dodge(0.8),
-                    width = 0.4) +
-      facet_wrap(~ survey_year, ncol=5)+
-      plot_formatting(c("#4C4C4C", "#91268F", "#8CC63E", "#F05A28", "#00A7A0", "#630460", "#588527", "#9f3913", "#00716c", "#3e4040"),
-                      title)
-  )
-  
-  print(
-    ggplot(res, 
-           aes(x=telecommute_freq_1plus, y=prop, fill=factor(survey_year))) +
-      geom_col(position = position_dodge(),width = 0.8) +
-      geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                    position = position_dodge(0.8),
-                    width = 0.4) +
-      facet_wrap(~group_var, ncol=4)+
-      plot_formatting(psrc_colors$blues_inc[-1],title)
-  )
-  
-  
-  # print result table by calling df_plot
-  return(df_plot)
 }
 ```
 
@@ -169,50 +237,105 @@ stat_telework_type <- function(group_var, title){
 - strong correlation with income and working from home
 
 
-:::{.panel-tabset}
 
-### income (100K/200K)
+### income (bins: 100K,200K)
 
 - income with (100K/200K) bins have more even person counts than (50K/100K) bins
 
 ```{r}
-#| layout: [[50, 50], [100]]
-#| out-width: "50%"
-stat_telework_type("income_100_200","telework by income")
+#| label: fig-telework-income1
+#| fig-cap: "[year] Telework by Income"
+#| fig-asp: 0.618
+#| fig-width: 7
+#| fig-format: svg
 
+plot_telework_type("income_100_200","year")
 ```
-
-### income (50K/100K)
 
 ```{r}
-#| layout: [[50, 50], [100]]
-#| out-width: "50%"
-stat_telework_type("income_50_100","telework by income")
+#| label: fig-telework-income2
+#| fig-cap: "[category] Telework by Income"
+#| fig-asp: 0.618
+#| fig-width: 6.5
+#| fig-format: svg
 
+plot_telework_type("income_100_200","cat", color_cat = psrc_colors$blues_dec[4:5])
 ```
+
+```{r}
+tbl_telework_type("income_100_200")
+```
+
+### income (bins: 50K,100K)
+
+```{r}
+#| label: fig-telework-income3
+#| fig-cap: "[year] Telework by Income"
+#| fig-asp: 0.5
+#| fig-width: 7.5
+#| fig-format: svg
+
+plot_telework_type("income_50_100","year")
+```
+
+```{r}
+#| label: fig-telework-income4
+#| fig-cap: "[category] Telework by Income"
+#| fig-asp: 0.4
+#| fig-width: 8
+#| fig-format: svg
+
+plot_telework_type("income_50_100","cat")
+```
+
+```{r}
+tbl_telework_type("income_50_100")
+```
+
 
 ### industry
 
 ```{r}
-#| fig-width: 6
-#| layout: [[50, 50], [100]]
-#| out-width: "50%"
-stat_telework_type("industry_sector","telework by industry")
+#| label: fig-telework-industry1
+#| fig-cap: "[year] Telework by Industry"
+#| fig-asp: 0.3
+#| fig-width: 11.5
+#| fig-format: svg
+
+plot_telework_type("industry_sector","year")
 ```
 
-:::
+```{r}
+#| label: fig-telework-industry2
+#| fig-cap: "[category] Telework by Industry"
+#| fig-asp: 0.3
+#| fig-width: 12.5
+#| fig-format: svg
+
+plot_telework_type("industry_sector","cat", color_cat = psrc_colors$blues_dec[3:5])
+```
+
+```{r}
+tbl_telework_type("industry_sector")
+```
+
+
 
 ## telework by home/work location
 
 - share of teleworkers: King > Pierce and Kitsap (significant)
 
-:::{.panel-tabset}
 
-### home location (all types)
+### home location (incl. fully in person, hybrid and fully at home)
 
 
 ```{r}
-#| out-width: "50%"
+#| label: fig-telework-homefull
+#| fig-cap: "Worker Type by Home Location"
+#| fig-asp: 0.7
+#| fig-width: 6
+#| fig-format: svg
+
 df_plot <- psrc_hts_stat(df_hts_data, "person", 
                          c("home_county","telecommute_status"),
                          # exclude NAs in calculation: only considering workers
@@ -231,50 +354,115 @@ ggplot(df_plot,
   geom_text(aes(y= prop_position, label=scales::percent(prop, accuracy = 1),
                 color=telecommute_status),
             vjust = -0.6) +
+  geom_hline(yintercept = c(0,1), color = "#cbcbcb", linewidth = 0.3) +
   scale_fill_manual(values = c("#4C4C4C","#91268F","#F05A28"))+
   scale_color_manual(values = c("#4C4C4C","white","white"), guide = "none")+
   scale_y_continuous(labels = scales::percent) +
   psrc_style() +
-  theme(axis.title = element_blank())+
-  labs(caption = hts_source, title = "Telework status by home location")
+    theme(axis.title = element_blank(),
+          panel.grid.major.y = element_blank(),
+          axis.text.y = element_blank())
+```
 
-df_plot%>%
-    select(survey_year,home_county,telecommute_status,count,prop,prop_moe,est,est_moe) %>%
+```{r}
+df_plot %>%
     # function sourced from Analysis/util.R
     get_table_format() 
 ```
 
-### home location (at least one day)
+
+### home location (percentage of workers working at least one day)
 
 ```{r}
-#| layout: [[50, 50], [100]]
-#| out-width: "50%"
-#| fig-width: 5
-stat_telework_type("home_county","telework by home location")
+#| label: fig-telework-homeloc1
+#| fig-cap: "[year] Telework by Home Location"
+#| fig-asp: 0.4
+#| fig-width: 9
+#| fig-format: svg
 
+plot_telework_type("home_county","year")
+```
+
+```{r}
+#| label: fig-telework-homeloc2
+#| fig-cap: "[category] Telework by Home Location"
+#| fig-asp: 0.35
+#| fig-width: 10.5
+#| fig-format: svg
+
+plot_telework_type("home_county","cat")
+```
+
+```{r}
+tbl_telework_type("home_county")
+```
+
+
+### work location (incl. fully in person and hybrid)
+
+-  workers working fully at home don't have work location outside home
+
+
+```{r}
+#| label: fig-telework-workfull
+#| fig-cap: "Worker Type by Work Location"
+#| fig-asp: 0.6
+#| fig-width: 6
+#| fig-format: svg
+
+df_plot <- psrc_hts_stat(df_hts_data, "person", 
+                         c("work_county","telecommute_status"),
+                         # exclude NAs in calculation: only considering workers
+                         incl_na=FALSE) %>%
+  filter(survey_year==2025) %>%
+  group_by(work_county) %>%
+  mutate(
+    prop_position = case_when(telecommute_status=="Hybrid"~0,
+                              telecommute_status=="Fully In Person"~.data$prop[1])
+  )
+
+ggplot(df_plot, 
+       aes(x=work_county, y=prop, fill=fct_rev(telecommute_status))) +
+  geom_col(width = 0.7) +
+  geom_text(aes(y= prop_position, label=scales::percent(prop, accuracy = 1),
+                color=telecommute_status),
+            vjust = -0.6) +
+  geom_hline(yintercept = c(0,1), color = "#cbcbcb", linewidth = 0.3) +
+  scale_fill_manual(values = c("#4C4C4C","#91268F","#F05A28"))+
+  scale_color_manual(values = c("white","white"), guide = "none")+
+  scale_y_continuous(labels = scales::percent) +
+  psrc_style() +
+    theme(axis.title = element_blank(),
+          panel.grid.major.y = element_blank(),
+          axis.text.y = element_blank())
 ```
 
 ### work location
 
-```{r}
-#| layout: [[50, 50], [100]]
-#| out-width: "50%"
-#| fig-width: 5
-stat_telework_type("work_county","telework by work location: excluding always work at home")
+-  workers working fully at home don't have work location outside home
 
+```{r}
+#| label: fig-telework-workloc1
+#| fig-cap: "[year] Telework by Work Location"
+#| fig-asp: 0.4
+#| fig-width: 9
+#| fig-format: svg
+
+plot_telework_type("work_county","year")
 ```
 
-:::
+```{r}
+#| label: fig-telework-workloc2
+#| fig-cap: "[category] Telework by Work Location (excluding always work at home)"
+#| fig-asp: 0.35
+#| fig-width: 10.5
+#| fig-format: svg
+
+plot_telework_type("work_county","cat")
+```
 
 ```{r}
-# work distance
-
-# rs1 <- psrc_hts_stat(df_hts_data,
-#                      analysis_unit = "trip",
-#                      group_vars = c("telecommute_status","dest_purpose_cat", "distance_bins"),
-#                      incl_na = FALSE) %>%
-#   filter(telecommute_status != "Fully At Home",
-#          dest_purpose_cat == "Work")
+tbl_telework_type("work_county")
 ```
 
 
@@ -288,7 +476,11 @@ stat_telework_type("work_county","telework by work location: excluding always wo
 - Fully in person workers make fewer "Social/Recreation/Meal" non-mandatory trips
 
 ```{r}
-#| out-width: "50%"
+#| label: fig-telework-triprate
+#| fig-cap: "Workweek trips by telework"
+#| fig-asp: 0.4
+#| fig-width: 8
+#| fig-format: svg
 # number of people by telecommute status
 df_telecommute_status <- psrc_hts_stat(df_hts_data, "person",
                                        c("telecommute_status"),
@@ -322,14 +514,14 @@ ggplot(res,
   geom_text(aes(y= trip_rate_position, label=scales::number(trip_rate, accuracy = 0.1),
                 color=dest_purpose_rate),
             hjust = 1.1) +
+  geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
   scale_fill_manual(values = c("#F05A28","#00A7A0","#8CC63E"))+
   scale_color_manual(values = c("#4C4C4C","#4C4C4C","#4C4C4C"), guide = "none")+
   coord_flip()+
   psrc_style() +
   theme(axis.title = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.major.x = element_line(color = "gray80", linewidth = 0.5),)+
-  labs(caption = hts_source, title = "Workweek trips by telework")
+        axis.text.x = element_blank(),
+        panel.grid.major.y = element_blank())
 
 res %>%
   mutate(trip_rate = scales::number(trip_rate, accuracy=0.01)) %>%
@@ -344,8 +536,12 @@ res %>%
 - hybrid workers have the highest transit mode share
 
 ```{r}
-#| out-width: "50%"
-#| fig-width: 5
+#| label: fig-telework-modeshare
+#| fig-cap: "Trip mode share by worker type"
+#| fig-asp: 0.4
+#| fig-width: 9
+#| fig-format: svg
+
 res <- psrc_hts_stat(df_hts_data, "trip", 
                      c("telecommute_status", "mode_class_5"),
                      # exclude NAs in calculation: only considering workers
@@ -371,15 +567,15 @@ ggplot(res,
   geom_text(aes(y= prop_position, label=scales::percent(prop, accuracy = 1),
                 color=mode_class_5),
             hjust = -0.05) +
+  geom_hline(yintercept = c(0,1), color = "#cbcbcb", linewidth = 0.3) +
   scale_fill_manual(values = c("#F05A28","#00A7A0","#91268F","#8CC63E","#4C4C4C"))+
   scale_color_manual(values = c("white","#4C4C4C","white","#4C4C4C","#4C4C4C"), guide = "none")+
   scale_y_continuous(labels = scales::percent) +
   coord_flip()+
   psrc_style() +
   theme(axis.title = element_blank(),
-        panel.grid.major.y = element_blank(),
-        panel.grid.major.x = element_line(color = "gray80", linewidth = 0.5),)+
-  labs(caption = hts_source, title = "Telework status by home location")
+        axis.text.x = element_blank(),
+        panel.grid.major.y = element_blank())
 ```
 
 ### VMT per workweek by telework status
