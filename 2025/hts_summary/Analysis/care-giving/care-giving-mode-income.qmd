@@ -397,11 +397,11 @@ mode_inc_b_3 |>
 
 
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" & mode_class_5 == mode_type)
 ```
-
 
 #### Transit
 
@@ -416,11 +416,11 @@ mode_inc_b_3 |>
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type) |> 
    create_mode_inc_chart(mode = mode_type)
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type)
 ```
-
 
 #### Walk
 
@@ -436,11 +436,11 @@ mode_inc_b_3 |>
    create_mode_inc_chart(mode = mode_type)
 
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type)
 ```
-
 
 #### Bike/Micromobility
 
@@ -456,11 +456,11 @@ mode_inc_b_3 |>
    create_mode_inc_chart(mode = mode_type)
 
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type) 
 ```
-
 
 #### Other
 
