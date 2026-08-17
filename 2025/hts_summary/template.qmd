@@ -1,0 +1,397 @@
+---
+title: "Template and Figures"
+date: today
+
+echo: fenced
+eval: false
+---
+
+
+## Template for Exploration and Analysis Notebook
+
+- This current document is the Exploration and Analysis Notebook that holds all your detailed exploratory and analysis work file
+- **TODO: Bullet points with takeaways and notes should be added to all figures for easy interpretation and future reference**: the takeaways and notes would help others quickly understand the figures. If there's no notable trend or findings, you could put down "No notable trend"
+- All chapters (pages) are listed here in [the `_quarto-exploration-analysis.yml`](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/_quarto-exploration-analysis.yml)
+
+
+:::{.callout-tip}
+
+1. To get started, see example in the [Delivery Analysis](/Analysis/Delivery/delivery_analysis.qmd) page (see code in [Github](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/Delivery/delivery_analysis.qmd))
+2. To render the Exploration and Analysis Notebook: type `quarto render`(default is set to render this document) or `quarto render --profile exploration-analysis` at the hts_summary folder location in terminal
+3. Project profiles enable you to create different versions (Exploration and Analysis Notebook and Summary Report) of a book from the same source code. Here are more information on [Quarto project profiles](https://quarto.org/docs/projects/profiles.html#profile-configuration)
+
+:::
+
+## Template for Summary Report
+
+:::{.callout-important}
+
+To ensure consistency, the Summary Report should not have any hard coded R code in it. All figures and tables should be included using embed
+
+:::
+
+- The Summary Report holds data analysis findings that are statistically significant, which we may share with other teams within PSRC: should include all figures that would be in your board/committee presentation and more. It may also act as a starting point when we get questions or data requests about HTS data.
+- The rendered Summary Report is saved here: file:///T:/60day-TEMP/Joanne_temp/2025_HTS_analysis/HTS-summary-report/index.html
+- All figures and tables taken directly from the Exploration and Analysis Notebook and embedded into the report using [the embed shortcode](https://quarto.org/docs/authoring/notebook-embed.html)
+- All chapters (pages) are listed here in [the `_quarto-summary-report.yml` file](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/_quarto-summary-report.yml)
+
+:::{.callout-tip}
+
+1. **To get started, create a new `.qmd` file in the SummaryReport folder.** See example in the Delivery page here: file:///T:/60day-TEMP/Joanne_temp/2025_HTS_analysis/HTS-summary-report/SummaryReport/Delivery.html (see code in [Github](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/SummaryReport/Delivery.qmd))
+2. The Summary Report should include all figures that would be in your board/committee presentation and more. It may also act as a starting point when we get questions or data requests about HTS data. 
+3. To render the Exploration and Analysis Notebook: type `quarto render --profile summary-report` at the hts_summary folder location in terminal
+
+:::
+
+### Embed shortcode
+
+You can include the figure and table outputs of another Quarto document with the embed shortcode. See [Quarto website](https://quarto.org/docs/authoring/notebook-embed.html) for more details
+
+
+``` markdown
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-package >}}
+```
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-package >}}
+
+
+``` markdown
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-package >}}
+```
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-package >}}
+
+:::{.callout-important}
+
+Unfortunately, the embed shortcode is not able to find any outputs within native div container (e.g. \:\:\: \{\.panel\-tabset\}  \:\:\:). **TODO: All figures and tables would need to be taken out of tabset containers**
+
+:::
+
+
+## Figures
+
+Follow these steps to create presentation ready figures!
+
+### Establish consistent variable color schemes
+
+```{r}
+# pick color scheme within the psrc_colors list in psrcplot package
+library(psrcplot)
+
+psrc_colors
+```
+
+When an analysis breaks down data by specific categorical values (e.g., delivery types, mode types, transit submodes) or different demographic/geographic segments, assign a dedicated color to each value. This ensures color consistency across all charts and figures in the analysis.
+
+
+1. Descending gradient color for trend over survey years
+
+   Earlier years are in darker colors while later years are in lighter colors
+
+   :::{.callout-tip}
+   
+   Create a named list of color palettes where the list keys match your variable names for easy referencing throughout your script
+   
+   :::
+
+   ```{r}
+   # assign descending colors to show trends over survey years for different segments
+   psrc_fill_dec <- list(
+     deliver_package = psrc_colors$purples_dec[1:5],
+     deliver_food = psrc_colors$oranges_dec[1:5],
+     deliver_grocery = psrc_colors$blues_dec[1:5],
+     deliver_work = psrc_colors$greens_dec[1:5],
+     deliver_outside_any = psrc_colors$grays_dec[4:5],
+     deliver_elsewhere = psrc_colors$grays_dec[4:5],
+     deliver_office = psrc_colors$grays_dec[4:5]
+     )
+   ```
+    
+  {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-package >}}
+
+
+2. Match color for plots by demographic/geographic segments
+
+   ```{r}
+   psrc_fill_segment <- list(
+     income_2group = c( "#91268F", "#8CC63E"),
+     have_cars = c( "#F05A28", "#00A7A0"),
+     lifecycle_2group = c( "#91268F", "#00A7A0"),
+     numworkers_3cap = psrc_colors$pgnobgy_5,
+     hh_race_category = psrc_colors$gnbopgy_5,
+     home_county = psrc_colors$obgnpgy_10,
+     home_rgc = c( "#00A7A0", "#8CC63E"),
+     res_type_group = c( "#91268F", "#F05A28")
+     )
+   ```
+
+
+   {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income >}}
+   
+
+### Figure options
+
+1. Global configuration in `_quarto.yml`:
+
+   - `fig-format: svg`: rendering the figures in svg format is crucial in adjusting the figure sizes throughout all notebooks
+   - `fig-align: center`: center align figures. but those are ignored whenever the figures don't have `#| label:`. Use `#| fig-align: center` in your code cell to override if that happens
+   - `fig-cap-location: top`: figure captions show up on top of the figures
+
+2. Configuration for each code cell
+
+   example config
+   
+
+   ```{r}
+   #| label: fig-deliver-grocery
+   #| fig-cap: grocery delivery
+   #| fig-height: 2.5
+   #| fig-width: 3
+   
+   
+   fig_delivery("deliver_grocery")
+   
+   ```
+   {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-grocery >}}
+   
+   - `label`: this is the name of your figure. **ALL FIGURE LABELS MUST START WITH `fig-`!!** labels are used when referencing and embedding figures 
+   - `fig-cap`: this is the title of your figure and will create a "Figure XXX: [title]" caption on top your figure
+   - `fig-height` & `fig-width`: this is the height and width of your figure. See examples in delivery analysis for size recommendations for different figures  
+     - recommended height ranges from 3 to 6
+     - recommended width ranges from 5 to 12
+     
+     :::{.callout-tip}
+     
+     Using `out-width` is not recommended as the font size of your figure may be altered to fit the specified width in the page. However, if the figure width exceeds the width of the page, the figure would automatically shrink to fit the page
+     
+     :::
+
+
+
+### Plotting figures
+
+Having rounded numbers and removing chart titles, axis titles, and Y-axis labels maximize focus on the data. The minimal theme may works best for most figures, especially those showing percentage shares. But figures showing total estimates in millions may need to retain Y-axis titles for context.
+
+1. Create error bar toggle to turn error bars on and off
+   
+   Error bars are crucial during the exploratory phases but should be removed in final products and presentations. The error bar toggle `errorbar_switch()` allows easy toggling between development and production states without modifying the plotting code 
+   
+   - create a parameter called errorbar to the yaml header in your `.qmd` file
+   
+     ``` markdown
+     ---
+     title: [Your analysis title]
+     date: today
+     
+     params:
+       errorbar: FALSE
+     ---
+        
+     ```
+   
+   - source the `util.R` script in hts_summary/Analysis folder
+
+     ```{r}
+     # Error Bar Toggle: get errorbar_switch() function
+     source("../util.R")
+     ```
+
+2. creating your plot function
+
+:::{.panel-tabset}
+
+### single category trend
+   
+```{r}
+#| label: fig-deliver-package
+#| fig-cap: package delivery
+#| fig-height: 2.5
+#| fig-width: 3
+
+fig_delivery <- function(delivery_var){
+  
+  # get variable stats
+  res <- psrc_hts_stat(df_hts_data, "day", c(delivery_var), incl_na = TRUE) %>% 
+    filter(.[[delivery_var]]=="Yes") 
+  
+  print(
+    ggplot(res, 
+           aes(x=factor(survey_year), y=prop)) +
+      geom_col(aes(fill = factor(survey_year)), 
+               width=0.7 # narrows columns to 70% for more white space between columns
+               ) +
+      # add data value above each column
+      geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                vjust = -0.3 # mode text vertically upward so it sits above columns
+                ) +
+      # add thin grey horizontal line at 0
+      geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+      
+      # Error Bar Toggle:
+      # To switch error on and off using params (TRUE/FALSE)
+      errorbar_switch(
+        
+        geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.1), 
+        
+        on=params$errorbar # this reads the errorbar parameter from yaml header to include error bars or not
+        ) +
+      
+      scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + # add a 10% buffer at the top to prevent geom_text from clipping
+      scale_fill_manual(values = psrc_fill_dec[[delivery_var]]) + # Palette Mapping: select color vector in psrc_fill_dec color list
+      psrc_style() + # apply PSRC formatting from psrcplot
+      theme(legend.position = "none", # Removes the legend when colors map 1:1 to x-axis labels
+            panel.grid.major.y = element_blank(), # Removes horizontal gridlines
+            axis.text.y = element_blank(), # Removes y-axis tick values
+            axis.title = element_blank()) # Removes both X and Y titles (use axis.title.x = element_blank() to keep y-axis title)
+  )
+}
+
+fig_delivery("deliver_package")
+```
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-package >}}
+   
+### multi-category trend
+
+two ways of parsing multi-category trend over years
+   
+```{r}
+
+plot_delivery_type <- function(delivery_var, group_var, type="both"){
+
+  res <- psrc_hts_stat(df_hts_data, "day", c(group_var,delivery_var), incl_na = TRUE) %>%
+    filter(.[[delivery_var]]=="Yes", .[[group_var]]!="Prefer not to answer")
+
+  # print your charts
+  if( type %in% c("year","both") ){
+    
+    # grouping by year
+    df_plot <- ggplot(res,
+                      aes(x=delivery_var, y=prop, fill=!!sym(group_var))) +
+      geom_col(position = position_dodge(), width=0.9) +
+      geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                    position = position_dodge(0.9),
+                vjust = -0.3, 
+                size = 10, size.unit="pt") +
+      errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                    position = position_dodge(0.9),
+                                    width = 0.1), 
+                      on=params$errorbar) +
+      geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+      facet_wrap(~ survey_year, ncol=5)+
+      scale_y_continuous(labels = scales::percent, expand = expansion(mult = c(0, 0.1))) +
+      scale_fill_manual(values = psrc_fill_segment[[group_var]])+
+      psrc_style() +
+      theme(panel.grid.major.y = element_blank(),
+            legend.text = element_text(size = 11), # adjust text size on legend
+            axis.title = element_blank(),
+            axis.text.x = element_blank(),
+            axis.text.y = element_blank())
+
+    print(df_plot)
+
+  }
+
+  if( type %in% c("cat","both") ){
+    
+    # grouping by category
+    df_plot <- ggplot(res,
+                      aes(x=factor(survey_year), y=prop, fill=factor(survey_year))) +
+      geom_col(width = 0.8) +
+      geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+                vjust = -0.3) +
+      errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
+                                    width = 0.1), 
+                      on=params$errorbar) +
+      geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+      facet_wrap(as.formula(paste("~", group_var)), ncol=5)+
+      scale_fill_manual(values = psrc_fill_dec[[delivery_var]])+
+      scale_y_continuous(labels = scales::percent, 
+                         expand = expansion(mult = c(0, 0.1))) +
+      psrc_style() +
+      theme(legend.position = "none", # remove legend
+            strip.text = element_text(size = 10.5), # adjust text size on facet title (variable values)
+            panel.grid.major.y = element_blank(),
+            panel.spacing.x = unit(0.5, "lines"), # add spacing between facet grids
+            axis.title = element_blank(),
+            axis.text.x = element_text(size = 10.5), # adjust text size for axis text (years)
+            axis.text.y = element_blank())
+
+    print(df_plot)
+
+  }
+
+}
+```
+
+- grouping by year
+
+  ```{r}
+  #| label: fig-package-income1
+  #| fig-cap: "package delivery by household income"
+  #| fig-height: 3.9
+  #| fig-width: 5.2
+  
+  plot_delivery_type("deliver_package","income_2group",
+                     type="year")
+  ```
+  
+  {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income >}}
+
+- grouping by category
+
+  ```{r}
+  #| label: fig-package-income-year1
+  #| fig-cap: "household income: package delivery by year"
+  #| fig-height: 3.9
+  #| fig-width: 5.2
+  
+  plot_delivery_type("deliver_package","income_2group",
+                     type="cat")
+  ```
+  
+  {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income-year >}}
+
+
+:::
+
+
+## Tables
+
+The data tables below the figures provide supporting details of the data, including precise values, margins of error, and sample sizes 
+
+:::{.callout-important}
+We are using `knitr::kable()` to display the table since the embed shortcode does not support any table outputs as HTML widgets (including direct printing, `gt()` and `dt()`).
+:::
+
+ - `label`: this is the name of your table **ALL TABLE LABELS MUST START WITH `tbl-`!!** labels are used when referencing and embedding tables 
+- an example of table formatting function can be found in [the `get_table_format()` function](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/Analysis/util.R#L12-L24)
+- the values in the table can be rounded to a couple decimals
+
+```{r}
+#| label: tbl-deliver-package
+
+library(knitr)
+
+res <- psrc_hts_stat(df_hts_data, "day", c("deliver_package"), incl_na = TRUE) %>%
+  filter(deliver_package=="Yes")
+
+res %>% 
+  mutate(prop = scales::percent(prop, accuracy = 0.1),
+         prop_moe = scales::percent(prop_moe, accuracy = 0.01),
+         est = scales::number(est, accuracy = 1, big.mark = ","),
+         count = scales::number(count, accuracy = 1, big.mark = ",")) %>%
+  select(-est_moe) %>%
+  rename(`survey year` = survey_year,
+         share = prop,
+         share_moe = prop_moe,
+         estimates = est,
+         sample = count) %>%
+  knitr::kable()
+
+```
+
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-package >}}
+
+
