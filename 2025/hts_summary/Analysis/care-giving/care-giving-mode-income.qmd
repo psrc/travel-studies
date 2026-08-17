@@ -50,7 +50,7 @@ msi50bin_df <- mode_share_income_set_c(geog = "Region")$long |>
 ## Side-by-side
 
 ```{r}
-#| out-width: "90%"
+#| fig-width: 6
 #| fig-align: "center"
 
 msi50bin_df |> 
@@ -77,8 +77,9 @@ msi50bin_df |>
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
-#| 
+#| fig-width: 7
+#| fig-align: "center"
+
 msi50bin_df_u <- msi50bin_df |>
   filter(income_50 == "Under $50,000")
 
@@ -103,8 +104,9 @@ plot_facet_wrap(table = msi50bin_df_u,
 
 ```{r}
 #| layout-ncol: 2
-#| out-width: "50%"
-#| 
+#| fig-width: 7
+#| fig-align: "center"
+
 msi50bin_df_m <- msi50bin_df |>
   filter(income_50 == "$50,000 or more")
 
@@ -146,8 +148,8 @@ msi_df <- mode_share_income_set_b(geog = "Region")$long  |>
 ```
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
+#| fig-width: 8
+#| fig-align: center
 
 msi_df |> 
   ggplot() +
@@ -210,9 +212,8 @@ When comparing across income levels, there are more work trips by driving of tho
 
 ```{r}
 #| label: fig-mode-inc-b-drive-01
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "75%"
 
 plot_facet_wrap(table = mode_inc_b_drive,
                 facet = income_50,
@@ -238,8 +239,9 @@ mode_inc_b_trans <- mode_inc_b |>
 ```
 
 ```{r}
-#| fig-align: "center"
-#| out-width: "90%"
+#| fig-width: 8
+#| out-width: "75%"
+#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_trans,
                 facet = income_50,
@@ -267,8 +269,9 @@ mode_inc_b_walk <- mode_inc_b |>
 Of trips made by those who earn \$50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
 
 ```{r}
-#| fig-align: "center"
-#| out-width: "90%"
+#| fig-width: 8
+#| out-width: "75%"
+#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_walk,
                 facet = income_50,
@@ -293,8 +296,9 @@ mode_inc_b_bike <- mode_inc_b |>
 ```
 
 ```{r}
-#| fig-align: "center"
-#| out-width: "90%"
+#| fig-width: 8
+#| out-width: "75%"
+#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_bike,
                 facet = income_50,
@@ -319,8 +323,9 @@ mode_inc_b_other <- mode_inc_b |>
 ```
 
 ```{r}
-#| fig-align: "center"
-#| out-width: "90%"
+#| fig-width: 8
+#| out-width: "75%"
+#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_other,
                 facet = income_50,
@@ -380,8 +385,9 @@ create_mode_inc_chart <- function(table, mode) {
 #### Drive
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
 
 mode_type <- "Drive"
 
@@ -391,17 +397,18 @@ mode_inc_b_3 |>
 
 
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" & mode_class_5 == mode_type)
 ```
 
-
 #### Transit
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
 
 mode_type <- "Transit"
 
@@ -409,17 +416,18 @@ mode_inc_b_3 |>
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type) |> 
    create_mode_inc_chart(mode = mode_type)
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type)
 ```
 
-
 #### Walk
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
 
 mode_type <- "Walk"
 
@@ -428,17 +436,18 @@ mode_inc_b_3 |>
    create_mode_inc_chart(mode = mode_type)
 
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type)
 ```
 
-
 #### Bike/Micromobility
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
 
 mode_type <- "Bike/Micromobility"
 
@@ -447,17 +456,18 @@ mode_inc_b_3 |>
    create_mode_inc_chart(mode = mode_type)
 
 ```
+
 ```{r}
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type) 
 ```
 
-
 #### Other
 
 ```{r}
-#| out-width: "100%"
-#| fig-align: "center"
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
 
 mode_type <- "Other"
 

@@ -73,6 +73,9 @@ care_purp <- create_care_purpose_tbl(df_hts)
 
 ```{r}
 #| label: fig-care-purp-cat-01
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
 
 plot_facet_wrap(care_purp, 
                 survey_year, 
@@ -85,9 +88,10 @@ plot_facet_wrap(care_purp,
 
 ```{r}
 #| label: fig-care-purp-cat-02
-#| fig-height: 3
-#| fig-width: 5.1
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "70%"
+#| fig-align: center
+#| 
 plot_facet_wrap(care_purp, 
                 care_purpose_cat, 
                 as.character(survey_year), 
