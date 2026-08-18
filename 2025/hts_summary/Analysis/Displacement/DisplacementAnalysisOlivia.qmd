@@ -308,7 +308,7 @@ print(forced_trial)
 
 ```
 
-## bar graph: forced
+#### bar graph: forced
 
 ```{r}
 
@@ -352,7 +352,7 @@ ggplot(forced_plot,
   theme_minimal(base_size = 12)
 ```
 
-## reason: income change
+### reason: income change
 
 ```{r}
 # income
@@ -369,7 +369,7 @@ income_trial <- psrc_hts_stat(hts_data, "hh",
 print(income_trial)
 ```
 
-## bar graph: income change
+#### bar graph: income change
 
 ```{r}
 
@@ -414,7 +414,7 @@ ggplot(income_plot,
   theme_minimal(base_size = 12)
 ```
 
-## reason: housing cost
+### reason: housing cost
 
 ```{r}
 # housing cost
@@ -430,7 +430,7 @@ housing_trial <- psrc_hts_stat(hts_data, "hh",
 print(housing_trial)
 ```
 
-## bar graph: housing cost
+#### bar graph: housing cost
 
 ```{r}
 
@@ -474,7 +474,7 @@ ggplot(housing_plot,
   theme_minimal(base_size = 12)
 ```
 
-## reason: community change
+### reason: community change
 
 ```{r}
 # community change
@@ -490,7 +490,7 @@ community_trial <- psrc_hts_stat(hts_data, "hh",
 print(community_trial)
 ```
 
-## bar graph: community change
+#### bar graph: community change
 
 ```{r}
 library(dplyr)
@@ -533,7 +533,7 @@ ggplot(community_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: amenities
+### reason: amenities
 
 ```{r}
 # amenities
@@ -549,7 +549,7 @@ amenities_trial <- psrc_hts_stat(hts_data, "hh",
 print(amenities_trial)
 ```
 
-## bar graph: amenities
+#### bar graph: amenities
 
 ```{r}
 library(dplyr)
@@ -592,7 +592,7 @@ ggplot(amenities_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: crime
+### reason: crime
 
 ```{r}
 # crime
@@ -608,7 +608,7 @@ crime_trial <- psrc_hts_stat(hts_data, "hh",
 print(crime_trial)
 ```
 
-## bar graph: crime
+#### bar graph: crime
 
 ```{r}
 library(dplyr)
@@ -651,7 +651,7 @@ ggplot(crime_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: employment
+### reason: employment
 
 ```{r}
 # employment
@@ -667,7 +667,7 @@ employment_trial <- psrc_hts_stat(hts_data, "hh",
 print(employment_trial)
 ```
 
-## bar graph: employment
+#### bar graph: employment
 
 ```{r}
 library(dplyr)
@@ -710,7 +710,7 @@ ggplot(employment_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: household size
+### reason: household size
 
 ```{r}
 # household size
@@ -726,7 +726,7 @@ hhsize_trial <- psrc_hts_stat(hts_data, "hh",
 print(hhsize_trial)
 ```
 
-## bar graph: household size
+#### bar graph: household size
 
 ```{r}
 library(dplyr)
@@ -769,7 +769,7 @@ ggplot(hhsize_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: less space
+### reason: less space
 
 ```{r}
 # less space
@@ -785,7 +785,7 @@ lessspace_trial <- psrc_hts_stat(hts_data, "hh",
 print(lessspace_trial)
 ```
 
-## bar graph: less space
+#### bar graph: less space
 
 ```{r}
 library(dplyr)
@@ -828,7 +828,7 @@ ggplot(lessspace_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: more space
+### reason: more space
 
 ```{r}
 # more space
@@ -844,7 +844,7 @@ morespace_trial <- psrc_hts_stat(hts_data, "hh",
 print(morespace_trial)
 ```
 
-## bar graph: more space
+#### bar graph: more space
 
 ```{r}
 library(dplyr)
@@ -887,7 +887,7 @@ ggplot(morespace_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: no answer
+### reason: no answer
 
 ```{r}
 # no answer
@@ -903,7 +903,7 @@ noanswer_trial <- psrc_hts_stat(hts_data, "hh",
 print(noanswer_trial)
 ```
 
-## bar graph: no answer
+#### bar graph: no answer
 
 ```{r}
 library(dplyr)
@@ -946,7 +946,7 @@ ggplot(noanswer_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: other
+### reason: other
 
 ```{r}
 # other
@@ -962,7 +962,7 @@ other_trial <- psrc_hts_stat(hts_data, "hh",
 print(other_trial)
 ```
 
-## bar graph: other
+#### bar graph: other
 
 ```{r}
 library(dplyr)
@@ -1005,7 +1005,7 @@ ggplot(other_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: quality
+### reason: quality
 
 ```{r}
 # quality
@@ -1021,7 +1021,7 @@ quality_trial <- psrc_hts_stat(hts_data, "hh",
 print(quality_trial)
 ```
 
-## bar graph: quality
+#### bar graph: quality
 
 ```{r}
 library(dplyr)
@@ -1064,7 +1064,7 @@ ggplot(quality_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: school
+### reason: school
 
 ```{r}
 # school
@@ -1080,7 +1080,7 @@ school_trial <- psrc_hts_stat(hts_data, "hh",
 print(school_trial)
 ```
 
-## bar graph: school
+#### bar graph: school
 
 ```{r}
 library(dplyr)
@@ -1123,7 +1123,7 @@ ggplot(school_plot,
   theme_classic(base_size = 12)
 ```
 
-## reason: telework
+### reason: telework
 
 ```{r}
 # telework
@@ -1139,7 +1139,7 @@ telework_trial <- psrc_hts_stat(hts_data, "hh",
 print(telework_trial)
 ```
 
-## other: telework
+#### bar graph: telework
 
 ```{r}
 library(dplyr)
