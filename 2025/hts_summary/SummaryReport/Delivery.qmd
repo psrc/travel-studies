@@ -1,17 +1,21 @@
 ---
 title: "Delivery"
+author: Joanne Lin
 ---
+
+The delivery analysis explores the percentage of households in the region received packages on an average weekday
 
 ## Delivery Trend
 
-- About a third of regional households got packages on an average weekday since 2019
-- Food delivery became more popular since 2021. About 1 out of 25 households get food delivery on an average weekday
-- In 2025, only 3% of households are getting service work on an average weekday, fewer than year 2021 and earlier
-- No significant trend for grocery deliveries and deliveries outside of home
+- [Package delivery]{style="color:#91268F"} peaked in 2021 at 39\%. The rate stayed at about a third of regional households got packages on an average weekday.
+- [Food delivery]{style="color:#F05A28"} dramatically increased in 2021 and stayed the same since at 4\%. About 1 out of 25 households get food delivery on an average weekday
+- [Grocery delivery]{style="color:#00A7A0"} more than doubled in 2021 and reached 5\%, but dropped to near pre-COVID level after.
+- [Service work]{style="color:#8CC63E"} was higher before the end of COVID at 6\% and dropped to about half in 2023 and 2025.
+- 2\% of households have deliveries outside of home (incl. at office) in 2025. The rate is similar in 2023.
 
 :::{.panel-tabset}
 
-### Package
+### Package Delivery
 
 :::{layout= "[[4, 6]]"}
 
@@ -21,13 +25,23 @@ title: "Delivery"
 
 :::
 
-### Food
+### Food Delivery
 
 :::{layout= "[[4, 6]]"}
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-food >}}
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-food >}}
+
+:::
+
+### Grocery Delivery
+
+:::{layout= "[[4, 6]]"}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-grocery >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-grocery >}}
 
 :::
 
@@ -41,16 +55,31 @@ title: "Delivery"
 
 :::
 
+### Delivery outside home
+
+:::{layout= "[[4, 6]]"}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-outside >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-outside >}}
+
+:::
+
 
 :::
 
 ## Shopping Trip Rates
+
+- Compared to be pre-pandemic years, the average weekday shopping rate in 2025 was almost 1/5 lower.
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-shop-trip-rate >}}
 
 ## Delivery by Demographic Characteristics
 
 ### package delivery by household income
+
+- higher income households had been consistently receiving more [packages]{style="color:#91268F"} at around 40\% in 2019 and later years
+- No notable difference observed in [food]{style="color:#F05A28"} and [grocery]{style="color:#00A7A0"} deliveries by income levels
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income >}}
 
@@ -59,9 +88,25 @@ title: "Delivery"
 
 ### grocery delivery by auto availability
 
+- More households that owned cars had [packages]{style="color:#91268F"} delivered compare to no-car households (auto ownership may be correlated with household income)
+- [Grocery deliveries]{style="color:#00A7A0"} peaked at 5\% during COVID for household that owned vehicles, then dropped in 2023 and 2025
+- [Grocery deliveries]{style="color:#00A7A0"} for households without cars stayed high from COVID in 2021 to 2025. The service was an accessible way to get groceries for households without cars
+
+:::{.panel-tabset}
+
+### Package Delivery by Vehicle Availability
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-vehicle >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-vehicle >}}
+
+### Grocery Delivery by Vehicle Availability
+
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-grocery-vehicle >}}
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-grocery-vehicle >}}
+
+:::
 
 
 ### package delivery by household composition
