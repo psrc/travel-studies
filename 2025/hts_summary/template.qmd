@@ -72,72 +72,16 @@ Unfortunately, the embed shortcode is not able to find any outputs within native
 
 Follow these steps to create presentation ready figures!
 
-### Establish consistent variable color schemes
-
-```{r}
-# pick color scheme within the psrc_colors list in psrcplot package
-library(psrcplot)
-
-psrc_colors
-```
-
-When an analysis breaks down data by specific categorical values (e.g., delivery types, mode types, transit submodes) or different demographic/geographic segments, assign a dedicated color to each value. This ensures color consistency across all charts and figures in the analysis.
-
-
-1. Descending gradient color for trend over survey years
-
-   Earlier years are in darker colors while later years are in lighter colors
-
-   :::{.callout-tip}
-   
-   Create a named list of color palettes where the list keys match your variable names for easy referencing throughout your script
-   
-   :::
-
-   ```{r}
-   # assign descending colors to show trends over survey years for different segments
-   psrc_fill_dec <- list(
-     deliver_package = psrc_colors$purples_dec[1:5],
-     deliver_food = psrc_colors$oranges_dec[1:5],
-     deliver_grocery = psrc_colors$blues_dec[1:5],
-     deliver_work = psrc_colors$greens_dec[1:5],
-     deliver_outside_any = psrc_colors$grays_dec[4:5],
-     deliver_elsewhere = psrc_colors$grays_dec[4:5],
-     deliver_office = psrc_colors$grays_dec[4:5]
-     )
-   ```
-    
-  {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-package >}}
-
-
-2. Match color for plots by demographic/geographic segments
-
-   ```{r}
-   psrc_fill_segment <- list(
-     income_2group = c( "#91268F", "#8CC63E"),
-     have_cars = c( "#F05A28", "#00A7A0"),
-     lifecycle_2group = c( "#91268F", "#00A7A0"),
-     numworkers_3cap = psrc_colors$pgnobgy_5,
-     hh_race_category = psrc_colors$gnbopgy_5,
-     home_county = psrc_colors$obgnpgy_10,
-     home_rgc = c( "#00A7A0", "#8CC63E"),
-     res_type_group = c( "#91268F", "#F05A28")
-     )
-   ```
-
-
-   {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income >}}
-   
 
 ### Figure options
 
-1. Global configuration in `_quarto.yml`:
+1. Global configuration already set in [`_quarto.yml`](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/_quarto.yml#L24-L26):
 
    - `fig-format: svg`: rendering the figures in svg format is crucial in adjusting the figure sizes throughout all notebooks
    - `fig-align: center`: center align figures. but those are ignored whenever the figures don't have `#| label:`. Use `#| fig-align: center` in your code cell to override if that happens
    - `fig-cap-location: top`: figure captions show up on top of the figures
 
-2. Configuration for each code cell
+2. **TODO: Configuration for each code cell**
 
    example config
    
@@ -207,6 +151,9 @@ Having rounded numbers and removing chart titles, axis titles, and Y-axis labels
 #| fig-cap: package delivery
 #| fig-height: 2.5
 #| fig-width: 3
+
+# get errorbar_switch() function
+source("../util.R")
 
 fig_delivery <- function(delivery_var){
   
@@ -356,6 +303,63 @@ plot_delivery_type <- function(delivery_var, group_var, type="both"){
 :::
 
 
+### Establish consistent variable color schemes
+
+```{r}
+# pick color scheme within the psrc_colors list in psrcplot package
+library(psrcplot)
+
+psrc_colors
+```
+
+When an analysis breaks down data by specific categorical values (e.g., delivery types, mode types, transit submodes) or different demographic/geographic segments, assign a dedicated color to each value. This ensures color consistency across all charts and figures in the analysis.
+
+
+1. Descending gradient color for trend over survey years
+
+   Earlier years are in darker colors while later years are in lighter colors
+
+   :::{.callout-tip}
+   
+   Create a named list of color palettes where the list keys match your variable names for easy referencing throughout your script
+   
+   :::
+
+   ```{r}
+   # assign descending colors to show trends over survey years for different segments
+   psrc_fill_dec <- list(
+     deliver_package = psrc_colors$purples_dec[1:5],
+     deliver_food = psrc_colors$oranges_dec[1:5],
+     deliver_grocery = psrc_colors$blues_dec[1:5],
+     deliver_work = psrc_colors$greens_dec[1:5],
+     deliver_outside_any = psrc_colors$grays_dec[4:5],
+     deliver_elsewhere = psrc_colors$grays_dec[4:5],
+     deliver_office = psrc_colors$grays_dec[4:5]
+     )
+   ```
+    
+  {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-package >}}
+
+
+2. Match color for plots by demographic/geographic segments
+
+   ```{r}
+   psrc_fill_segment <- list(
+     income_2group = c( "#91268F", "#8CC63E"),
+     have_cars = c( "#F05A28", "#00A7A0"),
+     lifecycle_2group = c( "#91268F", "#00A7A0"),
+     numworkers_3cap = psrc_colors$pgnobgy_5,
+     hh_race_category = psrc_colors$gnbopgy_5,
+     home_county = psrc_colors$obgnpgy_10,
+     home_rgc = c( "#00A7A0", "#8CC63E"),
+     res_type_group = c( "#91268F", "#F05A28")
+     )
+   ```
+
+
+   {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income >}}
+   
+   
 ## Tables
 
 The data tables below the figures provide supporting details of the data, including precise values, margins of error, and sample sizes 
