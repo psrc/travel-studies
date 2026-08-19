@@ -7,8 +7,8 @@ format:
     toc: true
     warning: false
     echo: false
-    fig-width: 4.5
-    fig-asp: .618
+params:
+  errorbar: FALSE    
 ---
 
 ```{r setup}
@@ -31,6 +31,7 @@ lapply(files, function(f) {
   source(f)
 })
 )
+source("../util.R")
 
 ```
 
@@ -167,6 +168,24 @@ The following charts and table show the share of care-giving trips by gender.
 - Of all trips made by Women in 2025, 53% are care-giving trips. Of all trips made by Men in 2025, 45% are care-giving trips.
 
 ```{r}
+create_trip_purp_gender_chart <- function(table) {
+  plot_facet_wrap(table = table,
+                facet = survey_year,
+                var1 = .data[[col_var]],
+                var2 = care_purpose_cat,
+                title = NULL, 
+                color_pal = psrc_colors$pognbgy_10) +
+  theme(panel.grid.major.y = element_blank(),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        legend.position = "bottom"
+  )
+}
+
+```
+
+
+```{r}
 # exclude where care_purpose_cat is NA because those are home trips, and b/c each gender is its own universe,
 # NAs can also be filtered out
 
@@ -193,26 +212,18 @@ gct_rs_f <- gct_rs |>
 
 ```{r}
 #| label: fig-men-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Men and Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
-plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Men"),
-                facet = survey_year,
-                var1 = .data[[col_var]],
-                var2 = care_purpose_cat,
-                title = "Men and Trip Purpose",
-                color_pal = psrc_colors$pognbgy_10) +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = "bottom"
-  ) +
-   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+create_trip_purp_gender_chart(table = gct_rs_f |> filter(gender2 == "Men"))
+  
+
 ```
 
 ```{r}
+#| label: tbl-men-trip-purp
+#| fig-cap: "Men and Trip Purpose Table"
 knitr::kable(gct_rs_f |> 
   filter(gender2 == "Men"))
 ```
@@ -221,28 +232,17 @@ knitr::kable(gct_rs_f |>
 
 ```{r}
 #| label: fig-women-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Women and Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
-
-plot_facet_wrap(table = gct_rs_f |> filter(gender2 == "Women"),
-                facet = survey_year,
-                var1 = .data[[col_var]],
-                var2 = care_purpose_cat,
-                title = "Women and Trip Purpose",
-                color_pal = psrc_colors$pognbgy_10) +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = "bottom"
-  ) +
-   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+create_trip_purp_gender_chart(table = gct_rs_f |> filter(gender2 == "Women"))
 
 ```
 
 ```{r}
+#| label: tbl-women-trip-purp
+#| fig-cap: "Women and Trip Purpose Table"
 knitr::kable(gct_rs_f |> 
   filter(gender2 == "Women"))
 ```
@@ -251,28 +251,17 @@ knitr::kable(gct_rs_f |>
 
 ```{r}
 #| label: fig-other-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Gender Prefer Not to Say and Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
-
-plot_facet_wrap(table = gct_rs_f |> filter(!gender2 %in% c("Men", "Women")),
-                facet = survey_year,
-                var1 = .data[[col_var]],
-                var2 = care_purpose_cat,
-                title = "Prefer not to say or Other and Trip Purpose",
-                color_pal = psrc_colors$pognbgy_10) +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        legend.position = "bottom"
-  ) +
-   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+create_trip_purp_gender_chart(table = gct_rs_f |> filter(!gender2 %in% c("Men", "Women")))
 
 ```
 
 ```{r}
+#| label: tbl-other-trip-purp
+#| fig-cap: "Gender Prefer Not to Say and Trip Purpose Table"
 knitr::kable(gct_rs_f |> 
   filter(!gender2 %in% c("Men", "Women")))
 ```

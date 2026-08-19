@@ -7,8 +7,8 @@ format:
     toc: true
     warning: false
     echo: false
-    fig-width: 4.5
-    fig-asp: .618
+params:
+  errorbar: FALSE    
 ---
 
 ```{r setup}
@@ -36,6 +36,7 @@ lapply(files, function(f) {
   # source(here::here("Analysis", "care-giving", f))
 })
 )
+source("../util.R")
 
 ```
 
@@ -215,18 +216,16 @@ t_cd_g_f |>
 
 ```{r}
 #| label: fig-yes-can-drive-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Care Trips, Yes-can drive, and Gender"
+#| fig-width: 8
+#| out-width: "70%"
 
 plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes") |> mutate(fifty_line = "50%"),
                 facet = survey_year,
                 var1 = gender2,
                 var2 = gender2,
-                title = "Care Trips, Yes-can drive, and Gender",
+                title = NULL, #"Care Trips, Yes-can drive, and Gender",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
   theme(axis.text.x = element_blank())
 ```
 
@@ -234,18 +233,16 @@ plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes") |> mutate(fift
 
 ```{r}
 #| label: fig-no-can-drive-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Care Trips, No-cannot drive, and Gender"
+#| fig-width: 8
+#| out-width: "70%"
 
 plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "No"),
                 facet = survey_year,
                 var1 = gender2,
                 var2 = gender2,
-                title = "Care Trips, No-cannot drive, and Gender",
+                title = NULL, #"Care Trips, No-cannot drive, and Gender",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
   theme(axis.text.x = element_blank())
 ```
 
@@ -255,18 +252,18 @@ NA represents persons who are ages 15 years and under.
 
 ```{r}
 #| label: fig-na-can-drive-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Care Trips, NA Can Drive, and Gender"
+#| fig-width: 8
+#| out-width: "70%"
 
 plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
                 facet = survey_year,
                 var1 = gender2,
                 var2 = gender2,
-                title = "Care Trips, NA Can Drive, and Gender",
+                title = NULL, #"Care Trips, NA Can Drive, and Gender",
                 color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed")) +
+  # geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
+  # scale_linetype_manual(name = NULL, values = c("50%" = "dashed")) +
   theme(axis.text.x = element_blank())
 ```
 
@@ -274,9 +271,9 @@ plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
 
 ```{r}
 #| label: tbl-gender-can-drive-trip-purp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Care Trips, NA Can Drive, and Gender Table"
+#| fig-width: 8
+#| out-width: "70%"
 #| 
 knitr::kable(t_cd_g_f)
 ```
@@ -300,25 +297,23 @@ For Men and Women who cannot drive, trips are primarily care-giving trips for mo
 
 ```{r}
 #| label: fig-trip-purp-can-drive-men
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Men, Can Drive, and Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
 plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Men"),
                 facet = survey_year,
                 var1 = can_drive2,
                 var2 = care_purpose_cat,
-                title = "Men, Can Drive, and Trip Purpose",
-                color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+                title = NULL, #"Men, Can Drive, and Trip Purpose",
+                color_pal = psrc_colors$pognbgy_10)
 ```
 
 ```{r}
 #| label: tbl-trip-purp-can-drive-men
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Men, Can Drive, and Trip Purpose Table"
+#| fig-width: 8
+#| out-width: "70%"
 #| 
  knitr::kable(cd_g_t |> filter(gender2 %in% "Men"))
 ```
@@ -327,25 +322,23 @@ plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Men"),
 
 ```{r}
 #| label: fig-trip-purp-can-drive-women
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Women, Can Drive, and Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
 plot_facet_wrap(table = cd_g_t |> filter(gender2 %in% "Women"),
                 facet = survey_year,
                 var1 = can_drive2,
                 var2 = care_purpose_cat,
-                title = "Women, Can Drive, and Trip Purpose",
-                color_pal = psrc_colors$pognbgy_10) +
-  geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))
+                title = NULL, #"Women, Can Drive, and Trip Purpose",
+                color_pal = psrc_colors$pognbgy_10)
 ```
 
 ```{r}
 #| label: tbl-trip-purp-can-drive-women
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Women, Can Drive, and Trip Purpose Table"
+#| fig-width: 8
+#| out-width: "70%"
 #| 
  knitr::kable(cd_g_t |> filter(gender2 %in% "Women"))
 ```

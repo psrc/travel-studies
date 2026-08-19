@@ -7,6 +7,8 @@ format:
     toc: true
     warning: false
     echo: false
+params:
+  errorbar: FALSE
 ---
 
 ```{r setup}
@@ -28,6 +30,7 @@ lapply(files, function(f) {
   # source(here::here("Analysis", "care-giving", f))
 })
 )
+source("../util.R")
 
 ```
 
@@ -73,30 +76,30 @@ care_purp <- create_care_purpose_tbl(df_hts)
 
 ```{r}
 #| label: fig-care-purp-cat-01
+#| fig-cap: "Care Purpose Categories by Year"
 #| fig-width: 8
 #| out-width: "70%"
-#| fig-align: center
 
 plot_facet_wrap(care_purp, 
                 survey_year, 
                 care_purpose_cat, 
                 care_purpose_cat, 
-                "Care Purpose Categories by Year", 
+                NULL, #"Care Purpose Categories by Year", 
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_blank())
 ```
 
 ```{r}
 #| label: fig-care-purp-cat-02
+#| fig-cap: "Care Purpose Categories by Year"
 #| fig-width: 8
 #| out-width: "70%"
-#| fig-align: center
 #| 
 plot_facet_wrap(care_purp, 
                 care_purpose_cat, 
                 as.character(survey_year), 
                 as.character(survey_year), 
-                "Care Purpose Categories by Year", 
+                NULL, #"Care Purpose Categories by Year", 
                 color_pal = psrc_colors$blues_inc) +
   theme(axis.text.x = element_blank())
 ```

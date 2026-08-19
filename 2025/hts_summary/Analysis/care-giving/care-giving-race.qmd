@@ -7,8 +7,8 @@ format:
     toc: true
     warning: false
     echo: false
-    fig-width: 4.5
-    fig-asp: .618
+params:
+  errorbar: FALSE    
 ---
 
 ```{r setup}
@@ -30,6 +30,7 @@ lapply(files, function(f) {
   # source(here::here("Analysis", "care-giving", f))
 })
 )
+source("../util.R")
 
 ```
 
@@ -137,9 +138,9 @@ col_var <- "race_category"
 cgre_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "care_purpose_cat", col_var),
-                     incl_na = TRUE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                     incl_na = TRUE) #|> 
+  # mutate(prop_per = percent(prop),
+         # moe_per = percent(prop_moe))
 ```
 
 ```{r, eval=FALSE}
@@ -151,7 +152,10 @@ cgre_rs |>
 ```
 
 ```{r}
-#| out-width: "80%"
+#| label: fig-re-care-trip-purp
+#| fig-cap: "Race and Ethnicity by Care Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
 cgre_rs_f <- cgre_rs |> 
   filter(.data[[geo_col]] %in% "Region",
@@ -161,7 +165,7 @@ plot_facet_wrap(table = cgre_rs_f,
                 facet = survey_year, 
                 var1 = .data[[col_var]], 
                 var2 = .data[[col_var]], 
-                title = "Race and Ethnicity by Care Trip Purpose", 
+                title = NULL, #"Race and Ethnicity by Care Trip Purpose", 
                 color_pal = psrc_colors$pognbgy_10) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
@@ -177,7 +181,8 @@ plot_facet_wrap(table = cgre_rs_f,
 ```
 
 ```{r}
-cgre_rs_f
+#| label: tbl-re-care-trip-purp
+get_table_format(cgre_rs_f)
 ```
 
 ### People of Color by Trip Purpose
@@ -185,18 +190,23 @@ cgre_rs_f
 - Of all care-trips in the region across survey years, those who are White adults have a greater share compared to Adult People of Color; however, trips for care-giving among Adult People of Color have increased over time since 2019.
 
 ```{r}
+
+#| 
 col_var <- "race_binary"
 
 cgreb_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "care_purpose_cat", col_var),
-                     incl_na = TRUE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                     incl_na = TRUE) #|> 
+  # mutate(prop_per = percent(prop),
+  #        moe_per = percent(prop_moe))
 ```
 
 ```{r}
-#| out-width: "80%"
+#| label: fig-poc-care-trip-purp
+#| fig-cap: "People of Color by Care Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
 cgreb_rs_f <- cgreb_rs |> 
   filter(.data[[geo_col]] %in% "Region",
@@ -206,12 +216,12 @@ plot_facet_wrap(table = cgreb_rs_f,
                 facet = survey_year, 
                 var1 = .data[[col_var]], 
                 var2 = .data[[col_var]], 
-                title = "People of Color by Care Trip Purpose", 
+                title = NULL, #"People of Color by Care Trip Purpose", 
                 color_pal = psrc_colors$pognbgy_10) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        legend.position = "right",
+        # legend.position = "right",
          legend.text = element_text(size = 8),
           legend.title = element_text(size = 9),
           
@@ -221,7 +231,8 @@ plot_facet_wrap(table = cgreb_rs_f,
 ```
 
 ```{r}
-cgreb_rs_f
+#| label: tbl-poc-care-trip-purp
+get_table_format(cgreb_rs_f)
 ```
 
 ## Trip Purpose by Race and Ethnicity
@@ -239,9 +250,9 @@ There isn't a specific group that does more care-giving trips than others across
 recg_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "race_simple", "care_purpose_cat"),
-                     incl_na = FALSE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                     incl_na = FALSE) #|> 
+  # mutate(prop_per = percent(prop),
+  #        moe_per = percent(prop_moe))
 ```
 
 ```{r, eval = FALSE}
@@ -250,10 +261,10 @@ recg_rs |>
   summarise(sum_prop = sum(prop))
 ```
 
-:::::::: panel-tabset
+<!-- :::::::: panel-tabset -->
 ### Care
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r plot function}
@@ -269,12 +280,7 @@ race_ethnicity_chart <- function(col_var, table, title, type = c("survey", "cat"
     theme(panel.grid.major.y = element_blank(),
           axis.title = element_blank(),
           axis.text.x = element_blank(),
-          legend.position = "bottom",
-          legend.text = element_text(size = 6),
-          # legend.title = element_text(size = 9),
-          
-          # Shrink the legend key boxes (both width and height)
-          legend.key.size = unit(0.2, "cm") 
+          legend.position = "bottom"
     )
   } else {
     plot_facet_wrap(table = table, 
@@ -282,16 +288,11 @@ race_ethnicity_chart <- function(col_var, table, title, type = c("survey", "cat"
                 var1 = as.character(survey_year), 
                 var2 = as.character(survey_year), 
                 title = title, 
-                color_pal = psrc_colors$blues_inc) +
+                color_pal = psrc_colors$blues_dec) +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
         legend.position = "bottom",
-         legend.text = element_text(size = 6),
-          # legend.title = element_text(size = 9),
-          
-          # Shrink the legend key boxes (both width and height)
-          legend.key.size = unit(0.2, "cm"),
         strip.text = element_text(size = 9)
   )
   }
@@ -300,8 +301,11 @@ race_ethnicity_chart <- function(col_var, table, title, type = c("survey", "cat"
 ```
 
 ```{r}
-#| out-width: "100%"
-
+#| label:  fig-trip-purp-re-survey-year-care
+#| fig-cap: "Race and Ethnicity & Care Trips"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
 col_var <- "race_simple"
 
 recg_rs_f <- recg_rs |> 
@@ -309,31 +313,42 @@ recg_rs_f <- recg_rs |>
          care_purpose_cat == "Care",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Care Trips", type = "survey")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Care Trips", 
+                     type = "survey")
 
 ```
 
 #### By Race Simple
 
 ```{r}
-#| out-width: "100%"
-
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Care Trips", type = "cat")
+#| label:  fig-trip-purp-re-simple-care
+#| fig-cap: "Race and Ethnicity & Care Trips"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Care Trips", 
+                     type = "cat")
 
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-recg_rs_f
+#| label:  tbl-trip-purp-re-care
+get_table_format(recg_rs_f)
 ```
 
 ### Work
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label:  fig-trip-purp-re-survey-year-work
+#| fig-cap: "Race and Ethnicity & Work Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_simple"
 
@@ -342,31 +357,42 @@ recg_rs_f <- recg_rs |>
          care_purpose_cat == "Work",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Work Trips", type = "survey")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Work Trips", 
+                     type = "survey")
 
 ```
 
 #### By Race Simple
 
 ```{r}
-#| out-width: "100%"
+#| label:  fig-trip-purp-re-simple-work
+#| fig-cap: "Race and Ethnicity & Work Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Work Trips", type = "cat")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Work Trips", 
+                     type = "cat")
 
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-recg_rs_f
+#| label:  tbl-trip-purp-re-work
+get_table_format(recg_rs_f)
 ```
 
 ### School
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label:  fig-trip-purp-re-survey-year-school
+#| fig-cap: "Race and Ethnicity & School Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_simple"
 
@@ -375,31 +401,41 @@ recg_rs_f <- recg_rs |>
          care_purpose_cat == "School",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & School Trips", type = "survey")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & School Trips", 
+                     type = "survey")
 
 ```
 
 #### By Race Simple
 
 ```{r}
-#| out-width: "100%"
+#| label:  fig-trip-purp-re-simple-school
+#| fig-cap: "Race and Ethnicity & School Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & School Trips", type = "cat")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & School Trips", 
+                     type = "cat")
 
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-recg_rs_f
+get_table_format(recg_rs_f)
 ```
 
 ### Social/Recreation
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label:  fig-trip-purp-re-survey-year-social
+#| fig-cap: "Race and Ethnicity & Social/Recreation Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_simple"
 
@@ -408,31 +444,42 @@ recg_rs_f <- recg_rs |>
          care_purpose_cat == "Social/Recreation",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "survey")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Social/Recreation Trips", 
+                     type = "survey")
 
 ```
 
 #### By Race Simple
 
 ```{r}
-#| out-width: "100%"
+#| label:  fig-trip-purp-re-simple-social
+#| fig-cap: "Race and Ethnicity & Social/Recreation Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "cat")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Social/Recreation Trips", 
+                     type = "cat")
 
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-recg_rs_f
+#| label: tbl-trip-purp-re-social
+get_table_format(recg_rs_f)
 ```
 
 ### Other
 
-::: panel-tabset
+<!-- ::: panel-tabset -->
 #### By Survey Year
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-re-survey-year-other
+#| fig-cap: "Race and Ethnicity & Other Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_simple"
 
@@ -441,24 +488,31 @@ recg_rs_f <- recg_rs |>
          care_purpose_cat == "Other",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Other Trips", type = "survey")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Other Trips", 
+                     type = "survey")
 
 ```
 
 #### By Race Simple
 
 ```{r}
-#| out-width: "100%"
+#| label: fig-trip-purp-re-simple-other
+#| fig-cap: "Race and Ethnicity & Other Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = recg_rs_f, title = "Race and Ethnicity & Other Trips", type = "cat")
+race_ethnicity_chart(col_var, table = recg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Other Trips", 
+                     type = "cat")
 
 ```
-:::
+<!-- ::: -->
 
 ```{r}
-recg_rs_f
+get_table_format(recg_rs_f)
 ```
-::::::::
+<!-- :::::::: -->
 
 ```{r, eval=FALSE}
 recg_rs |>
@@ -476,9 +530,9 @@ recg_rs |>
 rebcg_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "race_binary", "care_purpose_cat"),
-                     incl_na = FALSE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                     incl_na = FALSE) #|> 
+  # mutate(prop_per = percent(prop),
+  #        moe_per = percent(prop_moe))
 ```
 
 ```{r, eval=FALSE}
@@ -495,17 +549,18 @@ rebcg_rs_test |>
 ```
 
 <!-- :::::::: panel-tabset -->
+
 ### Care
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
 #| label: fig-trip-purp-poc-survey-year-care
-#| fig-format: svg
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & Care Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_binary"
 
@@ -514,7 +569,10 @@ rebcg_rs_f <- rebcg_rs |>
          care_purpose_cat == "Care",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Care Trips", type = "survey")
+race_ethnicity_chart(col_var, 
+                     table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Care Trips", 
+                     type = "survey")
 
 ```
 
@@ -522,34 +580,36 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-care
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & Care Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Care Trips", type = "cat")
+race_ethnicity_chart(col_var, 
+                     table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Care Trips", 
+                     type = "cat")
 ```
+
 <!-- ::: -->
 
 ```{r}
 #| label: tbl-trip-purp-poc-care
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
 #| 
-knitr::kable(rebcg_rs_f)
+get_table_format(rebcg_rs_f)
 ```
 
 ### Work
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
 #| label: fig-trip-purp-poc-survey-year-work
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & Work Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_binary"
 
@@ -558,7 +618,9 @@ rebcg_rs_f <- rebcg_rs |>
          care_purpose_cat == "Work",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Work Trips", type = "survey")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Work Trips", 
+                     type = "survey")
 
 ```
 
@@ -566,33 +628,34 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-work
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & Work Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Work Trips", type = "cat")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Work Trips",
+                     type = "cat")
 ```
+
 <!-- ::: -->
 
 ```{r}
 #| label: tbl-trip-purp-poc-work
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
 #| 
-knitr::kable(rebcg_rs_f)
+get_table_format(rebcg_rs_f)
 ```
 
 ### School
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
 #| label: fig-trip-purp-poc-survey-year-school
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & School Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_binary"
 
@@ -601,7 +664,9 @@ rebcg_rs_f <- rebcg_rs |>
          care_purpose_cat == "School",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & School Trips", type = "survey")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & School Trips", 
+                     type = "survey")
 
 ```
 
@@ -609,33 +674,36 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-school
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & School Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & School Trips", type = "cat")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & School Trips", 
+                     type = "cat")
 ```
+
 <!-- ::: -->
 
 ```{r}
 #| label: tbl-trip-purp-poc-school
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "70%"
 #| 
-knitr::kable(rebcg_rs_f)
+get_table_format(rebcg_rs_f)
 ```
 
 ### Social/Recreation
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
 #| label: fig-trip-purp-poc-survey-year-socrec
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & Social/Recreation Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_binary"
 
@@ -644,7 +712,9 @@ rebcg_rs_f <- rebcg_rs |>
          care_purpose_cat == "Social/Recreation",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "survey")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = "Race and Ethnicity & Social/Recreation Trips", 
+                     type = "survey")
 
 ```
 
@@ -652,33 +722,35 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-socrec
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Social/Recreation Trips", type = "cat")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Social/Recreation Trips", 
+                     type = "cat")
 ```
+
 <!-- ::: -->
 
 ```{r}
 #| label: tbl-trip-purp-poc-socrec
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "70%"
 #| 
-knitr::kable(rebcg_rs_f)
+get_table_format(rebcg_rs_f)
 ```
 
 ### Other
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
 #| label: fig-trip-purp-poc-survey-year-other
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-cap: "Race and Ethnicity & Other Trips"
+#| fig-width: 8
+#| out-width: "70%"
 
 col_var <- "race_binary"
 
@@ -687,7 +759,9 @@ rebcg_rs_f <- rebcg_rs |>
          care_purpose_cat == "Other",
          .data[[geo_col]] %in% "Region")
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Other Trips", type = "survey")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Other Trips", 
+                     type = "survey")
 
 ```
 
@@ -695,20 +769,22 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & 
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-other
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "70%"
 
-race_ethnicity_chart(col_var, table = rebcg_rs_f, title = "Race and Ethnicity & Other Trips", type = "cat")
+race_ethnicity_chart(col_var, table = rebcg_rs_f, 
+                     title = NULL, #"Race and Ethnicity & Other Trips", 
+                     type = "cat")
 ```
+
 <!-- ::: -->
 
 ```{r}
 #| label: tbl-trip-purp-poc-other
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| fig-width: 8
+#| out-width: "70%"
 #| 
-knitr::kable(rebcg_rs_f)
+get_table_format(rebcg_rs_f)
 ```
+
 <!-- :::::::: -->

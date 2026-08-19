@@ -7,8 +7,8 @@ format:
     toc: true
     warning: false
     echo: false
-    fig-width: 4.5
-    fig-asp: .618
+params:
+  errorbar: FALSE    
 ---
 
 ```{r setup}
@@ -30,6 +30,8 @@ lapply(files, function(f) {
   # source(here::here("Analysis", "care-giving", f))
 })
 )
+
+source("../util.R")
 
 ```
 
@@ -204,14 +206,15 @@ mode_inc_b_drive <- mode_inc_b |>
   filter(mode_class_5 == "Drive")
 ```
 
-Of trips made by those who make under \$50,000 and where driving was the primary trip mode, at least 50% were care-giving compared to other trip purposes.The shares for care-giving trips by driving are higher for those making under \$50,000 compared to those who make more.
+- Of trips made by those who make under \$50,000 and where driving was the primary trip mode, at least 50% were care-giving compared to other trip purposes. The shares for care-giving trips by driving are higher for those making under \$50,000 compared to those who make more.
 
-Of those who earn more than \$50,000 and where driving is the primary trip mode, there are more care-giving trips than other trip purposes.
+- Of those who earn more than \$50,000 and where driving is the primary trip mode, there are more care-giving trips than other trip purposes.
 
-When comparing across income levels, there are more work trips by driving of those who earn more than \$50,000 than those who earn less than \$50,000.
+- When comparing across income levels, there are more work trips by driving of those who earn more than \$50,000 than those who earn less than \$50,000.
 
 ```{r}
 #| label: fig-mode-inc-b-drive-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Drive)"
 #| fig-width: 8
 #| out-width: "75%"
 
@@ -219,13 +222,14 @@ plot_facet_wrap(table = mode_inc_b_drive,
                 facet = income_50,
                 var1 = care_purpose_cat,
                 var2  = as.character(survey_year),
-                title = "Income by Primary Trip Mode (Drive)",
+                title = NULL, #"Income by Primary Trip Mode (Drive)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ```{r}
 #| label: tbl-mode-inc-b-drive-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Drive) Table"
 
 knitr::kable(mode_inc_b_drive)
 ```
@@ -239,21 +243,24 @@ mode_inc_b_trans <- mode_inc_b |>
 ```
 
 ```{r}
+#| label: fig-mode-inc-b-transit-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Transit)"
 #| fig-width: 8
 #| out-width: "75%"
-#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_trans,
                 facet = income_50,
                 var1 = care_purpose_cat,
                 var2  = as.character(survey_year),
-                title = "Income by Primary Trip Mode (Transit)",
+                title = NULL, #"Income by Primary Trip Mode (Transit)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ```{r}
-
+#| label: tbl-mode-inc-b-transit-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Transit) Table"
+#| 
 mode_inc_b_trans
 
 ```
@@ -269,21 +276,24 @@ mode_inc_b_walk <- mode_inc_b |>
 Of trips made by those who earn \$50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
 
 ```{r}
+#| label: fig-mode-inc-b-walk-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Walk)"
 #| fig-width: 8
 #| out-width: "75%"
-#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_walk,
                 facet = income_50,
                 var1 = care_purpose_cat,
                 var2  = as.character(survey_year),
-                title = "Income by Primary Trip Mode (Walk)",
+                title = NULL, #"Income by Primary Trip Mode (Walk)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ```{r}
-
+#| label: tbl-mode-inc-b-walk-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Walk) Table"
+#| 
 mode_inc_b_walk
 ```
 
@@ -296,21 +306,23 @@ mode_inc_b_bike <- mode_inc_b |>
 ```
 
 ```{r}
+#| label: fig-mode-inc-b-bike-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Bike)"
 #| fig-width: 8
 #| out-width: "75%"
-#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_bike,
                 facet = income_50,
                 var1 = care_purpose_cat,
                 var2  = as.character(survey_year),
-                title = "Income by Primary Trip Mode (Bike)",
+                title = NULL,#"Income by Primary Trip Mode (Bike)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ```{r}
-
+#| label: tbl-mode-inc-b-bike-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Bike) Table"
 mode_inc_b_bike
 ```
 
@@ -323,21 +335,23 @@ mode_inc_b_other <- mode_inc_b |>
 ```
 
 ```{r}
+#| label: fig-mode-inc-b-other-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Other)"
 #| fig-width: 8
 #| out-width: "75%"
-#| fig-align: center
 
 plot_facet_wrap(table = mode_inc_b_other,
                 facet = income_50,
                 var1 = care_purpose_cat,
                 var2  = as.character(survey_year),
-                title = "Income by Primary Trip Mode (Other)",
+                title = NULL, #"Income by Primary Trip Mode (Other)",
                 color_pal = psrc_colors$pognbgy_5) +
   theme(axis.text.x = element_text(angle = 0, vjust = 0.7, size = 7))
 ```
 
 ```{r}
-
+#| label: tbl-mode-inc-b-other-01
+#| fig-cap: "Trip Purpose and Income by Primary Trip Mode (Other) Table"
 mode_inc_b_other
 ```
 
@@ -361,33 +375,45 @@ mode_inc_b_3 <- psrc_hts_stat(df_hts,
 ```{r}
 create_mode_inc_chart <- function(table, mode) {
   table |> 
-    ggplot() +
-    geom_col(aes(x = as.character(survey_year), y = prop, fill = care_purpose_cat)) +
-    geom_linerange(aes(x = as.character(survey_year), ymin = prop - prop_moe, ymax = prop + prop_moe),
-                   orientation = "x",
-                   position = position_dodge(width = 0.9)) +
+    ggplot(aes(x = as.character(survey_year), y = prop, fill = as.character(survey_year))) +
+    geom_col(width=0.7) +
+    geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+              vjust = -0.3, 
+              position = position_dodge(width = 0.9),
+              check_overlap = TRUE
+              # size = 8/.pt
+              ) +
+    errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.1), 
+                    on=params$errorbar) +
+    # geom_linerange(aes(x = as.character(survey_year), ymin = prop - prop_moe, ymax = prop + prop_moe),
+    #                orientation = "x",
+    #                position = position_dodge(width = 0.9)) +
     facet_wrap(~income_comp, strip.position = "top") +
     scale_y_continuous(labels = scales::percent) +
-    scale_fill_manual(values = psrc_colors$pognbgy_5) +
+    scale_fill_manual(values = psrc_colors$oranges_dec) +
     psrc_style() +
     theme(panel.grid.minor = element_blank(),
           panel.grid.major = element_blank(),
+          axis.text.y = element_blank(),
+          panel.grid.major.y = element_blank(),
           strip.placement = "outside",
           panel.spacing = unit(0, "cm"),
-          legend.position = "bottom",
+          legend.position = "none",
           strip.text = element_text(face = "bold")) +
     labs(x = NULL,
          y = NULL,
-         title = paste(mode, "by Income and Trip Purpose"))
+         title = NULL #paste(mode, "by Income and Trip Purpose")
+         )
 }
 ```
 
 #### Drive
 
 ```{r}
+#| label: fig-mode-inc-b3-drive-02
+#| fig-cap: "Drive Trip Mode by Income and Care Trip Purpose"
 #| fig-width: 8
 #| out-width: "70%"
-#| fig-align: center
 
 mode_type <- "Drive"
 
@@ -399,6 +425,9 @@ mode_inc_b_3 |>
 ```
 
 ```{r}
+#| label: tbl-mode-inc-b3-drive-02
+#| fig-cap: "Drive Trip Mode by Income and Care Trip Purpose Table"
+#| 
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" & mode_class_5 == mode_type)
 ```
@@ -406,9 +435,10 @@ mode_inc_b_3 |>
 #### Transit
 
 ```{r}
+#| label: fig-mode-inc-b3-transit-02
+#| fig-cap: "Transit Trip Mode by Income and Care Trip Purpose"
 #| fig-width: 8
 #| out-width: "70%"
-#| fig-align: center
 
 mode_type <- "Transit"
 
@@ -418,6 +448,8 @@ mode_inc_b_3 |>
 ```
 
 ```{r}
+#| label: tbl-mode-inc-b3-transit-02
+#| fig-cap: "Transit Trip Mode by Income and Care Trip Purpose Table"
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type)
 ```
@@ -425,9 +457,10 @@ mode_inc_b_3 |>
 #### Walk
 
 ```{r}
+#| label: fig-mode-inc-b3-walk-02
+#| fig-cap: "Walk Trip Mode by Income and CareTrip Purpose"
 #| fig-width: 8
 #| out-width: "70%"
-#| fig-align: center
 
 mode_type <- "Walk"
 
@@ -438,6 +471,8 @@ mode_inc_b_3 |>
 ```
 
 ```{r}
+#| label: tbl-mode-inc-b3-walk-02
+#| fig-cap: "Walk Trip Mode by Income and Care Trip Purpose Table"
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type)
 ```
@@ -445,6 +480,8 @@ mode_inc_b_3 |>
 #### Bike/Micromobility
 
 ```{r}
+#| label: fig-mode-inc-b3-bike-02
+#| fig-cap: "Bike/Micromobility Trip Mode by Income and Care Trip Purpose"
 #| fig-width: 8
 #| out-width: "70%"
 #| fig-align: center
@@ -458,6 +495,8 @@ mode_inc_b_3 |>
 ```
 
 ```{r}
+#| label: tbl-mode-inc-b3-bike-02
+#| fig-cap: "Bike/Micromobility Trip Mode by Income and Care Trip Purpose Table"
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type) 
 ```
@@ -465,9 +504,10 @@ mode_inc_b_3 |>
 #### Other
 
 ```{r}
+#| label: fig-mode-inc-b3-other-02
+#| fig-cap: "Other Trip Mode by Income and Care Trip Purpose"
 #| fig-width: 8
 #| out-width: "70%"
-#| fig-align: center
 
 mode_type <- "Other"
 
@@ -478,6 +518,9 @@ mode_inc_b_3 |>
 ```
 
 ```{r}
+#| label: tbl-mode-inc-b3-other-02
+#| fig-cap: "Other Trip Mode by Income and Care Trip Purpose Table"
+#| 
 mode_inc_b_3 |> 
   filter(care_purpose_cat == "Care" &mode_class_5 == mode_type) 
 ```

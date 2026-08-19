@@ -7,8 +7,8 @@ format:
     toc: true
     warning: false
     echo: false
-    fig-width: 4.5
-    fig-asp: .618
+params:
+  errorbar: FALSE    
 ---
 
 ```{r setup}
@@ -25,11 +25,12 @@ install_psrc_fonts()
 files <- c("data.R", "functions.R")
 
 invisible(
-lapply(files, function(f) {
-  # source(here::here("Analysis", "care-giving", f))
-  source(f)
-})
+  lapply(files, function(f) {
+    # source(here::here("Analysis", "care-giving", f))
+    source(f)
+  })
 )
+source("../util.R")
 ```
 
 ## Children and Elders Definition
@@ -44,73 +45,81 @@ Children is based on var `numchildren`.
 
 ```{r}
 hhs_comp <- psrc_hts_stat(df_hts,
-                     analysis_unit = "hh",
-                     group_vars = "hh_composition",
-                     incl_na = FALSE)
+                          analysis_unit = "hh",
+                          group_vars = "hh_composition",
+                          incl_na = FALSE)
 ```
 
 ```{r}
-#| layout-ncol: 2
-#| out-width: "50%"
 
-hhs_comp |> 
-  ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
+create_hh_comp_chart <- function(table, x_var, y_var, fill_var, facet, colors) {
+  table |> 
+  ggplot(aes(y = {{y_var}}, x = {{x_var}}, fill = {{fill_var}})) +
   geom_col(position = "dodge") +
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)) +
-  facet_wrap(~survey_year, ncol = 5, nrow = 1) +
+     geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+              vjust = -0.3, 
+              position = position_dodge(width = 0.9),
+              check_overlap = TRUE
+              # size = 8/.pt
+              ) +
+  errorbar_switch(geom_errorbar(aes(ymin = prop - prop_moe, ymax = prop + prop_moe), width = 0.1), 
+                  on=params$errorbar) +
+  facet_wrap(vars({{facet}}), ncol = 5, nrow = 1) +
   scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_10) +
+  scale_fill_manual(values = colors) +
   psrc_style() +
   theme(panel.grid.major.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        # axis.text.x = element_text(angle = 90, vjust = 0.7),
+        axis.text.y = element_blank(),
         legend.position = "bottom",
-        # Shrink the legend text and title
-        legend.text = element_text(size = 8),
+        legend.text = element_text(size = 8), # Shrink the legend text and title
         legend.title = element_text(size = 9),
-        
-        # Shrink the legend key boxes (both width and height)
-        legend.key.size = unit(0.4, "cm")
+        legend.key.size = unit(0.4, "cm") # Shrink the legend key boxes (both width and height)
   ) +
   labs(x = NULL,
        y = NULL,
        fill = NULL,
-       title = "Household Composition")
-
-hhs_comp |> 
-  mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
-         hh_composition_label = str_to_title(hh_composition_label)) |> 
-  ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
-  geom_col(position = "dodge") +
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition_label, ncol = 5, nrow = 1) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$blues_inc) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        # axis.text.x = element_text(angle = 90, vjust = 0.7),
-        axis.text.x = element_blank(),
-        legend.position = "bottom",
-        # Shrink the legend text and title
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 9),
-        
-        # Shrink the legend key boxes (both width and height)
-        legend.key.size = unit(0.4, "cm")) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "Household Composition")
+       title = NULL)
+}
 ```
 
 ```{r}
-hhs_comp
+#| label: fig-hh-comp-01
+#| fig-cap: "Household Composition"
+#| fig-width: 8
+#| out-width: "70%"
+
+create_hh_comp_chart(table = hhs_comp, 
+                     x_var=hh_composition, 
+                     y_var=prop, 
+                     fill_var=hh_composition,
+                     facet=survey_year,
+                     colors=psrc_colors$pognbgy_10)
+```
+
+```{r}
+#| label: fig-hh-comp-02
+#| fig-cap: "Household Composition"
+#| fig-width: 8
+#| out-width: "70%"
+
+hhs_comp2 <- hhs_comp |> 
+  mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
+         hh_composition_label = str_to_title(hh_composition_label))
+  
+create_hh_comp_chart(table = hhs_comp2, 
+                     x_var=as.character(survey_year), 
+                     y_var=prop, 
+                     fill_var=as.character(survey_year), 
+                     facet = hh_composition_label,
+                     colors=psrc_colors$blues_dec)
+```
+
+```{r}
+#| label: tbl-hh-comp
+
+get_table_format(hhs_comp)
 ```
 
 ```{r, eval=FALSE}
@@ -142,7 +151,7 @@ hhc <- psrc_hts_stat(df_hts,
                      group_vars = c("hh_composition"),
                      incl_na = FALSE) 
 hhc_sum <- hhc |> 
-   mutate(survey_year = as.character(survey_year)) |>
+  mutate(survey_year = as.character(survey_year)) |>
   group_by(survey_year) |> 
   summarize(sum_prop = sum(prop), sum_est = sum(est), sum_count = sum(count))
 
@@ -159,131 +168,93 @@ The following charts and tables show the distribution of households and their co
 - There are few households that are multi-generational with both children and elders of households that took care trips.
 
 ```{r}
-#| layout-ncol: 2
-#| out-width: "50%"
-
 hhstr_a <- psrc_hts_stat(df_hts,
-                    analysis_unit = "hh",
-                    group_vars = c("care_trip_taken", "hh_composition"),
-                    incl_na = FALSE) |>
-  mutate(prop_per = percent(prop),
-         prop_moe_per = percent(prop_moe))
+                         analysis_unit = "hh",
+                         group_vars = c("care_trip_taken", "hh_composition"),
+                         incl_na = FALSE) #|>
+  # mutate(prop_per = percent(prop),
+  #        prop_moe_per = percent(prop_moe))
 
- hhstr_a |>
-  filter(care_trip_taken == 1) |> 
-  ggplot(aes(y = prop, x = hh_composition, fill = hh_composition)) +
-  geom_col(position = "dodge") +
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)) +
-  facet_wrap(~survey_year, ncol = 5, nrow = 1) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_10) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        # axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "bottom",
-         # Shrink the legend text and title
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 9),
-        
-        # Shrink the legend key boxes (both width and height)
-        legend.key.size = unit(0.4, "cm")) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "Care Trips and Household Composition")
-
-hhstr_a |>
-  filter(care_trip_taken == 1) |> 
-  mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
-         hh_composition_label = str_to_title(hh_composition_label)) |> 
-  ggplot(aes(y = prop, x = as.character(survey_year), fill = as.character(survey_year))) +
-  geom_col(position = "dodge") +
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition_label, ncol = 5, nrow = 1) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$blues_inc) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        # axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "bottom",
-         # Shrink the legend text and title
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 9),
-        
-        # Shrink the legend key boxes (both width and height)
-        legend.key.size = unit(0.4, "cm")) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "Care Trips and Household Composition")
 ```
 
 ```{r}
-hhstr_a
+#| label: fig-trip-purp-hh-comp-01
+#| fig-cap: "Share of Households with Care Trips by Household Composition"
+#| fig-width: 8
+#| out-width: "70%"
+
+trip_purp_hhstr_a1 <- hhstr_a |>
+  filter(care_trip_taken == 1)
+
+create_hh_comp_chart(table = trip_purp_hhstr_a1, 
+                     x_var=hh_composition, 
+                     y_var=prop, 
+                     fill_var=hh_composition,
+                     facet=survey_year,
+                     colors=psrc_colors$pognbgy_10)
+```
+
+```{r}
+#| label: fig-trip-purp-hh-comp-02
+#| fig-cap: "Share of Households with Care Trips by Household Composition"
+#| fig-width: 8
+#| out-width: "70%"
+
+trip_purp_hhstr_a2 <- hhstr_a |>
+  filter(care_trip_taken == 1) |> 
+  mutate(hh_composition_label = str_trim(str_replace_all(hh_composition, ",", "\n")),
+         hh_composition_label = str_to_title(hh_composition_label))
+
+create_hh_comp_chart(table = trip_purp_hhstr_a2, 
+                     x_var=as.character(survey_year), 
+                     y_var=prop, 
+                     fill_var=as.character(survey_year),
+                     facet=hh_composition_label,
+                     colors=psrc_colors$blues_dec)
+```
+
+```{r}
+#| label: tbl-trip-purp-hh-comp-01
+
+get_table_format(hhstr_a)
 ```
 
 ### Trip Purpose by Household Composition
 
 The following charts and tables show the distribution of trip purposes by the different types of household composition.
 
-Of households where there are either elders or children present, or none at all, there are more care-giving trips made. Especially of households where there are children and no elders, there are fewer non-care-giving trips compared to other household types.
+- Of households where there are either elders or children present, or none at all, there are more care-giving trips made. Especially of households where there are children and no elders, there are fewer non-care-giving trips compared to other household types.
 
-There are few households with both elders and children. Their results have very large margins of error and cannot be determined.
+- There are few households with both elders and children. Their results have very large margins of error and cannot be determined.
 
 ```{r}
 hhstr_b <- psrc_hts_stat(df_hts,
-                    analysis_unit = "hh",
-                    group_vars = c("hh_composition","care_trip_taken"),
-                    incl_na = FALSE) |>
-  mutate(prop_per = percent(prop),
-         prop_moe_per = percent(prop_moe))
+                         analysis_unit = "hh",
+                         group_vars = c("hh_composition","care_trip_taken"),
+                         incl_na = FALSE) #|>
+  # mutate(prop_per = percent(prop),
+  #        prop_moe_per = percent(prop_moe))
 ```
 
 ```{r}
-#| label: fig-trip-purp-hhcomp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| label: fig-hhcomp-trip-purp
+#| fig-cap: "Share of Households by Household Composition and Trip Purpose"
+#| fig-width: 8
+#| out-width: "70%"
 
- hhstr_b |>
-  ggplot(aes(y = prop, x = as.character(survey_year), fill = care_trip_taken)) +
-  geom_col(position = "dodge") +
-  geom_linerange(aes(ymin = prop - prop_moe, ymax = prop + prop_moe),
-                 orientation = "x",
-                 position = position_dodge(width = 0.9)) +
-  facet_wrap(~hh_composition, ncol = 4, nrow = 1) +
-  scale_y_continuous(labels = scales::percent) +
-  scale_fill_manual(values = psrc_colors$pognbgy_10, labels = c("1" = "Care Trip", "0" = "Non-care Trip")) +
-  psrc_style() +
-  theme(panel.grid.major.y = element_blank(),
-        axis.title = element_blank(),
-        axis.text.x = element_text(angle = 90, vjust = 0.7),
-        legend.position = "bottom",
-        # Shrink the legend text and title
-        legend.text = element_text(size = 8),
-        legend.title = element_text(size = 9),
-        
-        # Shrink the legend key boxes (both width and height)
-        legend.key.size = unit(0.4, "cm")) +
-  labs(x = NULL,
-       y = NULL,
-       fill = NULL,
-       title = "Household Composition and Care Trips")
+create_hh_comp_chart(table = hhstr_b, 
+                     x_var=as.character(survey_year), 
+                     y_var=prop, 
+                     fill_var=care_trip_taken,
+                     facet=hh_composition,
+                     colors=psrc_colors$pognbgy_10) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.7)) +
+  scale_fill_manual(values = psrc_colors$pognbgy_10, labels = c("1" = "Care Trip", "0" = "Non-care Trip"))
+
 ```
 
 ```{r}
-#| label: tbl-trip-purp-hhcomp
-#| fig-height: 4
-#| fig-width: 7
-#| out-width: "350px"
+#| label: tbl-hhcomp-trip-purp
 #| 
-knitr::kable(hhstr_b)
+get_table_format(hhstr_b)
 ```
