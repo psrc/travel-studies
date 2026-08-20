@@ -100,12 +100,12 @@ plot_facet_wrap(care_purp,
                 as.character(survey_year), 
                 as.character(survey_year), 
                 NULL, #"Care Purpose Categories by Year", 
-                color_pal = psrc_colors$blues_inc) +
+                color_pal = psrc_colors$blues_dec) +
   theme(axis.text.x = element_blank())
 ```
 
 ```{r}
 #| label: tbl-care-purp-cat
 #| 
-knitr::kable(care_purp)
+get_table_format(care_purp)
 ```

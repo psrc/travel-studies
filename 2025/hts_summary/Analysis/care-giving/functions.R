@@ -76,9 +76,9 @@ create_care_purpose_tbl <- function(hts_data) {
   rs <- psrc_hts_stat(df_hts,
                       analysis_unit = "trip",
                       group_vars = c("dest_region", "care_purpose_cat"),
-                      incl_na = FALSE) |>
-    mutate(prop_per = label_percent(accuracy = 0.1)(prop),
-           prop_moe_per = label_percent(accuracy = 0.1)(prop_moe))
+                      incl_na = FALSE) #|>
+    # mutate(prop_per = label_percent(accuracy = 0.1)(prop),
+    #        prop_moe_per = label_percent(accuracy = 0.1)(prop_moe))
   
 }
 
