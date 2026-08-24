@@ -84,7 +84,14 @@ ggplot(df_plot,
         axis.text.y = element_blank())
 ```
 
+```{r}
+#| label: tbl-telework-trend
 
+df_plot %>%
+  select(-c("prop_position")) %>%
+  # function sourced from Analysis/util.R
+  get_table_format()
+```
 
 ## Commute mode share
 

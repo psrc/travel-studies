@@ -39,7 +39,15 @@ To ensure consistency, the Summary Report should not have any hard coded R code 
 
 1. **To get started, create a new `.qmd` file in the SummaryReport folder.** See example in the Delivery page here: file:///T:/60day-TEMP/Joanne_temp/2025_HTS_analysis/HTS-summary-report/SummaryReport/Delivery.html (see code in [Github](https://github.com/psrc/travel-studies/blob/master/2025/hts_summary/SummaryReport/Delivery.qmd))
 2. The Summary Report should include all figures that would be in your board/committee presentation and more. It may also act as a starting point when we get questions or data requests about HTS data. 
-3. To render the Exploration and Analysis Notebook: type `quarto render --profile summary-report` at the hts_summary folder location in terminal
+3. Add your name as the author in your yml title
+   ``` markdown
+   ---
+   title: [Your topic title]
+   author: [your full name]
+   ---
+      
+   ```
+4. To render the Exploration and Analysis Notebook: type `quarto render --profile summary-report` at the hts_summary folder location in terminal
 
 :::
 
