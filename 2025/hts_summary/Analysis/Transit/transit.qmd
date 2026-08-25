@@ -1,7 +1,9 @@
 ---
 title: "Transit Analysis"
+author: "Kristin Mitchell"
 format: html
 editor: visual
+  toc: true
 ---
 
 ```{r message=FALSE, warning=FALSE}
@@ -21,7 +23,7 @@ library(openxlsx)
 #| echo: false
 
 # Specify which variables to retrieve
-vars <- c("mode_class", "mode_class_5", "transit_freq", "mode_acc", "commute_mode", "dest_purpose", "home_county", "home_rgcname", "home_jurisdiction", "home_rgcname", "dest_purpose_cat", "dest_purpose_cat_5", "hhincome_broad", "hhsize", "transportation_statement_transit", "commute_subsidy_transit", "commute_subsidy_parking", "commute_subsidy_1", "disability_person", "race_category", "mode_1", "distance_miles", "work_from_home")
+vars <- c("mode_class", "mode_class_5", "transit_freq", "mode_acc", "commute_mode", "dest_purpose", "home_county", "home_rgcname", "home_jurisdiction", "dest_purpose_cat", "dest_purpose_cat_5", "hhincome_broad", "hhsize", "transportation_statement_transit", "commute_subsidy_transit", "commute_subsidy_parking", "commute_subsidy_1", "disability_person", "race_category", "mode_1", "distance_miles", "work_from_home", "age", "gender", "distance_miles", "vehicle_count")
 
 survey_year <- c(
   "2017", "2019", "2021", "2023", 
@@ -29,26 +31,49 @@ survey_year <- c(
 
 # Retrieve the data
 hts_data <- get_psrc_hts(survey_vars = vars, survey_year=survey_year)  # default includes all survey_years
-  
-# Calculate a numeric summary, i.e. min/max/median/mean
-# rs1 <- psrc_hts_stat(hts_data,
-#                      analysis_unit = "trip",
-#                      group_vars = "hhsize",
-#                      stat_var = "distance_miles",
-#                      incl_na = FALSE)
-# 
-# head(dplyr::select(rs1, -c(survey_year, min, max)))
-
-
-
-#write.xlsx(df, 'mode_class.xlsx')
 
 ```
 
 ```{r}
 #| echo: false
-#| 
 ## add additional variables
+
+#add bucket age
+hts_data$person <- mutate(
+  hts_data$person,
+  age_bucket=case_when(
+    age%in%c('18-24 years', '25-34 years', '35-44 years', '45-54 years', '55-64 years') ~ '18-64 years',
+    age%in%c('65-74 years', '75-84 years', '85 years or older') ~ '65 years and older'
+       ))
+
+#add bucket vehicles
+hts_data$hh <- mutate(
+  hts_data$hh,
+  vehicles=case_when(
+    vehicle_count%in%c('0 (no vehicles)') ~ '0 (no vehicles)',
+    vehicle_count%in%c('1 vehicle') ~ '1 vehicle',
+    vehicle_count%in%c('2 vehicles') ~ '2 vehicles',
+    vehicle_count%in%c('3 vehicles', '4 vehicles', '5 vehicles', '6 vehicles', '7 vehicles', '8 vehicles', '9 vehicles', '10 or more vehicles') ~ '3 or more vehicles'
+       ))
+
+#add bucket gender
+hts_data$person <- mutate(
+  hts_data$person,
+  gender_bucket=case_when(
+    gender%in%c('Boy/Man (cisgender or transgender)', 'Male') ~ 'Boy/Man (cisgender or transgender)',
+    gender%in%c('Girl/Woman (cisgender or transgender)', 'Female') ~ 'Girl/Woman (cisgender or transgender)',
+    # gender%in%c('Non-Binary', 'Non-binary/Something else fits better') ~ 'Non-Binary',
+    gender%in%c('Non-Binary', 'Non-binary/Something else fits better', 'Not listed here / prefer not to answer', 'Another') ~ 'Non-Binary/Another/Prefer Not to Answer'
+       ))
+
+#add bucket gender
+hts_data$person <- mutate(
+  hts_data$person,
+  transit_statement_bucket=case_when(
+    transportation_statement_transit%in%c('Strongly disagree', 'Disagree') ~ 'Disagree/Strongly Disagree',
+    transportation_statement_transit%in%'Neither agree nor disagree' ~ 'Neither agree nor disagree',
+    transportation_statement_transit%in%c('Strongly Agree', 'Agree') ~ 'Agree/Strongly Agree'
+       ))
 
 #add bucket frequency
 hts_data$person <- mutate(
@@ -146,6 +171,16 @@ hts_data$vehicle$survey_year<-as.character(hts_data$vehicle$survey_year)
 
 ```
 
+## Overview
+
+-   The Household Travel Survey asks various questions about transit use and transit access. This information can then be paired with other information including if someone lives in a regional growth center.
+
+## Total trips
+
+-   Total trips in the region have exceeded pre-pandemic numbers.
+
+-   Walk trips peaked in 2021.
+
 ```{r}
 #| echo: false
 
@@ -157,8 +192,6 @@ df <- psrc_hts_stat(hts_data, "trip", "mode_class_5", incl_na=FALSE)
 df$mode_class_5 <- factor(df$mode_class_5,
          levels = c("Bike/Micromobility", "Drive", "Other",
                     "Transit", "Walk"))
-
-#write.xlsx(df, 'count.xlsx')
 
 ```
 
@@ -187,7 +220,7 @@ trips_chart
 #| echo: false
 
 mode_chart <- static_column_chart(df, x='mode_class_5', y='prop', fill='survey_year',
-                                     ylabel= 'Share',
+                                     ylabel= 'Share (%)',
                                      #xlabel='Mode',
                                      moe='prop_moe',
                                      title='Share Trips in Region'
@@ -201,15 +234,12 @@ mode_chart
 ```
 
 ```{r}
-df
-```
-
-```{r}
+{r}
 #| echo: false
 df_year <- df %>% filter(survey_year==2025)
 
 mode_chart_year <- static_column_chart(df_year, x='mode_class_5', y='prop', fill='mode_class_5',
-                                     ylabel= 'Share',
+                                     ylabel= 'Share (%)',
                                      #xlabel='Mode',
                                      moe='prop_moe',
                                      title='Trips by Mode - Share (2025)'
@@ -222,6 +252,16 @@ mode_chart_year <- static_column_chart(df_year, x='mode_class_5', y='prop', fill
 mode_chart_year
 
 ```
+
+```{r}
+df
+```
+
+## Transit trips
+
+-   Transit trips have continued to increase post-pandemic, but have not reached pre-pandemic levels.
+
+-   In 2025, there was a significant increase in transit trips by count and share compared to 2021 and 2023.
 
 ```{r}
 #| echo: false
@@ -263,7 +303,7 @@ transit_chart_count_err
 #| echo: false
 ## transit trips share
 transit_chart <- static_column_chart(df2, x='survey_year', y='prop', fill='survey_year',
-                                     ylabel= 'Share',
+                                     ylabel= 'Share (%)',
                                      #xlabel='Mode',
                                      moe='prop_moe',
                                      title='Transit Trips - Share'
@@ -281,86 +321,94 @@ df2
 ```
 
 ```{r}
-#| echo: false
-## walk trips count
-df3 <- df %>% filter(mode_class_5=="Walk")
-
-walk_chart_count <- static_column_chart(df3, x='survey_year', y='est', fill='survey_year',
-                                     ylabel= 'Count',
-                                     #xlabel='Mode',
-                                     moe='est_moe',
-                                     title='Walk Trips - Count'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20)) 
-
-walk_chart_count
+# #| echo: false
+# ## walk trips count
+# df3 <- df %>% filter(mode_class_5=="Walk")
+# 
+# walk_chart_count <- static_column_chart(df3, x='survey_year', y='est', fill='survey_year',
+#                                      ylabel= 'Count',
+#                                      #xlabel='Mode',
+#                                      moe='est_moe',
+#                                      title='Walk Trips - Count'
+# ) + theme(axis.text.x=element_text(size=14),
+#           axis.text.y=element_text(size=14),
+#           legend.text = element_text(size=14), 
+#           axis.title.y=element_text(size=20), 
+#           axis.title.x=element_text(size=20)) 
+# 
+# walk_chart_count
 ```
 
 ```{r}
 #| echo: false
-## walk trips share
-walk_chart <- static_column_chart(df3, x='survey_year', y='prop', fill='survey_year',
-                                     ylabel= 'Share',
-                                     #xlabel='Mode',
-                                     moe='prop_moe',
-                                     title='Walk Trips - Share'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20)) 
-
-walk_chart
+# ## walk trips share
+# walk_chart <- static_column_chart(df3, x='survey_year', y='prop', fill='survey_year',
+#                                      ylabel= 'Share (%)',
+#                                      #xlabel='Mode',
+#                                      moe='prop_moe',
+#                                      title='Walk Trips - Share'
+# ) + theme(axis.text.x=element_text(size=14),
+#           axis.text.y=element_text(size=14),
+#           legend.text = element_text(size=14), 
+#           axis.title.y=element_text(size=20), 
+#           axis.title.x=element_text(size=20)) 
+# 
+# walk_chart
 ```
 
 ```{r}
-df3
+# df3
 ```
 
 ```{r}
 #| echo: false
 ## bike/micro trips count
-df4 <- df %>% filter(mode_class_5=="Bike/Micromobility")
-
-bike_chart_count <- static_column_chart(df4, x='survey_year', y='est', fill='survey_year',
-                                     ylabel= 'Count',
-                                     #xlabel='Mode',
-                                     moe='est_moe',
-                                     title='Bike/Micromobility Trips - Count'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20)) 
-
-bike_chart_count
+# df4 <- df %>% filter(mode_class_5=="Bike/Micromobility")
+# 
+# bike_chart_count <- static_column_chart(df4, x='survey_year', y='est', fill='survey_year',
+#                                      ylabel= 'Count',
+#                                      #xlabel='Mode',
+#                                      moe='est_moe',
+#                                      title='Bike/Micromobility Trips - Count'
+# ) + theme(axis.text.x=element_text(size=14),
+#           axis.text.y=element_text(size=14),
+#           legend.text = element_text(size=14), 
+#           axis.title.y=element_text(size=20), 
+#           axis.title.x=element_text(size=20)) 
+# 
+# bike_chart_count
 ```
 
 ```{r}
 #| echo: false
 ## bike/micro trips share
-bike_chart <- static_column_chart(df4, x='survey_year', y='prop', fill='survey_year',
-                                     ylabel= 'Share',
-                                     #xlabel='Mode',
-                                     moe='prop_moe',
-                                     title='Bike/Micromobility Trips - Share'
-) + theme(axis.text.x=element_text(size=14),
-          axis.text.y=element_text(size=14),
-          legend.text = element_text(size=14), 
-          axis.title.y=element_text(size=20), 
-          axis.title.x=element_text(size=20)) 
-
-bike_chart
+# bike_chart <- static_column_chart(df4, x='survey_year', y='prop', fill='survey_year',
+#                                      ylabel= 'Share (%)',
+#                                      #xlabel='Mode',
+#                                      moe='prop_moe',
+#                                      title='Bike/Micromobility Trips - Share'
+# ) + theme(axis.text.x=element_text(size=14),
+#           axis.text.y=element_text(size=14),
+#           legend.text = element_text(size=14), 
+#           axis.title.y=element_text(size=20), 
+#           axis.title.x=element_text(size=20)) 
+# 
+# bike_chart
 ```
 
 ```{r}
-df4
+# df4
 ```
 
-Transit Frequency
+## Transit frequency
+
+-   In 2025, there was a significant increase in transit use 2-4 days a week.
+
+-   In 2025, there was a significant increase in transit use 1-3 days a week.
+
+-   Transit frequency of 5 days a week has not returned to pre-pandemic levels.
+
+-   In 2025, there was a significant decrease in the share of riders that answered they never in the past 30 days used transit. Historically, 75% to 84% of respondents said they have not used transit in the past 30 days. That dropped to 67% in 2025.
 
 ```{r}
 #| echo: false
@@ -369,18 +417,15 @@ df5 <- psrc_hts_stat(hts_data, "trip", c("transit_freq_bucket"), incl_na=TRUE)
 
 # df5.1 <- psrc_hts_stat(hts_data, "trip", c("transit_freq"), incl_na=TRUE)
 
-#write.xlsx(df5, 'transitfreqbucket.xlsx')
-#write.xlsx(df5.1, 'transitfreq.xlsx')
-
 df5$transit_freq_bucket <-
   factor(df5$transit_freq_bucket,
          levels = c("6-7 days a week", "5 days a week", "2-4 days a week", "1 day a week", "1-3 days in the past month", 
         "Never in the past 30 days"))
 
-transit_freq_chart <- static_column_chart(df5, x='transit_freq_bucket', y='prop', fill='survey_year',ylabel= 'Share',
-                                  #xlabel='Mode',
+transit_freq_chart <- static_column_chart(df5, x='transit_freq_bucket', y='prop', fill='survey_year',ylabel= 'Share (%)',
+                                  #xlabel='',
                                   title='Transit Use Frequency',
-                                  moe='prop_moe'
+                                  #moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
         axis.text.y=element_text(size=14),
         legend.text = element_text(size=14), 
@@ -389,8 +434,20 @@ transit_freq_chart <- static_column_chart(df5, x='transit_freq_bucket', y='prop'
 
 transit_freq_chart
 
+transit_freq_chart_err <- static_column_chart(df5, x='transit_freq_bucket', y='prop', fill='survey_year',ylabel= 'Share',
+                                  #xlabel='',
+                                  title='Transit Use Frequency',
+                                  moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+        axis.text.y=element_text(size=14),
+        legend.text = element_text(size=14), 
+        axis.title.y=element_text(size=20), 
+        axis.title.x=element_text(size=20))
+
+transit_freq_chart_err
+
 transit_freq_chart_count <- static_column_chart(df5, x='transit_freq_bucket', y='est', fill='survey_year',ylabel= 'Count',
-                                  #xlabel='Mode',
+                                  #xlabel='',
                                   title='Transit Use Frequency',
                                   #moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -406,6 +463,12 @@ transit_freq_chart_count
 df5
 ```
 
+## Access to transit trips
+
+-   Walked or jogged is by far the most dominant way people access transit.
+
+-   The share of walked or jogged has significantly increased in 2023 and 2025 compared to 2019 and 2021. Accessing transit by vehicle has significantly decreased over the same time period.
+
 ```{r}
 #| echo: false
 
@@ -415,7 +478,7 @@ hts_data2 <-
 
 df6 <- psrc_hts_stat(hts_data2, "trip", c("transit_mode_acc"), incl_na=FALSE) 
 
-transit_acc_chart <- static_column_chart(df6, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+transit_acc_chart <- static_column_chart(df6, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share (%)',
                                          title='Access to Transit Trips - Share', 
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -431,7 +494,7 @@ transit_acc_chart
 #| echo: false
 
 df6.2025 <- df6 %>% filter(survey_year==2025)
-transit_acc_chart_2025 <- static_column_chart(df6.2025, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+transit_acc_chart_2025 <- static_column_chart(df6.2025, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share (%)',
                                          title='Access to Transit Trips - Share (2025)'
 ) + theme(axis.text.x=element_text(size=14),
         axis.text.y=element_text(size=14),
@@ -474,12 +537,16 @@ transit_acc_chart_count_err
 df6
 ```
 
+### Access to transit not including walk
+
+-   Taking a closer look at accessing transit by bike/micromobility or a vehicle shows the significant decrease in accessing transit by vehicle in 2023 and 2025.
+
 ```{r}
 #| echo: false
 
 df6.1 <- df6 %>% filter(transit_mode_acc!="Walked or jogged")
 
-transit_acc_chart_nowalk <- static_column_chart(df6.1, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share',
+transit_acc_chart_nowalk <- static_column_chart(df6.1, x='survey_year', y='prop', fill='transit_mode_acc',ylabel= 'Share (%)',
                                          title='Access to Transit Trips (No Walk) - Share', 
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -490,8 +557,13 @@ transit_acc_chart_nowalk <- static_column_chart(df6.1, x='survey_year', y='prop'
 
 transit_acc_chart_nowalk
 
-# df6.2 <- psrc_hts_stat(hts_data2, "trip", c("mode_acc"), incl_na=FALSE) 
 ```
+
+## Access to transit by destination purpose 
+
+-   Destination purpose is only significantly different for work/school.
+
+-   Share is higher for vehicular access to transit for work/school destination compared to walk/jog access for other destinations.
 
 ```{r}
 #| echo: false
@@ -502,10 +574,10 @@ hts_data3 <-
 
 df7 <- psrc_hts_stat(hts_data3, "trip", c("dest_purpose_cat_5", "transit_mode_acc"), incl_na=FALSE) %>% 
 #  filter(dest_purpose_cat_5=="Social/Recreation") %>%
-#  filter(transit_mode_acc=="Bike/Micromobility") %>% 
+  filter(transit_mode_acc=="Walked or jogged") %>% 
   filter(survey_year=="2025") 
 
-dest_walk_chart <- static_column_chart(df7, x='survey_year', y='prop', fill='dest_purpose_cat_5',ylabel= 'Share',
+dest_walk_chart <- static_column_chart(df7, x='survey_year', y='prop', fill='dest_purpose_cat_5',ylabel= 'Share (%)',
                                          title='Walk Access to Transit by Destination Purpose - Share', 
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -514,9 +586,39 @@ dest_walk_chart <- static_column_chart(df7, x='survey_year', y='prop', fill='des
           axis.title.y=element_text(size=20), 
           axis.title.x=element_text(size=20))
 
-#dest_walk_chart
+dest_walk_chart
 
 ```
+
+```{r}
+#| echo: false
+
+df7.1 <- psrc_hts_stat(hts_data3, "trip", c("dest_purpose_cat_5", "transit_mode_acc"), incl_na=FALSE) %>% 
+#  filter(dest_purpose_cat_5=="Social/Recreation") %>%
+  filter(transit_mode_acc=="Vehicular") %>% 
+  filter(survey_year=="2025") 
+
+dest_veh_chart <- static_column_chart(df7.1, x='survey_year', y='prop', fill='dest_purpose_cat_5',ylabel= 'Share (%)',
+                                         title='Vehicular Access to Transit by Destination Purpose - Share', 
+                                         moe='prop_moe'
+) + theme(axis.text.x=element_text(size=14),
+          axis.text.y=element_text(size=14),
+          legend.text = element_text(size=14), 
+          axis.title.y=element_text(size=20), 
+          axis.title.x=element_text(size=20))
+
+dest_veh_chart
+```
+
+```{r}
+df7.1
+```
+
+## Transit use by income
+
+-   In 2025, members of households with an income under \$50,000 are significantly more likely to use transit compared to people in other income brackets.
+
+-   In 2025, there was a significant increase from 2021 and 2023 in share of people in households with an income of \$50,000 to \$99,999 and \$100,000 or more using transit. 2025 was comparable to pre-pandemic transit use by people in these two income brackets.
 
 ```{r}
 #| echo: false
@@ -527,7 +629,7 @@ df8 <- psrc_hts_stat(hts_data_mode, "trip", c("income_3group", "mode_class_5"), 
   filter(income_3group!="Prefer not to answer")
 
 transit_income_chart <- static_bar_chart(df8, x='prop', y='income_3group', fill='income_3group',ylabel= 'Income',
-                                         xlabel='Share',
+                                         xlabel='Share (%)',
                     title='Transit Mode by Income - Share (2025)', 
                                          moe='prop_moe',
                                          color='pgnobgy_10'
@@ -553,7 +655,7 @@ df9.1 <- df9 %>%
   filter(mode_class_5=="Transit") %>% 
   filter(income_3group!="Prefer not to answer")
 
-transit_income_chart_years <- static_column_chart(df9.1, x='survey_year', y='prop', fill='income_3group',ylabel= 'Share',
+transit_income_chart_years <- static_column_chart(df9.1, x='survey_year', y='prop', fill='income_3group',ylabel= 'Share (%)',
                     title='Transit Mode by Income - Share', 
                                          moe='prop_moe',
                                          color='pgnobgy_10'
@@ -570,6 +672,12 @@ transit_income_chart_years
 df9.1
 ```
 
+## How people feel about being a transit rider
+
+-   The 2025 Household Travel Survey included a new question about how people feel about being a transit rider.
+
+-   Across all income brackets, people overwhelmingly agree or strongly agree with the statement, "I like the idea of public transit as a means of travel for me personally."
+
 ```{r}
 #| echo: false
 df10 <- psrc_hts_stat(hts_data_mode, "trip", c("income_3group", "mode_class_5", "transportation_statement_transit"), incl_na=FALSE) 
@@ -581,7 +689,7 @@ df10.2 <- df10 %>%
   #filter(transportation_statement_transit=="2-Disagree") %>% 
   #filter(hhincome_broad=="Under $25,000")
 
-income_transit_statement_chart <- static_column_chart(df10.2, x='transportation_statement_transit', y='prop', fill='income_3group',ylabel= 'Share',
+income_transit_statement_chart <- static_column_chart(df10.2, x='transportation_statement_transit', y='prop', fill='income_3group',ylabel= 'Share (%)',
                     title='Level of Agreement with:',
                     subtitle='"I like the idea of public transit as a means of travel for me personally." by Income - Share (2025)',
                                          moe='prop_moe',
@@ -604,7 +712,7 @@ df10.1 <- df10 %>%
   filter(transportation_statement_transit=="5-Strongly Agree") 
 #%>% filter(hhincome_broad=="Under $25,000")
 
-transit_statement_chart <- static_column_chart(df10.1, x='income_3group', y='prop', fill='income_3group',ylabel= 'Share',
+transit_statement_chart <- static_column_chart(df10.1, x='income_3group', y='prop', fill='income_3group',ylabel= 'Share (%)',
                     title='Strongly Agree with:',
                     subtitle='"I like the idea of public transit as a means of travel for me personally." by Income - Share (2025)',
                                          moe='prop_moe',
@@ -619,6 +727,14 @@ transit_statement_chart
 ```
 
 ```{r}
+df10
+```
+
+## Employer offered transit passes
+
+-   Over the years, people in households with an income \$100,000 or more have consistently been less likely to have an employer offer a transit pass.
+
+```{r}
 #| echo: false
 
 # transit pass and parking analysis: "commute_subsidy_parking", "commute_subsidy_1", "commute_subsidy_transit"
@@ -629,7 +745,7 @@ df11.1 <- df11 %>%
   filter(commute_subsidy_transit=="Not offered")
 #%>% filter(hhincome_broad=="Under $25,000")
  
-transit_pass_chart <- static_column_chart(df11.1, x='survey_year', y='prop', fill='income_3group',ylabel= 'Share',
+transit_pass_chart <- static_column_chart(df11.1, x='survey_year', y='prop', fill='income_3group',ylabel= 'Share (%)',
                     title='Transit Pass Not Offered - Share',
                                          moe='prop_moe',
                                          color='pgnobgy_10'
@@ -646,6 +762,12 @@ transit_pass_chart
 df11
 ```
 
+## Transit trips by race/ethnicity
+
+-   People of color are more likely to use transit for trips.
+
+-   Black or African American residents are more likely to use transit.
+
 ```{r}
 #| echo: false
 
@@ -653,8 +775,8 @@ df12 <- psrc_hts_stat(hts_data_mode, "trip", c("re_2group", "mode_class_5"), inc
   filter(mode_class_5=="Transit") %>% 
   filter(survey_year=="2025")
 
-transit_race_chart <- static_bar_chart(df12, x='prop', y='re_2group', fill='mode_class_5',xlabel= 'Share',
-                                         title='Transit Trips by R/E - Share',
+transit_race_chart <- static_bar_chart(df12, x='prop', y='re_2group', fill='mode_class_5',xlabel= 'Share (%)',
+                                         title='Transit Trips by R/E - 2025',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
@@ -671,7 +793,7 @@ df12.1 <- psrc_hts_stat(hts_data_mode, "trip", c("re_4group", "mode_class_5"), i
   filter(mode_class_5=="Transit") %>% 
   filter(survey_year=="2025")
 
-transit_race_chart_detailed <- static_bar_chart(df12.1, x='prop', y='re_4group', fill='mode_class_5',xlabel= 'Share',
+transit_race_chart_detailed <- static_bar_chart(df12.1, x='prop', y='re_4group', fill='mode_class_5',xlabel= 'Share (%)',
                                          title='Transit Trips by R/E - Share',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -694,7 +816,7 @@ df12.1
 df12.2 <- psrc_hts_stat(hts_data_mode, "trip", c("re_4group", "mode_class_5"), incl_na=FALSE) %>% 
   filter(mode_class_5=="Transit") 
 
-transit_race_chart_years <- static_column_chart(df12.2, x='survey_year', y='prop', fill='re_4group',ylabel= 'Share',
+transit_race_chart_years <- static_column_chart(df12.2, x='survey_year', y='prop', fill='re_4group',ylabel= 'Share (%)',
                                          title='Transit Trips by R/E - Share',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -706,7 +828,7 @@ transit_race_chart_years <- static_column_chart(df12.2, x='survey_year', y='prop
 transit_race_chart_years
 
 transit_race_count_years_count <- static_column_chart(df12.1, x='survey_year', y='est', fill='re_4group',ylabel= 'Count',
-                                         title='Transit Trips by R/E - Share',
+                                         title='Transit Trips by R/E',
                                          moe='est_moe'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
@@ -721,6 +843,16 @@ transit_race_count_years_count
 df12.2
 ```
 
+## Transit/mode share by disability status
+
+-   The question about disability status was added to the Household Travel Survey in 2023.
+
+-   People who do not have a disability increased their share of transit ridership from 2.4% to 3.7% from 2023 to 2025. This was a significant increase.
+
+-   People with a disability use of the Other mode share jumped significantly from 2023 to 2025 from 1.6% to 7%. The Other mode includes paratransit and ride hail services such as Uber/Lyft, taxi, or car service.
+
+-   Driving is the dominant mode for people with a disability.
+
 ```{r}
 #| echo: false
 hts_data5 <-
@@ -729,7 +861,7 @@ hts_data5 <-
 df13 <- psrc_hts_stat(hts_data5, "trip", c("disability_person", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
 #%>% filter(survey_year=="2025")
 
-transit_dis_chart <- static_column_chart(df13, x='survey_year', y='prop', fill='disability_person',xlabel= 'Share',
+transit_dis_chart <- static_column_chart(df13, x='survey_year', y='prop', fill='disability_person',xlabel= 'Share (%)',
                                          title='Transit Trips by Disability Status - Share',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -764,8 +896,8 @@ df14 <- psrc_hts_stat(hts_data_mode, "trip", c("disability_person", "mode_class_
 #%>%  
   filter(disability_person=="Yes")
 
-other_dis_chart <- static_column_chart(df14, x='survey_year', y='prop', fill='mode_class_5',xlabel= 'Share',
-                                         title='Other Trips by Disability Status - Share',
+other_dis_chart <- static_column_chart(df14, x='survey_year', y='prop', fill='mode_class_5',xlabel= 'Share (%)',
+                                         title='Other Trips for People with a Disability - Share',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
@@ -778,6 +910,10 @@ other_dis_chart
 ```
 
 ```{r}
+df13
+```
+
+```{r}
 #| echo: false
 
 df14.1 <- psrc_hts_stat(hts_data5, "trip", c("disability_person", "mode_class_5"), incl_na=FALSE) %>% 
@@ -786,7 +922,7 @@ df14.1 <- psrc_hts_stat(hts_data5, "trip", c("disability_person", "mode_class_5"
   filter(disability_person=="Yes")
 
 mode_dis_chart <- static_column_chart(df14.1, x='survey_year', y='prop', fill='mode_class_5',xlabel= 'Share',
-                                         title='Mode by Disability Status - Share',
+                                         title='Mode by Disability Status - Share (%)',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
@@ -798,8 +934,18 @@ mode_dis_chart
 ```
 
 ```{r}
+df14.1
+```
+
+## Access to transit by home geography
+
+-   Walking to access transit does vary based on home geography, but what would be expected across the region. People in downtown Seattle are most likely to walk to access transit at 100%.
+
+-   People living in Seattle but outside of downtown (94%) are comparable to Bellevue (91%) in walking to access transit.
+
+```{r}
 #| echo: false
-#| 
+
 #home geography
 
 hts_data6 <-
@@ -807,7 +953,7 @@ hts_data6 <-
 
 df15 <- psrc_hts_stat(hts_data6, "trip", c("homegeog", "mode_acc"), incl_na=FALSE) %>% filter(survey_year=="2025") %>% filter(mode_acc=="Walked or jogged")
 
-transit_acc_chart_detail <- static_bar_chart(df15, x='prop', y='homegeog', fill='survey_year',ylabel= 'Share',
+transit_acc_chart_detail <- static_bar_chart(df15, x='prop', y='homegeog', fill='survey_year',ylabel= 'Share (%)',
                                          #xlabel='Mode',
                                          moe='prop_moe',
                                          color='pgnobgy_10',
@@ -822,6 +968,16 @@ transit_acc_chart_detail
 ```
 
 ```{r}
+df15
+```
+
+## Transit trips based on if home is in a regional growth center
+
+-   In 2025, people who live in a regional growth center were significantly more likely to take transit (13.6%) compared to people who do not (2.8%).
+
+-   In 2025, people who live in a regional growth center were significantly more likely to walk or jog to access transit (93.7%) compared to people who do not (81.4%).
+
+```{r}
 #| echo: false
 # mode based on home rgc/not rgc
 
@@ -830,11 +986,11 @@ hts_data7 <-
 
 df16 <- psrc_hts_stat(hts_data7, "trip", c("rgchome", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
 
-transit_rgchome <- static_column_chart(df16, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share',
+transit_rgchome <- static_column_chart(df16, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share (%)',
                                          #xlabel='Mode',
                                          moe='prop_moe',
                                          color='pgnobgy_10',
-                                         title='Transit Trips by Home in RGCs - Share'
+                                         title='Transit Trips by Home in RGCs - 2025'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
           legend.text = element_text(size=14),
@@ -845,16 +1001,20 @@ transit_rgchome
 ```
 
 ```{r}
+df16
+```
+
+```{r}
 #| echo: false
  
 df17 <- psrc_hts_stat(hts_data7, "trip", c("rgchome", "mode_acc"), incl_na=FALSE) %>% filter(survey_year=="2025") 
 #%>% filter(mode_acc=="Walked or jogged")
 
-transit_acc_rgchome <- static_column_chart(df17, x='mode_acc', y='prop', fill='rgchome',ylabel= 'Share',
+transit_acc_rgchome <- static_column_chart(df17, x='mode_acc', y='prop', fill='rgchome',ylabel= 'Share (%)',
                                          #xlabel='Mode',
                                          moe='prop_moe',
                                          color='pgnobgy_10',
-                                         title='Access to Transit by Home in RGCs - Share'
+                                         title='Access to Transit by Home in RGCs - 2025'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
           legend.text = element_text(size=14),
@@ -865,11 +1025,15 @@ transit_acc_rgchome
 ```
 
 ```{r}
+df17
+```
+
+```{r}
 #| echo: false
 ## access to transit trips without walk
 df18 <- psrc_hts_stat(hts_data7, "trip", c("rgchome", "mode_acc"), incl_na=FALSE) %>% filter(survey_year=="2025") %>% filter(mode_acc!="Walked or jogged")
 
-transit_acc_chart_wo_walk <- static_column_chart(df18, x='mode_acc', y='prop', fill='rgchome',ylabel= 'Share',
+transit_acc_chart_wo_walk <- static_column_chart(df18, x='mode_acc', y='prop', fill='rgchome',ylabel= 'Share (%)',
                                          title='Access to Transit Trips - Share (no walk)',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -882,14 +1046,22 @@ transit_acc_chart_wo_walk
 
 ```
 
+## Transit trips by county
+
+-   In 2023, Pierce County saw a rebound in share of transit trips comparable to the 2017 share.
+
+-   In 2025, King County saw a rebound in share of transit trips to pre-pandemic levels.
+
+-   When factoring in the margin of error, trends are not seen for Kitsap or Snohomish counties.
+
 ```{r}
 #| echo: false
 
-# trip mode share by county
+# trip mode Share (%) by county
 
 df19 <- psrc_hts_stat(hts_data7, "trip", c("home_county", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
 
-mode_county <- static_column_chart(df19, x='survey_year', y='prop', fill='home_county',ylabel= 'Share',
+mode_county <- static_column_chart(df19, x='survey_year', y='prop', fill='home_county',ylabel= 'Share (%)',
                                          title='Transit Trips by County - Share',
                                          moe='prop_moe'
 ) + theme(axis.text.x=element_text(size=14),
@@ -899,4 +1071,213 @@ mode_county <- static_column_chart(df19, x='survey_year', y='prop', fill='home_c
           axis.title.x=element_text(size=20))
 
 mode_county
+```
+
+```{r}
+df19
+```
+
+## Transit trips by gender
+
+-   In 2025, men/boys and women/girls were comparable on the share of trips they chose to use transit for, but non-binary/another/prefer not to answer was significantly more likely to choose transit for a trip.
+
+```{r}
+#| echo: false
+
+df20 <- psrc_hts_stat(hts_data_mode, "trip", c("gender_bucket", "mode_class_5"), incl_na=FALSE) %>% filter(mode_class_5=="Transit") 
+
+transit_gender_chart <- static_column_chart(df20, x='survey_year', y='prop', fill='gender_bucket',ylabel= 'Share', xlabel='Gender', title='Transit by Gender - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_gender_chart
+
+```
+
+```{r}
+df20
+```
+
+## Transit trips and trip miles
+
+-   Due to lower counts for higher mile trips, limit takeaways to looking at zero to six miles and six to 12 miles compared to everything else.
+
+-   There are meaningful trends to take away in general.
+
+-   In 2023, when transit is the primary mode there was a decrease in length of trips from zero to six miles and increase of trips six to 12 miles.
+
+-   Other than in 2023, when transit is the primary mode over 50% of transit trips are zero to six miles.
+
+```{r}
+#| echo: false
+
+df21 <- psrc_hts_stat(hts_data_mode, "trip", c("mode_class_5", "distance_miles"), incl_na=FALSE) %>% filter(mode_class_5=="Transit") %>% #filter(survey_year=="2025") %>% 
+  filter(distance_miles!='Exactly 0') %>% filter(distance_miles!='Missing')
+
+transit_miles_chart <- static_column_chart(df21, x='distance_miles', y='prop', fill='survey_year',ylabel= 'Share', xlabel='Miles', title='Trip Length when Transit is Primary Mode - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_miles_chart
+```
+
+```{r}
+#| echo: false
+
+df21.1 <- psrc_hts_stat(hts_data_mode, "trip", c("mode_class_5", "distance_miles"), incl_na=FALSE) %>% filter(mode_class_5=="Transit") %>% filter(survey_year=="2025") %>% filter(distance_miles!='Exactly 0') %>% filter(distance_miles!='Missing')
+
+mode_miles_chart <- static_column_chart(df21.1, x='distance_miles', y='prop', 
+                                        fill='survey_year',ylabel= 'Share', xlabel='Miles',                                           title='Trip Length when Transit is Primary Mode - Share (2025)', #moe='prop_moe', 
+color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) + facet_wrap(~ mode_class_5)
+
+mode_miles_chart
+
+```
+
+```{r}
+#| echo: false
+
+hts_data8 <-hts_bin_transit_mode_acc(hts_data)
+
+df21.2 <- psrc_hts_stat(hts_data8, "trip", c("transit_mode_acc", "distance_miles"), incl_na=FALSE) %>% 
+  filter(survey_year=="2025") %>%
+  filter(transit_mode_acc=="Walked or jogged") %>%
+  filter(distance_miles!='Exactly 0') %>%
+  filter(distance_miles!='Missing')
+
+acc_miles_chart <- static_column_chart(df21.2, x='distance_miles', y='prop', fill='transit_mode_acc',ylabel= 'Share', xlabel='Miles', title='Mode Access to Transit by Miles - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) + facet_wrap(~ survey_year)
+
+acc_miles_chart
+
+df21.3 <- psrc_hts_stat(hts_data8, "trip", c("transit_mode_acc", "distance_miles", "rgchome"), incl_na=FALSE) %>% filter(transit_mode_acc=="Walked or jogged") %>% filter(survey_year=="2025") %>% filter(distance_miles!='Exactly 0') %>% filter(distance_miles!='Missing')
+
+rgc_miles_walktotransit_chart <- static_column_chart(df21.3, x='distance_miles', y='prop', fill='rgchome',ylabel= 'Share', xlabel='Miles', title='Transit Access Mode Walk/Jog by Miles - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) + facet_wrap(~ survey_year)
+
+rgc_miles_walktotransit_chart
+
+```
+
+```{r}
+df21
+```
+
+```{r}
+df21.2
+```
+
+## Trip miles by regional growth centers
+
+-   People who live in a regional growth center take shorter trips (all modes) from zero to six miles compared to those who live outside of regional growth centers.
+
+```{r}
+#| echo: false
+
+df21.4 <- psrc_hts_stat(hts_data8, "trip", c("rgchome", "distance_miles"), incl_na=FALSE) %>% #filter(survey_year=="2025") %>% 
+  filter(distance_miles!='Exactly 0') %>% filter(distance_miles!='Missing')
+
+rgc_miles_chart <- static_column_chart(df21.4, x='distance_miles', y='prop', fill='rgchome',ylabel= 'Share', xlabel='Miles', title='Distance in Miles per Trip by RGC - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) + facet_wrap(~ survey_year)
+
+rgc_miles_chart
+
+```
+
+```{r}
+df21.4
+```
+
+## Vehicle ownership and regional growth centers
+
+-   People who live in a regional growth center are significantly more likely to live in a household without a vehicle.
+
+```{r}
+#| echo: false
+
+ df22 <- psrc_hts_stat(hts_data, "hh", c("rgchome", "vehicles"), incl_na=FALSE) #%>% # filter(survey_year=="2025")
+
+rgc_vehicle_chart <- static_column_chart(df22, x='vehicles', y='prop', fill='rgchome',ylabel= 'Share', xlabel='# of Vehicles', title='Vehicle Ownership by RGC - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20)) + facet_wrap(~ survey_year)
+
+rgc_vehicle_chart
+
+```
+
+```{r}
+#| echo: false
+
+df22.1 <- psrc_hts_stat(hts_data, "hh", c("rgchome", "vehicles"), incl_na=FALSE) %>% filter(vehicles=="0 (no vehicles)")
+
+rgc_novehicle_chart <- static_column_chart(df22.1, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share', xlabel='Years', title='No Vehicle by RGC - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+rgc_novehicle_chart
+
+```
+
+```{r}
+#| echo: false
+
+df22.2 <- psrc_hts_stat(hts_data, "hh", c("rgchome", "vehicles"), incl_na=FALSE) %>% filter(vehicles=="1 vehicle")
+
+rgc_onevehicle_chart <- static_column_chart(df22.2, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share', xlabel='Years', title='One Vehicle by RGC - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+rgc_onevehicle_chart
+
+```
+
+```{r}
+df22
+```
+
+## Zero vehicle and modes
+
+-   People who live in a zero vehicle households walk as a primary mode of travel followed by transit.
+
+```{r}
+#| echo: false
+
+df23 <- psrc_hts_stat(hts_data_mode, "trip", c("vehicles", "mode_class_5"), incl_na=FALSE) %>% filter(vehicles=="0 (no vehicles)")
+
+transit_novehicle_chart <- static_column_chart(df23, x='survey_year', y='prop', fill='mode_class_5',ylabel= 'Share (%)', xlabel='Years', title='No Vehicle and Modes - Share', 
+                                               #moe='prop_moe', 
+                                               color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_novehicle_chart
+
+transit_novehicle_chart_err <- static_column_chart(df23, x='survey_year', y='prop', fill='mode_class_5',ylabel= 'Share (%)', xlabel='Years', title='No Vehicle and Modes - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_novehicle_chart_err
+
+```
+
+```{r}
+df23
+```
+
+## Number of vehicles and transit riders
+
+-   During the pandemic in 2021, 61% of transit riders live in a zero vehicle household.
+
+-   In 2023, transit riders living in a household with one vehicle came back to riding transit and ridership was comparable to riders living in zero vehicle households.
+
+-   In 2025, transit riders living in a household with two vehicles came back to riding transit comparable to riders living in zero or one vehicle households.
+
+```{r}
+#| echo: false
+
+df23.1 <- psrc_hts_stat(hts_data_mode, "trip", c("mode_class_5", "vehicles"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
+
+transit_vehicle_chart <- static_column_chart(df23.1, x='survey_year', y='prop', fill='vehicles',ylabel= 'Share', xlabel='Years', title='# of Vehicles for Transit Riders - Share', #moe='prop_moe',
+        color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_vehicle_chart
+
+df23.1 <- psrc_hts_stat(hts_data_mode, "trip", c("mode_class_5", "vehicles"), incl_na=FALSE) %>% filter(mode_class_5=="Transit")
+
+transit_vehicle_chart_err <- static_column_chart(df23.1, x='survey_year', y='prop', fill='vehicles',ylabel= 'Share', xlabel='Years', title='# of Vehicles for Transit Riders - Share', moe='prop_moe', color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_vehicle_chart_err
+
+transit_vehicle_chart_count <- static_column_chart(df23.1, x='survey_year', y='est', fill='vehicles',ylabel= 'Estimate', xlabel='Years', title='# of Vehicles for Transit Riders - Estimate', #moe='prop_moe', 
+      color='pgnobgy_10' ) + theme(axis.text.x=element_text(size=14), axis.text.y=element_text(size=14), legend.text = element_text(size=14), axis.title.y=element_text(size=20), axis.title.x=element_text(size=20))
+
+transit_vehicle_chart_count
+
+```
+
+```{r}
+df23.1
 ```
