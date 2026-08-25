@@ -31,11 +31,11 @@ hts_data$hh <- hts_data$hh %>%
                                                         "$150,000 or more", "Prefer not to answer")))
 
 hts_data$hh <- hts_data$hh %>% 
-  mutate(hhincome_bike = case_when(hhincome_detailed %in% c("Under $10,000", "$10,000-$24,999", "$25,000-$34,999", "$35,000-$49,999", "$50,000-$74,999", "$75,000-$99,999") ~ "Under $100,000",
-                                   hhincome_detailed %in% c("$100,000-$149,999", "$150,000-$199,999", "$200,000-$249,999", "$250,000 or more") ~ "$100,000 or more",
-                                   TRUE ~ hhincome_detailed)) %>% 
-  mutate(hhincome_bike = factor(hhincome_bike,
-                                levels = c("Under $100,000", "$100,000 or more", "Prefer not to answer")))
+  mutate(hhincome_bin = case_when(hhincome_detailed %in% c("Under $10,000", "$10,000-$24,999", "$25,000-$34,999", "$35,000-$49,999", "$50,000-$74,999", "$75,000-$99,999") ~ "Under $100,000",
+                                  hhincome_detailed %in% c("$100,000-$149,999", "$150,000-$199,999", "$200,000-$249,999", "$250,000 or more") ~ "$100,000 or more",
+                                  TRUE ~ hhincome_detailed)) %>% 
+  mutate(hhincome_bin = factor(hhincome_bin,
+                               levels = c("Under $100,000", "$100,000 or more", "Prefer not to answer")))
 
 # condense age
 hts_data$person <- hts_data$person %>% 
@@ -95,39 +95,55 @@ trip_summary <- mode_summary %>%
 walk_bike_by_income <- psrc_hts_stat(hts_data,
                                      analysis_unit = "trip",
                                      group_vars = c("hhincome_detailed", "mode_class_5")) %>% 
-  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  filter(hhincome_detailed != "Prefer not to answer")
 
 walk_bike_by_income_combined <- psrc_hts_stat(hts_data,
                                               analysis_unit = "trip",
                                               group_vars = c("hhincome_detailed_combined", "mode_class_5")) %>% 
-  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  filter(hhincome_detailed_combined != "Prefer not to answer") %>% 
+  rename(income = hhincome_detailed_combined)
 
-bike_by_income_binary <- psrc_hts_stat(hts_data,
-                                       analysis_unit = "trip",
-                                       group_vars = c("hhincome_bike", "mode_class_5")) %>% 
-  filter(mode_class_5 == "Bike/Micromobility")
+walk_bike_by_income_binary <- psrc_hts_stat(hts_data,
+                                            analysis_unit = "trip",
+                                            group_vars = c("hhincome_bin", "mode_class_5")) %>% 
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  filter(hhincome_bin != "Prefer not to answer") %>% 
+  rename(income_binary = hhincome_bin)
 
 walk_bike_by_race <- psrc_hts_stat(hts_data,
                                    analysis_unit = "trip",
                                    group_vars = c("race_simple", "mode_class_5")) %>% 
-  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  filter(race_simple != c("Child") & !is.na(race_simple)) %>% 
+  rename(race_ethnicity = race_simple)
 
 walk_bike_by_race_binary <- psrc_hts_stat(hts_data,
                                           analysis_unit = "trip",
                                           group_vars = c("race_binary", "mode_class_5")) %>% 
-  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  filter(race_binary != c("Child") & !is.na(race_binary))
 
 walk_bike_by_gender <- psrc_hts_stat(hts_data,
                                      analysis_unit = "trip",
                                      group_vars = c("gender_group", "mode_class_5")) %>% 
-  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  filter(gender_group != "Prefer not to answer") %>% 
+  rename(gender = gender_group)
 
 walk_bike_by_age <- psrc_hts_stat(hts_data,
                                   analysis_unit = "trip",
                                   group_vars = c("age_condensed", "mode_class_5")) %>% 
-  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility")) %>% 
+  rename(age = age_condensed)
 
 walk_bike_by_rgc <- psrc_hts_stat(hts_data,
                                   analysis_unit = "trip",
                                   group_vars = c("in_rgc", "mode_class_5")) %>% 
+  filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))
+
+walk_bike_by_county <- psrc_hts_stat(hts_data,
+                                     analysis_unit = "trip",
+                                     group_vars = c("home_county", "mode_class_5")) %>% 
   filter(mode_class_5 %in% c("Walk", "Bike/Micromobility"))

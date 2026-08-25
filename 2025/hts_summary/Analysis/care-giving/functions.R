@@ -145,15 +145,17 @@ mode_share_income_set_c <- function(geog){
                 names_glue = "{survey_year}.{income_50}.{.value}"
     ) |>
     relocate("dest_loc","care_purpose_cat","mode_class_5")
-  
+
   ind01 <- grep("prop_per", colnames(df))
   ind02 <- grep("moe_per", colnames(df))
   ind03 <- grep("count", colnames(df))
   
-  df_reorder <- df |> 
+  df_reorder <- df |>
     select("dest_loc","care_purpose_cat","mode_class_5", unlist(pmap(list(ind01, ind02, ind03), c)))
   
-  return(list(long = rs, wide = df_reorder))
+  return(list(long = rs, 
+              wide = df_reorder
+              ))
 }
 
 create_trips_gender_tbl <- function(geog) {

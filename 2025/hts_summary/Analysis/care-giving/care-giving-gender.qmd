@@ -26,8 +26,6 @@ files <- c("data.R", "functions.R")
 
 invisible(
 lapply(files, function(f) {
-  # print(here::here("Analysis", "care-giving", f))
-  # source(here::here("Analysis", "care-giving", f))
   source(f)
 })
 )
@@ -47,9 +45,9 @@ geog <- "Region"
 at_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
                      group_vars = c(geo_col, "gender2"),
-                     incl_na = FALSE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                     incl_na = FALSE) #|> 
+  # mutate(prop_per = percent(prop),
+  #        moe_per = percent(prop_moe))
 
 # Which group is doing more?
 # How many trips overall are made by Females in the region?
@@ -58,27 +56,38 @@ at_rs <- psrc_hts_stat(df_hts,
 ```
 
 ```{r}
-#| layout-ncol: 2
-#| out-width: "50%"
-
+#| label: fig-all-trips-gender-01
+#| fig-cap: "All Trips by Gender"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
 plot_facet_wrap(table = at_rs,
                 facet = survey_year,
                 var1 = gender2,
                 var2 = gender2,
-                title = "All Trips by Gender") +
+                title = NULL, #"All Trips by Gender"
+                ) +
   theme(axis.text.x = element_blank())
+```
 
+```{r}
+#| label: fig-all-trips-gender-02
+#| fig-cap: "All Trips by Gender"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
 plot_facet_wrap(table = at_rs,
                 facet = gender2,
                 var1 = as.character(survey_year),
                 var2 = as.character(survey_year),
                 title = "All Trips by Gender",
-                color_pal = psrc_colors$blues_inc) +
+                color_pal = psrc_colors$blues_dec) +
   theme(axis.text.x = element_blank())
 ```
 
 ```{r}
-at_rs
+#| label: tbl-all-trips-gender
+get_table_format(at_rs)
 ```
 
 ```{r, eval=FALSE}
@@ -119,18 +128,20 @@ The following charts and tables show the share of trips by gender for care-givin
 ctg_rs <- psrc_hts_stat(df_hts,
                     analysis_unit = "trip",
                     group_vars = c(geo_col, "care_purpose_cat", "gender2"),
-                    incl_na = TRUE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                    incl_na = TRUE) #|> 
+  # mutate(prop_per = percent(prop),
+  #        moe_per = percent(prop_moe))
 
 # Which group is doing more?
 # Of all care trips made in , X are made by Females. Compared to all trips, X are made by Females.
 ```
 
 ```{r}
-#| layout-ncol: 2
-#| out-width: "50%"
-
+#| label: fig-gender-trip-purp-01
+#| fig-cap: "Gender by Care Trips"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
 ctg_rs_f <- ctg_rs |> 
   filter(.data[[geo_col]] %in% "Region",
          care_purpose_cat == "Care") |> 
@@ -140,34 +151,46 @@ plot_facet_wrap(table = ctg_rs_f,
                 facet = survey_year,
                 var1 = gender2,
                 var2 = gender2,
-                title = "Care Trips by Gender") +
- geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
+                title = NULL, 
+                ) +
   theme(axis.text.x = element_blank())
+```
 
+```{r}
+#| label: fig-gender-trip-purp-02
+#| fig-cap: "Gender by Care Trips"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
 plot_facet_wrap(table = ctg_rs_f,
                 facet = gender2,
                 var1 = survey_year,
                 var2 = survey_year,
-                title = "Care Trips by Gender",
-                color_pal = psrc_colors$blues_inc) +
-   geom_hline(aes(yintercept = .5, linetype = "50%"), color = "red") +
-  scale_linetype_manual(name = NULL, values = c("50%" = "dashed"))+
+                title = NULL, 
+                color_pal = psrc_colors$blues_dec) +
   theme(axis.text.x = element_blank())
 
 ```
 
 ```{r}
-ctg_rs_f 
+#| label: tbl-gender-trip-purp
+get_table_format(ctg_rs_f)
 ```
 
 ### Trip Purpose by Gender
 
 The following charts and table show the share of care-giving trips by gender.
 
-- Of all trips made by Women in 2025, 53% are care-giving trips. Of all trips made by Men in 2025, 45% are care-giving trips.
+- Generally across all survey years, Women made equal or more care-giving trips than Men.
+- Of all trips made by Women in 2025, 53% are care-giving trips. 
+- Of all trips made by Men in 2025, 45% are care-giving trips.
 
 ```{r}
+#| label: fig-trip-purpgender-01
+#| fig-cap: "Care Trips by Gender"
+#| fig-width: 8
+#| out-width: "70%"
+#| 
 create_trip_purp_gender_chart <- function(table) {
   plot_facet_wrap(table = table,
                 facet = survey_year,
@@ -192,9 +215,9 @@ create_trip_purp_gender_chart <- function(table) {
 gct_rs <- psrc_hts_stat(df_hts,
                     analysis_unit = "trip",
                     group_vars = c(geo_col, "gender2", "care_purpose_cat"),
-                    incl_na = FALSE) |> 
-  mutate(prop_per = percent(prop),
-         moe_per = percent(prop_moe))
+                    incl_na = FALSE) #|> 
+  # mutate(prop_per = percent(prop),
+  #        moe_per = percent(prop_moe))
 ```
 
 <!-- ::: panel-tabset -->
@@ -223,8 +246,8 @@ create_trip_purp_gender_chart(table = gct_rs_f |> filter(gender2 == "Men"))
 
 ```{r}
 #| label: tbl-men-trip-purp
-#| fig-cap: "Men and Trip Purpose Table"
-knitr::kable(gct_rs_f |> 
+
+get_table_format(gct_rs_f |> 
   filter(gender2 == "Men"))
 ```
 
@@ -242,8 +265,8 @@ create_trip_purp_gender_chart(table = gct_rs_f |> filter(gender2 == "Women"))
 
 ```{r}
 #| label: tbl-women-trip-purp
-#| fig-cap: "Women and Trip Purpose Table"
-knitr::kable(gct_rs_f |> 
+
+get_table_format(gct_rs_f |> 
   filter(gender2 == "Women"))
 ```
 
@@ -261,8 +284,8 @@ create_trip_purp_gender_chart(table = gct_rs_f |> filter(!gender2 %in% c("Men", 
 
 ```{r}
 #| label: tbl-other-trip-purp
-#| fig-cap: "Gender Prefer Not to Say and Trip Purpose Table"
-knitr::kable(gct_rs_f |> 
+
+get_table_format(gct_rs_f |> 
   filter(!gender2 %in% c("Men", "Women")))
 ```
 
