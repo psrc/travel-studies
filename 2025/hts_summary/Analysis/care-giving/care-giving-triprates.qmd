@@ -1,0 +1,318 @@
+---
+title: "Trip Rates"
+editor: visual
+format: 
+  html:
+    mainfont: Poppins
+    toc: true
+    warning: false
+    echo: false
+params:
+  errorbar: FALSE    
+---
+
+```{r packages & sources, include=FALSE}
+library(tidyverse)
+library(psrc.travelsurvey)
+library(psrcplot)
+library(scales)
+library(gt)
+library(kableExtra)
+install_psrc_fonts()
+
+files <- c("data.R", "functions.R", "care-giving-ols.R")
+lapply(files, source)
+```
+
+```{r custom variables & functions, include=FALSE}
+df_hts <- df_hts |> 
+  hts_bin_age() |>
+  hts_bin_income() |>
+  hts_bin_gender()
+
+df_hts$trip <- df_hts$trip |> mutate(care_trip = if_else(care_purpose_cat == "Care", "Yes", NA))
+
+df_hts$hh <- df_hts$hh |> mutate(low_income = case_when(
+    is.na(hhincome_bin3) ~ NA_character_,
+  hhincome_bin3 == "Less than $50,000"  ~ "Yes",
+  TRUE ~ "No"
+))
+
+df_hts$person <- df_hts$person |>
+  mutate(age_bin4 = factor(
+    case_when(age_bin5 %in% c("25-44 Years", "45-64 Years") ~ "25-64 Years",
+              TRUE ~ age_bin5),
+    levels = c("Under 18 Years", "18-24 Years",
+               "25-64 Years", "65 years or older")
+    ),
+    race_simpler = factor(if_else(race_simple == "Child", NA_character_, race_simple))
+  )
+
+df_hts_care <- data.table::copy(df_hts)
+df_hts_care$trip <- df_hts_care$trip |>
+  filter(care_purpose_cat == "Care")
+
+df_hts_ols_input <- data.table::copy(df_hts) 
+df_hts_ols_input$person <- df_hts_ols_input$person |>
+left_join(
+  df_hts$hh |> select(hh_id, low_income),
+  by = "hh_id"
+)
+
+plot_triprate_comparison <- function(all_trips, caregiving_trips, group_var, title,
+                                     year = 2025, errorbar = FALSE) {
+  # psrc_hts_triprate() drops factor levels, so restore the source ordering
+  group_levels <- levels(df_hts$person[[group_var]])
+
+  all_year <- all_trips |>
+    filter(survey_year == year) |>
+    select(all_of(group_var), all_mean = mean)
+
+  plot_data <- caregiving_trips |>
+    filter(survey_year == year) |>
+    left_join(all_year, by = group_var) |>
+    mutate(across(all_of(group_var), \(x) if (is.null(group_levels)) x else factor(x, levels = group_levels)))
+
+  plot_data |>
+    ggplot(aes(x = .data[[group_var]], y = mean)) +
+    geom_col(fill = psrc_colors$pognbgy_5[2], width = 0.7) +
+    errorbar_switch(
+      geom_errorbar(aes(ymin = mean - mean_moe, ymax = mean + mean_moe), width = 0.15),
+      on = errorbar
+    ) +
+    # tick mark showing the all-trips rate for reference, without the visual weight of a full bar
+    geom_errorbar(aes(ymin = all_mean, ymax = all_mean),
+                  width = 0.7, linewidth = 1, color = psrc_colors$pognbgy_5[1]) +
+    labs(x = NULL, y = "Trips per person per day", title = title,
+         caption = paste0(year, " caregiving trip rate, with all-trip rate shown as a reference line")) +
+    psrc_style() +
+    theme(axis.text.x = element_text(angle = 30, hjust = 1))
+}
+
+pairwise_triprate_tests <- function(hts_data, group_var, age_adjust = TRUE,
+                                    confidence = 0.90) {
+  z_critical <- qnorm((1 + confidence) / 2)
+  alpha <- 1 - confidence
+
+  triprates <- if (age_adjust) {
+    age_specific_rates <- psrc_hts_triprate(
+      hts_data,
+      group_vars = c(group_var, "age_bin5")
+    ) |>
+      filter(!is.na(.data[[group_var]]), !is.na(age_bin5))
+
+    group_coverage <- age_specific_rates |>
+      count(survey_year, .data[[group_var]], name = "age_cells") |>
+      group_by(survey_year) |>
+      filter(age_cells == max(age_cells)) |>
+      ungroup()
+
+    common_age_levels <- age_specific_rates |>
+      inner_join(
+        group_coverage |> select(survey_year, all_of(group_var)),
+        by = c("survey_year", group_var)
+      ) |>
+      count(survey_year, age_bin5, name = "groups_with_age") |>
+      left_join(
+        group_coverage |> count(survey_year, name = "groups_compared"),
+        by = "survey_year"
+      ) |>
+      filter(groups_with_age == groups_compared) |>
+      select(survey_year, age_bin5)
+
+    age_weights <- psrc_hts_stat(
+      df_hts,
+      analysis_unit = "person",
+      group_vars = "age_bin5",
+      incl_na = FALSE
+    ) |>
+      inner_join(common_age_levels, by = c("survey_year", "age_bin5")) |>
+      group_by(survey_year) |>
+      mutate(age_weight = prop / sum(prop)) |>
+      ungroup() |>
+      select(survey_year, age_bin5, age_weight)
+
+    age_specific_rates |>
+      inner_join(
+        group_coverage |> select(survey_year, all_of(group_var)),
+        by = c("survey_year", group_var)
+      ) |>
+      inner_join(age_weights, by = c("survey_year", "age_bin5")) |>
+      group_by(survey_year, .data[[group_var]]) |>
+      summarise(
+        age_cells = n(),
+        mean = sum(mean * age_weight),
+        mean_moe = z_critical * sqrt(sum((mean_moe / z_critical * age_weight)^2)),
+        .groups = "drop"
+      ) |>
+      left_join(
+        common_age_levels |> count(survey_year, name = "required_age_cells"),
+        by = "survey_year"
+      ) |>
+      filter(age_cells == required_age_cells) |>
+      select(-age_cells, -required_age_cells)
+  } else {
+    psrc_hts_triprate(hts_data, group_vars = group_var)
+  }
+
+  triprates |>
+    filter(!is.na(.data[[group_var]]), !is.na(mean), !is.na(mean_moe)) |>
+    group_by(survey_year) |>
+    group_modify(\(year_data, key) {
+      comparisons <- combn(seq_len(nrow(year_data)), 2, simplify = FALSE)
+
+      map_dfr(comparisons, \(indices) {
+        first <- year_data[indices[1], ]
+        second <- year_data[indices[2], ]
+        difference <- first$mean - second$mean
+        difference_se <- sqrt((first$mean_moe / z_critical)^2 +
+                              (second$mean_moe / z_critical)^2)
+
+        tibble(
+          group_1 = as.character(first[[group_var]]),
+          group_2 = as.character(second[[group_var]]),
+          difference = difference,
+          difference_moe = z_critical * difference_se,
+          p_value = 2 * pnorm(-abs(difference / difference_se)),
+          statistically_different = p_value < alpha
+        )
+      })
+    }) |>
+    ungroup()
+}
+
+summarize_consistent_differences <- function(test_results) {
+  test_results |>
+    group_by(group_1, group_2) |>
+    summarise(
+      years_tested = n(),
+      significant_every_year = all(statistically_different),
+      same_direction_every_year = n_distinct(sign(difference)) == 1,
+      average_triprate_difference = if (n_distinct(sign(difference)) == 1) {
+        mean(difference)
+      } else {
+        NA_real_
+      },
+      consistent_difference = significant_every_year & same_direction_every_year,
+      .groups = "drop"
+    )
+}
+```
+
+# Caregiving Trip-Rate Regression Model
+
+To disentangle the contribution of different demographic factors to caregiving trip rates, we fit an ordinary least squares (OLS) regression model, with age, gender, race, and income as covariates, as well as the survey year. Since each variable is specified as a categorical factor, the coefficients are on the same scale and can be directly compared.
+
+The reference case is specified as survey year 2025, with reference demographic characteristics being white, male, age 25-64, income \$50K or more.
+
+```{r caregiving-ols}
+caregiving_ols <- fit_caregiving_ols(df_hts_ols_input)
+
+coefficient_table <- caregiving_ols$coefficients |>
+  mutate(
+    significant = !is.na(p.value) & p.value < 0.05,
+    across(
+      c(estimate, std.error, statistic, conf.low, conf.high),
+      ~ if_else(is.na(.x), NA_character_, sprintf("%.2f", .x))
+    ),
+    p.value = if_else(is.na(p.value), NA_character_, sprintf("%.2e", p.value)),
+    across(
+      c(estimate, std.error, statistic, p.value, conf.low, conf.high),
+      ~ kableExtra::cell_spec(
+        .x,
+        color = if_else(significant, "black", "#808080")
+      )
+    )
+  ) |>
+  select(-significant)
+
+kableExtra::kbl(coefficient_table, format = "html", escape = FALSE) |>
+  kableExtra::kable_styling() |>
+  kableExtra::row_spec(
+    0,
+    bold = TRUE,
+    extra_css = "border-bottom: 2px solid #000;"
+  )
+```
+
+Unsurprisingly, 2021 shows lower trip rates when compared to years unaffected by the Covid-19 pandemic. Variation across the remaining surveys is relatively minor.
+
+Among demographic characteristics, age is particularly salient. Those under 25 take fewer daily caregiving trips per day, while those over 65 take more than the working-age reference group.
+
+Even when controlling for other factors, women on average take more daily caregiving trips than men. Respondents with incomes under \$50K take more daily caregiving trips than those with higher incomes.
+
+There are also residual differences by racial/ethnic groups, with Hispanic & Asian/HNPI respondents making fewer caregiving trips than the rest of the population.
+
+# Age
+
+```{r age}
+age_alltrips <- psrc_hts_triprate(df_hts, group_vars="age_bin5")
+
+age_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="age_bin5")
+
+# age_tests <- pairwise_triprate_tests(df_hts_care, "age_bin5", age_adjust = FALSE)
+# summarize_consistent_differences(age_tests) |>
+#   select(group_1, group_2, same_direction_every_year,
+#          average_triprate_difference, consistent_difference) |>
+#   mutate(average_triprate_difference = round(average_triprate_difference, 2))
+
+plot_triprate_comparison(age_alltrips, age_caregiving, "age_bin5", "2025 Trip Rates by Age", errorbar = TRUE)
+```
+
+Caregiving varies consistently by age: those under 25 years old make fewer caregiving trips than adults over 25.
+
+# Gender
+
+```{r gender}
+gender_alltrips <- psrc_hts_triprate(df_hts, group_vars = "gender2")
+
+gender_caregiving <- psrc_hts_triprate(df_hts_care, group_vars = "gender2")
+
+# gender_tests <- pairwise_triprate_tests(df_hts_care, "gender2")
+# summarize_consistent_differences(gender_tests) |>
+#   select(group_1, group_2, same_direction_every_year,
+#          average_triprate_difference, consistent_difference) |>
+#   mutate(average_triprate_difference = round(average_triprate_difference, 2))
+
+plot_triprate_comparison(gender_alltrips, gender_caregiving, "gender2", "2025 Trip Rates by Gender", errorbar = TRUE)
+```
+
+Gender differences are also significant: women make more caregiving trips than men, and that difference largely explains the difference in overall trip rates between genders.
+
+# Income
+
+```{r income}
+
+income_alltrips <- psrc_hts_triprate(df_hts, group_vars="low_income")
+
+income_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="low_income")
+
+# income_tests <- pairwise_triprate_tests(df_hts_care, "low_income")
+# summarize_consistent_differences(income_tests) |>
+#   select(group_1, group_2, same_direction_every_year,
+#          average_triprate_difference, consistent_difference) |>
+#   mutate(average_triprate_difference = round(average_triprate_difference, 2))
+
+plot_triprate_comparison(income_alltrips, income_caregiving, "low_income",
+                         "2025 Trip Rates by Low Income Status (Under $50K)", errorbar = TRUE)
+```
+
+Those with low income make more caregiving trips--in fact, the difference in caregiving trips largely explains the difference in overall trip rates between these income groups.
+
+# Race
+
+```{r race}
+race_alltrips <- psrc_hts_triprate(df_hts, group_vars="race_simpler", incl_na = FALSE)
+
+race_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="race_simpler", incl_na = FALSE)
+
+# race_tests <- pairwise_triprate_tests(df_hts_care, "race_simpler")
+# summarize_consistent_differences(race_tests) |>
+#   select(group_1, group_2, same_direction_every_year,
+#          average_triprate_difference, consistent_difference) |>
+#   mutate(average_triprate_difference = round(average_triprate_difference, 2))
+
+plot_triprate_comparison(race_alltrips, race_caregiving, "race_simpler", "2025 Trip Rates by Race/ethnicity", errorbar = TRUE)
+```
+
+While caregiving triprates among racial/ethnic groups vary, in 2025 these differences were not large enough or consistent enough to be meaningful.

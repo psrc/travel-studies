@@ -9,8 +9,8 @@ install_psrc_fonts()
 
 survey_year <- c("2017", "2019", "2021", "2023", "2025")
 
-vars <- c("dest_county","dest_purpose","dest_purpose_cat","dest_purpose_cat_5","mode_class","mode_class_5",
-          "age","can_drive","gender", "race_category",
+vars <- c("dest_county", "dest_purpose", "dest_purpose_cat", "dest_purpose_cat_5", "mode_class", 
+          "mode_class_5", "age", "can_drive", "gender", "race_category",
           "hhincome_broad","home_county", "numchildren")
 
 care_purpose_cat <- c("Escort", "Shopping", "Meal", "Personal Business/Errand/Appointment")
