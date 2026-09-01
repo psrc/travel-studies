@@ -8,7 +8,7 @@ format:
     warning: false
     echo: false
 params:
-  errorbar: FALSE    
+  errorbar: TRUE    
 ---
 
 ```{r packages & sources, include=FALSE}
@@ -117,18 +117,22 @@ There are also residual differences by racial/ethnic groups, with Hispanic & Asi
 
 # Caregiving Trip-Rate Trends
 
-These demographic differences can also be observed in trend data. 
+These demographic differences can also be observed in trend data.
 
-First, we'll look at the overall caregiving trip rate trend over time. 
+First, we'll look at the overall caregiving trip rate trend over time.
 
 ```{r aggregate-trend}
 plot_aggregate_trend(overall_caregiving_trend, trend_years, "Caregiving Trip Rate, 2017-2025")
 
 ```
 
+```{r tbl-aggregate-trend}
+format_triprate_table(overall_caregiving_trend |> filter(survey_year %in% trend_years))
+```
+
 There is a gradual downward trend in the caregiving triprate over time, punctuated by a larger decline during the pandemic and a partial recovery afterward.
 
-Keeping that trend in mind as reference, we'll now plot the difference in each demographic from the aggregate trend line--i.e. zero difference would be interpreted as matching the overall trip rate shown above.
+Keeping that trend in mind as reference, we'll examine the difference in each demographic from the aggregate trend line--i.e. zero difference would be interpreted as matching the overall trip rate shown above.
 
 # Age
 
@@ -143,16 +147,26 @@ age_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="age_bin5")
 #          average_triprate_difference, consistent_difference) |>
 #   mutate(average_triprate_difference = round(average_triprate_difference, 2))
 
-plot_triprate_comparison(age_alltrips, age_caregiving, "age_bin5", "2025 Trip Rates by Age", errorbar = TRUE)
+plot_triprate_comparison(age_alltrips, age_caregiving, "age_bin5", "2025 Trip Rates by Age",
+                         errorbar = params$errorbar)
 ```
+
+```{r tbl-age}
+table_triprate_comparison(age_alltrips, age_caregiving, "age_bin5")
+```
+
+Age displays the largest and most consistent differences among our demographic categories.
+
+Those under 25 make fewer caregiving trips relative to working-age adults. Those in standard retirement years have the highest caregiving trip rate, though the trend slopes downward.
+
 ```{r age-trend}
 plot_difference_trend(age_caregiving, overall_caregiving_trend, "age_bin5", trend_years,
                       "Trip Rate by Age, Difference from Overall Rate")
 ```
 
-Age displays the largest and most consistent differences among our demographic categories. 
-
-Those under 25 make fewer caregiving trips relative to working-age adults. Those in standard retirement years have the highest caregiving trip rate, though the trend slopes downward.
+```{r tbl-age-trend}
+table_difference_trend(age_caregiving, overall_caregiving_trend, "age_bin5", trend_years)
+```
 
 # Gender
 
@@ -167,15 +181,26 @@ gender_caregiving <- psrc_hts_triprate(df_hts_care, group_vars = "gender2")
 #          average_triprate_difference, consistent_difference) |>
 #   mutate(average_triprate_difference = round(average_triprate_difference, 2))
 
-plot_triprate_comparison(gender_alltrips, gender_caregiving, "gender2", "2025 Trip Rates by Gender", errorbar = TRUE)
+plot_triprate_comparison(gender_alltrips, gender_caregiving, "gender2", "2025 Trip Rates by Gender",
+                         errorbar = params$errorbar)
 ```
+
+```{r tbl-gender}
+table_triprate_comparison(gender_alltrips, gender_caregiving, "gender2")
+```
+
+In terms of gender, women have consistently made more caregiving trips than have men. The discrepancy narrowed significantly in 2019 and afterward has gradually widened, but not yet returned to 2017 levels.
+
+Caregiving triprates for the remainder, which comprise between 2 to eight percent of the population (and is thus more subject to sampling variability) have risen over time, although unchanged in the last two surveys. An explanation for the outlier in 2019 is not immediately clear.
+
 ```{r gender-trend}
 plot_difference_trend(gender_caregiving, overall_caregiving_trend, "gender2", trend_years,
                       "Trip Rate by Gender, Difference from Overall Rate")
 ```
-In terms of gender, women have consistently made more caregiving trips than have men. The discrepancy narrowed significantly in 2019 and afterward has gradually widened, but not yet returned to 2017 levels. 
 
-Caregiving triprates for the remainder, which comprise between 2 to eight percent of the population (and is thus more subject to sampling variability) have risen over time, although unchanged in the last two surveys. An explanation for the outlier in 2019 is not immediately clear.
+```{r tbl-gender-trend}
+table_difference_trend(gender_caregiving, overall_caregiving_trend, "gender2", trend_years)
+```
 
 # Income
 
@@ -191,13 +216,24 @@ income_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="low_income")
 #   mutate(average_triprate_difference = round(average_triprate_difference, 2))
 
 plot_triprate_comparison(income_alltrips, income_caregiving, "low_income",
-                         "2025 Trip Rates by Low Income Status (Under $50K)", errorbar = TRUE)
+                         "2025 Trip Rates by Low Income Status (Under $50K)",
+                         errorbar = params$errorbar)
 ```
+
+```{r tbl-income}
+table_triprate_comparison(income_alltrips, income_caregiving, "low_income")
+```
+
+A smaller difference is visible by income category: low-income earners (here defined as under \$50,000 annually, comprising between 13 and 25 percent of the population) make more caregiving trips on average than higher earners. The disparity has varied; this likely reflects persistent low response rates among those with fewer economic resources.
+
 ```{r income-trend}
 plot_difference_trend(income_caregiving, overall_caregiving_trend, "low_income", trend_years,
                       "Trip Rate by Low Income Status, Difference from Overall Rate")
 ```
-A smaller difference is visible by income category: low-income earners (here defined as under $50,000 annually, comprising between 13 and 25 percent of the population) make more caregiving trips on average than higher earners. The disparity has varied; this likely reflects persistent low response rates among those with fewer economic resources.
+
+```{r tbl-income-trend}
+table_difference_trend(income_caregiving, overall_caregiving_trend, "low_income", trend_years)
+```
 
 # Race
 
@@ -212,11 +248,21 @@ race_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="race_simpler", inc
 #          average_triprate_difference, consistent_difference) |>
 #   mutate(average_triprate_difference = round(average_triprate_difference, 2))
 
-plot_triprate_comparison(race_alltrips, race_caregiving, "race_simpler", "2025 Trip Rates by Race/ethnicity", errorbar = TRUE)
+plot_triprate_comparison(race_alltrips, race_caregiving, "race_simpler", "2025 Trip Rates by Race/ethnicity",
+                         errorbar = params$errorbar)
 ```
+
+```{r tbl-race}
+table_triprate_comparison(race_alltrips, race_caregiving, "race_simpler")
+```
+
+While caregiving triprates among racial/ethnic groups vary, in 2025 these differences were not large enough or consistent enough to be meaningful. A larger future survey sample may be necessary to draw substantive conclusions.
+
 ```{r race-trend}
 plot_difference_trend(race_caregiving, overall_caregiving_trend, "race_simpler", trend_years,
                       "Trip Rate by Race/ethnicity, Difference from Overall Rate")
 ```
 
-While caregiving triprates among racial/ethnic groups vary, in 2025 these differences were not large enough or consistent enough to be meaningful. A larger future survey sample may be necessary to draw substantive conclusions.
+```{r tbl-race-trend}
+table_difference_trend(race_caregiving, overall_caregiving_trend, "race_simpler", trend_years)
+```
