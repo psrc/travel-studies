@@ -3,7 +3,7 @@ title: "Transit Analysis"
 author: "Kristin Mitchell"
 format: html
 editor: visual
-  toc: true
+toc: true
 ---
 
 ```{r message=FALSE, warning=FALSE}
@@ -234,7 +234,6 @@ mode_chart
 ```
 
 ```{r}
-{r}
 #| echo: false
 df_year <- df %>% filter(survey_year==2025)
 
@@ -1007,14 +1006,16 @@ df16
 ```{r}
 #| echo: false
  
-df17 <- psrc_hts_stat(hts_data7, "trip", c("rgchome", "mode_acc"), incl_na=FALSE) %>% filter(survey_year=="2025") 
-#%>% filter(mode_acc=="Walked or jogged")
+df17 <- psrc_hts_stat(hts_data, "trip", c("mode_class_5", "rgchome", "mode_acc"), incl_na=FALSE) %>% 
+  #filter(survey_year=="2025") %>% 
+  filter(mode_acc=="Walked or jogged") %>%
+  filter(mode_class_5=="Transit")
 
-transit_acc_rgchome <- static_column_chart(df17, x='mode_acc', y='prop', fill='rgchome',ylabel= 'Share (%)',
+transit_acc_rgchome <- static_column_chart(df17, x='survey_year', y='prop', fill='rgchome',ylabel= 'Share (%)',
                                          #xlabel='Mode',
                                          moe='prop_moe',
                                          color='pgnobgy_10',
-                                         title='Access to Transit by Home in RGCs - 2025'
+                                         title='Access to Transit by Home in RGCs'
 ) + theme(axis.text.x=element_text(size=14),
           axis.text.y=element_text(size=14),
           legend.text = element_text(size=14),

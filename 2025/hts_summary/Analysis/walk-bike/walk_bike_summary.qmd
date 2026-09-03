@@ -183,7 +183,7 @@ ggplot(trip_summary,
 ```{r all_modes}
 #| label: fig-all-modes
 #| fig-cap: Trips by Mode
-#| fig-height: 3.5
+#| fig-height: 6
 #| fig-width: 10
 
 ggplot(filter(mode_summary, !is.na(mode_class_5)),
@@ -253,7 +253,7 @@ tbl_output(mode_summary, "Bike/Micromobility")
 ```{r walk_income_combined}
 #| label: fig-walk-income
 #| fig-cap: Walk Trips by Income
-#| fig-height: 3
+#| fig-height: 5
 #| fig-width: 8
 
 multi_cat_output(walk_bike_by_income_combined, mode = "Walk", group_var = "income")
@@ -317,7 +317,7 @@ multi_cat_output(walk_bike_by_race, mode = "Bike/Micromobility", group_var = "ra
 #### Walking
 ```{r walk_race}
 #| fig-cap: Walk Trips by Race
-#| fig-height: 3
+#| fig-height: 4
 #| fig-width: 5
 
 multi_cat_output(walk_bike_by_race_binary, mode = "Walk", group_var = "race_binary")
@@ -341,7 +341,7 @@ multi_cat_output(walk_bike_by_race_binary, mode = "Bike/Micromobility", group_va
 ```{r walk_age}
 #| label: fig-walk-age
 #| fig-cap: Walk Trips by Age
-#| fig-height: 3
+#| fig-height: 5
 #| fig-width: 8
 
 multi_cat_output(walk_bike_by_age, mode = "Walk", group_var = "age")
@@ -357,10 +357,11 @@ tbl_output(walk_bike_by_age, mode = "Walk")
 ```{r bike_age}
 #| label: fig-bike-age
 #| fig-cap: Bike/Micromobility Trips by Age
-#| fig-height: 3
-#| fig-width: 8
+#| fig-height: 4
+#| fig-width: 6
 
-multi_cat_output(walk_bike_by_age, mode = "Bike/Micromobility", group_var = "age")
+# multi_cat_output(walk_bike_by_age, mode = "Bike/Micromobility", group_var = "age")
+multi_cat_output(filter(walk_bike_by_age, age %in% c("18-34 years", "35-64 years")), mode = "Bike/Micromobility", group_var = "age")
 ```
 
 ```{r bike_age_tbl}
@@ -378,7 +379,7 @@ tbl_output(walk_bike_by_age, mode = "Bike/Micromobility")
 ```{r walk_gender}
 #| label: fig-walk-gender
 #| fig-cap: Walk Trips by Gender
-#| fig-height: 3
+#| fig-height: 4
 #| fig-width: 6
 
 multi_cat_output(walk_bike_by_gender, mode = "Walk", group_var = "gender")
@@ -394,10 +395,11 @@ tbl_output(walk_bike_by_gender, mode = "Walk")
 ```{r bike_gender}
 #| label: fig-bike-gender
 #| fig-cap: Bike/Micromobility Trips by Gender
-#| fig-height: 3
+#| fig-height: 4
 #| fig-width: 6
 
-multi_cat_output(walk_bike_by_gender, mode = "Bike/Micromobility", group_var = "gender")
+# multi_cat_output(walk_bike_by_gender, mode = "Bike/Micromobility", group_var = "gender")
+multi_cat_output(filter(walk_bike_by_gender, gender %in% c("Men", "Women")), mode = "Bike/Micromobility", group_var = "gender")
 ```
 
 ```{r bike_rgc_tbl}
@@ -452,7 +454,7 @@ tbl_output(walk_bike_by_rgc, mode = "Bike/Micromobility")
 ```{r walk_county}
 #| label: fig-walk-county
 #| fig-cap: Walk Trips by Home County
-#| fig-height: 3
+#| fig-height: 5
 #| fig-width: 8
 
 multi_cat_output(walk_bike_by_county, mode = "Walk", group_var = "home_county")
