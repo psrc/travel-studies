@@ -4,11 +4,12 @@ fit_caregiving_ols <- function(hts_data) {
     gender2 = "Men",
     race_simpler = "White",
     age_bin4 = "25-64 Years",
-    low_income = "No"
+    low_income = "No",
+    vehicle_ownership = "Own vehicle"
   )
 
   demographics <- hts_data$person |>
-    select(person_id, gender2, race_simpler, age_bin4, low_income)
+    select(person_id, gender2, race_simpler, age_bin4, low_income, vehicle_ownership)
 
   caregiving_counts <- hts_data$trip |>
     filter(care_purpose_cat == "Care") |>
@@ -24,7 +25,8 @@ fit_caregiving_ols <- function(hts_data) {
       gender2 = factor(as.character(gender2)),
       race_simpler = factor(as.character(race_simpler)),
       age_bin4 = factor(as.character(age_bin4)),
-      low_income = factor(as.character(low_income))
+      low_income = factor(as.character(low_income)),
+      vehicle_ownership = factor(as.character(vehicle_ownership)),
     ) |>
     filter(
       !is.na(survey_year),
@@ -32,6 +34,7 @@ fit_caregiving_ols <- function(hts_data) {
       !is.na(race_simpler),
       !is.na(age_bin4),
       !is.na(low_income),
+      !is.na(vehicle_ownership),
       !is.na(day_weight)
     )
 

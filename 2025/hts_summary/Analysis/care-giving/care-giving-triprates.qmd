@@ -8,7 +8,7 @@ format:
     warning: false
     echo: false
 params:
-  errorbar: TRUE    
+  errorbar: FALSE    
 ---
 
 ```{r packages & sources, include=FALSE}
@@ -33,11 +33,14 @@ df_hts <- df_hts |>
 
 df_hts$trip <- df_hts$trip |> mutate(care_trip = if_else(care_purpose_cat == "Care", "Yes", NA))
 
-df_hts$hh <- df_hts$hh |> mutate(low_income = case_when(
-    is.na(hhincome_bin3) ~ NA_character_,
-  hhincome_bin3 == "Less than $50,000"  ~ "Yes",
-  TRUE ~ "No"
-))
+df_hts$hh <- df_hts$hh |> mutate(
+  low_income = case_when(is.na(hhincome_bin3) ~ NA_character_,
+                         hhincome_bin3 == "Less than $50,000"  ~ "Yes",
+                         TRUE ~ "No"),
+ vehicle_ownership = case_when(is.na(vehicle_count) ~ NA_character_,
+   vehicle_count == "0 (no vehicles)" ~ "No vehicle",
+   as.numeric(str_extract(vehicle_count, "^\\d+")) > 0 ~ "Own vehicle")
+)
 
 df_hts$person <- df_hts$person |>
   mutate(age_bin4 = factor(
@@ -61,7 +64,7 @@ df_hts_care$trip <- df_hts_care$trip |>
 df_hts_ols_input <- data.table::copy(df_hts) 
 df_hts_ols_input$person <- df_hts_ols_input$person |>
 left_join(
-  df_hts$hh |> select(hh_id, low_income),
+  df_hts$hh |> select(hh_id, low_income, vehicle_ownership),
   by = "hh_id"
 )
 
@@ -265,4 +268,36 @@ plot_difference_trend(race_caregiving, overall_caregiving_trend, "race_simpler",
 
 ```{r tbl-race-trend}
 table_difference_trend(race_caregiving, overall_caregiving_trend, "race_simpler", trend_years)
+```
+
+# Vehicle Ownership
+
+```{r veh-ownership}
+veh_ownership_alltrips <- psrc_hts_triprate(df_hts, group_vars="vehicle_ownership", incl_na = FALSE)
+
+veh_ownership_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="vehicle_ownership", incl_na = FALSE)
+
+# veh_ownership_tests <- pairwise_triprate_tests(df_hts_care, "")
+# summarize_consistent_differences(veh_ownership_tests) |>
+#   select(group_1, group_2, same_direction_every_year,
+#          average_triprate_difference, consistent_difference) |>
+#   mutate(average_triprate_difference = round(average_triprate_difference, 2))
+
+plot_triprate_comparison(veh_ownership_alltrips, veh_ownership_caregiving , "vehicle_ownership", "2025 Trip Rates by Vehicle Ownership",
+                         errorbar = params$errorbar)
+```
+
+```{r tbl-veh-ownership}
+table_triprate_comparison(veh_ownership_alltrips, veh_ownership_caregiving, "vehicle_ownership")
+```
+
+While caregiving triprates among racial/ethnic groups vary, in 2025 these differences were not large enough or consistent enough to be meaningful. A larger future survey sample may be necessary to draw substantive conclusions.
+
+```{r veh-ownership-trend}
+plot_difference_trend(veh_ownership_caregiving, overall_caregiving_trend, "vehicle_ownership", trend_years,
+                      "Trip Rate by Vehicle Ownership, Difference from Overall Rate")
+```
+
+```{r tbl-veh-ownership-trend}
+table_difference_trend(veh_ownership_caregiving, overall_caregiving_trend, "vehicle_ownership", trend_years)
 ```
