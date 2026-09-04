@@ -291,7 +291,7 @@ plot_triprate_comparison(veh_ownership_alltrips, veh_ownership_caregiving , "veh
 table_triprate_comparison(veh_ownership_alltrips, veh_ownership_caregiving, "vehicle_ownership")
 ```
 
-While caregiving triprates among racial/ethnic groups vary, in 2025 these differences were not large enough or consistent enough to be meaningful. A larger future survey sample may be necessary to draw substantive conclusions.
+Those living in households without vehicles make 20 percent fewer trips in total, and a correspondingly smaller number of caregiving trips.
 
 ```{r veh-ownership-trend}
 plot_difference_trend(veh_ownership_caregiving, overall_caregiving_trend, "vehicle_ownership", trend_years,
@@ -301,3 +301,35 @@ plot_difference_trend(veh_ownership_caregiving, overall_caregiving_trend, "vehic
 ```{r tbl-veh-ownership-trend}
 table_difference_trend(veh_ownership_caregiving, overall_caregiving_trend, "vehicle_ownership", trend_years)
 ```
+
+# Disability
+
+```{r disability}
+disability_alltrips <- psrc_hts_triprate(df_hts, group_vars="disability_person", incl_na = FALSE)
+
+disability_caregiving <- psrc_hts_triprate(df_hts_care, group_vars="disability_person", incl_na = FALSE)
+
+# disability_tests <- pairwise_triprate_tests(df_hts_care, "")
+# summarize_consistent_differences(disability_tests) |>
+#   select(group_1, group_2, same_direction_every_year,
+#          average_triprate_difference, consistent_difference) |>
+#   mutate(average_triprate_difference = round(average_triprate_difference, 2))
+
+plot_triprate_comparison(disability_alltrips, disability_caregiving , "disability_person", "2025 Trip Rates by Disability Status",
+                         errorbar = params$errorbar)
+```
+
+```{r tbl-disability}
+table_triprate_comparison(disability_alltrips, disability_caregiving, "disability_person")
+```
+
+
+```{r disability-trend}
+plot_difference_trend(disability_caregiving, overall_caregiving_trend, "disability_person", trend_years,
+                      "Trip Rate by Disability Status, Difference from Overall Rate")
+```
+
+# Disability
+
+```{r tbl-disability-trend}
+table_difference_trend(disability_caregiving, overall_caregiving_trend, "disability_person", trend_y
