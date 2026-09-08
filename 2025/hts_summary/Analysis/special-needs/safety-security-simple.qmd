@@ -1,0 +1,225 @@
+---
+title: "safety-security-simple"
+format: html
+params:
+  errorbar: false
+---
+
+```{r data-retrieval-and-setup, include = FALSE}
+library(psrc.travelsurvey)
+library(magrittr)
+library(data.table)
+library(ggplot2)
+
+lapply(c("add_custom_vars.R", "bundle_sss_stat.R","plot_facet_sss_bundle.R"), source)
+ 
+vars <- c("complete", "employ", "caregiver", "traffic_worry", "harrassment", 
+          "urgent_worry", "walk_recreation_relax", "travel_anxiety", 
+          "overall_safety", "travel_worry", "drive_safely", "bike_comfort_cars", 
+          "alert_traveler", "drive_worry", "signal_confidence", "worry_destination", 
+          "safety_choices", "safety_choices_costs", "safety_choices_modes", 
+          "worry_security", "shortest_path_fear", "shortest_path_assault", 
+          "traffic_crash_worry", "traffic_harrassment", "no_safe_travel", 
+          "no_harm_travel", "feel_safe", "fear_assault", "feel_safe_crash", 
+          "fear_assault_2", "avoid_walk_1", "avoid_walk_2", "system_safe", 
+          "safe_clothes", "traffic_enforcement", "speed_limits", 
+          "traffic_deaths", "traffic_rules", "age", "ethnicity_4", "ethnicity_2", 
+          "ethnicity_3", "ethnicity_997", "ethnicity_1", "ethnicity_999", "race_1", 
+          "race_2", "race_3", "race_4", "race_5", "race_997", "race_999", 
+          "race_other_specify", "gender", "hhsize", "hh_children", "numchildren", 
+          "vehicle_count", "hhincome_detailed", "disability_person", "mobility_aides")
+
+dt_sss <- get_psrc_sss(vars) %>% setDT() %>% add_custom_vars()
+
+```
+
+Create batches that will be plotted together
+
+```{r create-batches}
+
+worry_txt <- c("Before I go somewhere, I worry about making it to my destination safely.",
+               "Even just planning my travel can make me anxious about my safety.",
+               "I am generally on the alert against someone bothering me when I travel alone.",
+               "I worry about making urgent trips (e.g., hospital) given my travel options.",
+               "In general, I worry about being in a traffic crash when I’m traveling.",
+               "When I think about traveling, I worry about the safety of those traveling with me.",
+               "When driving, I worry about my own safety.")
+
+tradeoff_txt <- c("Avoid walking/rolling and bicycling for trips",
+          "Choose a longer route",
+          "Choose a more expensive mode of travel",
+          "Drive to a destination instead",
+          "Skip traveling altogether",
+          "Use a different means of travel"
+      )
+
+batches <- batches <- data.frame(
+  batch_name = c("emotional_burden", "safety_tradeoffs", "security_tradeoffs"),
+  question_ids = I(list(
+    c("5.13", "5.05", "5.10", "5.03", "5.01", "5.07", "5.11"),
+    c("6.15", "6.05", "6.11", "6.13", "6.09", "6.07"),
+    c("6.16", "6.06", "6.12", "6.14", "6.10", "6.08")
+  )),
+  endorse_values = I(list(
+    c("Agree", "Strongly agree"),
+    c("Sometimes", "Often"),
+    c("Sometimes", "Often")
+  )), 
+  override_q_text = I(list(
+    worry_txt, 
+    tradeoff_txt,
+    tradeoff_txt
+  ))
+)
+
+```
+
+Disability plots
+
+```{r disability}
+
+rs_disability <- Map(
+  function(question_ids, endorse_values, override_q_text) {
+    bundle_sss_stat(
+      dt_sss,
+      question_ids = question_ids,
+      endorse_values = endorse_values,
+      group_var = "disability",
+      override_q_text = override_q_text
+    )
+  },
+  batches$question_ids,
+  batches$endorse_values,
+  batches$override_q_text
+)
+
+names(rs_disability) <- batches$batch_name
+p_disability <- lapply(rs_disability, plot_facet_sss_bundle, group_var= "disability")
+invisible(lapply(p_disability, print))
+
+```
+
+Low-income plots
+
+```{r low-income}
+
+rs_low_income <- Map(
+  function(question_ids, endorse_values, override_q_text) {
+    bundle_sss_stat(
+      dt_sss,
+      question_ids = question_ids,
+      endorse_values = endorse_values,
+      group_var = "low_income",
+      override_q_text = override_q_text
+    )
+  },
+  batches$question_ids,
+  batches$endorse_values,
+  batches$override_q_text
+)
+
+names(rs_low_income) <- batches$batch_name
+p_low_income <- lapply(rs_low_income, plot_facet_sss_bundle, group_var= "low_income")
+invisible(lapply(p_low_income, print))
+
+```
+
+Zero-vehicle plots
+
+```{r zero-vehicles}
+
+rs_zero_vehicles <- Map(
+  function(question_ids, endorse_values, override_q_text) {
+    bundle_sss_stat(
+      dt_sss,
+      question_ids = question_ids,
+      endorse_values = endorse_values,
+      group_var = "zero_vehicles",
+      override_q_text = override_q_text
+    )
+  },
+  batches$question_ids,
+  batches$endorse_values,
+  batches$override_q_text
+)
+
+names(rs_zero_vehicles) <- batches$batch_name
+p_zero_vehicles <- lapply(rs_zero_vehicles, plot_facet_sss_bundle, group_var= "zero_vehicles")
+invisible(lapply(p_zero_vehicles, print))
+
+```
+
+Age plots
+
+```{r age}
+
+rs_age <- Map(
+  function(question_ids, endorse_values, override_q_text) {
+    bundle_sss_stat(
+      dt_sss,
+      question_ids = question_ids,
+      endorse_values = endorse_values,
+      group_var = "age_bin5",
+      override_q_text = override_q_text
+    )
+  },
+  batches$question_ids,
+  batches$endorse_values,
+  batches$override_q_text
+)
+
+names(rs_age) <- batches$batch_name
+p_age <- lapply(rs_age, plot_facet_sss_bundle, group_var= "age_bin5")
+invisible(lapply(p_age, print))
+
+```
+
+Gender plots
+
+```{r gender}
+
+rs_gender <- Map(
+  function(question_ids, endorse_values, override_q_text) {
+    bundle_sss_stat(
+      dt_sss,
+      question_ids = question_ids,
+      endorse_values = endorse_values,
+      group_var = "gender_bin3",
+      override_q_text = override_q_text
+    )
+  },
+  batches$question_ids,
+  batches$endorse_values,
+  batches$override_q_text
+)
+
+names(rs_gender) <- batches$batch_name
+p_gender <- lapply(rs_gender, plot_facet_sss_bundle, group_var= "gender_bin3")
+invisible(lapply(p_gender, print))
+
+```
+
+Race plots
+
+```{r race}
+
+rs_poc <- Map(
+  function(question_ids, endorse_values, override_q_text) {
+    bundle_sss_stat(
+      dt_sss,
+      question_ids = question_ids,
+      endorse_values = endorse_values,
+      group_var = "poc",
+      override_q_text = override_q_text
+    )
+  },
+  batches$question_ids,
+  batches$endorse_values,
+  batches$override_q_text
+)
+
+names(rs_poc) <- batches$batch_name
+p_poc <- lapply(rs_poc, plot_facet_sss_bundle, group_var= "poc")
+invisible(lapply(p_poc, print))
+
+```
