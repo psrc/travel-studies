@@ -41,6 +41,10 @@ geog <- "Region"
 
 ## All trips
 
+The following charts show the distribution of all trips across trip purposes (excluding Home trips) by gender.
+
+- For most survey years, women make more trips than men or those who identify as other or those who prefer not to answer.
+
 ```{r}
 at_rs <- psrc_hts_stat(df_hts,
                      analysis_unit = "trip",
@@ -112,11 +116,11 @@ rs3 |>
 
 ```
 
-## Care Trips and Gender
+## Care trips and gender
 
 The following charts and tables show the share of trips by gender for care-giving purposes.
 
-### Gender by Trip Purpose
+### Gender by trip purpose
 
 <!-- Comparing genders within each purpose -->
 
@@ -177,13 +181,11 @@ plot_facet_wrap(table = ctg_rs_f,
 get_table_format(ctg_rs_f)
 ```
 
-### Trip Purpose by Gender
+### Trip purpose by gender
 
 The following charts and table show the share of care-giving trips by gender.
 
-- Generally across all survey years, Women made equal or more care-giving trips than Men.
-- Of all trips made by Women in 2025, 53% are care-giving trips. 
-- Of all trips made by Men in 2025, 45% are care-giving trips.
+- Generally across all survey years, women made equal or more care-giving trips than men.
 
 ```{r}
 #| label: fig-trip-purpgender-01
@@ -206,7 +208,6 @@ create_trip_purp_gender_chart <- function(table) {
 }
 
 ```
-
 
 ```{r}
 # exclude where care_purpose_cat is NA because those are home trips, and b/c each gender is its own universe,
@@ -233,6 +234,8 @@ gct_rs_f <- gct_rs |>
 
 #### Men
 
+- Of all trips made by men in 2025, 45% are care-giving trips.
+
 ```{r}
 #| label: fig-men-trip-purp
 #| fig-cap: "Men and Trip Purpose"
@@ -253,6 +256,8 @@ get_table_format(gct_rs_f |>
 
 #### Women
 
+- Of all trips made by women in 2025, 53% are care-giving trips.
+
 ```{r}
 #| label: fig-women-trip-purp
 #| fig-cap: "Women and Trip Purpose"
@@ -270,7 +275,7 @@ get_table_format(gct_rs_f |>
   filter(gender2 == "Women"))
 ```
 
-#### Prefer not to say or Other
+#### Prefer not to say or other
 
 ```{r}
 #| label: fig-other-trip-purp

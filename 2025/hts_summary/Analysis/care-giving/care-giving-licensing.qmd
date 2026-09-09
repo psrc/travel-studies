@@ -40,7 +40,9 @@ source("../util.R")
 
 ```
 
-## Can Drive by Age
+## Can drive by age
+
+The following chart and table shows the distribution of persons by age and whether or not they can drive.
 
 - There were fewer 18-24 year olds who could drive in 2017/19 than those who couldn't. By 2023, there were significantly less who were driving.
 
@@ -105,9 +107,11 @@ per_cda |>
 get_table_format(per_cda)
 ```
 
-## Care Trips, Can Drive, Age
+## Care trips, can drive, and age
 
-### Can Drive and Age by Trip Purpose
+The following charts and tables in this section focuses on care trips by whether or not a person can drive and their age.
+
+### Can drive and age by trip purpose
 
 - Where care trips were taken, the vast majority of those between the ages of 25-84 years can drive.
 
@@ -129,6 +133,7 @@ t_cda <- psrc_hts_stat(df_hts,
 ```
 
 <!-- ::: panel-tabset -->
+
 #### Yes (can drive)
 
 ```{r}
@@ -146,7 +151,7 @@ plot_facet_wrap(table = t_cda |> filter(can_drive2 %in% "Yes"),
 
 ```
 
-#### No (can drive)
+#### No (cannot drive)
 
 ```{r}
 #| label: fig-no-can-drive-care-trips
@@ -161,6 +166,7 @@ plot_facet_wrap(table = t_cda |> filter(can_drive2 %in% "No"),
                 title = NULL, #"Age, No, cannot drive and Care Trips",
                 color_pal = psrc_colors$pognbgy_10)
 ```
+
 <!-- ::: -->
 
 ```{r}
@@ -188,17 +194,17 @@ cda_t <- psrc_hts_stat(df_hts,
 cda_t
 ```
 
-## Care Trips, Can Drive, & Gender
+## Care trips, can drive, and gender
 
 All charts in this section focus on care trip purposes. The analysis is presented in two different ways. First, the charts are broken down by respondants’ ability to drive (Yes, No, NA). In the next section they are broken down by gender (Men, Women, Prefer not to answer, Other).
 
-### Gender by Can Drive and Trip Purpose
+Charts where respondents did not select an answer for variable "Can Drive" and are represented by "NA", those individuals are also ages 15 years and under.
+
+### Gender by can drive and trip purpose
 
 The following charts and tables show the distribution of gender who can or cannot drive by trip purpose--specifically for care-giving.
 
-- Of all care-trips in the Region and those who can drive, there is a higher share of Women than Men for most survey years
-
-- Charts where respondents did not select an anwwer for Can Drive, those individuals are also ages 15 years and under.
+- Of all care-trips in the Region and those who can drive, there is a higher share of women than men for most survey years
 
 ```{r}
 # Can Drive and Gender by Trip Purpose
@@ -241,7 +247,7 @@ plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "Yes") |> mutate(fift
   theme(axis.text.x = element_blank())
 ```
 
-#### No (can drive)
+#### No (cannot drive)
 
 ```{r}
 #| label: fig-no-can-drive-trip-purp
@@ -259,8 +265,6 @@ plot_facet_wrap(table = t_cd_g_f |> filter(can_drive2 %in% "No"),
 ```
 
 #### NA (can drive)
-
-NA represents persons who are ages 15 years and under.
 
 ```{r}
 #| label: fig-na-can-drive-trip-purp
@@ -285,7 +289,7 @@ plot_facet_wrap(table = t_cd_g_f |> filter(is.na(can_drive2)),
 get_table_format(t_cd_g_f)
 ```
 
-### Trip Purpose by Can Drive and Gender
+### Trip purpose by can drive and gender
 
 The following charts and tables show the distribution of trip purpose by those who can or cannot drive and gender.
 
@@ -296,9 +300,9 @@ cd_g_t <- psrc_hts_stat(df_hts,
                         incl_na = FALSE) 
 ```
 
-- Of all Men or Women who can drive, the predominant trip purpose is care-giving trips. For 4 out of the 5 survey years, over 50% of trips made by Women who can drive are care-related trips.
+- Of all men or women who can drive, the predominant trip purpose is care-giving trips. For 4 out of the 5 survey years, over 50% of trips made by women who can drive are care-related trips.
 
-- For Men and Women who cannot drive, trips are primarily care-giving trips for most survey years.
+- For men and women who cannot drive, trips are primarily care-giving trips for most survey years.
 
 #### Men
 

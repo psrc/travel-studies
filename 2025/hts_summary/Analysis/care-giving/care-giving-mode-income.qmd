@@ -35,13 +35,13 @@ source("../util.R")
 
 ```
 
-## Trip Mode and Income for Care-giving Trips
+## Trip mode and income for care-giving trips
 
-The following charts and tables analyze the share of trip modes across two to three income brackets for *all care-giving trips*.
+The following charts and tables analyze the share of trip modes for *all care-giving trips*. All charts and tables in this section represent the same data but use different income thresholds for binning.
 
-### Under \$50k and \$50k or More
+### Under \$50k and \$50k or more
 
-Driving is the predominant mode of transportation for care trips. Those who earn under \$50,000 are using transit more than those who earn over \$50,000 across survey years.
+- Driving is the predominant mode of transportation for care trips. Those who earn under \$50,000 are using transit more than those who earn over \$50,000 across survey years.
 
 ```{r}
 msi50bin_df <- mode_share_income_set_c(geog = "Region")$long |> 
@@ -98,7 +98,7 @@ plot_facet_wrap(table = msi50bin_df_u,
                 var2 = as.character(survey_year),
                 facet = mode_class_5, 
                 title = "Income by Primary Trip Mode", 
-                color_pal = psrc_colors$blues_inc)+
+                color_pal = psrc_colors$blues_dec)+
   theme(axis.text.x = element_blank())
 ```
 
@@ -182,11 +182,11 @@ mode_share_income_set_b(geog = "Region")$wide|>
 )
 ```
 
-## Trip purpose and Income by Primary Trip Mode
+## Trip purpose and income by primary trip mode
 
 The following charts and tables analyze the share of trip purposes by primary trip mode across income levels. The analysis is first presented using two income brackets (Under \$50k and \$50k or More), followed by a more detailed breakdown using three income brackets (Under \$50k, \$50k–\$100k, and \$100k or More).
 
-### Under \$50k and \$50k or More
+### Under \$50k and \$50k or more
 
 ```{r}
 mode_inc_b <- psrc_hts_stat(df_hts,
@@ -272,7 +272,7 @@ mode_inc_b_walk <- mode_inc_b |>
   filter(mode_class_5 == "Walk")
 ```
 
-Of trips made by those who earn \$50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
+- Of trips made by those who earn \$50,000 or more and where walking is the primary trip mode, it is not clear whether there are more care-giving trips or social/recreational trips aside from 2021 where there is a high share of walking trips for social/recreational purposes.
 
 ```{r}
 #| label: fig-mode-inc-b-walk-01

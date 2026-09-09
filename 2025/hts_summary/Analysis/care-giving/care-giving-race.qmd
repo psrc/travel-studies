@@ -124,13 +124,13 @@ tre_rs |>
   summarize(trip_sum_est = sum(est)) # 2025 w/o NA 15,879,518, w/NA 17,100,397	
 ```
 
-### Race and Ethnicity by Trip Purpose
+### Race and ethnicity by trip purpose
 
-The follow chart and table show the distribution of trips by people of various races and ethnicity by trip purpose -- specifically care-giving.
+The following chart and table show the distribution of care-giving trips by people of various races and ethnicity.
 
 Those who are listed as NA include those who preferred not to answer.
 
-- Of all care-giving trips in the Region across survey years, the largest share are made by those who are White Adults.
+- Of all care-giving trips in the region across survey years, the largest share are made by those who are White Adults.
 
 ```{r}
 col_var <- "race_category"
@@ -185,9 +185,11 @@ plot_facet_wrap(table = cgre_rs_f,
 get_table_format(cgre_rs_f)
 ```
 
-### People of Color by Trip Purpose
+### People of color by trip purpose
 
-- Of all care-trips in the region across survey years, those who are White adults have a greater share compared to Adult People of Color; however, trips for care-giving among Adult People of Color have increased over time since 2019.
+The following chart and table use the same data as above but aggregates various race and ethnicity into "People of Color".
+
+- Of all care-trips in the region across survey years, those who are white adults have a greater share compared to adult people of color; however, trips for care-giving among adult people of color have increased over time since 2019.
 
 ```{r}
 
@@ -235,13 +237,13 @@ plot_facet_wrap(table = cgreb_rs_f,
 get_table_format(cgreb_rs_f)
 ```
 
-## Trip Purpose by Race and Ethnicity
+## Trip purpose by race and ethnicity
 
 The following charts and tables show the distribution of trips by trip purpose and race and ethnicity.
 
 <!-- Of all <race>, <x>% are care-giving trips -->
 
-There isn't a specific group that does more care-giving trips than others across survey years.
+- There isn't a specific group that does more care-giving trips than others across survey years.
 
 ```{r}
 # race simple refers to labels being simplified (not categories)
@@ -262,9 +264,11 @@ recg_rs |>
 ```
 
 <!-- :::::::: panel-tabset -->
+
 ### Care
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r plot function}
@@ -319,7 +323,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
 
 ```
 
-#### By Race Simple
+#### By Race
 
 ```{r}
 #| label:  fig-trip-purp-re-simple-care
@@ -332,6 +336,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
                      type = "cat")
 
 ```
+
 <!-- ::: -->
 
 ```{r}
@@ -342,6 +347,7 @@ get_table_format(recg_rs_f)
 ### Work
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
@@ -363,7 +369,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
 
 ```
 
-#### By Race Simple
+#### By Race
 
 ```{r}
 #| label:  fig-trip-purp-re-simple-work
@@ -376,6 +382,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
                      type = "cat")
 
 ```
+
 <!-- ::: -->
 
 ```{r}
@@ -386,6 +393,7 @@ get_table_format(recg_rs_f)
 ### School
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
@@ -407,7 +415,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
 
 ```
 
-#### By Race Simple
+#### By Race
 
 ```{r}
 #| label:  fig-trip-purp-re-simple-school
@@ -420,6 +428,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
                      type = "cat")
 
 ```
+
 <!-- ::: -->
 
 ```{r}
@@ -429,6 +438,7 @@ get_table_format(recg_rs_f)
 ### Social/Recreation
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
@@ -450,7 +460,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
 
 ```
 
-#### By Race Simple
+#### By Race
 
 ```{r}
 #| label:  fig-trip-purp-re-simple-social
@@ -463,6 +473,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
                      type = "cat")
 
 ```
+
 <!-- ::: -->
 
 ```{r}
@@ -473,6 +484,7 @@ get_table_format(recg_rs_f)
 ### Other
 
 <!-- ::: panel-tabset -->
+
 #### By Survey Year
 
 ```{r}
@@ -494,7 +506,7 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
 
 ```
 
-#### By Race Simple
+#### By Race
 
 ```{r}
 #| label: fig-trip-purp-re-simple-other
@@ -507,11 +519,13 @@ race_ethnicity_chart(col_var, table = recg_rs_f,
                      type = "cat")
 
 ```
+
 <!-- ::: -->
 
 ```{r}
 get_table_format(recg_rs_f)
 ```
+
 <!-- :::::::: -->
 
 ```{r, eval=FALSE}
@@ -576,7 +590,7 @@ race_ethnicity_chart(col_var,
 
 ```
 
-#### By Race Binary
+#### By Race
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-care
@@ -624,7 +638,7 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f,
 
 ```
 
-#### By Race Binary
+#### By Race
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-work
@@ -670,7 +684,7 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f,
 
 ```
 
-#### By Race Binary
+#### By Race
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-school
@@ -718,7 +732,7 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f,
 
 ```
 
-#### By Race Binary
+#### By Race
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-socrec
@@ -765,7 +779,7 @@ race_ethnicity_chart(col_var, table = rebcg_rs_f,
 
 ```
 
-#### By Race Binary
+#### By Race
 
 ```{r}
 #| label: fig-trip-purp-poc-race-binary-other

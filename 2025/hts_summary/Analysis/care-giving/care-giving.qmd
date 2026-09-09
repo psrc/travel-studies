@@ -36,9 +36,11 @@ source("../util.R")
 
 ## Trip Purpose
 
-### PSRC Destination Purpose Assignment
+### PSRC destination purpose assignment
 
-Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years. Care-giving is an aggregate of the following destination purposes (escort, personal business/errand/appointment, meal, and shopping). The care-giving analysis will also exclude HOME trips.
+Below are trips with their destination in the Region (King, Kitsap, Pierce, and Snohomish Counties) for all survey years. Care-giving is an aggregate of the following destination purposes (escort, personal business/errand/appointment, meal, and shopping).
+
+The care-giving analysis will also exclude HOME trips, given the high volume of trips with “Home” as the destination. Since returning home is often an expected part of a trip, including these trips could skew the results and make it more difficult to identify patterns related to other trip purposes.
 
 ```{r}
 #| label: tbl-trip-purp-all
@@ -56,7 +58,7 @@ knitr::kable(trip_purp_a_fmt)
 
 ```
 
-### Care Purpose
+### Care purpose
 
 Care is defined as the following purposes: Escort, Shopping, Meal, Personal Business/Errand/Appointment. All `HOME` trips are excluded. The remaining categories from the `dest_purpose_cat` either stand alone or have been aggregated to the following:
 
@@ -68,7 +70,7 @@ Care is defined as the following purposes: Escort, Shopping, Meal, Personal Busi
 
 **School**: `r school_cat`
 
-Care related trips make up the majority of trips compared to other purpose categories across survey years.
+- Care related trips make up the majority of trips compared to other purpose categories across survey years.
 
 ```{r}
 care_purp <- create_care_purpose_tbl(df_hts)
