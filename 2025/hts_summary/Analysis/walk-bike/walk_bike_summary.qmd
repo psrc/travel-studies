@@ -15,6 +15,7 @@ install_psrc_fonts()
 ```{r load_data, include=FALSE}
 source("walk_bike_data.R")
 source("../util.R")
+transit_access <- readRDS("T:/60day-TEMP/Grant/walktotransit.rds")
 ```
 
 ```{r palettes, include=FALSE}
@@ -183,7 +184,7 @@ ggplot(trip_summary,
 ```{r all_modes}
 #| label: fig-all-modes
 #| fig-cap: Trips by Mode
-#| fig-height: 6
+#| fig-height: 5
 #| fig-width: 10
 
 ggplot(filter(mode_summary, !is.na(mode_class_5)),
@@ -214,11 +215,35 @@ ggplot(filter(mode_summary, !is.na(mode_class_5)),
 ### Walking
 ```{r walk_total}
 #| label: fig-walk-total
-#| fig-cap: Walk Trips
+#| fig-cap: Walk Trips - Share
 #| fig-height: 2.5
 #| fig-width: 3
 
 single_cat_output(mode_summary, "Walk")
+```
+
+```{r walk_total_est}
+#| label: fig-walk-total-est
+#| fig-cap: Walk Trips - Estimate
+#| fig-height: 2.5
+#| fig-width: 3
+
+ggplot(filter(mode_summary, mode_class_5 == "Walk"), 
+       aes(x = factor(survey_year), y = est)) +
+  geom_col(aes(fill = factor(survey_year)), 
+               width = 0.7
+           ) +
+  geom_text(aes(label = scales::number(round(est/1000000, 1), accuracy = 0.1, big.mark = ",")),
+                vjust = -0.3
+            ) +
+  geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + 
+  scale_fill_manual(values = psrc_fill_dec[["Walk"]]) + 
+  psrc_style() + 
+  theme(legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title = element_blank())
 ```
 
 ```{r walk_total_tbl}
@@ -230,11 +255,35 @@ tbl_output(mode_summary, "Walk")
 ### Bike/Micromobility
 ```{r bike_total}
 #| label: fig-bike-total
-#| fig-cap: Bike/Micromobility Trips
+#| fig-cap: Bike/Micromobility Trips - Share
 #| fig-height: 2.5
 #| fig-width: 3
 
 single_cat_output(mode_summary, "Bike/Micromobility")
+```
+
+```{r bike_total_est}
+#| label: fig-bike-total-est
+#| fig-cap: Bike/Micromobility Trips - Estimate
+#| fig-height: 2.5
+#| fig-width: 3
+
+ggplot(filter(mode_summary, mode_class_5 == "Bike/Micromobility"), 
+       aes(x = factor(survey_year), y = est)) +
+  geom_col(aes(fill = factor(survey_year)), 
+               width = 0.7
+           ) +
+  geom_text(aes(label = scales::number(round(est/100000, 1), accuracy = 0.1, big.mark = ",")),
+                vjust = -0.3
+            ) +
+  geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + 
+  scale_fill_manual(values = psrc_fill_dec[["Bike/Micromobility"]]) + 
+  psrc_style() + 
+  theme(legend.position = "none",
+        panel.grid.major.y = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title = element_blank())
 ```
 
 ```{r bike_total_tbl}
@@ -480,4 +529,51 @@ multi_cat_output(walk_bike_by_county, mode = "Bike/Micromobility", group_var = "
 #| label: tbl-bike-county
 
 tbl_output(walk_bike_by_county, mode = "Bike/Micromobility")
+```
+
+```{r transit_acc_share}
+#| label: fig-transit-share
+#| fig-height: 2.5
+#| fig-width: 3
+
+ggplot(transit_access,
+       aes(x=factor(survey_year), y=prop, fill=factor(survey_year))) +
+    geom_col(width = 0.8) +
+    geom_text(aes(label=scales::percent(prop, accuracy = 1)),
+              vjust = -0.3) +
+    geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+    scale_fill_manual(values = psrc_fill_dec[["Walk"]])+
+    scale_y_continuous(labels = scales::percent, 
+                       expand = expansion(mult = c(0, 0.1))) +
+    psrc_style() +
+    theme(legend.position = "none", # remove legend
+          strip.text = element_text(size = 10.5), # adjust text size on facet title (variable values)
+          panel.grid.major.y = element_blank(),
+          panel.spacing.x = unit(0.5, "lines"), # add spacing between facet grids
+          axis.title = element_blank(),
+          axis.text.x = element_text(size = 10.5), # adjust text size for axis text (years)
+          axis.text.y = element_blank())
+```
+
+```{r transit_acc_est}
+#| label: fig-transit-est
+#| fig-height: 2.5
+#| fig-width: 3
+
+ggplot(transit_access, 
+       aes(x = factor(survey_year), y = est)) +
+    geom_col(aes(fill = factor(survey_year)), 
+             width = 0.7
+    ) +
+    geom_text(aes(label = scales::number(round(est/100000, 1), accuracy = 0.1, big.mark = ",")),
+              vjust = -0.3
+    ) +
+    geom_hline(yintercept = 0, color = "#cbcbcb", linewidth = 0.3) +
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) + 
+    scale_fill_manual(values = psrc_fill_dec[["Walk"]]) + 
+    psrc_style() + 
+    theme(legend.position = "none",
+          panel.grid.major.y = element_blank(),
+          axis.text.y = element_blank(),
+          axis.title = element_blank())
 ```
