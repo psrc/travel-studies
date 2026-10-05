@@ -269,8 +269,28 @@ df_person <- hts_data$person %>%
     # fix industry groups
     industry_sector = ordered(
       case_when(
-        industry %in% c("Government","Military")~"Government & Military",
-        TRUE~ industry_sector
+        industry %in% c("Financial services",
+                        "Landscaping",
+                        "Technology and telecommunications",
+                        "Professional and business services (e.g., consulting, legal, marketing)",
+                        "Real estate")~ "Professional & Business Services",
+        industry %in% c("Arts and entertainment",
+                        "Media")~"Arts & Media",
+        industry %in% c("Government","Military")~ "Government & Military",
+        industry %in% c("Childcare (e.g., nanny, babysitter)",
+                        "Health care",
+                        "Private education",
+                        "Public education")~ "Healthcare & Education",
+        industry %in% c("Hospitality (e.g., restaurant, accommodation)",
+                        "Personal services (e.g., hair styling, personal assistance, pet sitting)",
+                        "Retail",
+                        "Social assistance",
+                        "Sports and fitness")~ "Retail & Personal Services",
+        industry %in% c("Construction",
+                        "Manufacturing (e.g., aerospace & defense, electrical, machinery)",
+                        "Natural resources (e.g., forestry, fishery, energy)",
+                        "Transportation and utilities")~ "Construction & Manufacturing",
+        TRUE~ industry
       ),
       levels = c("Professional & Business Services",
                  "Arts & Media",

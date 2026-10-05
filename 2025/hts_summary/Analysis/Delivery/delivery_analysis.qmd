@@ -3,7 +3,7 @@ title: Delivery Analysis
 date: today
 
 params:
-  errorbar: false
+  errorbar: true
 ---
 
 The delivery analysis explores how many households in the region received packages on an average weekday 
@@ -23,8 +23,9 @@ hts_source <- "Puget Sound Regional Council (PSRC) 2017-2025 Household Travel Su
 # assign fill colors to delivery types
 psrc_fill_dec <- list(
   deliver_package = psrc_colors$purples_dec[1:5],
-  deliver_food = psrc_colors$oranges_dec[1:5],
-  deliver_grocery = psrc_colors$blues_dec[1:5],
+  deliver_grocery_food = psrc_colors$blues_dec[1:5],
+  deliver_grocery = psrc_colors$grays_dec[1:5],
+  deliver_food = psrc_colors$grays_dec[1:5],
   deliver_work = psrc_colors$greens_dec[1:5],
   deliver_outside_any = psrc_colors$grays_dec[4:5],
   deliver_elsewhere = psrc_colors$grays_dec[4:5],
@@ -35,7 +36,7 @@ psrc_fill_segment <- list(
   income_2group = c( "#91268F", "#8CC63E"),
   have_cars = c( "#F05A28", "#00A7A0"),
   lifecycle_2group = c( "#91268F", "#00A7A0"),
-  numworkers_3cap = psrc_colors$pgnobgy_5,
+  numworkers_2cap = psrc_colors$pgnobgy_5,
   hh_race_category = psrc_colors$gnbopgy_5,
   home_county = psrc_colors$obgnpgy_10,
   home_rgc = c( "#00A7A0", "#8CC63E"),
@@ -105,6 +106,28 @@ fig_delivery("deliver_package")
 tbl_delivery("deliver_package")
 ```
 
+### grocery delivery
+
+- Grocery delivery more than doubled in 2021 and reached 5\%, but dropped to near pre-COVID level after.
+
+```{r}
+#| label: fig-deliver-grocery
+#| fig-cap: grocery delivery
+#| fig-height: 2.5
+#| fig-width: 3
+
+
+fig_delivery("deliver_grocery")
+
+```
+
+```{r}
+#| label: tbl-deliver-grocery
+
+tbl_delivery("deliver_grocery")
+
+```
+
 
 ### food delivery
 
@@ -128,6 +151,26 @@ tbl_delivery("deliver_food")
 
 ```
 
+### grocery + food deliveries
+
+- Grocery + food deliveries dramatically increased in 2021 and stayed around at 6\%.
+
+```{r}
+#| label: fig-deliver-grocery_food
+#| fig-cap: grocery + food deliveries
+#| fig-height: 2.5
+#| fig-width: 3
+
+
+fig_delivery("deliver_grocery_food")
+```
+
+```{r}
+#| label: tbl-deliver-grocery_food
+
+tbl_delivery("deliver_grocery_food")
+```
+
 ### service work
 
 - Service work was higher before the end of COVID at 6\% and dropped to about half in 2023 and 2025.
@@ -147,28 +190,6 @@ fig_delivery("deliver_work")
 #| label: tbl-deliver-work
 
 tbl_delivery("deliver_work")
-
-```
-
-### grocery delivery
-
-- Grocery delivery more than doubled in 2021 and reached 5\%, but dropped to near pre-COVID level after.
-
-```{r}
-#| label: fig-deliver-grocery
-#| fig-cap: grocery delivery
-#| fig-height: 2.5
-#| fig-width: 3
-
-
-fig_delivery("deliver_grocery")
-
-```
-
-```{r}
-#| label: tbl-deliver-grocery
-
-tbl_delivery("deliver_grocery")
 
 ```
 
@@ -199,6 +220,10 @@ tbl_delivery("deliver_outside_any")
 
 #### outside home & at office separated
 
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for deliveries received at office in 2025
+:::
+
 - deliveries outside of home was at 2\%
 - deliveries received at office was low
 
@@ -226,8 +251,8 @@ tbl_delivery("deliver_office")
 
 Each subsection includes two figures:
 
-- percentage of households receiving delivery across household types in each year
-- delivery trends over years for each household type
+- percentage of households receiving delivery across types of household in each year
+- percentage of households receiving delivery over years for each type of household
 
 ```{r}
 
@@ -341,8 +366,7 @@ table_delivery_type("deliver_package","income_2group")
 
 #### grocery delivery by household income
 
-- No significant difference observed in grocery delivery across income levels
-- Sample sizes for were low, ranging 33 to 79 counts
+- No notable trends
 
 ```{r}
 #| layout-ncol: 2
@@ -360,7 +384,7 @@ table_delivery_type("deliver_grocery","income_2group")
 
 #### food delivery by household income
 
-- No significant difference observed in food delivery across income levels
+- No notable trends
 
 ```{r}
 #| layout-ncol: 2
@@ -375,6 +399,25 @@ plot_delivery_type("deliver_food","income_2group")
 table_delivery_type("deliver_food","income_2group")
 ```
 
+
+#### grocery + food deliveries by household income
+
+- No notable trends
+
+```{r}
+#| fig-cap: 
+#|   - "food + grocery deliveries by household income"
+#|   - "household income: food + grocery deliveries by year"
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+plot_delivery_type("deliver_grocery_food","income_2group")
+```
+
+```{r}
+table_delivery_type("deliver_grocery_food","income_2group")
+```
 
 
 ### vehicle availability
@@ -413,9 +456,12 @@ table_delivery_type("deliver_package","have_cars")
 
 #### grocery delivery by vehicle availability
 
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for no-car households in 2017, 2021 and 2025
+:::
+
 - Grocery deliveries peaked at 5\% during COVID for household that owned vehicles and the rates dropped in 2023 and 2025
 - Grocery deliveries for households without cars stayed high from 2021 to 2025. This could be because the service was an accessible way to get groceries for households without cars
-- Sample sizes for were low
 
 ```{r}
 #| label: fig-grocery-vehicle
@@ -448,9 +494,16 @@ table_delivery_type("deliver_grocery","have_cars")
 
 #### food delivery by vehicle availability
 
-- Sample sizes for were low
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for no-car households in 2017, 2021 and 2025
+:::
+
+- Food delivery for households that owned cars grew and caught up with no-car households in 2021 and stayed at 4\%
 
 ```{r}
+#| fig-cap: 
+#|   - "food delivery by vehicle availability"
+#|   - "vehicle availability: food delivery by year"
 #| layout-ncol: 2
 #| fig-height: 3.9
 #| fig-width: 5.2
@@ -463,9 +516,48 @@ plot_delivery_type("deliver_food","have_cars")
 table_delivery_type("deliver_food","have_cars")
 ```
 
+#### grocery + food deliveries by vehicle availability
+
+::: {.callout-warning appearance="simple"}
+Sample sizes for were low no-car households in 2021 and 2025
+:::
+
+- Grocery + food deliveries for no-car households increased every year starting from 2019
+
+```{r}
+#| label: fig-grocery_food-vehicle
+#| fig-cap: "food + grocery deliveries by vehicle availability"
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+
+plot_delivery_type("deliver_grocery_food","have_cars",
+                   type="year")
+```
+
+```{r}
+#| fig-cap: "vehicle availability: food + grocery deliveries by year"
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+
+plot_delivery_type("deliver_grocery_food","have_cars",
+                   type="cat")
+```
+
+```{r}
+#| label: tbl-grocery_food-vehicle
+
+table_delivery_type("deliver_grocery_food","have_cars")
+```
+
 ### household composition
 
+- Household with adults: households that only consist of adults age 18-64 with no children and elders
+
 #### package delivery by household composition
+
+- in 2019 and 2025, more households with children/elders received packages than households with adults
 
 ```{r}
 #| label: fig-package-hh
@@ -496,7 +588,12 @@ table_delivery_type("deliver_package","lifecycle_2group")
 
 #### grocery delivery by household composition
 
+- No notable trends
+
 ```{r}
+#| fig-cap: 
+#|   - "grocery delivery by household composition"
+#|   - "household composition: grocery delivery by year"
 #| layout-ncol: 2
 #| fig-height: 3.9
 #| fig-width: 5.6
@@ -512,7 +609,12 @@ table_delivery_type("deliver_grocery","lifecycle_2group")
 
 #### food delivery by household composition
 
+- No notable trends
+
 ```{r}
+#| fig-cap: 
+#|   - "food delivery by household composition"
+#|   - "household composition: food delivery by year"
 #| layout-ncol: 2
 #| fig-height: 3.9
 #| fig-width: 5.6
@@ -526,80 +628,95 @@ plot_delivery_type("deliver_food","lifecycle_2group")
 table_delivery_type("deliver_food","lifecycle_2group")
 ```
 
+#### grocery + food deliveries by household composition
+
+- difference between groups are within margins of error
+
+```{r}
+#| fig-cap: 
+#|   - "food + grocery deliveries by household composition"
+#|   - "household composition: food + grocery deliveries by year"
+#| layout-ncol: 2
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+plot_delivery_type("deliver_grocery_food","lifecycle_2group")
+```
+
+```{r}
+
+table_delivery_type("deliver_grocery_food","lifecycle_2group")
+```
+
+
 ### number of workers
 
 #### package delivery by number of workers
 
+- In 2021 and later years, more households that had 2+ workers had packages delivered compare to households with fewer workers (however, number of workers may be highly correlated with household income)
+
 ```{r}
+#| label: fig-package-num_workers
+#| fig-cap: "package delivery by number of workers"
 #| fig-height: 3
 #| fig-width: 8
-#| fig-align: center
 
-plot_delivery_type("deliver_package","numworkers_3cap",type="year")
+plot_delivery_type("deliver_package","numworkers_2cap",type="year")
 ```
 
 ```{r}
+#| label: tbl-package-num_workers
+#| fig-cap: "number of workers: package delivery by year"
 #| fig-height: 3
 #| fig-width: 8.5
-#| fig-align: center
 
-plot_delivery_type("deliver_package","numworkers_3cap",type="cat")
+plot_delivery_type("deliver_package","numworkers_2cap",type="cat")
 ```
 
 ```{r}
-table_delivery_type("deliver_food","lifecycle_2group")
+table_delivery_type("deliver_package","numworkers_2cap")
 ```
 
-#### grocery delivery by number of workers
+#### food + grocery deliveries by number of workers
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for 0-worker households in 2017, 2019 and 2021
+:::
+
+- Food + grocery deliveries stayed low in households with no workers (the 8\% for households with no workers in 2025 has a large margin of error)
+- difference between groups are within margins of error
 
 ```{r}
+#| fig-cap: "food + grocery deliveries by number of workers"
 #| fig-height: 3.9
 #| fig-width: 7.5
 #| fig-align: center
 
-plot_delivery_type("deliver_grocery","numworkers_3cap",type="year")
+plot_delivery_type("deliver_grocery_food","numworkers_2cap",type="year")
 ```
 
 ```{r}
+#| fig-cap: "number of workers: food + grocery deliveries by year"
 #| fig-height: 3.9
 #| fig-width: 8.5
 #| fig-align: center
 
-plot_delivery_type("deliver_grocery","numworkers_3cap",type="cat")
-```
-
-
-```{r}
-table_delivery_type("deliver_grocery","numworkers_3cap")
-```
-
-#### food delivery by number of workers
-
-```{r}
-#| fig-height: 3.9
-#| fig-width: 7.5
-#| fig-align: center
-
-plot_delivery_type("deliver_food","numworkers_3cap",type="year")
+plot_delivery_type("deliver_grocery_food","numworkers_2cap",type="cat")
 ```
 
 ```{r}
-#| fig-height: 3.9
-#| fig-width: 8.5
-#| fig-align: center
-
-plot_delivery_type("deliver_food","numworkers_3cap",type="cat")
+table_delivery_type("deliver_grocery_food","numworkers_2cap")
 ```
 
-```{r}
-table_delivery_type("deliver_food","numworkers_3cap")
-```
 
 ### household race categories
 
 #### package delivery by household race categories
 
+- No notable trends
+
 ```{r}
+#| fig-cap: "package delivery by household race categories"
 #| fig-height: 3
 #| fig-width: 12
 #| fig-align: center
@@ -608,6 +725,7 @@ plot_delivery_type("deliver_package","hh_race_category",type="year")
 ```
 
 ```{r}
+#| fig-cap: "household race categories: package delivery by year"
 #| fig-height: 3
 #| fig-width: 13
 #| fig-align: center
@@ -620,49 +738,33 @@ plot_delivery_type("deliver_package","hh_race_category",type="cat")
 table_delivery_type("deliver_package","hh_race_category")
 ```
 
-#### grocery delivery by household race categories
+#### grocery + food deliveries by household race categories
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for non-white households
+:::
+
+- No notable trends
+- Low sample size
 
 ```{r}
+#| fig-cap: "food + grocery deliveries by household race categories"
 #| fig-height: 3
 #| fig-width: 12
-#| fig-align: center
 
-plot_delivery_type("deliver_grocery","hh_race_category",type="year")
+plot_delivery_type("deliver_grocery_food","hh_race_category",type="year")
 ```
 
 ```{r}
+#| fig-cap: "household race categories: food + grocery deliveries by year"
 #| fig-height: 3
 #| fig-width: 13
-#| fig-align: center
 
-plot_delivery_type("deliver_grocery","hh_race_category",type="cat")
-```
-
-
-```{r}
-table_delivery_type("deliver_grocery","hh_race_category")
-```
-
-#### food delivery by household race categories
-
-```{r}
-#| fig-height: 3
-#| fig-width: 12
-#| fig-align: center
-
-plot_delivery_type("deliver_food","hh_race_category",type="year")
+plot_delivery_type("deliver_grocery_food","hh_race_category",type="cat")
 ```
 
 ```{r}
-#| fig-height: 3
-#| fig-width: 13
-#| fig-align: center
-
-plot_delivery_type("deliver_food","hh_race_category",type="cat")
-```
-
-```{r}
-table_delivery_type("deliver_food","hh_race_category")
+table_delivery_type("deliver_grocery_food","hh_race_category")
 ```
 
 ## delivery by home location and type
@@ -671,6 +773,8 @@ table_delivery_type("deliver_food","hh_race_category")
 ### home county
 
 #### package delivery by home county
+
+- Package delivery is similarly high across all four counties
 
 ```{r}
 #| fig-height: 3
@@ -692,118 +796,134 @@ plot_delivery_type("deliver_package","home_county",type="cat")
 table_delivery_type("deliver_package","home_county")
 ```
 
-#### grocery delivery by home county
+#### grocery + food deliveries by home county
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for households outside of King County, except Pierce County in 2023 and 2025
+:::
+
+- No notable trends
+- Low sample size: grocery + food deliveries can only be reported for King County (and Pierce County in 2023 and 2025)
 
 ```{r}
+#| fig-cap: "food + grocery deliveries by home county"
 #| fig-height: 3
 #| fig-width: 7.5
-#| fig-align: center
 
-plot_delivery_type("deliver_grocery","home_county",type="year")
+plot_delivery_type("deliver_grocery_food","home_county",type="year")
 ```
 
 ```{r}
+#| fig-cap: "home county: food + grocery deliveries by year"
 #| fig-height: 3
 #| fig-width: 8.5
-#| fig-align: center
 
-plot_delivery_type("deliver_grocery","home_county",type="cat")
+plot_delivery_type("deliver_grocery_food","home_county",type="cat")
 ```
 
 ```{r}
-table_delivery_type("deliver_grocery","home_county")
-```
-
-#### food delivery by home county
-
-```{r}
-#| fig-height: 3
-#| fig-width: 7.5
-#| fig-align: center
-
-plot_delivery_type("deliver_food","home_county",type="year")
-```
-
-```{r}
-#| fig-height: 3
-#| fig-width: 8.5
-#| fig-align: center
-
-plot_delivery_type("deliver_food","home_county",type="cat")
+table_delivery_type("deliver_grocery_food","home_county")
 ```
 
 
-```{r}
-table_delivery_type("deliver_food","home_county")
-```
 
 ### home in centers
 
 #### package delivery by home centers
 
+- Residents in RGC generally got fewer package deliveries than those living in other areas
+
 ```{r}
-#| layout-ncol: 2
+#| label: fig-package-center
+#| fig-cap: "package delivery by home centers"
 #| fig-height: 3.9
 #| fig-width: 5.2
 
 
-plot_delivery_type("deliver_package","home_rgc")
+plot_delivery_type("deliver_package","home_rgc",
+                   type="year")
 ```
 
 ```{r}
+#| fig-cap: "home centers: package delivery by year"
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+
+plot_delivery_type("deliver_package","home_rgc",
+                   type="cat")
+```
+
+```{r}
+#| label: tbl-package-center
 table_delivery_type("deliver_package","home_rgc")
 ```
 
-#### grocery delivery by home centers
+
+#### grocery + food deliveries by home in centers
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for households in centers in 2021 and 2025
+:::
+
+- No notable trends
 
 ```{r}
+#| fig-cap: 
+#|   - "food + grocery deliveries by home in centers"
+#|   - "home in centers: food + grocery deliveries by year"
 #| layout-ncol: 2
 #| fig-height: 3.9
 #| fig-width: 5.2
 
-
-plot_delivery_type("deliver_grocery","home_rgc")
+plot_delivery_type("deliver_grocery_food","home_rgc")
 ```
 
 ```{r}
-table_delivery_type("deliver_grocery","home_rgc")
-```
-
-#### food delivery by home centers
-
-```{r}
-#| layout-ncol: 2
-#| fig-height: 3.9
-#| fig-width: 5.2
-
-
-plot_delivery_type("deliver_food","home_rgc")
-```
-
-```{r}
-table_delivery_type("deliver_food","home_rgc")
+table_delivery_type("deliver_grocery_food","home_rgc")
 ```
 
 ### residence type
 
 #### package delivery by residence type
 
+- Residents in single-family/townhouse got more package deliveries than those in apartments/condos but that gap has shrunk since the pandemic
+
 ```{r}
-#| layout-ncol: 2
+#| label: fig-package-residence
+#| fig-cap: "package delivery by residence type"
 #| fig-height: 3.9
 #| fig-width: 5.2
 
 
-plot_delivery_type("deliver_package","res_type_group")
+plot_delivery_type("deliver_package","res_type_group",
+                   type="year")
 ```
 
 ```{r}
+#| fig-cap: "residence type: package delivery by year"
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+
+plot_delivery_type("deliver_package","res_type_group",
+                   type="cat")
+```
+
+
+```{r}
+#| label: tbl-package-residence
 table_delivery_type("deliver_food","res_type_group")
 ```
 
 #### grocery delivery by residence type
 
+- No notable trends
+
 ```{r}
+#| fig-cap: 
+#|   - "grocery delivery by residence type"
+#|   - "residence type: grocery delivery by year"
 #| layout-ncol: 2
 #| fig-height: 3.9
 #| fig-width: 5.2
@@ -818,7 +938,12 @@ table_delivery_type("deliver_grocery","res_type_group")
 
 #### food delivery by residence type
 
+- No notable trends
+
 ```{r}
+#| fig-cap: 
+#|   - "food delivery by residence type"
+#|   - "residence type: food delivery by year"
 #| layout-ncol: 2
 #| fig-height: 3.9
 #| fig-width: 5.2
@@ -831,18 +956,37 @@ plot_delivery_type("deliver_food","res_type_group")
 table_delivery_type("deliver_food","res_type_group")
 ```
 
-#### service work delivery by residence type
+#### service work by residence type
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for households in Apartments/Condos in 2021 and 2025
+:::
+
+- Decrease in service work primarily attributed to decrease for single-family/townhouse, which are more likely to be owner-occupied
 
 ```{r}
-#| layout-ncol: 2
+#| label: fig-work-residence
+#| fig-cap: "service work by residence type"
 #| fig-height: 3.9
 #| fig-width: 5.2
 
 
-plot_delivery_type("deliver_work","res_type_group")
+plot_delivery_type("deliver_work","res_type_group",
+                   type="year")
 ```
 
 ```{r}
+#| fig-cap: "residence type: service work by year"
+#| fig-height: 3.9
+#| fig-width: 5.2
+
+
+plot_delivery_type("deliver_work","res_type_group",
+                   type="cat")
+```
+
+```{r}
+#| label: tbl-work-residence
 table_delivery_type("deliver_work","res_type_group")
 ```
 

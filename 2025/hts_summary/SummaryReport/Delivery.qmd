@@ -5,11 +5,30 @@ author: Joanne Lin
 
 The delivery analysis explores the percentage of households in the region received packages on an average weekday
 
+## Delivery Question
+
+We want to know how delivery and household services contribute to travel.  
+
+**On \<traveldate\> , which of the following occurred?**  
+
+Select all that apply. 
+
+- Received packages at home (e.g., USPS, FedEx, UPS) 
+- Received personal packages at work if employment is not “not employed for pay”  
+- Received packages at another location (e.g., Amazon locker, package pick-up point) 
+- Take-out/prepared food delivered to home 
+- Groceries delivered to home 
+- Someone came to do work at home (e.g., babysitter, housecleaning, lawn) 
+- Other item delivered to home (e.g., appliance)
+- None of the above 
+
 ## Delivery Trend
 
 - [Package delivery]{style="color:#91268F"} peaked in 2021 at 39\%. The rate stayed at about a third of regional households got packages on an average weekday.
-- [Food delivery]{style="color:#F05A28"} dramatically increased in 2021 and stayed the same since at 4\%. About 1 out of 25 households get food delivery on an average weekday
-- [Grocery delivery]{style="color:#00A7A0"} more than doubled in 2021 and reached 5\%, but dropped to near pre-COVID level after.
+- [Grocery + food deliveries]{style="color:#F05A28"} dramatically increased in 2021 and stayed around at 6%.
+  - Grocery delivery more than doubled in 2021 and reached 5\%, but dropped to near pre-COVID level after.
+  - Food delivery dramatically increased in 2021 and stayed the same since at 4\%. About 1 out of 25 households get food delivery on an average weekday
+  - Grocery and food deliveries are combined for larger sample sizes
 - [Service work]{style="color:#8CC63E"} was higher before the end of COVID at 6\% and dropped to about half in 2023 and 2025.
 - 2\% of households have deliveries outside of home (incl. at office) in 2025. The rate is similar in 2023.
 
@@ -25,7 +44,27 @@ The delivery analysis explores the percentage of households in the region receiv
 
 :::
 
-### Food Delivery
+### Grocery+Food Deliveries
+
+:::{layout= "[[4, 6]]"}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-grocery_food >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-grocery_food >}}
+
+:::
+
+- Grocery Delivery
+
+:::{layout= "[[4, 6]]"}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-grocery >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-grocery >}}
+
+:::
+
+- Food Delivery
 
 :::{layout= "[[4, 6]]"}
 
@@ -35,15 +74,6 @@ The delivery analysis explores the percentage of households in the region receiv
 
 :::
 
-### Grocery Delivery
-
-:::{layout= "[[4, 6]]"}
-
-{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-deliver-grocery >}}
-
-{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-deliver-grocery >}}
-
-:::
 
 ### Service Work
 
@@ -76,43 +106,100 @@ The delivery analysis explores the percentage of households in the region receiv
 
 ## Delivery by Demographic Characteristics
 
-### package delivery by household income
+### Household Income
 
 - higher income households had been consistently receiving more [packages]{style="color:#91268F"} at around 40\% in 2019 and later years
-- No notable difference observed in [food]{style="color:#F05A28"} and [grocery]{style="color:#00A7A0"} deliveries by income levels
+- No notable difference observed in [grocery + food deliveries]{style="color:#F05A28"} by income levels
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-income >}}
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-income >}}
 
 
-### grocery delivery by auto availability
+### Vehicle Availability
 
 - More households that owned cars had [packages]{style="color:#91268F"} delivered compare to no-car households (auto ownership may be correlated with household income)
-- [Grocery deliveries]{style="color:#00A7A0"} peaked at 5\% during COVID for household that owned vehicles, then dropped in 2023 and 2025
-- [Grocery deliveries]{style="color:#00A7A0"} for households without cars stayed high from COVID in 2021 to 2025. The service was an accessible way to get groceries for households without cars
+- [Grocery + food deliveries]{style="color:#F05A28"} peaked at 8\% during COVID for household that owned vehicles, then dropped in 2023 and 2025
+- [Grocery + food deliveries]{style="color:#F05A28"} for households without cars stayed high from COVID in 2021 to 2025. The service was an accessible way to get groceries and food for households without cars
 
 :::{.panel-tabset}
 
-### Package Delivery by Vehicle Availability
+#### Package Delivery
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-vehicle >}}
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-vehicle >}}
 
-### Grocery Delivery by Vehicle Availability
+#### Grocery+Food Deliveries
 
-{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-grocery-vehicle >}}
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-grocery_food-vehicle >}}
 
-{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-grocery-vehicle >}}
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-grocery_food-vehicle >}}
 
 :::
 
 
-### package delivery by household composition
+### Household Composition
+
+- in 2019 and 2025, more households with children/elders received [packages]{style="color:#91268F"} than households with adults
+- No notable difference observed in [grocery + food deliveries]{style="color:#F05A28"} by household composition
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-hh >}}
 
 {{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-hh >}}
+
+
+### Number of Workers
+
+- In 2021 and later years, more households that had 2+ workers had  [packages]{style="color:#91268F"} delivered compare to households with fewer workers (however, number of workers may be highly correlated with household income)
+- No notable difference observed in [grocery + food deliveries]{style="color:#F05A28"} by household composition
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-num_workers >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-num_workers >}}
+
+
+### Home in Centers
+
+- Residents in RGC generally got fewer [package deliveries]{style="color:#91268F"} than those living in other areas
+- No notable trends in [grocery + food deliveries]{style="color:#F05A28"} by home in centers
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-center >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-center >}}
+
+
+### Residence Type
+
+- Residents in single-family/townhouse got more [package deliveries]{style="color:#91268F"} than those in apartments/condos but that gap has shrunk since the pandemic
+- Decrease in [service work]{style="color:#8CC63E"} primarily attributed to decrease for single-family/townhouse, which are more likely to be owner-occupied
+- No notable trends in [grocery + food deliveries]{style="color:#F05A28"} by residence type
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for households in Apartments/Condos in 2021 and 2025
+:::
+
+
+:::{.panel-tabset}
+
+#### Package Delivery
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-package-residence >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-package-residence >}}
+
+#### Service Work
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#fig-work-residence >}}
+
+{{< embed /Analysis/Delivery/delivery_analysis.qmd#tbl-work-residence >}}
+
+
+:::
+
+
+### Other Demographic Characteristics
+
+- no notable trends observed across household race and home county
 
 

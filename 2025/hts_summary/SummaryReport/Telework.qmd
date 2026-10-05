@@ -2,12 +2,178 @@
 title: "Telework"
 ---
 
+## Telework Related Questions
+
+### 2025 New Work From Home Question (`work_from_home`)
+
+**Does each person ever work from home?**
+
+- No
+- Yes, some of the time (less than 50% of the time)
+- Yes, most of the time (at least 50% but less than 100% of the time)
+- Yes, all of the time (100% of the time)
+
+:::{.callout-note}
+#### Logic
+
+- *if household has 1 or more members who worked for pay/profit or were on leave last week*
+- *if household has 1 member or more ‘on leave': For any household member on leave (e.g., parental leave, medical leave), please respond based on their work arrangements prior to leave.*
+- Programmer: Show list of persons age 16+ with paid_work = “yes” or “on leave”
+
+:::
+   
+### Telework Frequency (`telecommute_freq`)
+
+**Currently, how many days <do you/does name> typically work from home or telework (instead of going to work that day)?**
+
+- 6-7 days a week
+- 5 days a week
+- 4 days a week
+- 3 days a week
+- 2 days a week
+- 1 day a week
+- 1-3 days a month
+- Less than monthly
+- Never *hide if job_type is work ONLY from home or remotely (telework, self-employed)*
+
+:::{.callout-note}
+#### Logic
+
+- Programmer: if (paid_work is “yes” or “on leave”) AND work_from_home is NOT “all of the time”
+
+:::
+
+## Teleworker and Telework Status Definitions
+
+:::{.callout-important}
+Data universe for this analysis: full/part time or self-employed workers
+:::
+
+The following analysis has two ways of identifying teleworkers and telework status:
+
+1. **Teleworkers** are the workers who telecommute more than one day per week or work fully at home
+2. **Telework status** assignments
+   - [Fully At Home]{style="color:#91268F"}: workers working from home all of the time
+   - [Hybrid]{style="color:#00A7A0"}: workers working from home some or most (not all) of the time and telecommuting at least 1 day/week
+   - [Fully In Person]{style="color:#8CC63E"}: workers telecommuting less than 1 day/week
+
 ## Telework Trend
 
-- Roughly two-thirds of workers worked fully in person outside of home in 2025.
-- Those who work fully at home peaked in 2021 at about one-third.
-- Hybrid workers made up about one-quarter of all workers since 2021.
+- Roughly two-thirds of workers worked [fully in person]{style="color:#91268F"} outside of home in 2023 and 2025.
+- Those who work [fully at home]{style="color:#91268F"} peaked in 2021 at about one-third.
+- [Hybrid workers]{style="color:#00A7A0"} made up about one-quarter of all workers from 2021 to 2025.
 
 {{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-trend >}}
 
 {{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-trend >}}
+
+
+
+## Commute Mode Share
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for commuting with other modes in 2021
+:::
+
+- Most workers who travel outside of home for work drove.
+- Workers who took transit decreased significantly in 2021 and stayed around 7\% to 9\% (differences are within margins of error) since.
+- Active Modes (incl. walk, bike and micromobility) is consistently at 4\% to 6\% (differences are within margins of error)
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-commute-mode-share >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-commute-mode-share >}}
+
+## Telework by demographic characteristics
+
+### Household income
+
+- Strong positive correlation between income and working from home
+- The share of teleworkers for households with income under $50,000 were not affected by the pandemic
+- The share of teleworkers for households earning \$50,000 or more increased significantly in 2021 during the pandemic. Since the pandemic, The share for households earning \$50,000 to \$99,999 dropped to almost pre-pandemic levels while the share for households earning \$100,000 or more are still more than 40\%.
+
+:::{.panel-tabset}
+
+### Teleworker
+
+:::{layout= "[[1, 1]]"}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-income >}}
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-income2 >}}
+:::
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-income >}}
+
+### Telework status
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-status-income >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-status-income >}}
+
+:::
+
+### Work industry
+
+- Workers in Professional & Business Services and Arts & Media had the highest telework rates.
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-industry >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-industry >}}
+
+
+## Teleworker by home/work location
+
+### Home county
+
+- share of teleworkers: King > Pierce and Kitsap (significant)
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for Kitsap County in 2017
+:::
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-homeloc1 >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-homeloc1 >}}
+
+### Work county
+
+-  Teleworkers in this section consist of only hybrid workers since workers working fully at home don't have work location outside home
+- Since 2021, King County consistently had higher rates of teleworking employments
+
+::: {.callout-warning appearance="simple"}
+Sample sizes were low for Kitsap County; and for Pierce and Snohomish County in 2017 and 2019
+:::
+
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-workloc >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-workloc >}}
+
+## Travel behaviors
+
+### Workweek trips by telework status
+
+- Fully in person workers make fewer "Social/Recreation/Meal" non-mandatory trips
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-triprate >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-triprate >}}
+
+
+### All trip mode share by telework status
+
+- workers who work fully at home have significantly higher walk mode share
+- hybrid workers have the highest transit mode share
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-modeshare >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-modeshare >}}
+
+
+### VMT on a workday by telework status
+
+- Workers working fully at home had lower VMT on a work day than hybrid and fully in person workers
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#fig-telework-vmt >}}
+
+{{< embed /Analysis/Telework/telework_analysis.qmd#tbl-telework-vmt >}}
+

@@ -108,14 +108,14 @@ df_hts_analysis$hh <- hts_data$hh %>%
     ),
     
     # number of workers combined
-    numworkers_3cap = factor(
+    numworkers_2cap = factor(
       case_when(
         
-        numworkers %in% c("3 workers","4 workers","5 workers","6 workers")~"3+ workers",
+        numworkers %in% c("2 workers","3 workers","4 workers","5 workers","6 workers")~"2+ workers",
         TRUE~numworkers
         
       ),
-      levels = c("0 workers","1 worker","2 workers","3+ workers")
+      levels = c("0 workers","1 worker","2+ workers")
     ),
     
     numadults_num = as.numeric(numadults),
@@ -216,7 +216,9 @@ if(file.exists("hh_day_delivery_day_format.rds")){
                             TRUE~NA)) %>%
     ungroup() %>%
     
-    mutate(deliver_home_any= case_when( deliver_food=="Yes" | deliver_grocery=="Yes" | 
+    mutate(deliver_grocery_food= case_when( deliver_food=="Yes" | deliver_grocery=="Yes"~ "Yes", 
+                                        TRUE~"No"),
+           deliver_home_any= case_when( deliver_food=="Yes" | deliver_grocery=="Yes" | 
                                           deliver_package=="Yes" | deliver_work=="Yes" | deliver_other=="Yes"~ "Yes", 
                                         TRUE~"No"),
            deliver_outside_any = case_when( deliver_elsewhere=="Yes" | deliver_office=="Yes"~ "Yes", 
@@ -247,13 +249,14 @@ df_hts_data <- df_hts_analysis
 test <- df_hts_analysis$day %>%
   select(any_of(names(pretend_day_table))) %>%
   mutate(type = "original",
+         deliver_grocery_food = NA,
          deliver_home_any = NA,
          deliver_outside_any = NA) %>%
   add_row(pretend_day_table %>% select(any_of(names(.)))) %>%
   filter(is.na(type))  %>% 
   mutate_at(vars(deliver_food, deliver_grocery, deliver_package, deliver_work, deliver_other,
                  deliver_none, deliver_elsewhere, deliver_office,
-                 deliver_outside_any,deliver_home_any),
+                 deliver_grocery_food,deliver_outside_any,deliver_home_any),
             ~factor(.,levels=c("Yes","No")))
 
 df_hts_data$day <- test
