@@ -365,11 +365,18 @@ multi_cat_output(walk_bike_by_race, mode = "Bike/Micromobility", group_var = "ra
 
 #### Walking
 ```{r walk_race}
+#| label: fig-walk-race
 #| fig-cap: Walk Trips by Race
 #| fig-height: 4
 #| fig-width: 5
 
 multi_cat_output(walk_bike_by_race_binary, mode = "Walk", group_var = "race_binary")
+```
+
+```{r walk_race_tbl}
+#| label: tbl-walk-race
+
+tbl_output(walk_bike_by_race_binary, mode = "Walk")
 ```
 
 #### Bike/Micromobility
